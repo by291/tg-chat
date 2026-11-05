@@ -8,7 +8,7 @@
 - Local source: `/Users/by291/code/js/tweb/public/assets/img/pattern.svg`
 - Included asset: `public/assets/telegram-pattern.svg`, copied without modification
 - Included geometry: the `message-tail-filled` SVG path from tweb's `index.html`, used in
-  `src/chat/MessageTail.tsx`
+  `src/chat/messages/MessageTail.tsx`
 - License: GNU General Public License, version 3
 
 The full license text is included in `LICENSE`. Conversation data, account credentials, private

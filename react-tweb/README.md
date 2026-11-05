@@ -60,6 +60,11 @@ switching conversations. Browser storage errors are reported in the interface.
 
 ## Dependencies and ownership
 
+The source is organized into `src/app` for the shell, `src/components` for reusable UI, and
+`src/chat` for the conversation. Chat subdirectories separate the composer, history, messages,
+media, sidebar, details, state, and demo content. Components, CSS Modules, and related tests stay
+together. See the [directory layout](./docs/source-guide.md#directory-layout) for the reading map.
+
 | Library                    | Responsibility                                           |
 | -------------------------- | -------------------------------------------------------- |
 | React                      | Component rendering, reducer state, lifecycle            |

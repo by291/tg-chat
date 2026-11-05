@@ -4,8 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { useReducer, useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ConversationPane } from './ConversationPane';
-import { conversations, createInitialState } from './fixtures';
-import { chatReducer } from './reducer';
+import { conversations, createInitialState } from './demo/fixtures';
+import { chatReducer } from './state/reducer';
 
 beforeAll(() => {
   class TestResizeObserver {

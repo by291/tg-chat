@@ -1,11 +1,11 @@
 import { useMemo, useState, type Dispatch } from 'react';
 import { ChatHeader } from './ChatHeader';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
-import { MessageComposer, type ComposedMessage } from './MessageComposer';
-import { MessageTimeline, type MessageNavigation } from './MessageTimeline';
+import { MessageComposer, type ComposedMessage } from './composer/MessageComposer';
+import { MessageTimeline, type MessageNavigation } from './history/MessageTimeline';
 import { describeMessage } from './messageFormatting';
 import type { ChatAction, ChatState, Conversation, Message, MessageCommand } from './model';
-import styles from './ChatApp.module.css';
+import styles from './ConversationPane.module.css';
 
 interface ConversationPaneProps {
   conversation: Conversation;

@@ -5,18 +5,55 @@
 Read these files in order:
 
 1. `src/main.tsx` mounts React and the global design tokens.
-2. `src/chat/ChatApp.tsx` owns the selected conversation, page layout, and secondary panels.
-3. `src/chat/useChatState.ts` restores IndexedDB before interaction and persists reducer snapshots.
+2. `src/app/ChatApp.tsx` owns the selected conversation, page layout, and secondary panels.
+3. `src/chat/state/useChatState.ts` restores IndexedDB before interaction and persists reducer snapshots.
 4. `src/chat/model.ts` defines the message shape, actions, and persisted-data validation.
-5. `src/chat/reducer.ts` makes the permanent state transitions explicit.
+5. `src/chat/state/reducer.ts` makes the permanent state transitions explicit.
 6. `src/chat/ConversationPane.tsx` translates user commands into those actions.
-7. `src/chat/MessageTimeline.tsx` owns scrolling and sender grouping.
-8. `src/chat/MessageBubble.tsx` renders a message and its Ark UI action menu.
-9. `src/chat/MessageComposer.tsx` owns editing, image preparation, and submission.
+7. `src/chat/history/MessageTimeline.tsx` owns scrolling and sender grouping.
+8. `src/chat/messages/MessageBubble.tsx` renders a message and its Ark UI action menu.
+9. `src/chat/composer/MessageComposer.tsx` owns editing, image preparation, and submission.
 
-There is one conversation feature directory. The only shared components are `Avatar` and
-`IconButton`, both used by several parts of the interface. State has not been hidden behind a
-generic controller or a custom event bus.
+## Directory layout
+
+This Vite application uses a small application shell, reusable presentation components, and a
+chat module with colocated implementation files. React does not prescribe one directory template;
+its [file structure guide](https://legacy.reactjs.org/docs/faq-structure.html) describes grouping
+by feature, grouping by file type, and mixing them as a project grows. Here the grouping follows
+the parts of the conversation that are read and changed together.
+
+| Directory            | Responsibility                                                               |
+| -------------------- | ---------------------------------------------------------------------------- |
+| `src/app/`           | Application layout, selected chat, transient panels, and notices             |
+| `src/components/`    | Reusable `Avatar` and `IconButton` presentation components                   |
+| `src/chat/`          | Conversation orchestration, header, delete dialog, and common chat contracts |
+| `src/chat/composer/` | Draft input, keyboard behavior, emoji picker, and attachment preparation     |
+| `src/chat/history/`  | Timeline rendering, virtual measurements, paging, and scroll anchoring       |
+| `src/chat/messages/` | Bubble shell, metadata, tails, content renderers, and playback visibility    |
+| `src/chat/media/`    | Photo gallery, viewer navigation, and media geometry                         |
+| `src/chat/sidebar/`  | Conversation list and filtering                                              |
+| `src/chat/details/`  | Chat information and shared-photo panel                                      |
+| `src/chat/state/`    | Reducer transitions, poll voting, persistence, and state restoration         |
+| `src/chat/demo/`     | Initial conversations, archive fixtures, and the message showcase            |
+
+Components keep their CSS Modules nearby. Unit and component tests remain beside the behavior
+they exercise. `src/main.tsx` is the Vite entry, and `src/global.css` owns global tokens and resets.
+`ConversationPane.module.css` belongs to the conversation itself; the pane does not import styles
+from the application shell.
+
+The chat-wide model, media schemas, formatting functions, and overlay styles stay at the chat
+root because several chat areas use them. This is a single chat application, so an additional
+`features` directory, router-only `pages` directory, and global `hooks` registry would add little.
+
+Imports name their owning module directly. For example, history renders `messages/MessageBubble`,
+while both message rendering and history estimation use `media/mediaGeometry`. The details panel
+uses the same photo-gallery functions as the viewer. These dependencies are intentional; they do
+not require routing business code through a generic shared layer. The reusable components have no
+chat dependencies, and the state layer does not import rendered components.
+
+There are no new dependencies or barrel exports. Runtime state, IndexedDB keys, and public asset
+URLs are unchanged by the reorganization. Earlier implementation plans record the original layout;
+this guide is the current source map.
 
 ## Follow one send
 

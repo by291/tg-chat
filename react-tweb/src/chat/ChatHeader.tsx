@@ -1,8 +1,8 @@
 import { Menu } from '@ark-ui/react/menu';
 import { Portal } from '@ark-ui/react/portal';
 import { ArrowLeft, Info, MoreVertical, Moon, Search, X } from 'lucide-react';
-import { Avatar } from '../shared/Avatar';
-import { IconButton } from '../shared/IconButton';
+import { Avatar } from '../components/Avatar';
+import { IconButton } from '../components/IconButton';
 import type { Conversation } from './model';
 import styles from './ChatHeader.module.css';
 import overlays from './overlays.module.css';

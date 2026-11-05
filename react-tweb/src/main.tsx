@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ChatApp } from './chat/ChatApp';
+import { ChatApp } from './app/ChatApp';
 import './global.css';
 
 const rootElement = document.getElementById('root');
