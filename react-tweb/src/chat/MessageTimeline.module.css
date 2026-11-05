@@ -1,0 +1,112 @@
+.timelineArea {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(70 50 100 / 18%) transparent;
+  outline-offset: -3px;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100%;
+  padding: 12px 7px 8px;
+}
+
+.historyStart,
+.dateSeparator {
+  align-self: center;
+  margin: 8px 0 12px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  color: white;
+  background: var(--service-color);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.serviceMessage {
+  align-self: center;
+  margin: 0 0 22px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  color: white;
+  background: var(--service-color);
+  font-size: 12px;
+}
+
+.pinnedMessage {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 14px;
+  color: var(--accent-color);
+  text-align: left;
+  background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
+  cursor: pointer;
+}
+
+.pinnedMessage > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.pinnedMessage span span {
+  overflow: hidden;
+  color: var(--text-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jumpButton {
+  position: absolute;
+  right: 8px;
+  bottom: 12px;
+  z-index: 4;
+  width: 48px;
+  height: 48px;
+  color: var(--secondary-color);
+  background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
+}
+
+.emptyState {
+  align-self: center;
+  margin: auto;
+  padding: 32px;
+  border-radius: 24px;
+  text-align: center;
+  background: var(--overlay-color);
+}
+
+.emptyState > span {
+  display: block;
+  margin-bottom: 16px;
+  color: var(--accent-color);
+  font-size: 42px;
+}
+
+.emptyState p {
+  margin: 8px 0 0;
+  color: var(--secondary-color);
+  font-size: 13px;
+}

@@ -1,0 +1,228 @@
+.messageRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 0 4px;
+  transform-origin: bottom left;
+}
+
+.messageRow[data-own='true'] {
+  flex-direction: row-reverse;
+  transform-origin: bottom right;
+}
+
+.messageRow[data-group-start='true'] {
+  margin-top: 8px;
+}
+
+.bubble {
+  position: relative;
+  max-width: min(84%, 460px);
+  min-width: 64px;
+  padding: 4px 8px 5px;
+  border-radius: 5px 15px 15px 5px;
+  background: var(--surface-color);
+  box-shadow: 0 1px 2px rgb(35 29 65 / 12%);
+  overflow-wrap: anywhere;
+  transition: box-shadow var(--duration-normal);
+}
+
+.messageRow[data-own='true'] .bubble {
+  border-radius: 15px 5px 5px 15px;
+  background: var(--outgoing-color);
+}
+
+.bubble[data-group-start='true'] {
+  border-top-left-radius: 15px;
+}
+
+.messageRow[data-own='true'] .bubble[data-group-start='true'] {
+  border-top-right-radius: 15px;
+}
+
+.bubble[data-group-end='true']::before {
+  position: absolute;
+  bottom: 0;
+  left: -6px;
+  width: 12px;
+  height: 14px;
+  background: var(--surface-color);
+  clip-path: path('M 0 14 Q 6 10 6 0 L 12 14 Z');
+  content: '';
+}
+
+.messageRow[data-own='true'] .bubble[data-group-end='true']::before {
+  right: -6px;
+  left: auto;
+  background: var(--outgoing-color);
+  transform: scaleX(-1);
+}
+
+.messageRow[data-highlighted='true'] .bubble {
+  box-shadow:
+    0 0 0 3px var(--accent-color),
+    0 0 25px rgb(181 94 211 / 30%);
+}
+
+.author {
+  display: block;
+  margin-bottom: 3px;
+  color: #449a8c;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.author[data-author='mia'] {
+  color: #b66d9d;
+}
+
+.messageContent {
+  display: flow-root;
+  line-height: 21px;
+}
+
+.messageText {
+  white-space: pre-wrap;
+  font-size: 15px;
+}
+
+.metadata {
+  position: relative;
+  bottom: -3px;
+  display: inline-flex;
+  float: right;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  margin-left: 9px;
+  color: var(--secondary-color);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.messageRow[data-own='true'] .metadata {
+  color: var(--outgoing-meta-color);
+}
+
+.replyPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin: 3px 0 5px;
+  overflow: hidden;
+  padding: 5px 8px;
+  border: 0;
+  border-left: 3px solid var(--accent-color);
+  border-radius: 4px;
+  text-align: left;
+  background: var(--reply-color);
+  cursor: pointer;
+}
+
+.replyPreview strong {
+  color: var(--accent-color);
+  font-size: 12px;
+}
+
+.replyPreview span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.imageButton {
+  display: block;
+  max-width: 360px;
+  margin: 0 -4px 4px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: var(--input-color);
+  cursor: zoom-in;
+}
+
+.imageButton img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  object-fit: cover;
+}
+
+.bubble[data-sticker='true'],
+.messageRow[data-own='true'] .bubble[data-sticker='true'] {
+  padding: 0 6px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bubble[data-sticker='true']::before {
+  display: none;
+}
+
+.sticker {
+  padding: 5px 0;
+  font-size: 88px;
+  line-height: 1.1;
+  user-select: none;
+  filter: drop-shadow(0 3px 2px rgb(49 37 70 / 10%));
+}
+
+.bubble[data-sticker='true'] .metadata {
+  bottom: 0;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 10px;
+  color: white;
+  background: var(--service-color);
+}
+
+.reactions {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.reactions button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--accent-color);
+  background: var(--reply-color);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.reactions span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.moreButton {
+  width: 30px;
+  height: 30px;
+  opacity: 0;
+  color: white;
+  background: var(--service-color);
+  transition: opacity var(--duration-fast);
+}
+
+.messageRow:hover .moreButton,
+.messageRow:focus-within .moreButton {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .moreButton {
+    opacity: 0.55;
+  }
+}

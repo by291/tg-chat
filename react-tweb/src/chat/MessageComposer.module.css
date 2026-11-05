@@ -1,0 +1,125 @@
+.composer {
+  position: relative;
+  z-index: 6;
+  flex-shrink: 0;
+  border-radius: 26px;
+  background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
+  transition: box-shadow var(--duration-normal);
+}
+
+.composer[data-dragging='true'] {
+  box-shadow: 0 0 0 3px var(--accent-color);
+}
+
+.editorRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 48px;
+  padding: 4px;
+}
+
+.editorRow textarea {
+  flex: 1;
+  align-self: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 24px;
+  max-height: 160px;
+  padding: 1px 3px;
+  resize: none;
+  border: 0;
+  color: var(--text-color);
+  background: transparent;
+  outline: none;
+  font-size: 15px;
+  line-height: 24px;
+  scrollbar-width: thin;
+}
+
+.sendButton {
+  color: white;
+  background: var(--accent-color);
+}
+
+.sendButton:hover {
+  background: var(--accent-hover);
+}
+
+.sendButton:disabled {
+  opacity: 0.55;
+}
+
+.contextBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 8px 6px 18px;
+  color: var(--accent-color);
+  animation: reveal var(--duration-normal) var(--ease-out);
+}
+
+.contextBar > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--accent-color);
+  font-size: 13px;
+}
+
+.contextBar span {
+  overflow: hidden;
+  color: var(--secondary-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentPreview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 4px;
+}
+
+.attachmentPreview img {
+  width: 72px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.attachmentPreview > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.attachmentPreview span span {
+  overflow: hidden;
+  color: var(--secondary-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileInput {
+  display: none;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

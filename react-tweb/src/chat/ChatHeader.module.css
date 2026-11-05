@@ -1,0 +1,102 @@
+.headerStack {
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 4px;
+  border-radius: 26px;
+  background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
+}
+
+.identity {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.identityText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.identityText strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.identityText > span {
+  color: var(--secondary-color);
+  font-size: 13px;
+}
+
+.backButton {
+  display: none;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 4px 4px 4px 16px;
+  border-radius: 24px;
+  color: var(--secondary-color);
+  background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
+  animation: appear var(--duration-normal) var(--ease-out);
+}
+
+.searchBar input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+}
+
+.resultCount {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .backButton {
+    display: inline-flex;
+  }
+
+  .identity {
+    gap: 8px;
+  }
+}

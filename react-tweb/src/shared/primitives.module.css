@@ -1,0 +1,83 @@
+.iconButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast),
+    transform var(--duration-fast);
+}
+
+.iconButton:hover {
+  background: var(--hover-color);
+}
+
+.iconButton:active {
+  transform: scale(0.92);
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.iconButton svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.8;
+}
+
+.avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  color: white;
+  background: linear-gradient(145deg, #60c5fa, #3489d5);
+  font-size: 21px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.avatar[data-color='pink'] {
+  background: linear-gradient(145deg, #ed9abe, #c76f9f);
+}
+
+.avatar[data-color='green'] {
+  background: linear-gradient(145deg, #89cda5, #4e9c8d);
+}
+
+.avatar[data-color='purple'] {
+  background: linear-gradient(145deg, #d998ea, #a45aca);
+}
+
+.avatar[data-color='orange'] {
+  background: linear-gradient(145deg, #f7c379, #e7954e);
+}
+
+.avatar[data-color='indigo'] {
+  background: linear-gradient(145deg, #a9acf0, #7779ce);
+}
+
+.avatar[data-size='small'] {
+  width: 40px;
+  height: 40px;
+  font-size: 17px;
+}
+
+.avatar[data-size='large'] {
+  width: 108px;
+  height: 108px;
+  font-size: 46px;
+}
