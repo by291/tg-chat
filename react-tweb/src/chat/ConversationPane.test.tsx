@@ -15,20 +15,31 @@ beforeAll(() => {
   }
 
   vi.stubGlobal('ResizeObserver', TestResizeObserver);
+  vi.stubGlobal('IntersectionObserver', TestResizeObserver);
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get: () => 696,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get() {
+      return this.getAttribute('aria-label') === 'Message history' ? 800 : 80;
+    },
+  });
   Element.prototype.scrollTo = () => {};
   Element.prototype.scrollIntoView = () => {};
 });
 
 afterEach(cleanup);
 
-function ConversationTestScreen() {
+function ConversationTestScreen({ chatId = 'dev' }: { chatId?: string }) {
   const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
   const [notice, setNotice] = useState('');
 
   return (
     <>
       <ConversationPane
-        conversation={conversations[0]}
+        conversation={conversations.find((conversation) => conversation.id === chatId)!}
         state={state}
         dispatch={dispatch}
         onOpenDetails={() => {}}
@@ -80,5 +91,24 @@ describe('conversation interaction', () => {
     await user.keyboard('{Enter}');
 
     expect(await screen.findByRole('button', { name: 'Remove ❤️ reaction' })).toBeTruthy();
+  });
+});
+
+describe('search reply navigation', () => {
+  it('keeps unmatched reply targets available in search results', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen chatId="lab" />);
+    await user.click(screen.getByRole('button', { name: /^Search messages$/ }));
+    await user.type(
+      screen.getByRole('textbox', { name: 'Search in this conversation' }),
+      'Scroll up to explore',
+    );
+
+    const reply = screen.getByRole('button', {
+      name: /^Alex\s*Archive note 12: a small detail worth keeping\.$/,
+    });
+    expect((reply as HTMLButtonElement).disabled).toBe(false);
+    await user.click(reply);
+    expect(screen.queryByRole('textbox', { name: 'Search in this conversation' })).toBeNull();
   });
 });

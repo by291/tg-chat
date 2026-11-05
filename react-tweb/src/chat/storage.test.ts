@@ -30,3 +30,17 @@ describe('saved conversations', () => {
     ).toBeUndefined();
   });
 });
+
+describe('history study upgrade', () => {
+  it('adds the study history once while retaining existing edits and drafts', () => {
+    const legacy = createInitialState();
+    legacy.messages = legacy.messages.filter((message) => message.chatId !== 'lab');
+    legacy.drafts.dev = 'Keep this draft';
+    const restored = parseSavedState({ ...legacy, version: 1 });
+
+    expect(restored?.messages.some((message) => message.chatId === 'lab')).toBe(true);
+    expect(restored?.drafts.dev).toBe('Keep this draft');
+    const withoutStudy = { ...restored, messages: legacy.messages };
+    expect(parseSavedState(withoutStudy)?.messages).toEqual(legacy.messages);
+  });
+});

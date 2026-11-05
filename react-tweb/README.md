@@ -35,6 +35,10 @@ pnpm format:check
 - Full-screen photo gallery with keyboard navigation and download.
 - IndexedDB persistence for messages, text drafts, theme, and attached image data.
 - Grouped bubble corners, entry animations, panel transitions, and reduced-motion support.
+- Measured virtual history with local older-message paging, stable reading anchors, and ID-based jumps.
+- A Message lab conversation with 1,000 archived messages and a media showcase.
+- Albums, regular and circular videos, voice playback, files, link previews, contacts, and local polls.
+- Forward labels, service messages, code blocks, quotes, and media-overlay timestamps.
 
 Right-click a message or use its more button to open its actions. On touch screens, the more
 button remains visible. Images are limited to 8 MB each and are never uploaded to a server.
@@ -49,9 +53,9 @@ voice messages, remote GIF search, network presence, rich-text entities, and Tel
 are not implemented. Stickers use large native emoji rather than Telegram's animated sticker format.
 The group information and mute control demonstrate local UI state; there is no notification service.
 
-The history uses ordinary React rendering, which keeps the learning path clear. It is not an
-unbounded virtualized timeline. Persistence writes complete snapshots and is intended for a small
-local history. Text drafts persist; unsent image previews remain transient and are cleared when
+The history uses TanStack Virtual to bound mounted rows. Older pages currently come from the local
+in-memory conversation; this is not remote history pagination. Persistence still writes complete
+snapshots, so the bounded DOM does not imply bounded application storage. Text drafts persist; unsent image previews remain transient and are cleared when
 switching conversations. Browser storage errors are reported in the interface.
 
 ## Dependencies and ownership
@@ -61,6 +65,7 @@ switching conversations. Browser storage errors are reported in the interface.
 | React                      | Component rendering, reducer state, lifecycle            |
 | Ark UI                     | Menu, popover, dialog, tabs, keyboard and focus behavior |
 | CSS Modules                | Component-scoped visual styles                           |
+| TanStack Virtual           | Dynamic row measurements, end anchoring, and bounded DOM |
 | Motion                     | Message entry animation and reduced-motion preference    |
 | Lucide                     | Consistent interface icons                               |
 | idb-keyval                 | IndexedDB access                                         |
@@ -74,4 +79,7 @@ for a reading order and a map back to the original tweb sources.
 
 The wallpaper comes from Telegram Web K by Eduard Kuzmenko, licensed under GPL-3.0.
 This study is distributed under GPL-3.0; see [LICENSE](./LICENSE) and
-[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). The sample landscape SVG is original to this study.
+[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). The sample illustrations and audio tone are original to this study. The sample video comes from
+MDN's CC0 media collection. Voice playback uses a generated tone, not recorded speech. Video controls
+use the browser player; Telegram's custom player, media-tail mask, and animated sticker engine are
+not reproduced.

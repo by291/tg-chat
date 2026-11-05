@@ -1,0 +1,5 @@
+Conversation study notes
+
+Use stable message IDs for virtual rows.
+Reserve media dimensions before decoding.
+Keep the visible reading anchor when older messages are prepended.

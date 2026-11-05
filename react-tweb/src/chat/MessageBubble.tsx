@@ -1,10 +1,13 @@
 import { Menu } from '@ark-ui/react/menu';
 import { Portal } from '@ark-ui/react/portal';
-import { CheckCheck, Copy, MoreHorizontal, Pencil, Pin, Reply, Trash2 } from 'lucide-react';
+import { Copy, MoreHorizontal, Pencil, Pin, Reply, Trash2 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { MessageBody, MessageText } from './MessageBody';
+import { MessageMetadata } from './MessageMetadata';
+import { MessageTail } from './MessageTail';
 import { IconButton } from '../shared/IconButton';
-import { describeMessage, formatMessageTime } from './messageFormatting';
+import { describeMessage } from './messageFormatting';
 import { CURRENT_USER_ID, type Message, type MessageCommand } from './model';
 import styles from './MessageBubble.module.css';
 import overlays from './overlays.module.css';
@@ -26,23 +29,26 @@ interface MessageBubbleProps {
   isGroupStart: boolean;
   isGroupEnd: boolean;
   isHighlighted: boolean;
+  shouldAnimate: boolean;
+  onAppear: (messageId: string) => void;
+  onVote: (messageId: string, optionId: string) => void;
   onCommand: (command: MessageCommand) => void;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMedia: (message: Message) => void;
   onJumpToMessage: (messageId: string) => void;
 }
 
-function MessageMetadata({ message }: { message: Message }) {
-  return (
-    <span className={styles.metadata}>
-      {message.isPinned && <Pin size={11} />}
-      {message.isEdited && <span>edited</span>}
-      <time dateTime={new Date(message.createdAt).toISOString()}>
-        {formatMessageTime(message.createdAt)}
-      </time>
-      {message.authorId === CURRENT_USER_ID && <CheckCheck size={16} aria-label="Stored locally" />}
-    </span>
-  );
+function getReplyThumbnailUrl(message?: Message) {
+  if (message?.attachment) {
+    return message.attachment.url;
+  }
+  if (message?.media?.kind === 'album') {
+    return message.media.photos[0].url;
+  }
+  if (message?.media?.kind === 'video') {
+    return message.media.poster;
+  }
+  return undefined;
 }
 
 /** Render one message with sender grouping, media, reactions, and accessible context actions. */
@@ -52,6 +58,9 @@ export function MessageBubble({
   isGroupStart,
   isGroupEnd,
   isHighlighted,
+  shouldAnimate,
+  onAppear,
+  onVote,
   onCommand,
   onReact,
   onOpenMedia,
@@ -60,6 +69,25 @@ export function MessageBubble({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const isOwn = message.authorId === CURRENT_USER_ID;
+  const shouldAnimateEntry = useRef(shouldAnimate);
+  const isRoundVideo = message.media?.kind === 'video' && message.media.isRound;
+  const isStandalone = Boolean(message.sticker || isRoundVideo);
+  const hasVisualMedia = Boolean(
+    message.attachment || message.media?.kind === 'album' || message.media?.kind === 'video',
+  );
+  const isMediaOnly = hasVisualMedia && !message.text;
+  const hasOverlayTime = isMediaOnly && !isStandalone;
+  const hasReactions = message.reactions.length > 0;
+  const canHaveTail = !isStandalone && !isMediaOnly;
+  const hasAuthor = !isOwn && isGroupStart && !isStandalone && !isMediaOnly;
+  const hasHeader = Boolean(hasAuthor || message.forwardedFrom || message.replyToId);
+  const hasCaption = Boolean(message.text);
+  const isLinkPreview = message.media?.kind === 'link';
+  const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
+
+  useEffect(() => {
+    onAppear(message.id);
+  }, [message.id, onAppear]);
 
   function selectReaction(emoji: string) {
     onReact(message.id, emoji);
@@ -83,17 +111,35 @@ export function MessageBubble({
     }
   }
 
+  if (message.isService) {
+    return (
+      <div id={`message-${message.id}`} className={styles.serviceRow}>
+        <span>{message.text}</span>
+      </div>
+    );
+  }
+
   return (
     <motion.article
       id={`message-${message.id}`}
       className={styles.messageRow}
       data-own={isOwn}
       data-group-start={isGroupStart}
+      data-group-end={isGroupEnd}
       data-highlighted={isHighlighted}
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 16, scale: 0.96 }}
+      initial={
+        shouldReduceMotion || !shouldAnimateEntry.current
+          ? false
+          : { opacity: 0, y: 16, scale: 0.96 }
+      }
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: shouldReduceMotion ? 0 : MESSAGE_ENTRY_DURATION }}
     >
+      {!isOwn && (
+        <span className={styles.senderAvatar} data-visible={isGroupEnd} aria-hidden="true">
+          {message.authorName.slice(0, 1)}
+        </span>
+      )}
       <Menu.Root
         open={isMenuOpen}
         onOpenChange={(details) => setIsMenuOpen(details.open)}
@@ -104,13 +150,29 @@ export function MessageBubble({
             className={styles.bubble}
             data-group-start={isGroupStart}
             data-group-end={isGroupEnd}
-            data-sticker={Boolean(message.sticker)}
-            onDoubleClick={() => onCommand({ action: 'reply', message })}
+            data-standalone={isStandalone}
+            data-media-only={isMediaOnly}
+            data-visual-media={hasVisualMedia}
+            data-has-tail={canHaveTail && isGroupEnd}
+            data-has-header={hasHeader}
+            data-has-caption={hasCaption}
+            onDoubleClick={(event) => {
+              if (!(event.target as HTMLElement).closest('button, a, video, audio, input')) {
+                onCommand({ action: 'reply', message });
+              }
+            }}
           >
-            {!isOwn && isGroupStart && !message.sticker && (
+            {canHaveTail && isGroupEnd && <MessageTail />}
+            {hasAuthor && (
               <span className={styles.author} data-author={message.authorId}>
                 {message.authorName}
               </span>
+            )}
+            {message.forwardedFrom && (
+              <div className={styles.forwarded}>
+                <span>Forwarded message</span>
+                <strong>From {message.forwardedFrom}</strong>
+              </div>
             )}
             {message.replyToId && (
               <button
@@ -118,31 +180,29 @@ export function MessageBubble({
                 onClick={() => onJumpToMessage(message.replyToId!)}
                 disabled={!replyMessage}
               >
-                <strong>{replyMessage?.authorName || 'Message unavailable'}</strong>
-                <span>{describeMessage(replyMessage)}</span>
+                {replyThumbnailUrl && (
+                  <img src={replyThumbnailUrl} alt="" className={styles.replyThumbnail} />
+                )}
+                <span className={styles.replyText}>
+                  <strong>{replyMessage?.authorName || 'Message unavailable'}</strong>
+                  <span>{describeMessage(replyMessage)}</span>
+                </span>
               </button>
             )}
-            {message.attachment && (
-              <button
-                className={styles.imageButton}
-                onClick={() => onOpenMedia(message)}
-                aria-label={`Open image: ${message.attachment.name}`}
-              >
-                <img
-                  src={message.attachment.url}
-                  alt={message.attachment.name}
-                  width={message.attachment.width}
-                  height={message.attachment.height}
-                  loading="lazy"
-                />
-              </button>
+            {isLinkPreview && (
+              <div className={styles.messageContent}>
+                <MessageText message={message} />
+              </div>
             )}
-            {message.sticker && <div className={styles.sticker}>{message.sticker}</div>}
-            <div className={styles.messageContent}>
-              {message.text && <span className={styles.messageText}>{message.text}</span>}
-              <MessageMetadata message={message} />
+            <div className={styles.mediaContent}>
+              <MessageBody message={message} onOpenMedia={onOpenMedia} onVote={onVote} />
+              {hasOverlayTime && <MessageMetadata message={message} />}
             </div>
-            {message.reactions.length > 0 && (
+            <div className={styles.messageContent}>
+              {!isLinkPreview && <MessageText message={message} />}
+              {!hasOverlayTime && !hasReactions && <MessageMetadata message={message} />}
+            </div>
+            {hasReactions && (
               <div className={styles.reactions} aria-label="Reactions">
                 {message.reactions.map((emoji) => (
                   <button
@@ -153,6 +213,7 @@ export function MessageBubble({
                     {emoji} <span>1</span>
                   </button>
                 ))}
+                {!hasOverlayTime && <MessageMetadata message={message} />}
               </div>
             )}
           </div>
@@ -187,7 +248,7 @@ export function MessageBubble({
               <Menu.Item value="copy" className={overlays.menuItem}>
                 <Copy /> Copy text
               </Menu.Item>
-              {isOwn && !message.sticker && (
+              {isOwn && !message.sticker && message.media?.kind !== 'poll' && (
                 <Menu.Item value="edit" className={overlays.menuItem}>
                   <Pencil /> Edit
                 </Menu.Item>

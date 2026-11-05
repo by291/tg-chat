@@ -1,3 +1,4 @@
+import { applyPollVote } from './pollVoting';
 import { CURRENT_USER_ID, type ChatAction, type ChatState, type Message } from './model';
 
 type MessageChange = Extract<ChatAction, { messageId: string }>;
@@ -8,8 +9,13 @@ function updateMessage(message: Message, action: MessageChange): Message {
     return message;
   }
 
+  if (action.type === 'vote') {
+    return applyPollVote(message, action.optionId);
+  }
+
   if (action.type === 'edit') {
-    const hasContent = action.text.trim().length > 0 || Boolean(message.attachment);
+    const hasContent =
+      action.text.trim().length > 0 || Boolean(message.attachment || message.media);
     const canEdit = message.authorId === CURRENT_USER_ID && hasContent;
     if (!canEdit) {
       return message;
@@ -50,7 +56,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     case 'send': {
       const message = action.message;
-      const hasContent = message.text.trim() || message.attachment || message.sticker;
+      const hasContent =
+        message.text.trim() || message.attachment || message.sticker || message.media;
       const isDuplicate = state.messages.some((entry) => entry.id === message.id);
       if (!hasContent || isDuplicate) {
         return state;
@@ -72,6 +79,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'edit':
     case 'react':
     case 'pin':
+    case 'vote':
       return {
         ...state,
         messages: state.messages.map((message) => updateMessage(message, action)),

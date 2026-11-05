@@ -40,17 +40,73 @@ Only validated saved data reaches rendering. Timestamps must be inside JavaScrip
 range. A failed read leaves the initial demonstration usable; a failed write produces a visible
 storage notice. One tab is the supported editing owner; cross-tab reconciliation is not implemented.
 
-## Why the timeline owns scrolling
+## Virtual history and scrolling ownership
 
-The scroll container is stable while its messages change. A new outgoing message moves to the
-bottom, while edits and reactions preserve the reader's current position. A `ResizeObserver`
-keeps the latest message above an expanding composer when the reader is already near the bottom.
-Reply navigation scrolls to the stable message ID and briefly highlights it.
+Read `historyRows.ts`, `useHistoryWindow.ts`, `useVirtualHistory.ts`, and `historyAnchor.ts` after
+`MessageTimeline.tsx`. Each has a separate responsibility:
 
-Image dimensions are decoded before sending and stored with the image. The browser reserves the
-aspect ratio during rendering, which avoids a late image decode moving the rest of the history.
-Each image selection has a request ID: only the newest pending decode may change the preview or
-loading state. Cancelling invalidates that ownership.
+- `historyRows.ts` derives dates and sender groups from the complete message sequence.
+- `useHistoryWindow.ts` starts with 60 rows and exposes 80 earlier rows near the loaded boundary.
+- `useVirtualHistory.ts` connects TanStack Virtual with eight overscan rows, stable keys,
+  `anchorTo: 'end'`, and `followOnAppend`. Wheel, touch, and keyboard gestures cancel active jumps.
+- `historyAnchor.ts` preserves the visible key and row-relative offset when the viewport width
+  invalidates cached text wrapping. It uses the virtualizer's scroll API for restoration.
+
+Data availability and mounted DOM are different windows. A distant reply may expose all 1,000
+local archive messages, while only the visible rows and overscan are mounted. The current local
+repository keeps all messages in memory. A future transport can replace this availability layer
+without taking ownership of DOM measurements.
+
+New incoming content follows only when within 80px of the bottom. An explicit send returns to the
+latest message. Deleting the last message is not treated as an append. ID navigation expands the
+available window before calling `scrollToIndex`; it never assumes the target DOM already exists.
+Search filters rendered rows but retains a lookup of the complete conversation for reply previews.
+
+Width changes are different from prepends. `measure()` invalidates cached heights but does not
+itself preserve a reading key. The latest stable reading anchor is captured before width changes,
+because child ResizeObserver notifications can precede the viewport notification. After measuring
+mounted rows at their new width, the same key and offset are restored. Composer-height changes
+retain bottom following only if the reader was already at the end.
+
+Virtual rows are positioned separately from their bubble animations. Initial messages and rows
+returning from offscreen do not replay entry animations. Audio and video pause when their message
+leaves the viewport; unmounting also disposes playback.
+
+The local reference uses the same library in
+`/Users/by291/devel/js/virtual-demo/src/hooks/useVirtualChat.ts` and
+`src/lib/mediaBox.ts`. Its fixed-frame initial settling is replaced here with a cancellable
+post-commit scroll that also survives React Strict Mode's effect remount.
+
+Official references: [chat guide](https://tanstack.com/virtual/latest/docs/chat) and
+[virtualizer API](https://tanstack.com/virtual/latest/docs/api/virtualizer).
+
+## A bubble shell with distinct content
+
+See [the bubble style audit](./bubble-style-audit.md) for source-backed dimensions, verification,
+and the remaining visual differences. The presence of a renderer does not mean complete parity.
+
+`MessageBubble.tsx` owns sender grouping, avatars, forward/reply headers, metadata, reactions,
+and context commands. `MessageBody.tsx` selects explicit renderers from the discriminated media
+schema in `messageMedia.ts`. It does not spread unrelated media flags through a giant renderer.
+
+- `MessageMediaFrames.tsx`: photo, album, regular video, and circular video frames.
+- `VoiceMessage.tsx`: actual audio playback, waveform progress, and seeking.
+- `MessageCards.tsx`: downloadable files, link previews, and telephone contacts.
+- `PollMessage.tsx` and `pollVoting.ts`: displayed results and persistent local vote replacement.
+- `photoGallery.ts`: unique gallery identity for every album tile, even duplicate source images.
+
+Photo and video geometry is reserved before decoding. `mediaGeometry.ts` follows tweb's 420 by 400
+regular box, 200px minimum side, 120px photo minimum width, 368px video minimum width, and 320px
+caption width. It is shared with the initial row estimator. A narrow viewport scales the reserved
+frame; late image decoding does not introduce a new intrinsic size.
+
+Pure visual media places the timestamp over its frame. Captions put metadata in the text flow.
+Stickers and circular video use transparent shells. Service rows interrupt sender groups; date
+identity uses the full local calendar date, including its year.
+
+Existing version-1 snapshots upgrade once by adding the Message lab conversation. Existing edits,
+deletions, drafts, and photo metadata remain intact; version-2 restores do not reseed deleted lab
+messages. All writes continue using the existing IndexedDB key.
 
 ## What Ark UI does
 
@@ -104,7 +160,10 @@ rejects malformed saved state and out-of-range timestamps before rendering.
 
 ## Extending the study
 
-For a larger local history, introduce a measured virtual timeline while keeping scroll ownership in
-one place. For real Telegram connectivity, add a transport boundary and reconcile server IDs with
-stable local IDs. Keep that work separate from the presentation components so the local study can
-continue running without credentials or a network connection.
+For real Telegram connectivity, replace local history availability with a transport boundary and
+reconcile server IDs with stable local IDs. Keep loaded-data limits distinct from the virtual DOM
+window. Rich text currently has plain, quote, and code variants; it does not implement Telegram's
+complete entity schema. Native video controls, local poll voting, and emoji stickers intentionally
+remain smaller than their upstream counterparts.
+
+See [verification notes](./virtual-history-verification.md) for the recorded browser checks.

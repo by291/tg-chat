@@ -27,7 +27,7 @@ export function formatMessageDate(timestamp: number): string {
 
 /** Decide whether adjacent messages share a sender group on the same calendar date. */
 export function belongsToSameGroup(message: Message, previous?: Message): boolean {
-  if (!previous) {
+  if (!previous || message.isService || previous.isService) {
     return false;
   }
 
@@ -35,7 +35,7 @@ export function belongsToSameGroup(message: Message, previous?: Message): boolea
   const isSameChat = message.chatId === previous.chatId;
   const isSameDay =
     new Date(message.createdAt).toDateString() === new Date(previous.createdAt).toDateString();
-  const isCloseInTime = Math.abs(message.createdAt - previous.createdAt) < MESSAGE_GROUP_INTERVAL;
+  const isCloseInTime = Math.abs(message.createdAt - previous.createdAt) <= MESSAGE_GROUP_INTERVAL;
 
   return isSameAuthor && isSameChat && isSameDay && isCloseInTime;
 }
@@ -54,5 +54,26 @@ export function describeMessage(message?: Message): string {
     return `${message.sticker} Sticker`;
   }
 
-  return message.attachment ? 'Photo' : 'Message';
+  if (message.attachment) {
+    return 'Photo';
+  }
+
+  switch (message.media?.kind) {
+    case 'album':
+      return `${message.media.photos.length} photos`;
+    case 'video':
+      return message.media.isRound ? 'Video message' : 'Video';
+    case 'voice':
+      return 'Voice message';
+    case 'document':
+      return message.media.name;
+    case 'link':
+      return message.media.title;
+    case 'contact':
+      return message.media.name;
+    case 'poll':
+      return message.media.question;
+    default:
+      return 'Message';
+  }
 }

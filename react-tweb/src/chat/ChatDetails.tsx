@@ -1,3 +1,4 @@
+import { getPhotoMessages } from './photoGallery';
 import { Tabs } from '@ark-ui/react/tabs';
 import { Bell, BellOff, Image, Info, Users, X } from 'lucide-react';
 import { useState } from 'react';
@@ -16,7 +17,7 @@ interface ChatDetailsProps {
 /** Display local conversation information and a browsable gallery of attached photos. */
 export function ChatDetails({ conversation, messages, onClose, onOpenMedia }: ChatDetailsProps) {
   const [isMuted, setIsMuted] = useState(false);
-  const mediaMessages = messages.filter((message) => message.attachment);
+  const mediaMessages = getPhotoMessages(messages);
 
   return (
     <aside className={styles.details} aria-label="Chat information">
@@ -82,8 +83,8 @@ export function ChatDetails({ conversation, messages, onClose, onOpenMedia }: Ch
         </Tabs.Content>
         <Tabs.Content value="media">
           <div className={styles.gallery}>
-            {mediaMessages.map((message) => (
-              <button key={message.id} onClick={() => onOpenMedia(message)}>
+            {mediaMessages.map((message, index) => (
+              <button key={`${message.id}-${index}`} onClick={() => onOpenMedia(message)}>
                 <img src={message.attachment!.url} alt={message.attachment!.name} />
               </button>
             ))}

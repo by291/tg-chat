@@ -7,6 +7,8 @@
 - Source: https://github.com/morethanwords/tweb
 - Local source: `/Users/by291/code/js/tweb/public/assets/img/pattern.svg`
 - Included asset: `public/assets/telegram-pattern.svg`, copied without modification
+- Included geometry: the `message-tail-filled` SVG path from tweb's `index.html`, used in
+  `src/chat/MessageTail.tsx`
 - License: GNU General Public License, version 3
 
 The full license text is included in `LICENSE`. Conversation data, account credentials, private
@@ -18,5 +20,15 @@ properties from the referenced project. The original landscape illustration is i
 
 ## Package dependencies
 
-React, Vite, Ark UI, Lucide, Motion, idb-keyval, Zod, and development dependencies retain their
+React, Vite, Ark UI, TanStack Virtual, Lucide, Motion, idb-keyval, Zod, and development dependencies retain their
 respective licenses in the installed packages. Exact versions are recorded in `pnpm-lock.yaml`.
+
+## MDN sample video
+
+- Included asset: `public/assets/flower.mp4`
+- Source: https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4
+- Collection: MDN interactive examples, CC0 video samples
+- Purpose: on-demand playback in regular and circular message frames
+
+`public/assets/evening-window.svg`, `public/assets/sample-tone.wav`, and the example text document
+were created for this study. The audio is a generated four-second tone, not a person's recording.

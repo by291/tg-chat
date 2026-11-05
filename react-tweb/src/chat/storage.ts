@@ -1,3 +1,4 @@
+import { createHistoryMessages } from './historyFixtures';
 import { get, set } from 'idb-keyval';
 import { chatStateSchema, type ChatState } from './model';
 import { conversations } from './fixtures';
@@ -15,7 +16,19 @@ export function parseSavedState(value: unknown): ChatState | undefined {
     return conversation.id === result.data.activeChatId;
   });
 
-  return hasConversation ? result.data : undefined;
+  if (!hasConversation) {
+    return undefined;
+  }
+
+  if (result.data.version === 1) {
+    return {
+      ...result.data,
+      version: 2,
+      messages: [...result.data.messages, ...createHistoryMessages()],
+    };
+  }
+
+  return result.data;
 }
 
 /** Restore the local conversation state from IndexedDB. */

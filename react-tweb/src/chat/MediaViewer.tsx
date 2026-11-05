@@ -1,3 +1,4 @@
+import { getPhotoMessages } from './photoGallery';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
@@ -16,8 +17,10 @@ interface MediaViewerProps {
 
 /** Present shared images in a keyboard-accessible full-screen gallery. */
 export function MediaViewer({ message, messages, onClose, onNavigate }: MediaViewerProps) {
-  const mediaMessages = messages.filter((entry) => entry.attachment);
-  const activeIndex = mediaMessages.findIndex((entry) => entry.id === message?.id);
+  const mediaMessages = getPhotoMessages(messages);
+  const activeIndex = mediaMessages.findIndex((entry) => {
+    return entry.id === message?.id && entry.attachment?.name === message?.attachment?.name;
+  });
   const previousMessage = mediaMessages[activeIndex - 1];
   const nextMessage = mediaMessages[activeIndex + 1];
 

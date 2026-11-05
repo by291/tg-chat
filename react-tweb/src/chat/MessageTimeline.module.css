@@ -10,6 +10,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overflow-anchor: none;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgb(70 50 100 / 18%) transparent;
@@ -17,18 +18,33 @@
 }
 
 .messages {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  position: relative;
   min-height: 100%;
-  padding: 12px 7px 8px;
+  overflow-anchor: none;
 }
 
-.historyStart,
+.virtualRow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 0 7px;
+}
+
+.historyStart {
+  position: absolute;
+  top: 8px;
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+}
+
+.historyStart button,
+.historyStart span,
 .dateSeparator {
-  align-self: center;
-  margin: 8px 0 12px;
+  display: inline-block;
   padding: 5px 10px;
+  border: 0;
   border-radius: 20px;
   color: white;
   background: var(--service-color);
@@ -36,14 +52,14 @@
   font-weight: 500;
 }
 
-.serviceMessage {
-  align-self: center;
-  margin: 0 0 22px;
-  padding: 5px 10px;
-  border-radius: 20px;
-  color: white;
-  background: var(--service-color);
-  font-size: 12px;
+.historyStart button {
+  cursor: pointer;
+}
+
+.dateRow {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 12px;
 }
 
 .pinnedMessage {
@@ -90,8 +106,12 @@
 }
 
 .emptyState {
-  align-self: center;
-  margin: auto;
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  width: max-content;
+  max-width: 90%;
+  transform: translateX(-50%);
   padding: 32px;
   border-radius: 24px;
   text-align: center;

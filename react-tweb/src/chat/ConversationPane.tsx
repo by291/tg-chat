@@ -1,4 +1,4 @@
-import { useState, type Dispatch } from 'react';
+import { useMemo, useState, type Dispatch } from 'react';
 import { ChatHeader } from './ChatHeader';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
 import { MessageComposer, type ComposedMessage } from './MessageComposer';
@@ -33,7 +33,9 @@ export function ConversationPane({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [navigation, setNavigation] = useState<MessageNavigation>();
-  const messages = state.messages.filter((message) => message.chatId === conversation.id);
+  const messages = useMemo(() => {
+    return state.messages.filter((message) => message.chatId === conversation.id);
+  }, [state.messages, conversation.id]);
   const searchResultCount = messages.filter((message) => {
     return describeMessage(message).toLowerCase().includes(searchQuery.trim().toLowerCase());
   }).length;
@@ -71,6 +73,7 @@ export function ConversationPane({
       },
     });
     clearComposerContext();
+    setNavigation(undefined);
     setSearchQuery('');
     setIsSearchOpen(false);
   }
@@ -149,6 +152,9 @@ export function ConversationPane({
         onCommand={applyMessageCommand}
         onReact={(messageId, emoji) => {
           dispatch({ type: 'react', chatId: conversation.id, messageId, emoji });
+        }}
+        onVote={(messageId, optionId) => {
+          dispatch({ type: 'vote', chatId: conversation.id, messageId, optionId });
         }}
         onOpenMedia={onOpenMedia}
         onJumpToMessage={jumpToMessage}

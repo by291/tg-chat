@@ -45,7 +45,9 @@ export function MessageComposer({
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const text = editingMessage ? editText : draft;
-  const hasContent = text.trim().length > 0 || Boolean(attachment || editingMessage?.attachment);
+  const hasContent =
+    text.trim().length > 0 ||
+    Boolean(attachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { createInitialState } from './fixtures';
 import { describe, expect, it } from 'vitest';
 import { chatReducer } from './reducer';
 import type { ChatState, Message } from './model';
@@ -168,5 +169,41 @@ describe('conversation changes', () => {
     expect(nextState.messages).toHaveLength(1);
     expect(nextState.messages[0].text).toBe('A reply');
     expect(nextState.messages[0].replyToId).toBe('message-1');
+  });
+});
+
+describe('local poll voting', () => {
+  it('moves a vote between options without counting duplicate selections', () => {
+    const initial = createInitialState();
+    const pollMessage = {
+      ...initial.messages[0],
+      media: {
+        kind: 'poll' as const,
+        question: 'Which layout?',
+        options: [
+          { id: 'compact', text: 'Compact', votes: 3 },
+          { id: 'spacious', text: 'Spacious', votes: 2 },
+        ],
+      },
+    };
+    const state = { ...initial, messages: [pollMessage] };
+    const vote = {
+      type: 'vote' as const,
+      chatId: pollMessage.chatId,
+      messageId: pollMessage.id,
+      optionId: 'compact',
+    };
+    const firstVote = chatReducer(state, vote);
+    const repeatedVote = chatReducer(firstVote, vote);
+    const changedVote = chatReducer(repeatedVote, { ...vote, optionId: 'spacious' });
+
+    expect(changedVote.messages[0].media).toMatchObject({
+      selectedOptionId: 'spacious',
+      options: [
+        { id: 'compact', votes: 3 },
+        { id: 'spacious', votes: 3 },
+      ],
+    });
+    expect(chatReducer(state, { ...vote, optionId: 'missing' }).messages).toEqual(state.messages);
   });
 });

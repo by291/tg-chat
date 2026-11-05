@@ -1,3 +1,4 @@
+import { createHistoryMessages } from './historyFixtures';
 import { DEFAULT_CHAT_ID, type ChatState, type Conversation, type Message } from './model';
 
 export const conversations: Conversation[] = [
@@ -9,6 +10,15 @@ export const conversations: Conversation[] = [
     color: 'blue',
     preview: 'You: This feels familiar ✨',
     time: '14:42',
+  },
+  {
+    id: 'lab',
+    title: 'Message lab',
+    subtitle: '3 members · local history study',
+    initials: 'ML',
+    color: 'purple',
+    preview: 'Photos, albums, voice, polls, and a long history',
+    time: '16:17',
   },
   {
     id: 'design',
@@ -170,7 +180,7 @@ const devMessages: Message[] = [
 
 function createOtherMessages(): Message[] {
   return conversations
-    .filter((conversation) => conversation.id !== DEFAULT_CHAT_ID)
+    .filter((conversation) => conversation.id !== DEFAULT_CHAT_ID && conversation.id !== 'lab')
     .map((conversation) => ({
       id: `${conversation.id}-first`,
       chatId: conversation.id,
@@ -185,9 +195,9 @@ function createOtherMessages(): Message[] {
 /** Create independent initial state for a new local demonstration. */
 export function createInitialState(): ChatState {
   return {
-    version: 1,
+    version: 2,
     activeChatId: DEFAULT_CHAT_ID,
-    messages: [...devMessages, ...createOtherMessages()],
+    messages: [...devMessages, ...createOtherMessages(), ...createHistoryMessages()],
     drafts: {},
     isDark: false,
   };

@@ -1,17 +1,14 @@
 import { z } from 'zod';
+import { attachmentSchema, messageMediaSchema } from './messageMedia';
+
+export { attachmentSchema } from './messageMedia';
 
 export const CURRENT_USER_ID = 'you';
 export const DEFAULT_CHAT_ID = 'dev';
 export const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
-export const MESSAGE_GROUP_INTERVAL = 5 * 60 * 1000;
+// tweb groups adjacent messages through the inclusive 121-second boundary.
+export const MESSAGE_GROUP_INTERVAL = 121_000;
 const MAX_DATE_TIMESTAMP = 8_640_000_000_000_000;
-
-export const attachmentSchema = z.object({
-  name: z.string(),
-  url: z.string(),
-  width: z.number().positive(),
-  height: z.number().positive(),
-});
 
 export const messageSchema = z.object({
   id: z.string(),
@@ -23,13 +20,17 @@ export const messageSchema = z.object({
   replyToId: z.string().optional(),
   attachment: attachmentSchema.optional(),
   sticker: z.string().optional(),
+  media: messageMediaSchema.optional(),
+  forwardedFrom: z.string().optional(),
+  isService: z.boolean().optional(),
+  textStyle: z.enum(['plain', 'code', 'quote']).optional(),
   reactions: z.array(z.string()),
   isEdited: z.boolean().optional(),
   isPinned: z.boolean().optional(),
 });
 
 export const chatStateSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   messages: z.array(messageSchema),
   drafts: z.record(z.string(), z.string()),
   activeChatId: z.string(),
@@ -92,6 +93,12 @@ export type ChatAction =
       type: 'pin';
       chatId: string;
       messageId: string;
+    }
+  | {
+      type: 'vote';
+      chatId: string;
+      messageId: string;
+      optionId: string;
     }
   | {
       type: 'toggle-theme';
