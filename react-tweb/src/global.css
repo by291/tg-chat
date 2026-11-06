@@ -49,6 +49,7 @@
   --ripple-color: rgb(0 0 0 / 8%);
   --ripple-duration: 0.7s;
   --ripple-start-scale: 0;
+  --menu-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :root[data-theme='dark'] {

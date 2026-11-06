@@ -1,22 +1,13 @@
-import { Menu } from '@ark-ui/react/menu';
-import { Portal } from '@ark-ui/react/portal';
-import {
-  BadgeCheck,
-  Bookmark,
-  CheckCheck,
-  Menu as MenuIcon,
-  Moon,
-  Pencil,
-  Search,
-} from 'lucide-react';
-import { useState } from 'react';
+import { Pencil, Search, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
+import { Ripple } from '../../components/Ripple';
 import { conversations } from '../demo/fixtures';
-import { describeMessage, formatMessageTime } from '../messageFormatting';
-import type { ChatState, Conversation } from '../model';
+import type { ChatState } from '../model';
+import { ChatRow } from './ChatRow';
+import { SidebarMenu } from './SidebarMenu';
 import styles from './ChatSidebar.module.css';
-import overlays from '../overlays.module.css';
 
 interface ChatSidebarProps {
   state: ChatState;
@@ -24,113 +15,134 @@ interface ChatSidebarProps {
   onToggleTheme: () => void;
 }
 
-interface ChatRowProps {
-  conversation: Conversation;
-  state: ChatState;
-  onSelect: () => void;
-}
-
-function ChatRow({ conversation, state, onSelect }: ChatRowProps) {
-  const messages = state.messages.filter((message) => message.chatId === conversation.id);
-  const lastMessage = messages.at(-1);
-  const draft = state.drafts[conversation.id];
-  const isActive = state.activeChatId === conversation.id;
-  const preview = lastMessage ? describeMessage(lastMessage) : conversation.preview;
-  const time = lastMessage ? formatMessageTime(lastMessage.createdAt) : conversation.time;
-
-  return (
-    <button className={styles.chatRow} data-active={isActive} onClick={onSelect}>
-      <Avatar initials={conversation.initials} color={conversation.color} />
-      <span className={styles.rowContent}>
-        <span className={styles.rowHeading}>
-          <span className={styles.chatTitle}>{conversation.title}</span>
-          {conversation.isVerified && <BadgeCheck className={styles.verified} size={17} />}
-          <span className={styles.chatTime}>
-            {lastMessage?.authorId === 'you' && <CheckCheck size={16} />}
-            {time}
-          </span>
-        </span>
-        <span className={styles.rowPreview}>
-          <span className={styles.previewText}>
-            {draft && <span className={styles.draftLabel}>Draft: </span>}
-            {draft || preview}
-          </span>
-          {conversation.unreadCount && !isActive && (
-            <span className={styles.unread} data-muted={conversation.isMuted}>
-              {conversation.unreadCount}
-            </span>
-          )}
-        </span>
-      </span>
-    </button>
-  );
-}
-
-/** Display the searchable conversation list and account-level presentation controls. */
+/** Display local conversations and switch to search without losing list position. */
 export function ChatSidebar({ state, onSelectChat, onToggleTheme }: ChatSidebarProps) {
   const [query, setQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const shouldRestoreFocus = useRef(false);
+  const normalizedQuery = query.trim().toLowerCase();
   const matchingChats = conversations.filter((conversation) => {
-    return conversation.title.toLowerCase().includes(query.trim().toLowerCase());
+    return conversation.title.toLowerCase().includes(normalizedQuery);
   });
 
+  useEffect(() => {
+    if (!isSearching && shouldRestoreFocus.current) {
+      shouldRestoreFocus.current = false;
+      menuButtonRef.current?.focus();
+    }
+  }, [isSearching]);
+
+  function closeSearch() {
+    shouldRestoreFocus.current = true;
+    setIsSearching(false);
+    setQuery('');
+  }
+
+  function selectChat(chatId: string) {
+    setIsSearching(false);
+    setQuery('');
+    onSelectChat(chatId);
+  }
+
   return (
-    <aside className={styles.sidebar} aria-label="Chat list">
+    <aside
+      className={styles.sidebar}
+      aria-label="Chat list"
+      data-searching={isSearching}
+      onKeyDown={(event) => {
+        if (isSearching && event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          closeSearch();
+        }
+      }}
+    >
       <div className={styles.header}>
-        <Menu.Root positioning={{ placement: 'bottom-start' }}>
-          <Menu.Trigger asChild>
-            <IconButton label="Main menu">
-              <MenuIcon />
-            </IconButton>
-          </Menu.Trigger>
-          <Portal>
-            <Menu.Positioner>
-              <Menu.Content className={overlays.menu}>
-                <Menu.Item
-                  value="saved"
-                  className={overlays.menuItem}
-                  onSelect={() => onSelectChat('saved')}
-                >
-                  <Bookmark /> Saved Messages
-                </Menu.Item>
-                <Menu.Item value="theme" className={overlays.menuItem} onSelect={onToggleTheme}>
-                  <Moon /> {state.isDark ? 'Light mode' : 'Dark mode'}
-                </Menu.Item>
-              </Menu.Content>
-            </Menu.Positioner>
-          </Portal>
-        </Menu.Root>
-        <label className={styles.searchField}>
-          <Search size={21} />
+        <SidebarMenu
+          isSearching={isSearching}
+          isDark={state.isDark}
+          menuButtonRef={menuButtonRef}
+          onCloseSearch={closeSearch}
+          onSelectChat={selectChat}
+          onToggleTheme={onToggleTheme}
+        />
+        <div className={styles.searchField}>
+          <Search className={styles.searchIcon} size={24} aria-hidden="true" />
           <input
+            ref={searchRef}
             aria-label="Search conversations"
             placeholder="Search"
             value={query}
+            onFocus={() => setIsSearching(true)}
             onChange={(event) => setQuery(event.target.value)}
           />
-        </label>
+          {query && (
+            <IconButton
+              label="Clear search"
+              className={styles.clearSearch}
+              onClick={() => {
+                setQuery('');
+                searchRef.current?.focus();
+              }}
+            >
+              <X />
+            </IconButton>
+          )}
+        </div>
       </div>
-      <nav className={styles.chatList} aria-label="Conversations">
-        {matchingChats.map((conversation) => (
-          <ChatRow
-            key={conversation.id}
-            conversation={conversation}
-            state={state}
-            onSelect={() => onSelectChat(conversation.id)}
-          />
-        ))}
-        {matchingChats.length === 0 && <p className={styles.empty}>No conversations found</p>}
-      </nav>
-      <div className={styles.footer}>
-        <span className={styles.localBadge}>
-          <span /> Local demo
-        </span>
-        <IconButton
-          label="Open dev conversation"
-          className={styles.composeButton}
-          onClick={() => onSelectChat('dev')}
+      <div className={styles.content}>
+        <div className={styles.conversationsPanel} inert={isSearching} aria-hidden={isSearching}>
+          <nav className={styles.chatList} aria-label="Conversations">
+            {conversations.map((conversation) => (
+              <ChatRow
+                key={conversation.id}
+                conversation={conversation}
+                state={state}
+                onSelect={() => selectChat(conversation.id)}
+              />
+            ))}
+          </nav>
+          <div className={styles.footer}>
+            <span className={styles.localBadge}>
+              <span /> Local demo
+            </span>
+            <IconButton
+              label="Open dev conversation"
+              className={styles.composeButton}
+              onClick={() => selectChat('dev')}
+            >
+              <Pencil />
+            </IconButton>
+          </div>
+        </div>
+        <nav
+          className={styles.searchPanel}
+          aria-label="Search results"
+          aria-hidden={!isSearching}
+          inert={!isSearching}
         >
-          <Pencil />
-        </IconButton>
+          <div className={styles.searchCard}>
+            <h2>Chats</h2>
+            {matchingChats.map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                className={styles.searchResult}
+                onClick={() => selectChat(conversation.id)}
+              >
+                <Avatar initials={conversation.initials} color={conversation.color} size="small" />
+                <span className={styles.rowContent}>
+                  <span className={styles.resultTitle}>{conversation.title}</span>
+                  <span className={styles.resultSubtitle}>{conversation.subtitle}</span>
+                </span>
+                <Ripple />
+              </button>
+            ))}
+            {matchingChats.length === 0 && <p className={styles.empty}>No conversations found</p>}
+          </div>
+        </nav>
       </div>
     </aside>
   );
