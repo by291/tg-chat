@@ -42,6 +42,8 @@ function ConversationTestScreen({ chatId = 'dev' }: { chatId?: string }) {
         conversation={conversations.find((conversation) => conversation.id === chatId)!}
         state={state}
         dispatch={dispatch}
+        onPrepareForward={() => {}}
+        onClearForward={() => {}}
         onOpenDetails={() => {}}
         onOpenMedia={() => {}}
         onBack={() => {}}

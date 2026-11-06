@@ -1,4 +1,4 @@
-import { Check, ImagePlus, Paperclip, Pencil, Reply, Send, X } from 'lucide-react';
+import { Forward, Check, ImagePlus, Paperclip, Pencil, Reply, Send, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createAttachment } from './attachments';
@@ -20,6 +20,7 @@ interface MessageComposerProps {
   draft: string;
   replyMessage?: Message;
   editingMessage?: Message;
+  forwardMessages?: Message[];
   onDraftChange: (text: string) => void;
   onSubmit: (message: ComposedMessage) => void;
   onCancelContext: () => void;
@@ -31,6 +32,7 @@ export function MessageComposer({
   draft,
   replyMessage,
   editingMessage,
+  forwardMessages,
   onDraftChange,
   onSubmit,
   onCancelContext,
@@ -46,9 +48,12 @@ export function MessageComposer({
   const [isDragging, setIsDragging] = useState(false);
   const text = editingMessage ? editText : draft;
   const hasContent =
+    Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
     Boolean(attachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
+  const forwardCount = forwardMessages?.length ?? 0;
+  const forwardAuthors = [...new Set(forwardMessages?.map((message) => message.authorName))];
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -68,14 +73,14 @@ export function MessageComposer({
   }, [text]);
 
   useEffect(() => {
-    if (!contextMessage) {
+    if (!contextMessage && !forwardMessages?.length) {
       return;
     }
 
     // The menu restores trigger focus first; editing takes focus on the following frame.
     const frame = requestAnimationFrame(() => editorRef.current?.focus());
     return () => cancelAnimationFrame(frame);
-  }, [contextMessage]);
+  }, [contextMessage, forwardMessages]);
 
   function updateText(value: string) {
     if (editingMessage) {
@@ -185,6 +190,20 @@ export function MessageComposer({
             <span>{describeMessage(contextMessage)}</span>
           </div>
           <IconButton label="Cancel reply or edit" onClick={onCancelContext}>
+            <X />
+          </IconButton>
+        </div>
+      )}
+      {!contextMessage && Boolean(forwardMessages?.length) && (
+        <div className={styles.contextBar}>
+          <Forward size={24} />
+          <div>
+            <strong>
+              Forward {forwardCount} {forwardCount === 1 ? 'message' : 'messages'}
+            </strong>
+            <span>{forwardAuthors.join(', ')}</span>
+          </div>
+          <IconButton label="Cancel forwarding" onClick={onCancelContext}>
             <X />
           </IconButton>
         </div>

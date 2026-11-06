@@ -7,6 +7,8 @@ import { useChatOverlayInsets } from './useChatOverlayInsets';
 import { ConversationMuteDialog } from './sidebar/ConversationMuteDialog';
 import { ConversationRemovalDialog } from './sidebar/ConversationDialogs';
 import { ChatHeader } from './ChatHeader';
+import { ForwardMessageDialog, type ForwardRecipients } from './messages/ForwardMessageDialog';
+import { forwardMessages as sendForwardedMessages } from './messages/forwardMessages';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
 import { PinnedMessageBar } from './PinnedMessageBar';
 import { MessageComposer, type ComposedMessage } from './composer/MessageComposer';
@@ -19,6 +21,9 @@ interface ConversationPaneProps {
   conversation: Conversation;
   state: ChatState;
   dispatch: Dispatch<ChatAction>;
+  forwardMessages?: Message[];
+  onPrepareForward: (options: { chatId: string; messages: Message[] }) => void;
+  onClearForward: () => void;
   onOpenDetails: () => void;
   onOpenMedia: (message: Message) => void;
   onBack: () => void;
@@ -30,6 +35,9 @@ export function ConversationPane({
   conversation,
   state,
   dispatch,
+  forwardMessages,
+  onPrepareForward,
+  onClearForward,
   onOpenDetails,
   onOpenMedia,
   onBack,
@@ -39,6 +47,7 @@ export function ConversationPane({
   const [replyMessage, setReplyMessage] = useState<Message>();
   const [editingMessage, setEditingMessage] = useState<Message>();
   const [pendingDelete, setPendingDelete] = useState<Message>();
+  const [pendingForward, setPendingForward] = useState<Message[]>();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPinnedView, setIsPinnedView] = useState(false);
   const [navigation, setNavigation] = useState<MessageNavigation>();
@@ -91,6 +100,7 @@ export function ConversationPane({
   function clearComposerContext() {
     setReplyMessage(undefined);
     setEditingMessage(undefined);
+    onClearForward();
   }
 
   function submitMessage(composed: ComposedMessage) {
@@ -105,21 +115,26 @@ export function ConversationPane({
       return;
     }
 
-    dispatch({
-      type: 'send',
-      message: {
-        id: crypto.randomUUID(),
-        chatId: conversation.id,
-        authorId: 'you',
-        authorName: 'You',
-        text: composed.text,
-        createdAt: Date.now(),
-        attachment: composed.attachment,
-        sticker: composed.sticker,
-        replyToId: replyMessage?.id,
-        reactions: [],
-      },
-    });
+    if (composed.text.trim() || composed.attachment || composed.sticker) {
+      dispatch({
+        type: 'send',
+        message: {
+          id: crypto.randomUUID(),
+          chatId: conversation.id,
+          authorId: 'you',
+          authorName: 'You',
+          text: composed.text,
+          createdAt: Date.now(),
+          attachment: composed.attachment,
+          sticker: composed.sticker,
+          replyToId: replyMessage?.id,
+          reactions: [],
+        },
+      });
+    }
+    if (forwardMessages?.length) {
+      sendForwardedMessages({ messages: forwardMessages, chatId: conversation.id, dispatch });
+    }
     clearComposerContext();
     setNavigation(undefined);
     setIsSearchOpen(false);
@@ -143,11 +158,13 @@ export function ConversationPane({
     ({ action, message }: MessageCommand) => {
       switch (action) {
         case 'reply':
+          onClearForward();
           setIsPinnedView(false);
           setReplyMessage(message);
           setEditingMessage(undefined);
           return;
         case 'edit':
+          onClearForward();
           setIsPinnedView(false);
           setEditingMessage(message);
           setReplyMessage(undefined);
@@ -158,6 +175,9 @@ export function ConversationPane({
         case 'copy':
           void copyMessage(message);
           return;
+        case 'forward':
+          setPendingForward([message]);
+          return;
         case 'pin':
           dispatch({
             type: 'pin',
@@ -166,8 +186,41 @@ export function ConversationPane({
           });
       }
     },
-    [copyMessage, dispatch, conversation.id],
+    [copyMessage, onClearForward, dispatch, conversation.id],
   );
+
+  function chooseForwardRecipient(recipient: Conversation) {
+    if (!pendingForward) {
+      return;
+    }
+    if (recipient.kind === 'saved') {
+      sendToRecipients({ recipients: [recipient], caption: '' });
+      return;
+    }
+    // Choosing an ordinary chat creates a draft; only its composer sends the messages.
+    setReplyMessage(undefined);
+    setEditingMessage(undefined);
+    onPrepareForward({ chatId: recipient.id, messages: pendingForward });
+    setPendingForward(undefined);
+    headerActions.clearSelection();
+  }
+
+  function sendToRecipients({ recipients, caption }: ForwardRecipients) {
+    if (!pendingForward) {
+      return;
+    }
+    for (const recipient of recipients) {
+      sendForwardedMessages({
+        messages: pendingForward,
+        chatId: recipient.id,
+        caption,
+        dispatch,
+      });
+    }
+    setPendingForward(undefined);
+    headerActions.clearSelection();
+    onNotify('Messages forwarded');
+  }
 
   const reactToMessage = useCallback(
     (messageId: string, emoji: string) => {
@@ -296,6 +349,7 @@ export function ConversationPane({
             draft={state.drafts[conversation.id] || ''}
             replyMessage={replyMessage}
             editingMessage={editingMessage}
+            forwardMessages={forwardMessages}
             onDraftChange={(text) => dispatch({ type: 'set-draft', chatId: conversation.id, text })}
             onSubmit={submitMessage}
             onCancelContext={clearComposerContext}
@@ -342,6 +396,14 @@ export function ConversationPane({
         onAutoDelete={headerActions.setAutoDelete}
         onDelete={headerActions.deleteSelectedMessages}
       />
+      {pendingForward && (
+        <ForwardMessageDialog
+          state={state}
+          onClose={() => setPendingForward(undefined)}
+          onChooseRecipient={chooseForwardRecipient}
+          onSend={sendToRecipients}
+        />
+      )}
       <DeleteMessageDialog
         isOpen={Boolean(pendingDelete)}
         onCancel={() => setPendingDelete(undefined)}

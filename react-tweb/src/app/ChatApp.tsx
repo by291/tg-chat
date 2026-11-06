@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ChatDetails } from '../chat/details/ChatDetails';
 import { ChatSidebar } from '../chat/sidebar/ChatSidebar';
 import { ConversationPane } from '../chat/ConversationPane';
@@ -21,6 +21,7 @@ export function ChatApp() {
   const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(true);
   const [mediaMessage, setMediaMessage] = useState<Message>();
+  const [forwardDrafts, setForwardDrafts] = useState<Record<string, Message[]>>({});
   const [notice, setNotice] = useState('');
   const [requestedChatId] = useState(() => new URL(window.location.href).searchParams.get('chat'));
   const isConversationDeleted =
@@ -58,6 +59,19 @@ export function ChatApp() {
     setMediaMessage(undefined);
   }
 
+  function prepareForward(options: { chatId: string; messages: Message[] }) {
+    setForwardDrafts((current) => ({ ...current, [options.chatId]: options.messages }));
+    selectConversation(options.chatId);
+  }
+
+  const clearForwardDraft = useCallback(() => {
+    setForwardDrafts((current) => {
+      const next = { ...current };
+      delete next[conversation.id];
+      return next;
+    });
+  }, [conversation.id]);
+
   if (!isReady) {
     return (
       <div className={styles.loading} role="status">
@@ -86,6 +100,9 @@ export function ChatApp() {
             key={conversation.id}
             conversation={conversation}
             state={state}
+            forwardMessages={forwardDrafts[conversation.id]}
+            onPrepareForward={prepareForward}
+            onClearForward={clearForwardDraft}
             dispatch={dispatch}
             onOpenDetails={() => {
               setHasOpenedDetails(true);

@@ -115,7 +115,7 @@ export type ChatAction =
       text: string;
     }
   | {
-      type: 'send';
+      type: 'send' | 'forward';
       message: Message;
     }
   | {
@@ -154,7 +154,7 @@ export type ChatAction =
       type: 'toggle-theme';
     };
 
-export type MessageAction = 'reply' | 'edit' | 'delete' | 'pin' | 'copy';
+export type MessageAction = 'reply' | 'edit' | 'delete' | 'pin' | 'copy' | 'forward';
 
 export interface MessageCommand {
   action: MessageAction;

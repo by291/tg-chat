@@ -109,6 +109,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...state,
         drafts: { ...state.drafts, [action.chatId]: action.text },
       };
+    case 'forward':
     case 'send': {
       const message = assignMessageExpiration({ state, message: action.message });
       const hasContent =
@@ -118,10 +119,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         return state;
       }
 
+      // Forwarding into another conversation must not consume that conversation's saved draft.
+      const shouldPreserveDraft = action.type === 'forward' || Boolean(message.sticker);
+      const drafts = shouldPreserveDraft ? state.drafts : { ...state.drafts, [message.chatId]: '' };
       return {
         ...state,
         messages: [...state.messages, { ...message, text: message.text.trim() }],
-        drafts: message.sticker ? state.drafts : { ...state.drafts, [message.chatId]: '' },
+        drafts,
       };
     }
     case 'receive':

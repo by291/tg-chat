@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  Forward,
   Pencil,
   Pin,
   PinOff,
@@ -95,6 +96,7 @@ function getMessageItems(message: Message): MessageMenuItem[] {
     label: message.isPinned ? 'Unpin' : 'Pin',
     icon: message.isPinned ? PinOff : Pin,
   });
+  items.push({ action: 'forward', label: 'Forward', icon: Forward });
   items.push({ action: 'delete', label: 'Delete', icon: Trash2 });
   return items;
 }
