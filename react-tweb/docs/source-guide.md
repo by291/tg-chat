@@ -400,3 +400,62 @@ complete entity schema. Native video controls, local poll voting, and emoji stic
 remain smaller than their upstream counterparts.
 
 See [verification notes](./virtual-history-verification.md) for the recorded browser checks.
+
+## Message context menu
+
+`messages/MessageMenu.tsx` owns the shared Ark UI menu. Its transparent positioning box contains
+an independent 40px reaction capsule, an 8px gap, and a 196px action panel. Positioning includes
+both surfaces when avoiding viewport edges. These dimensions and the separate entrance animations
+follow tweb's `src/scss/partials/_button.scss` (`btn-menu-reactions-container`) and
+`src/components/chat/contextMenu.ts`. Reactions use local Unicode emoji rather than Telegram's
+animated reaction assets; the expanded palette is deliberately limited to the local demo.
+
+Text and caption messages offer Copy; editable outgoing messages also offer Edit. Select enters
+message selection mode with the target checked. Forward opens Share with, matching the card layout
+and hidden recipient multi-select in tweb's `popups/forward.tsx` and `popups/_forward.scss`.
+Choosing a normal destination prepares forwarded messages in its composer. Saved Messages sends
+immediately; multi-recipient selection uses an explicit Send button and optional caption. Forwarded copies receive new IDs and omit source reactions,
+pins, reply references and expiry; the destination's auto-delete policy applies without consuming
+its saved draft. Server read receipts and permission-dependent Telegram actions are not fabricated.
+
+### Message selection
+
+`useMessageSelectionGesture.ts` follows `chat/selection.ts`: ordinary bubble text remains natively
+selectable, while dragging across row margins starts message selection. Once selecting, crossed
+rows are added or removed according to the first row's state. Fast movement fills skipped intervals.
+The last unchecked message exits selection; Escape and the central count button also exit.
+Incoming bubbles translate by 40px, avatars shrink to 76%, and the footer swaps between the mounted
+composer and a delete/count/forward plate. Keeping the composer mounted preserves its attachment
+and editing state. The virtual rows span the scrollport and own the message ID used by right-click, drag, click and
+reply delegates. Their centered content remains 696px wide. A scrollport inline-size container lets
+row bounds follow the panel without changing the content-width observer or overflowing horizontally.
+
+Menus retain the mode captured when opened, so selecting a message does not replace the contents
+halfway through the closing animation. In selection mode, an unselected message only offers Select.
+A selected message offers bulk Copy, Forward, media Download when available, Clear selection, and
+local Delete. Copy keeps the selection. Clear selection clears the whole group, not just the target.
+Telegram's Report and moderation permissions require server-side capabilities and are not invented
+for the local fixture conversations.
+
+Forward drafts live above the keyed conversation pane, independently of the persisted text draft.
+Changing chats preserves the pending forward. Reply, Edit, Cancel forwarding, and successful sending
+clear the relevant forward context. Reload persistence for pending forwards is intentionally absent.
+
+### Full-row message interactions
+
+The row is an interaction surface, including the whitespace on both sides of its bubble:
+
+- Desktop right-click opens the same menu anywhere on that row.
+- A click while selecting toggles that row, including its whitespace and media.
+- A drag from an unselected row adds crossed rows; a drag from a selected row removes them.
+  The direction is fixed for that gesture, and visited rows are processed only once.
+- Double-clicking row whitespace replies. Native word selection and interactive media, links,
+  reactions and timestamps keep their own behavior.
+- Touch taps open a message menu outside interactive children; a long press enters selection.
+  The release after a hold is swallowed so the newly selected message stays selected.
+
+These boundaries follow `chat/bubbles.ts`, `chat/selection.ts` and `chat/contextMenu.ts`.
+Selected and menu-active rows share `--message-highlighting-color` and a 200ms linear fade,
+following `_chatBubble.scss`. This color is supplied by the chat theme, not a universal black tint:
+the reference wallpaper currently resolves it to `rgba(77, 88, 200, 0.4)`. The local wallpaper uses
+that token; a future custom theme should supply its own value as tweb's `themeController.ts` does.
