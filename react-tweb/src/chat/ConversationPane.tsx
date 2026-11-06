@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch } from 'react';
-import { Copy, Trash2, X } from 'lucide-react';
+import { Forward, Trash2 } from 'lucide-react';
 import { IconButton } from '../components/IconButton';
 import { HeaderActionDialog } from './HeaderActionDialog';
 import { useHeaderActions } from './useHeaderActions';
@@ -9,6 +9,8 @@ import { ConversationRemovalDialog } from './sidebar/ConversationDialogs';
 import { ChatHeader } from './ChatHeader';
 import { ForwardMessageDialog, type ForwardRecipients } from './messages/ForwardMessageDialog';
 import { forwardMessages as sendForwardedMessages } from './messages/forwardMessages';
+import { downloadMessageMedia } from './messages/messageDownloads';
+import { Ripple } from '../components/Ripple';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
 import { PinnedMessageBar } from './PinnedMessageBar';
 import { MessageComposer, type ComposedMessage } from './composer/MessageComposer';
@@ -86,16 +88,15 @@ export function ConversationPane({
     setNavigation({ messageId, requestId: Date.now() });
   }
 
-  async function copySelectedMessages() {
+  const copySelectedMessages = useCallback(async () => {
     const selected = messages.filter((message) => headerActions.selectedIds.includes(message.id));
     try {
       await navigator.clipboard.writeText(selected.map(describeMessage).join('\n'));
       onNotify('Copied to clipboard');
-      headerActions.clearSelection();
     } catch {
       onNotify('Could not access the clipboard');
     }
-  }
+  }, [messages, headerActions.selectedIds, onNotify]);
 
   function clearComposerContext() {
     setReplyMessage(undefined);
@@ -169,11 +170,33 @@ export function ConversationPane({
           setEditingMessage(message);
           setReplyMessage(undefined);
           return;
+        case 'clear-selection':
+          headerActions.clearSelection();
+          return;
+        case 'copy-selected':
+          void copySelectedMessages();
+          return;
+        case 'forward-selected':
+          setPendingForward(
+            messages.filter((entry) => headerActions.selectedIds.includes(entry.id)),
+          );
+          return;
+        case 'download-selected':
+          downloadMessageMedia(
+            messages.filter((entry) => headerActions.selectedIds.includes(entry.id)),
+          );
+          return;
+        case 'delete-selected':
+          headerActions.setDialog('delete-messages');
+          return;
         case 'delete':
           setPendingDelete(message);
           return;
         case 'copy':
           void copyMessage(message);
+          return;
+        case 'select':
+          headerActions.selectMessage(message.id);
           return;
         case 'forward':
           setPendingForward([message]);
@@ -186,7 +209,19 @@ export function ConversationPane({
           });
       }
     },
-    [copyMessage, onClearForward, dispatch, conversation.id],
+    [
+      copyMessage,
+      copySelectedMessages,
+      onClearForward,
+      dispatch,
+      conversation.id,
+      headerActions.selectMessage,
+      headerActions.clearSelection,
+      headerActions.selectedIds,
+      headerActions.setDialog,
+      messages,
+      onNotify,
+    ],
   );
 
   function chooseForwardRecipient(recipient: Conversation) {
@@ -294,6 +329,7 @@ export function ConversationPane({
         onReachLatest={isPinnedView || options.isPinnedView ? undefined : markLatestRead}
         selectedIds={headerActions.isSelecting ? headerActions.selectedIds : undefined}
         onToggleSelection={headerActions.toggleMessage}
+        onSetSelection={headerActions.setMessagesSelected}
         messageIdPrefix={options.isPinnedView ? 'pinned-message' : undefined}
         navigation={navigation}
         onCommand={applyMessageCommand}
@@ -342,8 +378,13 @@ export function ConversationPane({
           {renderTimeline({ messages: pinnedMessages, isPinnedView: true })}
         </div>
       )}
-      <div ref={overlays.footerRef} className={styles.footerOverlay}>
-        <div hidden={isPinnedView || headerActions.isSelecting}>
+      <div
+        ref={overlays.footerRef}
+        className={styles.footerOverlay}
+        data-selecting={headerActions.isSelecting}
+        hidden={isPinnedView}
+      >
+        <div className={styles.composerSlot} inert={headerActions.isSelecting}>
           <MessageComposer
             key={editingMessage?.id || 'compose'}
             draft={state.drafts[conversation.id] || ''}
@@ -356,28 +397,38 @@ export function ConversationPane({
             onNotify={onNotify}
           />
         </div>
-        {headerActions.isSelecting && (
-          <div className={styles.selectionToolbar}>
-            <IconButton label="Clear selection" onClick={headerActions.clearSelection}>
-              <X />
-            </IconButton>
-            <strong>{headerActions.selectedIds.length} Messages</strong>
-            <IconButton
-              label="Copy selected messages"
-              disabled={!headerActions.selectedIds.length}
-              onClick={() => void copySelectedMessages()}
-            >
-              <Copy />
-            </IconButton>
-            <IconButton
-              label="Delete selected messages"
-              disabled={!headerActions.selectedIds.length}
-              onClick={() => headerActions.setDialog('delete-messages')}
-            >
-              <Trash2 />
-            </IconButton>
-          </div>
-        )}
+        <div
+          className={styles.selectionToolbar}
+          inert={!headerActions.isSelecting}
+          aria-hidden={!headerActions.isSelecting}
+        >
+          <IconButton
+            label="Delete selected messages"
+            className={styles.deleteSelected}
+            disabled={!headerActions.selectedIds.length}
+            onClick={() => headerActions.setDialog('delete-messages')}
+          >
+            <Trash2 />
+          </IconButton>
+          <button className={styles.selectionCount} onClick={headerActions.clearSelection}>
+            {headerActions.selectedIds.length}
+            {headerActions.selectedIds.length === 1 ? ' message' : ' messages'}
+            <Ripple />
+          </button>
+          <IconButton
+            label="Forward selected messages"
+            disabled={!headerActions.selectedIds.length}
+            onClick={() => {
+              setPendingForward(
+                messages.filter((message) => {
+                  return headerActions.selectedIds.includes(message.id);
+                }),
+              );
+            }}
+          >
+            <Forward />
+          </IconButton>
+        </div>
       </div>
       <ConversationMuteDialog
         conversation={headerActions.actions.muteConversation}

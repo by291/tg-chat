@@ -17,6 +17,8 @@
 }
 
 .viewport {
+  /* Full-width hit targets use this scrollport, while message measurements stay content-sized. */
+  container-type: inline-size;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -68,9 +70,37 @@
 .virtualRow {
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
+  left: calc(50% - 50cqw);
+  width: 100cqw;
+}
+
+.rowContent {
+  width: var(--chat-content-width, 100%);
+  margin: 0 auto;
   padding: 0 7px;
+}
+
+/* The highlight and pointer target share the same bounds; neither extends the scrollable width. */
+.virtualRow[data-message-id]::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--message-highlighting-color);
+  opacity: 0;
+  transition: opacity 200ms linear;
+  pointer-events: none;
+  content: '';
+}
+
+.virtualRow[data-menu-open='true']::before,
+.virtualRow[data-selected='true']::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .virtualRow[data-message-id]::before {
+    transition: none;
+  }
 }
 
 .historyStart {

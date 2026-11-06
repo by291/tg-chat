@@ -39,17 +39,72 @@
 }
 
 .selectionToolbar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px;
+  height: 48px;
+  padding: 0;
   border-radius: 24px;
   background: var(--surface-color);
 }
 
-.selectionToolbar strong {
+.selectionCount {
+  position: relative;
   flex: 1;
-  padding-left: 12px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  color: var(--text-color);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.deleteSelected {
+  color: var(--danger-color, #df3f40);
+}
+
+.composerSlot,
+.selectionToolbar {
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease,
+    visibility 200ms;
+}
+
+.selectionToolbar {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px);
+}
+
+.footerOverlay[data-selecting='true'] {
+  height: 48px;
+}
+
+.footerOverlay[data-selecting='true'] .composerSlot {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px);
+}
+
+.footerOverlay[data-selecting='true'] .selectionToolbar {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composerSlot,
+  .selectionToolbar {
+    transition: none;
+  }
 }
 
 .pinnedSlot {

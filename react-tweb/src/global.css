@@ -42,6 +42,9 @@
   --outgoing-meta-color: #31b1e0;
   --reply-color: rgb(184 90 208 / 9%);
   --service-color: rgb(126 99 171 / 34%);
+  --message-checkbox-color: #61c642;
+  /* The reference wallpaper uses this theme-provided color for selected and menu-active rows. */
+  --message-highlighting-color: rgb(77 88 200 / 40%);
   --surface-shadow: 0 1px 5px -1px rgb(0 0 0 / 21%);
   --duration-fast: 120ms;
   --duration-normal: 200ms;
@@ -70,6 +73,7 @@
   --outgoing-meta-color: #b7b0e4;
   --reply-color: rgb(193 148 224 / 13%);
   --service-color: rgb(102 91 137 / 60%);
+  --message-checkbox-color: var(--accent-color);
   --ripple-color: rgb(255 255 255 / 8%);
 }
 

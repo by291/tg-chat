@@ -1,10 +1,23 @@
-import { memo, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
 import { DeferredMessageMedia } from '../messages/deferredMedia';
 import { MessageMenu } from '../messages/MessageMenu';
+import {
+  useMessageSelectionGesture,
+  type MessageSelectionChange,
+} from '../messages/useMessageSelectionGesture';
 import { useMessageMenu } from '../messages/useMessageMenu';
+import { findMessageRow } from '../messages/messageRowTarget';
 import { describeMessage } from '../messageFormatting';
 import type { Message, MessageCommand } from '../model';
 import { useHistoryWindow } from './useHistoryWindow';
@@ -31,6 +44,7 @@ interface MessageTimelineProps {
   navigation?: MessageNavigation;
   selectedIds?: string[];
   onToggleSelection?: (messageId: string) => void;
+  onSetSelection?: (change: MessageSelectionChange) => void;
   onCommand: (command: MessageCommand) => void;
   onReact: (messageId: string, emoji: string) => void;
   onVote: (messageId: string, optionId: string) => void;
@@ -53,6 +67,7 @@ function VirtualMessageHistory({
   navigation,
   selectedIds,
   onToggleSelection,
+  onSetSelection,
   isPreview,
   messageIdPrefix,
   onCommand,
@@ -77,7 +92,21 @@ function VirtualMessageHistory({
   });
   const menu = useMessageMenu({
     viewportRef: scroll.viewportRef,
-    isDisabled: isPreview || selectedIds !== undefined,
+    isDisabled: isPreview,
+    selectedIds,
+    onSelectMessage: (messageId) => {
+      const message = messageById.get(messageId);
+      if (message) {
+        onCommand({ action: 'select', message });
+      }
+    },
+  });
+  const selectionGesture = useMessageSelectionGesture({
+    messages,
+    selectedIds,
+    isDisabled: isPreview || menu.isOpen,
+    onToggleSelection,
+    onSetSelection,
   });
   const virtualItems = scroll.virtualizer.getVirtualItems();
   const totalHeight = scroll.virtualizer.getTotalSize();
@@ -107,6 +136,23 @@ function VirtualMessageHistory({
     [appearedIds],
   );
 
+  function replyToRow(event: MouseEvent<HTMLDivElement>) {
+    if (isPreview || selectedIds !== undefined || !(event.target instanceof Element)) {
+      return;
+    }
+    const isInteractiveContent = event.target.closest(
+      'button, a, input, video, audio, [data-message-media], [data-message-metadata]',
+    );
+    if (isInteractiveContent || window.getSelection()?.toString().trim()) {
+      return;
+    }
+    const messageId = findMessageRow(event.target)?.dataset.messageId;
+    const message = messageId ? messageById.get(messageId) : undefined;
+    if (message) {
+      onCommand({ action: 'reply', message });
+    }
+  }
+
   return (
     <DeferredMessageMedia isDeferred={scroll.isNavigating}>
       <div
@@ -121,21 +167,21 @@ function VirtualMessageHistory({
           menu.onKeyDown(event);
         }}
         onContextMenu={menu.onContextMenu}
+        onDoubleClick={replyToRow}
         onClickCapture={(event) => {
-          if (selectedIds === undefined) {
-            menu.onClick(event);
-            return;
-          }
-          const target = event.target as HTMLElement;
-          const messageId = target.closest<HTMLElement>('[data-message-id]')?.dataset.messageId;
-          if (messageId) {
-            event.preventDefault();
-            event.stopPropagation();
-            onToggleSelection?.(messageId);
+          menu.onClick(event);
+          if (!event.defaultPrevented) {
+            selectionGesture.onClick(event);
           }
         }}
-        onPointerDownCapture={menu.onPointerDown}
-        onPointerMove={menu.onPointerMove}
+        onPointerDownCapture={(event) => {
+          menu.onPointerDown(event);
+          selectionGesture.onPointerDown(event);
+        }}
+        onPointerMove={(event) => {
+          menu.onPointerMove(event);
+          selectionGesture.onPointerMove(event);
+        }}
         onPointerUp={menu.cancelLongPress}
         onPointerCancel={menu.cancelLongPress}
         aria-label="Message history"
@@ -158,42 +204,47 @@ function VirtualMessageHistory({
           </div>
           {virtualItems.map((item) => {
             const row = rows[item.index];
+            const isMessageRow = row.kind === 'message' && !row.message.isService;
             return (
               <div
                 key={row.key}
                 ref={scroll.virtualizer.measureElement}
                 data-index={item.index}
                 data-row-key={row.key}
+                data-message-id={isMessageRow ? row.key : undefined}
+                data-menu-open={menu.isOpen && menu.target?.messageId === row.key}
+                data-selected={selectedIds?.includes(row.key)}
                 className={styles.virtualRow}
                 inert={isPreview}
                 style={{ transform: `translateY(${item.start + bottomAlignment}px)` }}
               >
-                {row.kind === 'date' ? (
-                  <div className={styles.dateRow}>
-                    <span className={styles.dateSeparator}>{row.label}</span>
-                  </div>
-                ) : (
-                  <MessageBubble
-                    message={row.message}
-                    isSelecting={selectedIds !== undefined}
-                    isSelected={selectedIds?.includes(row.message.id)}
-                    isPreview={isPreview}
-                    isMenuOpen={menu.isOpen && menu.target?.messageId === row.message.id}
-                    menuContentId={menu.contentId}
-                    idPrefix={messageIdPrefix}
-                    replyMessage={messageById.get(row.message.replyToId || '')}
-                    isGroupStart={row.isGroupStart}
-                    isGroupEnd={row.isGroupEnd}
-                    isHighlighted={row.key === highlightedId}
-                    shouldAnimate={!appearedIds.has(row.key)}
-                    onAppear={markMessageAppeared}
-                    onCommand={onCommand}
-                    onReact={onReact}
-                    onVote={onVote}
-                    onOpenMedia={onOpenMedia}
-                    onJumpToMessage={onJumpToMessage}
-                  />
-                )}
+                <div className={styles.rowContent}>
+                  {row.kind === 'date' ? (
+                    <div className={styles.dateRow}>
+                      <span className={styles.dateSeparator}>{row.label}</span>
+                    </div>
+                  ) : (
+                    <MessageBubble
+                      message={row.message}
+                      isSelecting={selectedIds !== undefined}
+                      isSelected={selectedIds?.includes(row.message.id)}
+                      isPreview={isPreview}
+                      isMenuOpen={menu.isOpen && menu.target?.messageId === row.message.id}
+                      menuContentId={menu.contentId}
+                      idPrefix={messageIdPrefix}
+                      replyMessage={messageById.get(row.message.replyToId || '')}
+                      isGroupStart={row.isGroupStart}
+                      isGroupEnd={row.isGroupEnd}
+                      isHighlighted={row.key === highlightedId}
+                      shouldAnimate={!appearedIds.has(row.key)}
+                      onAppear={markMessageAppeared}
+                      onReact={onReact}
+                      onVote={onVote}
+                      onOpenMedia={onOpenMedia}
+                      onJumpToMessage={onJumpToMessage}
+                    />
+                  )}
+                </div>
               </div>
             );
           })}
@@ -212,6 +263,11 @@ function VirtualMessageHistory({
           contentId={menu.contentId}
           target={menu.target}
           message={menu.target ? messageById.get(menu.target.messageId) : undefined}
+          selectedMessages={
+            menu.target?.selectedIds
+              ? messages.filter((message) => menu.target?.selectedIds?.includes(message.id))
+              : undefined
+          }
           isOpen={menu.isOpen}
           onClose={menu.closeMenu}
           onExitComplete={menu.releaseTarget}

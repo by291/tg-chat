@@ -10,6 +10,7 @@ import {
   type PointerEvent,
   type RefObject,
 } from 'react';
+import { findMessageRow } from './messageRowTarget';
 import type { MessageMenuTarget } from './MessageMenu';
 
 const LONG_PRESS_DURATION_MS = 700;
@@ -18,13 +19,15 @@ const LONG_PRESS_MOVE_TOLERANCE = 10;
 interface MessageMenuOptions {
   viewportRef: RefObject<HTMLDivElement | null>;
   isDisabled?: boolean;
+  selectedIds?: string[];
+  onSelectMessage: (messageId: string) => void;
 }
 
 function findMessageTarget(element: EventTarget | null): MessageMenuTarget | undefined {
   if (!(element instanceof Element)) {
     return undefined;
   }
-  const row = element.closest<HTMLElement>('[data-message-id]');
+  const row = findMessageRow(element);
   const trigger = row?.querySelector<HTMLButtonElement>('[data-message-menu-trigger]');
   const messageId = row?.dataset.messageId;
   if (!trigger || !messageId) {
@@ -39,13 +42,19 @@ function findMessageTarget(element: EventTarget | null): MessageMenuTarget | und
 }
 
 /** Delegate message-menu entry points without creating a menu controller in every bubble. */
-export function useMessageMenu({ viewportRef, isDisabled }: MessageMenuOptions) {
+export function useMessageMenu({
+  viewportRef,
+  isDisabled,
+  selectedIds,
+  onSelectMessage,
+}: MessageMenuOptions) {
   const contentId = useId();
   const [target, setTarget] = useState<MessageMenuTarget>();
   const [isOpen, setIsOpen] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pointerStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const hasLongPressedRef = useRef(false);
+  const lastPointerTypeRef = useRef('mouse');
 
   const cancelLongPress = useCallback(() => {
     clearTimeout(longPressTimerRef.current);
@@ -68,7 +77,8 @@ export function useMessageMenu({ viewportRef, isDisabled }: MessageMenuOptions) 
     if (isDisabled) {
       return;
     }
-    setTarget(nextTarget);
+    // Freeze the menu mode through its exit animation when Select changes the timeline state.
+    setTarget({ ...nextTarget, selectedIds });
     setIsOpen(true);
   }
 
@@ -78,6 +88,9 @@ export function useMessageMenu({ viewportRef, isDisabled }: MessageMenuOptions) 
       return;
     }
     event.preventDefault();
+    if (lastPointerTypeRef.current === 'touch') {
+      return;
+    }
     cancelLongPress();
     openMenu({ ...nextTarget, point: { x: event.clientX, y: event.clientY } });
   }
@@ -90,12 +103,23 @@ export function useMessageMenu({ viewportRef, isDisabled }: MessageMenuOptions) 
       return;
     }
     const element = event.target;
-    if (!(element instanceof Element) || !element.closest('[data-message-menu-trigger]')) {
+    if (!(element instanceof Element)) {
+      return;
+    }
+    const isMenuButton = Boolean(element.closest('[data-message-menu-trigger]'));
+    const isTouchTap = lastPointerTypeRef.current === 'touch' && selectedIds === undefined;
+    const isInteractiveContent = Boolean(
+      element.closest('button, a, input, video, audio, [data-message-media]'),
+    );
+    if (!isMenuButton && (!isTouchTap || isInteractiveContent)) {
       return;
     }
     const nextTarget = findMessageTarget(element);
     if (nextTarget) {
-      openMenu(nextTarget);
+      event.preventDefault();
+      event.stopPropagation();
+      const point = isMenuButton ? nextTarget.point : { x: event.clientX, y: event.clientY };
+      openMenu({ ...nextTarget, point });
     }
   }
 
@@ -117,8 +141,9 @@ export function useMessageMenu({ viewportRef, isDisabled }: MessageMenuOptions) 
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     cancelLongPress();
+    lastPointerTypeRef.current = event.pointerType;
     hasLongPressedRef.current = false;
-    if (isDisabled || event.pointerType !== 'touch') {
+    if (isDisabled || event.pointerType !== 'touch' || selectedIds !== undefined) {
       return;
     }
     const nextTarget = findMessageTarget(event.target);
@@ -129,7 +154,8 @@ export function useMessageMenu({ viewportRef, isDisabled }: MessageMenuOptions) 
     pointerStartRef.current = point;
     longPressTimerRef.current = setTimeout(() => {
       hasLongPressedRef.current = true;
-      openMenu({ ...nextTarget, point });
+      // A hold selects; its release must not immediately toggle the new selection off.
+      onSelectMessage(nextTarget.messageId);
       cancelLongPress();
     }, LONG_PRESS_DURATION_MS);
   }

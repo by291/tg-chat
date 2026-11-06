@@ -1,8 +1,10 @@
-import { useCallback, useState, type Dispatch } from 'react';
+import { useCallback, useEffect, useState, type Dispatch } from 'react';
 import type { HeaderAction } from './ChatHeaderMenu';
 import type { ChatAction, ChatState, Conversation } from './model';
 import { useConversationList } from './sidebar/conversationList';
 import { useSidebarActions } from './sidebar/useSidebarActions';
+
+const EMPTY_SELECTION: string[] = [];
 
 interface HeaderActionsOptions {
   conversation: Conversation;
@@ -21,28 +23,65 @@ export function useHeaderActions({
   const conversations = useConversationList(state);
   const entry = conversations.find((item) => item.id === conversation.id);
   const actions = useSidebarActions({ conversations, dispatch });
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selection, setSelection] = useState<string[]>();
+  const isSelecting = selection !== undefined;
+  const selectedIds = selection ?? EMPTY_SELECTION;
   const [dialog, setDialog] = useState<'call' | 'auto-delete' | 'delete-messages'>();
 
-  function clearSelection() {
-    setIsSelecting(false);
-    setSelectedIds([]);
-  }
+  const clearSelection = useCallback(() => {
+    setSelection(undefined);
+  }, []);
 
   const toggleMessage = useCallback((messageId: string) => {
-    setSelectedIds((current) => {
-      if (current.includes(messageId)) {
-        return current.filter((id) => id !== messageId);
+    setSelection((current = []) => {
+      if (!current.includes(messageId)) {
+        return [...current, messageId];
       }
-      return [...current, messageId];
+      const remaining = current.filter((id) => id !== messageId);
+      return remaining.length ? remaining : undefined;
     });
   }, []);
 
+  const selectMessage = useCallback((messageId: string) => {
+    setSelection((current = []) => {
+      return current.includes(messageId) ? current : [...current, messageId];
+    });
+  }, []);
+
+  const setMessagesSelected = useCallback(
+    (options: { messageIds: string[]; shouldSelect: boolean }) => {
+      setSelection((current = []) => {
+        const next = new Set(current);
+        for (const messageId of options.messageIds) {
+          if (options.shouldSelect) {
+            next.add(messageId);
+          } else {
+            next.delete(messageId);
+          }
+        }
+        return next.size ? [...next] : undefined;
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!isSelecting) {
+      return;
+    }
+    function exitWithEscape(event: KeyboardEvent) {
+      // Nested menus and dialogs consume Escape before the selection layer.
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        clearSelection();
+      }
+    }
+    window.addEventListener('keydown', exitWithEscape);
+    return () => window.removeEventListener('keydown', exitWithEscape);
+  }, [isSelecting, clearSelection]);
+
   function runAction(action: HeaderAction) {
     if (action === 'select') {
-      setIsSelecting(!isSelecting);
-      setSelectedIds([]);
+      setSelection(isSelecting ? undefined : []);
       return;
     }
     if (action === 'call' || action === 'auto-delete') {
@@ -81,6 +120,8 @@ export function useHeaderActions({
     setDialog,
     clearSelection,
     toggleMessage,
+    selectMessage,
+    setMessagesSelected,
     runAction,
     setAutoDelete,
     deleteSelectedMessages,

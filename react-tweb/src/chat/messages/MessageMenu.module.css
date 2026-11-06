@@ -152,3 +152,12 @@
     transition: none;
   }
 }
+
+.menu[data-selecting='true'] {
+  width: 220px;
+}
+
+.menu[data-selecting='true'] .items {
+  width: 100%;
+  margin: 0;
+}

@@ -154,7 +154,19 @@ export type ChatAction =
       type: 'toggle-theme';
     };
 
-export type MessageAction = 'reply' | 'edit' | 'delete' | 'pin' | 'copy' | 'forward';
+export type MessageAction =
+  | 'reply'
+  | 'edit'
+  | 'delete'
+  | 'pin'
+  | 'copy'
+  | 'forward'
+  | 'select'
+  | 'copy-selected'
+  | 'download-selected'
+  | 'forward-selected'
+  | 'delete-selected'
+  | 'clear-selection';
 
 export interface MessageCommand {
   action: MessageAction;

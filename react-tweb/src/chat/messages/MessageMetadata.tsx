@@ -20,7 +20,7 @@ function MetadataContent({ message }: { message: Message }) {
 /** Reserve the timestamp's inline width while positioning its visible copy on the last line. */
 export function MessageMetadata({ message }: { message: Message }) {
   return (
-    <span className={styles.metadata}>
+    <span className={styles.metadata} data-message-metadata>
       {/* The hidden copy reserves edited/pinned widths without duplicating accessible content. */}
       <span className={styles.metadataPlaceholder} aria-hidden="true">
         <MetadataContent message={message} />

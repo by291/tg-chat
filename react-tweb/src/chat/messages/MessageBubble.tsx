@@ -7,7 +7,7 @@ import { MessageTail } from './MessageTail';
 import { useDeferredMediaSource } from './deferredMedia';
 import { IconButton } from '../../components/IconButton';
 import { describeMessage } from '../messageFormatting';
-import { CURRENT_USER_ID, type Message, type MessageCommand } from '../model';
+import { CURRENT_USER_ID, type Message } from '../model';
 import styles from './MessageBubble.module.css';
 
 const MESSAGE_ENTRY_DURATION = 0.2;
@@ -27,7 +27,6 @@ interface MessageBubbleProps {
   shouldAnimate: boolean;
   onAppear: (messageId: string) => void;
   onVote: (messageId: string, optionId: string) => void;
-  onCommand: (command: MessageCommand) => void;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMedia: (message: Message) => void;
   onJumpToMessage: (messageId: string) => void;
@@ -67,7 +66,6 @@ export const MessageBubble = memo(function MessageBubble({
   shouldAnimate,
   onAppear,
   onVote,
-  onCommand,
   onReact,
   onOpenMedia,
   onJumpToMessage,
@@ -108,7 +106,6 @@ export const MessageBubble = memo(function MessageBubble({
     <motion.article
       id={elementId}
       className={styles.messageRow}
-      data-message-id={message.id}
       data-selecting={isSelecting}
       data-selected={isSelected}
       data-own={isOwn}
@@ -123,16 +120,16 @@ export const MessageBubble = memo(function MessageBubble({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: shouldReduceMotion ? 0 : MESSAGE_ENTRY_DURATION }}
     >
-      {isSelecting && (
-        <button
-          className={styles.selectionCheckbox}
-          role="checkbox"
-          aria-checked={isSelected}
-          aria-label={`Select message from ${message.authorName}`}
-        >
-          {isSelected && <Check size={16} />}
-        </button>
-      )}
+      <button
+        className={styles.selectionCheckbox}
+        role="checkbox"
+        tabIndex={isSelecting ? 0 : -1}
+        aria-hidden={!isSelecting}
+        aria-checked={isSelected}
+        aria-label={`Select message from ${message.authorName}`}
+      >
+        {isSelected && <Check size={16} />}
+      </button>
       {!isOwn && (
         <span className={styles.senderAvatar} data-visible={isGroupEnd} aria-hidden="true">
           {message.authorName.slice(0, 1)}
@@ -140,6 +137,7 @@ export const MessageBubble = memo(function MessageBubble({
       )}
       <div
         className={styles.bubble}
+        data-message-content
         data-group-start={isGroupStart}
         data-group-end={isGroupEnd}
         data-standalone={isStandalone}
@@ -148,11 +146,6 @@ export const MessageBubble = memo(function MessageBubble({
         data-has-tail={canHaveTail && isGroupEnd}
         data-has-header={hasHeader}
         data-has-caption={hasCaption}
-        onDoubleClick={(event) => {
-          if (!(event.target as HTMLElement).closest('button, a, video, audio, input')) {
-            onCommand({ action: 'reply', message });
-          }
-        }}
       >
         {canHaveTail && isGroupEnd && <MessageTail />}
         {hasAuthor && (
@@ -184,7 +177,7 @@ export const MessageBubble = memo(function MessageBubble({
             <MessageText message={message} />
           </div>
         )}
-        <div className={styles.mediaContent}>
+        <div className={styles.mediaContent} data-message-media>
           <MessageBody message={message} onOpenMedia={onOpenMedia} onVote={onVote} />
           {hasOverlayTime && <MessageMetadata message={message} />}
         </div>
