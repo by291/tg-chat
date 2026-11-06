@@ -74,3 +74,44 @@ the outline for Tab navigation and keyboard dismissal.
 Search operates on the local conversations. Telegram's remote search categories, account controls,
 and server-driven recent-search history are outside this local demonstration. The menu retains the
 working Saved Messages and theme actions instead of presenting controls with no local behavior.
+
+## Conversation context menu
+
+`src/components/dialogsContextMenu.ts` supplies the upstream item order and state-dependent labels.
+The local `ConversationMenu` uses Ark's pointer-anchored context menu with 32px rows, medium 14px
+type, 18px line height, 20px icons, and red destructive text. It shares the existing menu animation,
+ripple, and outside-click dismissal layer. Right-clicking a row does not select or read it.
+
+The local menu supports opening a new tab, previewing, selecting, toggling read status, pinning,
+muting, archiving, clearing history, and deleting. Saved Messages omits mute and archive. Preview
+does not mark messages as read; opening the conversation does. Clear and delete require a dialog.
+Archived conversations remain reachable through the archive entry. Multi-selection exposes read,
+mute, archive, and delete actions. The former Local demo footer label is removed.
+
+`useSidebarActions` owns temporary selection and dialogs. `conversationList` resolves fixture values
+and persisted overrides. `state/conversationActions` updates preferences or clears local messages
+and drafts. The optional preferences field preserves compatibility with existing saved snapshots.
+
+This demonstration uses a persistent mute toggle, not timed notification settings. Preview shows
+the latest eight local messages with text or image content, not Telegram's complete preview player.
+Saved Messages grouping, server permissions, and folder-specific commands are not reproduced.
+Opening a new tab selects the requested local chat; cross-tab editing reconciliation is unsupported.
+
+Manual browser checks covered opening without selecting or reading, preview dismissal, pinning,
+archive navigation, and multi-selection cancellation. No new tests were added or run for this change.
+
+## Upstream conversation-list virtualization
+
+Telegram K virtualizes the left conversation list as well as the message history. Follow this chain:
+
+1. `src/components/autonomousDialogList/dialogs.ts` constructs `SortedDialogList`.
+2. `src/components/sortedDialogList.ts` creates `createDeferredSortedVirtualList`.
+3. `src/components/deferredSortedVirtualList.tsx` renders `VerticalVirtualList` with
+   `thresholdPadding={72 * 4}`, approximately four normal rows beyond each viewport edge.
+4. `src/components/verticalVirtualList.tsx` computes visibility from scroll position and row layout,
+   mounts visible entries conditionally, and positions them within the full list height.
+
+The deferred layer also coordinates pinned ordering, loading, and retained data. Its extra cached
+items are distinct from mounted DOM rows. The React study currently renders its nine local sidebar
+conversations directly; only the message timeline is virtualized. No sidebar virtualizer was added
+as part of the context-menu work.

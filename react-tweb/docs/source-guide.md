@@ -68,7 +68,8 @@ follows a new outgoing message to the bottom; the persistence hook writes the up
 
 ## Keep permanent and temporary state separate
 
-Messages, drafts, selected chat, and appearance live in the reducer. Open menus, active search,
+Messages, drafts, selected chat, conversation preferences, and appearance live in the reducer.
+Open menus, active search,
 the editing target, reply target, delete confirmation, and photo viewer are temporary UI state.
 The conversation pane is keyed by conversation ID, so a reply or edit cannot leak into another chat.
 The composer is keyed by the editing message ID, so changing the edit target resets its editing text.
@@ -76,6 +77,12 @@ The composer is keyed by the editing message ID, so changing the edit target res
 Only validated saved data reaches rendering. Timestamps must be inside JavaScript's valid Date
 range. A failed read leaves the initial demonstration usable; a failed write produces a visible
 storage notice. One tab is the supported editing owner; cross-tab reconciliation is not implemented.
+
+For sidebar actions, read `sidebar/ConversationMenu.tsx`, `sidebar/useSidebarActions.ts`, and
+`state/conversationActions.ts`. The menu names available commands, the hook owns selection and
+confirmation dialogs, and reducer helpers persist the actual changes. `sidebar/conversationList.ts`
+combines fixture defaults with saved preferences and orders pinned chats. See the
+[sidebar audit](./sidebar-style-audit.md) for upstream menu and list-virtualization references.
 
 ## Virtual history and scrolling ownership
 
