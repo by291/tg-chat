@@ -100,6 +100,25 @@ bulk mute uses the permanent toggle, matching the upstream selection action.
 Saved Messages grouping, server permissions, and folder-specific commands are not reproduced.
 Opening a new tab selects the requested local chat; cross-tab editing reconciliation is unsupported.
 
+## Sidebar page navigation
+
+Telegram's `SidebarSlider` in `src/components/slider.ts` selects the `navigation` transition.
+`slideNavigation` in `src/components/transition.ts` moves the incoming page from the full sidebar
+width while shifting the previous page left by 25% and reducing its brightness to 80%.
+`src/scss/partials/_slider.scss` applies the standard transition tokens: 300ms entering, 250ms
+returning, both with `cubic-bezier(0.4, 0, 0.2, 1)`. These CSS timings were also read from Web K.
+
+`SidebarNavigation` owns this shared two-page transition, including the header and content.
+Both pages stay mounted with independent virtual viewports, so returning preserves scroll position.
+Inactive pages become inert immediately and hidden when their exit transition ends. CSS transitions
+can reverse from their current position without a timeout or a forced remount. Reduced motion
+switches pages immediately. Entering focuses the secondary page's first button; returning restores
+the primary page's last available button without scrolling or reopening search through input focus.
+
+The main menu and archive row open the same archive page. Back and Escape return to the inbox;
+Escape first dismisses selection when selection is active. `SidebarPageHeader` retains the normal
+header underneath each page's selection toolbar. Search keeps its separate 150ms zoom-fade behavior.
+
 ## Preview and selection
 
 `src/components/popups/chatPreview.tsx` and `src/scss/partials/popups/_chatPreview.scss` define the
@@ -166,3 +185,29 @@ Arrow keys, Home, and End scroll the virtualizer before focusing the destination
 window to the last conversation and focused it; the first two DOM rows were then unmounted.
 The outer panel uses `overflow: clip` so search's scale transition cannot turn it into a second
 programmatically scrolled viewport. Search results retain their separate compact rendering.
+
+## Archive menus and settings
+
+`archiveDialogContextMenu.ts` supplies the upstream archive entry's context menu and the archive
+page's More menu. `ArchiveMenu` shares the same commands between both entry points: Search,
+Hide/Show in Chat List, Mark All as Read, Archive Settings, and How does it work. The read command
+appears only when archived conversations have unread state. Its operation affects those
+conversations only; the archive badge counts unread conversations rather than all archived chats.
+
+Search returns to the primary page with an Archive scope chip and focuses the input after menu
+focus restoration. Removing the chip restores the full search scope. Hiding the archive row
+preserves access through the main menu; its visibility preference persists in the existing
+IndexedDB snapshot.
+
+`archiveSettingsTab.tsx` is the settings reference. The local settings page uses the shared sidebar
+transition, an explicit Save action, and a Save/Discard/Cancel prompt when leaving changed values.
+The unmuted-chat preference is persisted. The reducer's `receive` action applies it to local
+incoming messages: muted chats stay archived, while unmuted chats leave unless retention is on.
+There is no connected transport or automatic incoming-message generator in this demo.
+
+Folder-specific retention is disabled because this project has no chat folders. Automatic
+archiving of unknown senders and Stories remain unavailable. The help dialog describes these
+limits and links to settings. It uses a static archive icon instead of Telegram's animated sticker.
+
+Manual browser inspection covered both menu entry points, scoped search, hide/show, saved settings,
+the unsaved-change prompt, help, and conditional bulk-read behavior. No tests were added or run.

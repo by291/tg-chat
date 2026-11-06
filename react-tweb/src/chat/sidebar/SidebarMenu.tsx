@@ -1,5 +1,5 @@
 import { Menu } from '@ark-ui/react/menu';
-import { Bookmark, Moon } from 'lucide-react';
+import { Archive, Bookmark, Moon } from 'lucide-react';
 import { useState, type Ref } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { Ripple } from '../../components/Ripple';
@@ -14,6 +14,8 @@ interface SidebarMenuProps {
   onCloseSearch: () => void;
   onSelectChat: (chatId: string) => void;
   onToggleTheme: () => void;
+  onOpenArchive: () => void;
+  archiveUnreadCount: number;
 }
 
 /** Keep menu and back controls in the same place while their shared icon morphs. */
@@ -24,6 +26,8 @@ export function SidebarMenu({
   onCloseSearch,
   onSelectChat,
   onToggleTheme,
+  onOpenArchive,
+  archiveUnreadCount,
 }: SidebarMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const navigationIcon = (
@@ -66,6 +70,13 @@ export function SidebarMenu({
                 onSelect={() => onSelectChat('saved')}
               >
                 <Bookmark /> Saved Messages
+                <Ripple />
+              </Menu.Item>
+              <Menu.Item value="archive" className={overlays.menuItem} onSelect={onOpenArchive}>
+                <Archive /> Archived Chats
+                {archiveUnreadCount > 0 && (
+                  <span className={styles.archiveMenuCount}>{archiveUnreadCount}</span>
+                )}
                 <Ripple />
               </Menu.Item>
               <Menu.Item value="theme" className={overlays.menuItem} onSelect={onToggleTheme}>

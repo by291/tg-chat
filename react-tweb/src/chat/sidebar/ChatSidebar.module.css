@@ -469,6 +469,7 @@
 }
 
 .archiveTitle {
+  flex: 1;
   margin: 0 8px;
   font-size: 20px;
   font-weight: 500;
@@ -489,8 +490,34 @@
   cursor: pointer;
 }
 
-.archiveEntry:hover {
+.archiveEntry:hover,
+.archiveEntry[data-state='open'] {
   background: var(--hover-color);
+}
+
+.archiveMenuCount {
+  margin-left: auto;
+  color: var(--secondary-color);
+}
+
+.archiveSearchScope {
+  position: absolute;
+  left: 48px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 14px;
+  color: var(--accent-color);
+  background: var(--reply-color);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.searchField[data-archive='true'] input {
+  padding-left: 140px;
 }
 
 .archiveAvatar {

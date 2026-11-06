@@ -83,6 +83,9 @@ For sidebar actions, read `sidebar/ConversationMenu.tsx`, `sidebar/useSidebarAct
 confirmation dialogs, and reducer helpers persist the actual changes. `sidebar/conversationList.ts`
 combines fixture defaults with saved preferences, resolves mute deadlines, and orders pinned chats.
 `sidebar/VirtualConversationList.tsx` owns the fixed-height sidebar window and pinned drag order.
+`sidebar/SidebarNavigation.tsx` moves whole sidebar pages with Telegram's forward/back transitions;
+the inbox and archive retain independent scroll positions. `SidebarPageHeader` shares the selection
+overlay behavior between their headers.
 `sidebar/ConversationPreview.tsx` positions a read-only instance of the existing message timeline;
 it does not maintain a second set of bubble renderers. See the
 [sidebar audit](./sidebar-style-audit.md) for upstream menu and list-virtualization references.
@@ -156,6 +159,14 @@ deletions, drafts, and photo metadata remain intact; version-2 restores do not r
 messages. All writes continue using the existing IndexedDB key.
 
 ## What Ark UI does
+
+The archive entry and archive page header share `sidebar/ArchiveMenu.tsx`. Their commands live in
+`sidebar/useArchiveActions.ts`; `ArchiveSettingsPage.tsx` owns the editable settings view and
+`ArchiveDialogs.tsx` owns help and confirmation dialogs. `SidebarNavigation.tsx` keeps both pages
+mounted while sliding between them, including the nested settings page. Archive preferences are
+optional fields in the saved state, so existing snapshots continue to load. The reducer's `receive`
+action in `state/incomingMessages.ts` applies the saved retention preference to local incoming
+messages; a future transport can dispatch that action without putting archive rules in the UI.
 
 The headless components provide interaction contracts without imposing a visual theme.
 

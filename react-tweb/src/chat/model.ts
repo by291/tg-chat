@@ -41,6 +41,11 @@ export const conversationPreferencesSchema = z.object({
   hasClearedHistory: z.boolean().optional(),
 });
 
+export const archivePreferencesSchema = z.object({
+  showInChatList: z.boolean().optional(),
+  keepUnmutedArchived: z.boolean().optional(),
+});
+
 export const chatStateSchema = z.object({
   version: z.union([z.literal(1), z.literal(2)]),
   messages: z.array(messageSchema),
@@ -48,12 +53,14 @@ export const chatStateSchema = z.object({
   activeChatId: z.string(),
   isDark: z.boolean(),
   conversationPreferences: z.record(z.string(), conversationPreferencesSchema).optional(),
+  archivePreferences: archivePreferencesSchema.optional(),
 });
 
 export type Attachment = z.infer<typeof attachmentSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type ChatState = z.infer<typeof chatStateSchema>;
 export type ConversationPreferences = z.infer<typeof conversationPreferencesSchema>;
+export type ArchivePreferences = z.infer<typeof archivePreferencesSchema>;
 
 export interface Conversation {
   id: string;
@@ -70,6 +77,10 @@ export interface Conversation {
 }
 
 export type ChatAction =
+  | {
+      type: 'update-archive-preferences';
+      changes: ArchivePreferences;
+    }
   | {
       type: 'reorder-pinned-conversations';
       chatIds: string[];
@@ -99,6 +110,10 @@ export type ChatAction =
     }
   | {
       type: 'send';
+      message: Message;
+    }
+  | {
+      type: 'receive';
       message: Message;
     }
   | {

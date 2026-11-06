@@ -1,4 +1,5 @@
 import { applyPollVote } from './pollVoting';
+import { receiveMessage } from './incomingMessages';
 import {
   clearConversations,
   reorderPinnedConversations,
@@ -48,6 +49,11 @@ function updateMessage(message: Message, action: MessageChange): Message {
 /** Apply one conversation action without mutating the previous state. */
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case 'update-archive-preferences':
+      return {
+        ...state,
+        archivePreferences: { ...state.archivePreferences, ...action.changes },
+      };
     case 'reorder-pinned-conversations':
       return reorderPinnedConversations({ state, chatIds: action.chatIds });
     case 'update-conversations':
@@ -98,6 +104,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         drafts: message.sticker ? state.drafts : { ...state.drafts, [message.chatId]: '' },
       };
     }
+    case 'receive':
+      return receiveMessage({ state, message: action.message });
     case 'delete':
       return {
         ...state,
