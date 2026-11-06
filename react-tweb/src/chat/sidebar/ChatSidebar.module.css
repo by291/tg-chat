@@ -586,11 +586,15 @@
 
 .virtualConversation {
   position: absolute;
-  top: 0;
   left: 0;
   width: 100%;
   height: 72px;
-  transition: transform 300ms var(--menu-easing);
+}
+
+/* Moving rows must cover each other instead of letting their text show through. */
+.virtualConversation[data-gliding='true'] .chatRow:not([data-active='true']) {
+  background: var(--surface-color);
+  transition: none;
 }
 
 .chatRow[data-selecting='true'] .avatarContainer,

@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { ConversationListEntry } from './conversationList';
+import { useConversationGlide } from './useConversationGlide';
 import styles from './ChatSidebar.module.css';
 
 const ROW_HEIGHT = 72;
@@ -22,6 +23,34 @@ interface VirtualConversationListProps {
   onScrollOffsetChange: (offset: number) => void;
   onReorderPinned: (chatIds: string[]) => void;
   renderRow: (conversation: ConversationListEntry) => ReactNode;
+}
+
+interface VirtualConversationRowProps {
+  conversationId: string;
+  index: number;
+  top: number;
+  children: ReactNode;
+}
+
+function VirtualConversationRow({
+  conversationId,
+  index,
+  top,
+  children,
+}: VirtualConversationRowProps) {
+  const rowRef = useConversationGlide(top);
+
+  return (
+    <div
+      ref={rowRef}
+      className={styles.virtualConversation}
+      data-conversation-index={index}
+      data-conversation-id={conversationId}
+      style={{ top }}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** Window fixed-height conversation rows while retaining stable positions during reordering. */
@@ -168,15 +197,14 @@ export function VirtualConversationList({
         {virtualRows.map((item) => {
           const conversation = conversations[item.index];
           return (
-            <div
+            <VirtualConversationRow
               key={conversation.id}
-              className={styles.virtualConversation}
-              data-conversation-index={item.index}
-              data-conversation-id={conversation.id}
-              style={{ transform: `translateY(${item.start}px)` }}
+              conversationId={conversation.id}
+              index={item.index}
+              top={item.start}
             >
               {renderRow(conversation)}
-            </div>
+            </VirtualConversationRow>
           );
         })}
         {conversations.length === 0 && <p className={styles.empty}>No conversations</p>}
