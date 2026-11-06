@@ -7,6 +7,7 @@ import { animateHistoryNavigation, getHistoryNavigationWindow } from './animateH
 import type { HistoryRow } from './historyRows';
 import { CURRENT_USER_ID } from '../model';
 import type { MessageNavigation } from './MessageTimeline';
+import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 
 const OVERSCAN_ROWS = 8;
 const WIDTH_SETTLE_DELAY_MS = 100;
@@ -16,9 +17,11 @@ const SHOW_JUMP_DISTANCE = 160;
 const READ_BOTTOM_DISTANCE = 1;
 const HISTORY_TOP_PADDING = 40;
 const HISTORY_BOTTOM_PADDING = 12;
+const NO_OVERLAYS: ChatOverlayInsets = { top: 0, bottom: 0 };
 
 interface VirtualHistoryOptions {
   rows: HistoryRow[];
+  overlayInsets?: ChatOverlayInsets;
   hasOlder: boolean;
   loadOlder: () => void;
   navigation?: MessageNavigation;
@@ -36,15 +39,18 @@ interface NavigationWindow {
 /** Give the virtualizer sole ownership of history measurements and scroll correction. */
 export function useVirtualHistory({
   rows,
+  overlayInsets = NO_OVERLAYS,
   hasOlder,
   loadOlder,
   navigation,
   onReachLatest,
 }: VirtualHistoryOptions) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const previousInsetsRef = useRef(overlayInsets);
   const isInitializedRef = useRef(false);
   const hasUserInteractedRef = useRef(false);
-  const previousWidthRef = useRef(0);
+  const previousContentWidthRef = useRef(0);
   const readingAnchorRef = useRef<ReadingAnchor | undefined>(undefined);
   const lastNavigationRef = useRef<number | undefined>(undefined);
   const cancelNavigationRef = useRef<(() => void) | undefined>(undefined);
@@ -60,7 +66,7 @@ export function useVirtualHistory({
   const getItemKey = useCallback((index: number) => rows[index].key, [rows]);
   const estimateSize = useCallback(
     (index: number) => {
-      return estimateHistoryRow(rows[index], viewportRef.current?.clientWidth || undefined);
+      return estimateHistoryRow(rows[index], contentRef.current?.clientWidth || undefined);
     },
     [rows],
   );
@@ -93,16 +99,47 @@ export function useVirtualHistory({
       return entry?.borderBoxSize[0]?.blockSize ?? element.getBoundingClientRect().height;
     },
     overscan: OVERSCAN_ROWS,
-    paddingStart: HISTORY_TOP_PADDING,
-    paddingEnd: HISTORY_BOTTOM_PADDING,
+    paddingStart: HISTORY_TOP_PADDING + overlayInsets.top,
+    paddingEnd: HISTORY_BOTTOM_PADDING + overlayInsets.bottom,
+    scrollPaddingStart: overlayInsets.top,
+    scrollPaddingEnd: overlayInsets.bottom,
     anchorTo: 'end',
     followOnAppend: shouldReduceMotion ? 'auto' : 'smooth',
     scrollEndThreshold: FOLLOW_BOTTOM_DISTANCE,
   });
 
+  useLayoutEffect(() => {
+    const previous = previousInsetsRef.current;
+    previousInsetsRef.current = overlayInsets;
+    const viewport = viewportRef.current;
+    if (!viewport || !isInitializedRef.current) {
+      return;
+    }
+    const topChange = overlayInsets.top - previous.top;
+    const bottomChange = overlayInsets.bottom - previous.bottom;
+    if (topChange === 0 && bottomChange === 0) {
+      return;
+    }
+
+    // The viewport no longer shrinks when reply/edit controls grow. Preserve the same reading
+    // position explicitly, or keep the latest message above the resized composer at the end.
+    const previousDistance =
+      virtualizer.getTotalSize() -
+      viewport.scrollTop -
+      viewport.clientHeight -
+      topChange -
+      bottomChange;
+    if (previousDistance <= FOLLOW_BOTTOM_DISTANCE) {
+      virtualizer.scrollToEnd({ behavior: 'auto' });
+      return;
+    }
+    virtualizer.scrollToOffset(viewport.scrollTop + topChange, { behavior: 'auto' });
+  }, [overlayInsets, virtualizer]);
+
   function rememberReadingPosition() {
     const viewport = viewportRef.current;
-    if (viewport && viewport.clientWidth === previousWidthRef.current) {
+    const content = contentRef.current;
+    if (viewport && content?.clientWidth === previousContentWidthRef.current) {
       readingAnchorRef.current = readMeasuredHistoryAnchor({ viewport, virtualizer });
     }
   }
@@ -234,11 +271,12 @@ export function useVirtualHistory({
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport) {
+    const content = contentRef.current;
+    if (!viewport || !content) {
       return;
     }
 
-    previousWidthRef.current = viewport.clientWidth;
+    previousContentWidthRef.current = content.clientWidth;
     rememberReadingPosition();
     let previousHeight = viewport.clientHeight;
     let resizeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -251,7 +289,7 @@ export function useVirtualHistory({
       if (!viewport.clientWidth || !viewport.clientHeight) {
         return;
       }
-      previousWidthRef.current = viewport.clientWidth;
+      previousContentWidthRef.current = content.clientWidth;
       cancelResizeRestoreRef.current = remeasureHistory({
         viewport,
         virtualizer,
@@ -265,12 +303,18 @@ export function useVirtualHistory({
     };
 
     const observer = new ResizeObserver(() => {
-      const width = viewport.clientWidth;
+      const width = content.clientWidth;
       const height = viewport.clientHeight;
       if (!width || !height) {
         return;
       }
-      const hasWidthChanged = width !== previousWidthRef.current || resizeTimer !== undefined;
+      const hasWidthChanged =
+        width !== previousContentWidthRef.current || resizeTimer !== undefined;
+      // The content observer also reports history-height changes from pagination and media.
+      // Those are already owned by row measurement and must not start a viewport resize pass.
+      if (!hasWidthChanged && height === previousHeight) {
+        return;
+      }
       const wasAtEnd =
         viewport.scrollHeight - viewport.scrollTop - previousHeight <= FOLLOW_BOTTOM_DISTANCE;
       previousHeight = height;
@@ -292,7 +336,7 @@ export function useVirtualHistory({
           clearTimeout(resizeTimer);
           resizeTimer = undefined;
           isResizingRef.current = false;
-          previousWidthRef.current = viewport.clientWidth;
+          previousContentWidthRef.current = content.clientWidth;
           // A newer gesture owns position. Row observers can finish measuring without replaying
           // the old anchor or resetting the full cache during that gesture.
         };
@@ -302,7 +346,10 @@ export function useVirtualHistory({
         virtualizer.scrollToEnd({ behavior: 'auto' });
       }
     });
+    // Side panels can change the scroll surface without changing the capped message column.
+    // Only a content-width change invalidates wrapping and cached row heights.
     observer.observe(viewport);
+    observer.observe(content);
     return () => {
       observer.disconnect();
       clearTimeout(resizeTimer);
@@ -392,6 +439,7 @@ export function useVirtualHistory({
 
   return {
     viewportRef,
+    contentRef,
     virtualizer,
     canJumpToLatest: virtualizer.getDistanceFromEnd() > SHOW_JUMP_DISTANCE,
     updateScrollPosition: scheduleScrollWork,

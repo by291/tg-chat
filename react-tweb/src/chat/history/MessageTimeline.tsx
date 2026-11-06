@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
@@ -9,6 +9,7 @@ import { describeMessage } from '../messageFormatting';
 import type { Message, MessageCommand } from '../model';
 import { useHistoryWindow } from './useHistoryWindow';
 import { useVirtualHistory } from './useVirtualHistory';
+import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import styles from './MessageTimeline.module.css';
 
 const HIGHLIGHT_DURATION = 1800;
@@ -20,6 +21,7 @@ export interface MessageNavigation {
 
 interface MessageTimelineProps {
   messages: Message[];
+  overlayInsets?: ChatOverlayInsets;
   isPreview?: boolean;
   messageIdPrefix?: string;
   searchQuery: string;
@@ -42,6 +44,7 @@ interface VirtualMessageHistoryProps extends MessageTimelineProps {
 
 function VirtualMessageHistory({
   messages,
+  overlayInsets,
   messageById,
   searchQuery,
   unreadCount = 0,
@@ -66,6 +69,7 @@ function VirtualMessageHistory({
   const { rows, hasOlder, loadOlder } = history;
   const scroll = useVirtualHistory({
     rows,
+    overlayInsets,
     hasOlder,
     loadOlder,
     navigation,
@@ -140,7 +144,11 @@ function VirtualMessageHistory({
         data-rendered-rows={virtualItems.length}
         tabIndex={0}
       >
-        <div className={styles.messages} style={{ height: totalHeight + bottomAlignment }}>
+        <div
+          ref={scroll.contentRef}
+          className={styles.messages}
+          style={{ height: totalHeight + bottomAlignment }}
+        >
           <div className={styles.historyStart}>
             {hasOlder ? (
               <button onClick={loadOlder}>Load earlier messages</button>
@@ -254,7 +262,17 @@ export const MessageTimeline = memo(function MessageTimeline(props: MessageTimel
   }, [props.messages, normalizedQuery]);
 
   return (
-    <div className={styles.timelineArea} data-preview={props.isPreview}>
+    <div
+      className={styles.timelineArea}
+      data-preview={props.isPreview}
+      data-floating-controls={Boolean(props.overlayInsets)}
+      style={
+        {
+          '--history-top-inset': `${props.overlayInsets?.top ?? 0}px`,
+          '--history-bottom-inset': `${props.overlayInsets?.bottom ?? 0}px`,
+        } as CSSProperties
+      }
+    >
       <VirtualMessageHistory
         key={normalizedQuery}
         {...props}

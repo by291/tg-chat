@@ -1,4 +1,6 @@
 .timelineArea {
+  --history-top-inset: 0px;
+  --history-bottom-inset: 0px;
   position: relative;
   display: flex;
   flex: 1;
@@ -26,8 +28,39 @@
   outline-offset: -3px;
 }
 
+.timelineArea[data-floating-controls='true'] .viewport {
+  /* Match tweb's eased fade while messages travel behind the floating controls. */
+  --fade-floor: rgb(255 255 255 / 24%);
+  --fade-top: calc(var(--history-top-inset) + 8px);
+  --fade-hold: max(0px, calc(var(--history-top-inset) - var(--chat-edge-inset) - 48px));
+  --fade-ramp: calc(var(--fade-top) - var(--fade-hold));
+  --fade-bottom: calc(var(--history-bottom-inset) + 8px);
+  mask-image: linear-gradient(
+    to bottom,
+    var(--fade-floor),
+    var(--fade-floor) var(--fade-hold),
+    color-mix(in srgb, black 8.6%, var(--fade-floor))
+      calc(var(--fade-hold) + var(--fade-ramp) * 0.2),
+    color-mix(in srgb, black 33.4%, var(--fade-floor))
+      calc(var(--fade-hold) + var(--fade-ramp) * 0.4),
+    color-mix(in srgb, black 66.6%, var(--fade-floor))
+      calc(var(--fade-hold) + var(--fade-ramp) * 0.6),
+    color-mix(in srgb, black 91.4%, var(--fade-floor))
+      calc(var(--fade-hold) + var(--fade-ramp) * 0.8),
+    black var(--fade-top),
+    black calc(100% - var(--fade-bottom)),
+    color-mix(in srgb, black 91.4%, var(--fade-floor)) calc(100% - var(--fade-bottom) * 0.8),
+    color-mix(in srgb, black 66.6%, var(--fade-floor)) calc(100% - var(--fade-bottom) * 0.6),
+    color-mix(in srgb, black 33.4%, var(--fade-floor)) calc(100% - var(--fade-bottom) * 0.4),
+    color-mix(in srgb, black 8.6%, var(--fade-floor)) calc(100% - var(--fade-bottom) * 0.2),
+    var(--fade-floor)
+  );
+}
+
 .messages {
   position: relative;
+  width: var(--chat-content-width, 100%);
+  margin: 0 auto;
   min-height: 100%;
   overflow-anchor: none;
 }
@@ -42,7 +75,7 @@
 
 .historyStart {
   position: absolute;
-  top: 8px;
+  top: calc(var(--history-top-inset) + 8px);
   width: 100%;
   text-align: center;
   font-size: 12px;
@@ -73,8 +106,8 @@
 
 .jumpButton {
   position: absolute;
-  right: 0;
-  bottom: 8px;
+  right: calc((100% - var(--chat-content-width, 100%)) / 2);
+  bottom: calc(var(--history-bottom-inset) + 8px);
   z-index: 4;
   width: 54px;
   height: 54px;

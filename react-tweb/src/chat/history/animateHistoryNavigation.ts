@@ -23,7 +23,6 @@ interface HistoryNavigationOptions extends HistoryTargetOptions {
 interface NavigationTarget {
   index: number;
   offset: number;
-  align: 'start' | 'center';
 }
 
 function findTarget({
@@ -40,15 +39,15 @@ function findTarget({
     return undefined;
   }
 
-  const align = item.size >= viewport.clientHeight ? 'start' : 'center';
-  const position = virtualizer.getOffsetForIndex(item.index, align);
-  if (!position) {
-    return undefined;
-  }
+  const topInset = virtualizer.options.scrollPaddingStart;
+  const bottomInset = virtualizer.options.scrollPaddingEnd;
+  const visibleHeight = Math.max(0, viewport.clientHeight - topInset - bottomInset);
+  const centerOffset = Math.max(0, (visibleHeight - item.size) / 2);
+  const desiredOffset = item.start - topInset - centerOffset;
+  const maximumOffset = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
   return {
     index: item.index,
-    offset: position[0],
-    align,
+    offset: Math.max(0, Math.min(desiredOffset, maximumOffset)),
   };
 }
 
@@ -90,7 +89,8 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
   function finish(target?: NavigationTarget) {
     if (target) {
       // Let the virtualizer reconcile the measured landing instead of maintaining a second anchor.
-      virtualizer.scrollToIndex(target.index, { align: target.align, behavior: 'auto' });
+      // The target is centered in the unobscured area, not under the floating header or composer.
+      virtualizer.scrollToOffset(target.offset, { behavior: 'auto' });
     }
     onComplete();
   }

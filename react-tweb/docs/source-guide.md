@@ -99,7 +99,7 @@ Read `historyRows.ts`, `useHistoryWindow.ts`, `useVirtualHistory.ts`, and `histo
 - `useHistoryWindow.ts` starts with 60 rows and exposes 80 earlier rows near the loaded boundary.
 - `useVirtualHistory.ts` connects TanStack Virtual with eight overscan rows, stable keys,
   `anchorTo: 'end'`, and `followOnAppend`. Wheel, touch, and keyboard gestures cancel active jumps.
-- `historyAnchor.ts` preserves the visible key and row-relative offset when the viewport width
+- `historyAnchor.ts` preserves the visible key and row-relative offset when the message column width
   invalidates cached text wrapping. It uses the virtualizer's scroll API for restoration.
 
 Data availability and mounted DOM are different windows. A distant reply may expose all 1,000
@@ -109,14 +109,29 @@ without taking ownership of DOM measurements.
 
 New incoming content follows only when within 80px of the bottom. An explicit send returns to the
 latest message. Deleting the last message is not treated as an append. ID navigation expands the
-available window before calling `scrollToIndex`; it never assumes the target DOM already exists.
+available window before resolving a measured scroll offset; it never assumes the target DOM exists.
 Search filters rendered rows but retains a lookup of the complete conversation for reply previews.
 
 Width changes are different from prepends. `measure()` invalidates cached heights but does not
 itself preserve a reading key. The latest stable reading anchor is captured before width changes,
-because child ResizeObserver notifications can precede the viewport notification. After measuring
-mounted rows at their new width, the same key and offset are restored. Composer-height changes
+because child ResizeObserver notifications can precede the content-width notification. Surface-only
+width changes keep the height cache. After invalidation, mounted rows explicitly seed their actual
+heights with `resizeItem`: `measureElement` may skip reads during scrolling, and unchanged elements
+will not produce another resize event. The same key and offset are then restored. Composer-height changes
 retain bottom following only if the reader was already at the end.
+
+The scroll surface and message column have different widths. The surface fills the entire middle
+zone, from the conversation sidebar's edge to the page edge or docked profile. Only `.messages`,
+the header, and the composer use the centered 696px content width. This follows `.bubbles` and
+`.bubbles-scrollable` in tweb's `_chat.scss`: wallpaper margins accept native wheel/touch scrolling,
+and history continues behind the floating controls with an eased edge mask.
+
+`useChatOverlayInsets.ts` measures the header, pinned plate, composer, and selection toolbar.
+Their occupied heights become virtualizer padding rather than reducing the scroll viewport.
+Row estimates use the content element's width, not the wider scroll surface. ID navigation centers
+short messages in the unobscured area and places tall messages below the header. Reply/edit bars
+can grow without moving the viewport boundary or leaving the final message behind the composer.
+Chat previews omit these overlay insets and retain their own contained layout.
 
 Virtual rows are positioned separately from their bubble animations. Initial messages and rows
 returning from offscreen do not replay entry animations. Audio and video pause when their message

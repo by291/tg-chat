@@ -1,16 +1,37 @@
 .conversation {
-  display: flex;
-  flex-direction: column;
-  width: min(100%, 696px);
+  --chat-edge-inset: 16px;
+  --chat-bottom-inset: var(--chat-edge-inset);
+  --chat-content-width: min(696px, calc(100% - var(--chat-edge-inset) * 2));
+  position: relative;
   min-width: 0;
   height: 100%;
 }
 
 .historyPage {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
+}
+
+.headerOverlay,
+.footerOverlay {
+  position: absolute;
+  left: 50%;
+  width: var(--chat-content-width);
+  transform: translateX(-50%);
+}
+
+.headerOverlay {
+  top: var(--chat-edge-inset);
+  z-index: 5;
+}
+
+.footerOverlay {
+  bottom: var(--chat-bottom-inset);
+  z-index: 6;
 }
 
 .historyPage[hidden] {
@@ -36,6 +57,11 @@
 }
 
 @media (max-width: 760px) {
+  .conversation {
+    --chat-edge-inset: 8px;
+    --chat-bottom-inset: max(8px, env(safe-area-inset-bottom));
+  }
+
   .pinnedSlot[data-search-open='true'] {
     display: none;
   }

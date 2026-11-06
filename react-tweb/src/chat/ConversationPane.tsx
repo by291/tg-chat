@@ -3,6 +3,7 @@ import { Copy, Trash2, X } from 'lucide-react';
 import { IconButton } from '../components/IconButton';
 import { HeaderActionDialog } from './HeaderActionDialog';
 import { useHeaderActions } from './useHeaderActions';
+import { useChatOverlayInsets } from './useChatOverlayInsets';
 import { ConversationMuteDialog } from './sidebar/ConversationMuteDialog';
 import { ConversationRemovalDialog } from './sidebar/ConversationDialogs';
 import { ChatHeader } from './ChatHeader';
@@ -34,6 +35,7 @@ export function ConversationPane({
   onBack,
   onNotify,
 }: ConversationPaneProps) {
+  const overlays = useChatOverlayInsets();
   const [replyMessage, setReplyMessage] = useState<Message>();
   const [editingMessage, setEditingMessage] = useState<Message>();
   const [pendingDelete, setPendingDelete] = useState<Message>();
@@ -232,6 +234,7 @@ export function ConversationPane({
     return (
       <MessageTimeline
         messages={options.messages}
+        overlayInsets={overlays.insets}
         searchQuery=""
         unreadCount={options.isPinnedView ? 0 : unreadCount}
         isMuted={headerActions.entry?.isMuted ?? false}
@@ -250,22 +253,26 @@ export function ConversationPane({
   }
 
   return (
-    <main className={styles.conversation} aria-label={`${conversation.title} conversation`}>
-      <ChatHeader
-        conversation={headerActions.entry ?? conversation}
-        messages={displayedMessages}
-        isSelecting={headerActions.isSelecting}
-        onAction={headerActions.runAction}
-        onAutoDelete={headerActions.setAutoDelete}
-        onSearchJump={searchJump}
-        isSearchOpen={isSearchOpen}
-        pinnedCount={isPinnedView ? pinnedMessages.length : undefined}
-        onToggleSearch={toggleSearch}
-        onOpenDetails={onOpenDetails}
-        onBack={goBack}
-      />
-      <div className={styles.historyPage} hidden={isPinnedView}>
-        <div className={styles.pinnedSlot} data-search-open={isSearchOpen}>
+    <main
+      ref={overlays.containerRef}
+      className={styles.conversation}
+      aria-label={`${conversation.title} conversation`}
+    >
+      <div ref={overlays.headerRef} className={styles.headerOverlay}>
+        <ChatHeader
+          conversation={headerActions.entry ?? conversation}
+          messages={displayedMessages}
+          isSelecting={headerActions.isSelecting}
+          onAction={headerActions.runAction}
+          onAutoDelete={headerActions.setAutoDelete}
+          onSearchJump={searchJump}
+          isSearchOpen={isSearchOpen}
+          pinnedCount={isPinnedView ? pinnedMessages.length : undefined}
+          onToggleSearch={toggleSearch}
+          onOpenDetails={onOpenDetails}
+          onBack={goBack}
+        />
+        <div hidden={isPinnedView} className={styles.pinnedSlot} data-search-open={isSearchOpen}>
           <PinnedMessageBar
             messages={pinnedMessages}
             onJump={jumpToMessage}
@@ -273,6 +280,8 @@ export function ConversationPane({
             onUnpin={(message) => applyMessageCommand({ action: 'pin', message })}
           />
         </div>
+      </div>
+      <div className={styles.historyPage} hidden={isPinnedView}>
         {renderTimeline({ messages, isPinnedView: false })}
       </div>
       {isPinnedView && (
@@ -280,40 +289,42 @@ export function ConversationPane({
           {renderTimeline({ messages: pinnedMessages, isPinnedView: true })}
         </div>
       )}
-      <div hidden={isPinnedView || headerActions.isSelecting}>
-        <MessageComposer
-          key={editingMessage?.id || 'compose'}
-          draft={state.drafts[conversation.id] || ''}
-          replyMessage={replyMessage}
-          editingMessage={editingMessage}
-          onDraftChange={(text) => dispatch({ type: 'set-draft', chatId: conversation.id, text })}
-          onSubmit={submitMessage}
-          onCancelContext={clearComposerContext}
-          onNotify={onNotify}
-        />
-      </div>
-      {headerActions.isSelecting && (
-        <div className={styles.selectionToolbar}>
-          <IconButton label="Clear selection" onClick={headerActions.clearSelection}>
-            <X />
-          </IconButton>
-          <strong>{headerActions.selectedIds.length} Messages</strong>
-          <IconButton
-            label="Copy selected messages"
-            disabled={!headerActions.selectedIds.length}
-            onClick={() => void copySelectedMessages()}
-          >
-            <Copy />
-          </IconButton>
-          <IconButton
-            label="Delete selected messages"
-            disabled={!headerActions.selectedIds.length}
-            onClick={() => headerActions.setDialog('delete-messages')}
-          >
-            <Trash2 />
-          </IconButton>
+      <div ref={overlays.footerRef} className={styles.footerOverlay}>
+        <div hidden={isPinnedView || headerActions.isSelecting}>
+          <MessageComposer
+            key={editingMessage?.id || 'compose'}
+            draft={state.drafts[conversation.id] || ''}
+            replyMessage={replyMessage}
+            editingMessage={editingMessage}
+            onDraftChange={(text) => dispatch({ type: 'set-draft', chatId: conversation.id, text })}
+            onSubmit={submitMessage}
+            onCancelContext={clearComposerContext}
+            onNotify={onNotify}
+          />
         </div>
-      )}
+        {headerActions.isSelecting && (
+          <div className={styles.selectionToolbar}>
+            <IconButton label="Clear selection" onClick={headerActions.clearSelection}>
+              <X />
+            </IconButton>
+            <strong>{headerActions.selectedIds.length} Messages</strong>
+            <IconButton
+              label="Copy selected messages"
+              disabled={!headerActions.selectedIds.length}
+              onClick={() => void copySelectedMessages()}
+            >
+              <Copy />
+            </IconButton>
+            <IconButton
+              label="Delete selected messages"
+              disabled={!headerActions.selectedIds.length}
+              onClick={() => headerActions.setDialog('delete-messages')}
+            >
+              <Trash2 />
+            </IconButton>
+          </div>
+        )}
+      </div>
       <ConversationMuteDialog
         conversation={headerActions.actions.muteConversation}
         onCancel={headerActions.actions.cancelMute}

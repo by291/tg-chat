@@ -53,11 +53,17 @@ export function remeasureHistory({
   virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
 }) {
   virtualizer.measure();
+  // Rebuild the cleared cache first: resizeItem otherwise compares against stale measured sizes
+  // and can discard an unchanged height instead of replacing the new estimate.
+  virtualizer.getTotalSize();
 
-  // Mounted rows already have their new CSS width, so measure them before restoring the anchor.
+  // measureElement can skip synchronous reads while scrolling. After clearing the cache,
+  // unchanged rows may never emit another resize event, so explicitly seed their actual heights.
   const mountedRows = viewport.querySelectorAll<HTMLDivElement>('[data-index]');
   for (const row of mountedRows) {
-    virtualizer.measureElement(row);
+    const index = virtualizer.indexFromElement(row);
+    const height = row.getBoundingClientRect().height;
+    virtualizer.resizeItem(index, height);
   }
   virtualizer.getTotalSize();
 
