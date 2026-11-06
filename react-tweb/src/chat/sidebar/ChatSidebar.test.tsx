@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { useReducer } from 'react';
+import { chatReducer } from '../state/reducer';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
 import { ChatSidebar } from './ChatSidebar';
@@ -9,14 +10,15 @@ import { ChatSidebar } from './ChatSidebar';
 afterEach(cleanup);
 
 function SidebarTestScreen() {
-  const [state, setState] = useState(createInitialState);
+  const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
 
   return (
     <>
       <ChatSidebar
         state={state}
-        onSelectChat={(activeChatId) => setState({ ...state, activeChatId })}
-        onToggleTheme={() => setState({ ...state, isDark: !state.isDark })}
+        dispatch={dispatch}
+        onSelectChat={(chatId) => dispatch({ type: 'select-chat', chatId })}
+        onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
       />
       <output aria-label="Selected conversation">{state.activeChatId}</output>
     </>

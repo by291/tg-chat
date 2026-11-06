@@ -49,6 +49,24 @@
   justify-content: center;
 }
 
+.emptyConversation {
+  align-self: center;
+  padding: 20px;
+  border-radius: 20px;
+  color: var(--text-color);
+  text-align: center;
+  background: var(--surface-color);
+}
+
+.emptyConversation button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--accent-color);
+  background: var(--hover-color);
+  cursor: pointer;
+}
+
 .toast,
 .storageError {
   position: fixed;

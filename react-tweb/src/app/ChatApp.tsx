@@ -19,9 +19,20 @@ export function ChatApp() {
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(true);
   const [mediaMessage, setMediaMessage] = useState<Message>();
   const [notice, setNotice] = useState('');
+  const [requestedChatId] = useState(() => new URL(window.location.href).searchParams.get('chat'));
+  const isConversationDeleted =
+    state.conversationPreferences?.[state.activeChatId]?.isDeleted ?? false;
+  const hasDetails = isDetailsOpen && !isConversationDeleted;
   const conversation =
     conversations.find((entry) => entry.id === state.activeChatId) || conversations[0];
   const messages = state.messages.filter((message) => message.chatId === conversation.id);
+
+  useEffect(() => {
+    const isKnownConversation = conversations.some((entry) => entry.id === requestedChatId);
+    if (isReady && requestedChatId && isKnownConversation) {
+      dispatch({ type: 'select-chat', chatId: requestedChatId });
+    }
+  }, [isReady, requestedChatId, dispatch]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.isDark ? 'dark' : 'light';
@@ -54,29 +65,38 @@ export function ChatApp() {
   return (
     <div
       className={styles.app}
-      data-details-open={isDetailsOpen}
+      data-details-open={hasDetails}
       data-mobile-chat-open={isMobileChatOpen}
     >
       <div className={styles.sidebarSlot}>
         <ChatSidebar
           state={state}
+          dispatch={dispatch}
           onSelectChat={selectConversation}
           onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
         />
       </div>
       <div className={styles.conversationSlot}>
-        <ConversationPane
-          key={conversation.id}
-          conversation={conversation}
-          state={state}
-          dispatch={dispatch}
-          onOpenDetails={() => setIsDetailsOpen(!isDetailsOpen)}
-          onOpenMedia={setMediaMessage}
-          onBack={() => setIsMobileChatOpen(false)}
-          onNotify={setNotice}
-        />
+        {!isConversationDeleted && (
+          <ConversationPane
+            key={conversation.id}
+            conversation={conversation}
+            state={state}
+            dispatch={dispatch}
+            onOpenDetails={() => setIsDetailsOpen(!isDetailsOpen)}
+            onOpenMedia={setMediaMessage}
+            onBack={() => setIsMobileChatOpen(false)}
+            onNotify={setNotice}
+          />
+        )}
+        {isConversationDeleted && (
+          <div className={styles.emptyConversation}>
+            <p>Select a conversation to start messaging</p>
+            <button onClick={() => setIsMobileChatOpen(false)}>Back to chats</button>
+          </div>
+        )}
       </div>
-      {isDetailsOpen && (
+      {hasDetails && (
         <div className={styles.detailsSlot}>
           <ChatDetails
             key={conversation.id}
