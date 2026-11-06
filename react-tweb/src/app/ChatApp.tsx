@@ -5,6 +5,7 @@ import { ConversationPane } from '../chat/ConversationPane';
 import { conversations } from '../chat/demo/fixtures';
 import { MediaViewer } from '../chat/media/MediaViewer';
 import type { Message } from '../chat/model';
+import { useConversationList } from '../chat/sidebar/conversationList';
 import { useChatState } from '../chat/state/useChatState';
 import { useInputModality } from './useInputModality';
 import styles from './ChatApp.module.css';
@@ -15,7 +16,9 @@ const NOTICE_DURATION = 4000;
 export function ChatApp() {
   useInputModality();
   const { state, dispatch, isReady, storageError } = useChatState();
+  const conversationEntries = useConversationList(state);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(true);
   const [mediaMessage, setMediaMessage] = useState<Message>();
   const [notice, setNotice] = useState('');
@@ -25,6 +28,7 @@ export function ChatApp() {
   const hasDetails = isDetailsOpen && !isConversationDeleted;
   const conversation =
     conversations.find((entry) => entry.id === state.activeChatId) || conversations[0];
+  const activeEntry = conversationEntries.find((entry) => entry.id === conversation.id);
   const messages = state.messages.filter((message) => message.chatId === conversation.id);
 
   useEffect(() => {
@@ -83,7 +87,10 @@ export function ChatApp() {
             conversation={conversation}
             state={state}
             dispatch={dispatch}
-            onOpenDetails={() => setIsDetailsOpen(!isDetailsOpen)}
+            onOpenDetails={() => {
+              setHasOpenedDetails(true);
+              setIsDetailsOpen((isOpen) => !isOpen);
+            }}
             onOpenMedia={setMediaMessage}
             onBack={() => setIsMobileChatOpen(false)}
             onNotify={setNotice}
@@ -96,17 +103,25 @@ export function ChatApp() {
           </div>
         )}
       </div>
-      {hasDetails && (
-        <div className={styles.detailsSlot}>
+      <div className={styles.detailsSlot} inert={!hasDetails} aria-hidden={!hasDetails}>
+        {hasOpenedDetails && (
           <ChatDetails
             key={conversation.id}
             conversation={conversation}
             messages={messages}
+            isMuted={activeEntry?.isMuted ?? false}
+            onToggleMute={() =>
+              dispatch({
+                type: 'update-conversations',
+                chatIds: [conversation.id],
+                changes: { isMuted: !activeEntry?.isMuted, mutedUntil: 0 },
+              })
+            }
             onClose={() => setIsDetailsOpen(false)}
             onOpenMedia={setMediaMessage}
           />
-        </div>
-      )}
+        )}
+      </div>
       <MediaViewer
         message={mediaMessage}
         messages={messages}

@@ -1,8 +1,9 @@
 .app {
   position: relative;
-  display: grid;
-  grid-template-columns: 360px minmax(0, 1fr) 0;
-  gap: 0 16px;
+  --left-width: 360px;
+  --right-width: 360px;
+  --panel-duration: 250ms;
+  --panel-easing: cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   height: 100dvh;
   padding: 16px 0 16px 16px;
@@ -11,7 +12,6 @@
     radial-gradient(ellipse at 73% 6%, #efb7d5 0, transparent 56%),
     radial-gradient(ellipse at 12% 100%, #9be2db 0, transparent 60%),
     linear-gradient(135deg, #c7b5ed 15%, #b9c8ec 100%);
-  transition: grid-template-columns var(--duration-slow) var(--ease-out);
 }
 
 .app::before {
@@ -32,21 +32,50 @@
 }
 
 .app[data-details-open='true'] {
-  grid-template-columns: 360px minmax(0, 1fr) 360px;
-  padding-right: 16px;
+  --panel-duration: 300ms;
 }
 
-.sidebarSlot,
-.conversationSlot,
-.detailsSlot {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
+.sidebarSlot {
+  position: absolute;
+  inset: 16px auto 16px 16px;
+  width: var(--left-width);
+  z-index: 2;
 }
 
 .conversationSlot {
+  position: absolute;
+  inset: 16px;
   display: flex;
   justify-content: center;
+  min-width: 0;
+  transform: translateX(calc((var(--left-width) + 16px) / 2));
+  transition: transform var(--panel-duration) var(--panel-easing);
+}
+
+.conversationSlot > main {
+  width: min(696px, calc(100% - var(--left-width) - 16px));
+}
+
+/* Move the chat as one layer; animating grid tracks reflows every message on every frame. */
+.app[data-details-open='true'] .conversationSlot {
+  transform: translateX(calc((var(--left-width) - var(--right-width)) / 2));
+}
+
+.app[data-details-open='true'] .conversationSlot > main {
+  width: min(696px, calc(100% - var(--left-width) - var(--right-width) - 32px));
+}
+
+.detailsSlot {
+  position: absolute;
+  inset: 16px 16px 16px auto;
+  width: var(--right-width);
+  z-index: 3;
+  transform: translateX(calc(100% + 16px));
+  transition: transform var(--panel-duration) var(--panel-easing);
+}
+
+.app[data-details-open='true'] .detailsSlot {
+  transform: translateX(0);
 }
 
 .emptyConversation {
@@ -99,36 +128,47 @@
 
 @media (max-width: 1300px) {
   .app {
-    grid-template-columns: 320px minmax(0, 1fr) 0;
-  }
-
-  .app[data-details-open='true'] {
-    grid-template-columns: 280px minmax(0, 1fr) 300px;
+    --left-width: 320px;
+    --right-width: 320px;
   }
 }
 
-@media (max-width: 1050px) {
-  .app[data-details-open='true'] {
-    grid-template-columns: 0 minmax(0, 1fr) 320px;
-    padding-left: 0;
+@media (min-width: 761px) and (max-width: 1479px) {
+  /* On constrained desktops the profile floats over the chat, as in tweb. */
+  .app[data-details-open='true'] .conversationSlot {
+    transform: translateX(calc((var(--left-width) + 16px) / 2));
   }
 
-  .app[data-details-open='true'] .sidebarSlot {
-    visibility: hidden;
+  .app[data-details-open='true'] .conversationSlot > main {
+    width: min(696px, calc(100% - var(--left-width) - 16px));
   }
 }
 
 @media (max-width: 760px) {
-  .app,
-  .app[data-details-open='true'] {
-    display: block;
-    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
-  }
-
   .sidebarSlot,
   .conversationSlot,
   .detailsSlot {
-    height: 100%;
+    inset: 8px 8px max(8px, env(safe-area-inset-bottom));
+    width: auto;
+  }
+
+  .conversationSlot,
+  .app[data-details-open='true'] .conversationSlot {
+    transform: none;
+    transition:
+      transform var(--panel-duration) var(--panel-easing),
+      opacity var(--panel-duration) var(--panel-easing);
+  }
+
+  .conversationSlot > main,
+  .app[data-details-open='true'] .conversationSlot > main {
+    width: 100%;
+  }
+
+  .app[data-details-open='true'] .conversationSlot {
+    transform: translateX(-25vw);
+    opacity: 0;
+    pointer-events: none;
   }
 
   .app[data-mobile-chat-open='true'] .sidebarSlot,
@@ -136,23 +176,14 @@
     display: none;
   }
 
-  .app[data-details-open='true'] .conversationSlot {
-    display: none;
-  }
-
-  .conversationSlot {
-    animation: mobile-enter var(--duration-normal) var(--ease-out);
+  .detailsSlot {
+    transform: translateX(calc(100% + 16px));
   }
 }
 
-@keyframes mobile-enter {
-  from {
-    opacity: 0.6;
-    transform: translateX(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
+@media (prefers-reduced-motion: reduce) {
+  .app,
+  .app[data-details-open='true'] {
+    --panel-duration: 0ms;
   }
 }

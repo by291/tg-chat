@@ -1,7 +1,6 @@
 import { getPhotoMessages } from '../media/photoGallery';
 import { Tabs } from '@ark-ui/react/tabs';
 import { Bell, BellOff, Image, Info, Users, X } from 'lucide-react';
-import { useState } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
 import type { Conversation, Message } from '../model';
@@ -10,13 +9,21 @@ import styles from './ChatDetails.module.css';
 interface ChatDetailsProps {
   conversation: Conversation;
   messages: Message[];
+  isMuted: boolean;
+  onToggleMute: () => void;
   onClose: () => void;
   onOpenMedia: (message: Message) => void;
 }
 
 /** Display local conversation information and a browsable gallery of attached photos. */
-export function ChatDetails({ conversation, messages, onClose, onOpenMedia }: ChatDetailsProps) {
-  const [isMuted, setIsMuted] = useState(false);
+export function ChatDetails({
+  conversation,
+  messages,
+  isMuted,
+  onToggleMute,
+  onClose,
+  onOpenMedia,
+}: ChatDetailsProps) {
   const mediaMessages = getPhotoMessages(messages);
 
   return (
@@ -32,7 +39,7 @@ export function ChatDetails({ conversation, messages, onClose, onOpenMedia }: Ch
         <h1>{conversation.title}</h1>
         <p>{conversation.subtitle}</p>
       </div>
-      <button className={styles.notificationButton} onClick={() => setIsMuted(!isMuted)}>
+      <button className={styles.notificationButton} onClick={onToggleMute}>
         {isMuted ? <BellOff size={22} /> : <Bell size={22} />}
         <span>{isMuted ? 'Unmute' : 'Mute'}</span>
       </button>
