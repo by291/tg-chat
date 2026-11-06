@@ -99,16 +99,17 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-button:focus-visible,
-a:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 3px;
+:where(:focus) {
+  outline: none;
 }
 
-:root[data-input-method='pointer'] button:focus-visible,
-:root[data-input-method='pointer'] a:focus-visible,
-:root[data-input-method='pointer'] [tabindex]:focus-visible {
+:root[data-input-method='keyboard'] :is(button, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+
+/* Ark can restore focus after closing an overlay; that must not draw a pointer focus ring. */
+:root:not([data-input-method='keyboard']) :is(:focus, [data-focus-visible]) {
   outline: none;
 }
 

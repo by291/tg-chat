@@ -14,7 +14,6 @@ export function IconButton({ label, children, className = '', ...attributes }: I
     <button
       type="button"
       aria-label={label}
-      title={label}
       className={`${styles.iconButton} ${className}`}
       {...attributes}
     >

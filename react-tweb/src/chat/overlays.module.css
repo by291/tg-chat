@@ -131,6 +131,9 @@
 
 .reactionButton[data-highlighted] {
   background: var(--hover-color);
+}
+
+:global(:root[data-input-method='keyboard']) .reactionButton[data-highlighted] {
   outline: 2px solid var(--accent-color);
   outline-offset: -2px;
 }

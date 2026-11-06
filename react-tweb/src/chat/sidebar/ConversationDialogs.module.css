@@ -101,7 +101,7 @@
   transform: scale(1);
 }
 
-.radioControl[data-focus-visible] {
+:global(:root[data-input-method='keyboard']) .radioControl[data-focus-visible] {
   outline: 2px solid var(--accent-color);
   outline-offset: 3px;
 }

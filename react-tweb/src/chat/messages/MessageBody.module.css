@@ -210,7 +210,7 @@
   cursor: pointer;
 }
 
-.voiceTrack:focus-within {
+:global(:root[data-input-method='keyboard']) .voiceTrack:has(.seekControl:focus-visible) {
   outline: 2px solid var(--accent-color);
   outline-offset: 3px;
 }

@@ -268,7 +268,7 @@
 }
 
 .messageRow:hover .moreButton,
-.messageRow:focus-within .moreButton,
+:global(:root[data-input-method='keyboard']) .messageRow:focus-within .moreButton,
 .moreButton[aria-expanded='true'] {
   opacity: 1;
 }
