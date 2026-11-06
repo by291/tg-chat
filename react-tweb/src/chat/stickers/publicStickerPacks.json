@@ -1,0 +1,967 @@
+[
+  {
+    "id": "UtyaDuck",
+    "name": "Duck",
+    "url": "https://t.me/addstickers/UtyaDuck",
+    "stickers": [
+      {
+        "id": "UtyaDuck-AgAD8gADVp29Cg",
+        "name": "Duck 01",
+        "emoji": "😂",
+        "keywords": "duck face joy of tears",
+        "filename": "AgAD8gADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADBAEAAladvQo",
+        "name": "Duck 02",
+        "emoji": "😘",
+        "keywords": "duck a blowing face heart kiss kissing",
+        "filename": "AgADBAEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD_gADVp29Cg",
+        "name": "Duck 03",
+        "emoji": "👍",
+        "keywords": "duck +1 thumbs thumbsup up",
+        "filename": "AgAD_gADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD_wADVp29Cg",
+        "name": "Duck 04",
+        "emoji": "😱",
+        "keywords": "duck face fear in scream screaming",
+        "filename": "AgAD_wADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADAQEAAladvQo",
+        "name": "Duck 05",
+        "emoji": "👋",
+        "keywords": "duck hand wave waving",
+        "filename": "AgADAQEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD8wADVp29Cg",
+        "name": "Duck 06",
+        "emoji": "😭",
+        "keywords": "duck crying face loudly sob",
+        "filename": "AgAD8wADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD9AADVp29Cg",
+        "name": "Duck 07",
+        "emoji": "😳",
+        "keywords": "duck face flushed",
+        "filename": "AgAD9AADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD9QADVp29Cg",
+        "name": "Duck 08",
+        "emoji": "😡",
+        "keywords": "duck enraged face pout rage",
+        "filename": "AgAD9QADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD9gADVp29Cg",
+        "name": "Duck 09",
+        "emoji": "😈",
+        "keywords": "duck face horns imp smiling",
+        "filename": "AgAD9gADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD9wADVp29Cg",
+        "name": "Duck 10",
+        "emoji": "😎",
+        "keywords": "duck face smiling sunglasses",
+        "filename": "AgAD9wADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD-AADVp29Cg",
+        "name": "Duck 11",
+        "emoji": "🙄",
+        "keywords": "duck eyes face roll rolling",
+        "filename": "AgAD-AADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADBwEAAladvQo",
+        "name": "Duck 12",
+        "emoji": "🌈",
+        "keywords": "duck rainbow",
+        "filename": "AgADBwEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD-QADVp29Cg",
+        "name": "Duck 13",
+        "emoji": "🤷‍♂️",
+        "keywords": "duck man shrugging",
+        "filename": "AgAD-QADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADBQEAAladvQo",
+        "name": "Duck 14",
+        "emoji": "🔥",
+        "keywords": "duck fire",
+        "filename": "AgADBQEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD-gADVp29Cg",
+        "name": "Duck 15",
+        "emoji": "🤤",
+        "keywords": "duck drooling face",
+        "filename": "AgAD-gADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD-wADVp29Cg",
+        "name": "Duck 16",
+        "emoji": "😠",
+        "keywords": "duck angry face",
+        "filename": "AgAD-wADVp29Cg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADAgEAAladvQo",
+        "name": "Duck 17",
+        "emoji": "🤔",
+        "keywords": "duck face thinking",
+        "filename": "AgADAgEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADAwEAAladvQo",
+        "name": "Duck 18",
+        "emoji": "🤑",
+        "keywords": "duck face money mouth",
+        "filename": "AgADAwEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADBgEAAladvQo",
+        "name": "Duck 19",
+        "emoji": "😏",
+        "keywords": "duck face smirk smirking",
+        "filename": "AgADBgEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADCAEAAladvQo",
+        "name": "Duck 20",
+        "emoji": "👌",
+        "keywords": "duck hand ok",
+        "filename": "AgADCAEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADCQEAAladvQo",
+        "name": "Duck 21",
+        "emoji": "🥶",
+        "keywords": "duck cold face",
+        "filename": "AgADCQEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADCwEAAladvQo",
+        "name": "Duck 22",
+        "emoji": "🤯",
+        "keywords": "duck exploding head",
+        "filename": "AgADCwEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADDAEAAladvQo",
+        "name": "Duck 23",
+        "emoji": "👎",
+        "keywords": "duck 1 down thumbs thumbsdown",
+        "filename": "AgADDAEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADDQEAAladvQo",
+        "name": "Duck 24",
+        "emoji": "🤗",
+        "keywords": "duck face hands hugging hugs open smiling",
+        "filename": "AgADDQEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADDgEAAladvQo",
+        "name": "Duck 25",
+        "emoji": "😴",
+        "keywords": "duck face sleeping",
+        "filename": "AgADDgEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgAD2gEAAladvQo",
+        "name": "Duck 26",
+        "emoji": "🦠",
+        "keywords": "duck microbe",
+        "filename": "AgAD2gEAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADSAIAAladvQo",
+        "name": "Duck 27",
+        "emoji": "📨",
+        "keywords": "duck envelope incoming",
+        "filename": "AgADSAIAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADSQIAAladvQo",
+        "name": "Duck 28",
+        "emoji": "🤫",
+        "keywords": "duck face shushing",
+        "filename": "AgADSQIAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADTwIAAladvQo",
+        "name": "Duck 29",
+        "emoji": "👯‍♀️",
+        "keywords": "duck bunny dancing ears women",
+        "filename": "AgADTwIAAladvQo.tgs",
+        "renderer": "svg"
+      },
+      {
+        "id": "UtyaDuck-AgADSgIAAladvQo",
+        "name": "Duck 30",
+        "emoji": "🥳",
+        "keywords": "duck face partying",
+        "filename": "AgADSgIAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADryUAApuicEs",
+        "name": "Duck 31",
+        "emoji": "💪",
+        "keywords": "duck biceps flexed muscle",
+        "filename": "AgADryUAApuicEs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADTgIAAladvQo",
+        "name": "Duck 32",
+        "emoji": "🤖",
+        "keywords": "duck face robot",
+        "filename": "AgADTgIAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADTQIAAladvQo",
+        "name": "Duck 33",
+        "emoji": "🛡",
+        "keywords": "duck shield",
+        "filename": "AgADTQIAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADSwIAAladvQo",
+        "name": "Duck 34",
+        "emoji": "🧮",
+        "keywords": "duck abacus",
+        "filename": "AgADSwIAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADUAIAAladvQo",
+        "name": "Duck 35",
+        "emoji": "🐯",
+        "keywords": "duck face tiger",
+        "filename": "AgADUAIAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADBQMAAladvQo",
+        "name": "Duck 36",
+        "emoji": "😘",
+        "keywords": "duck a blowing face heart kiss kissing",
+        "filename": "AgADBQMAAladvQo.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADex0AAkWOKUg",
+        "name": "Duck 37",
+        "emoji": "😂",
+        "keywords": "duck face joy of tears",
+        "filename": "AgADex0AAkWOKUg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADQxgAArbIKUg",
+        "name": "Duck 38",
+        "emoji": "😢",
+        "keywords": "duck cry crying face",
+        "filename": "AgADQxgAArbIKUg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADXhgAAogOKEg",
+        "name": "Duck 39",
+        "emoji": "🥳",
+        "keywords": "duck face partying",
+        "filename": "AgADXhgAAogOKEg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "UtyaDuck-AgADRh4AAvyUOEk",
+        "name": "Duck 40",
+        "emoji": "😭",
+        "keywords": "duck crying face loudly sob",
+        "filename": "AgADRh4AAvyUOEk.tgs",
+        "renderer": "canvas"
+      }
+    ]
+  },
+  {
+    "id": "Crocosaurus",
+    "name": "Cubigator",
+    "url": "https://t.me/addstickers/Crocosaurus",
+    "stickers": [
+      {
+        "id": "Crocosaurus-AgADsw4AAln8mUs",
+        "name": "Cubigator 01",
+        "emoji": "😂",
+        "keywords": "cubigator face joy of tears",
+        "filename": "AgADsw4AAln8mUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgAD-wwAAtM_YUs",
+        "name": "Cubigator 02",
+        "emoji": "😘",
+        "keywords": "cubigator a blowing face heart kiss kissing",
+        "filename": "AgAD-wwAAtM_YUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgAD-woAAm80oUs",
+        "name": "Cubigator 03",
+        "emoji": "👍",
+        "keywords": "cubigator +1 thumbs thumbsup up",
+        "filename": "AgAD-woAAm80oUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADDAsAAo0jmUs",
+        "name": "Cubigator 04",
+        "emoji": "😨",
+        "keywords": "cubigator face fearful",
+        "filename": "AgADDAsAAo0jmUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgAD2A8AAkjyYEs",
+        "name": "Cubigator 05",
+        "emoji": "👋",
+        "keywords": "cubigator hand wave waving",
+        "filename": "AgAD2A8AAkjyYEs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADRA8AAmkKqEs",
+        "name": "Cubigator 06",
+        "emoji": "🥺",
+        "keywords": "cubigator face pleading",
+        "filename": "AgADRA8AAmkKqEs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADKwwAAiIwWEs",
+        "name": "Cubigator 07",
+        "emoji": "🤑",
+        "keywords": "cubigator face money mouth",
+        "filename": "AgADKwwAAiIwWEs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgAD7goAAp2hYUs",
+        "name": "Cubigator 08",
+        "emoji": "🤔",
+        "keywords": "cubigator face thinking",
+        "filename": "AgAD7goAAp2hYUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADDg0AAlkAAZhL",
+        "name": "Cubigator 09",
+        "emoji": "😭",
+        "keywords": "cubigator crying face loudly sob",
+        "filename": "AgADDg0AAlkAAZhL.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADiA0AArvroUs",
+        "name": "Cubigator 10",
+        "emoji": "🎁",
+        "keywords": "cubigator gift wrapped",
+        "filename": "AgADiA0AArvroUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADTA8AArE_mUs",
+        "name": "Cubigator 11",
+        "emoji": "🤦‍♂️",
+        "keywords": "cubigator facepalming man",
+        "filename": "AgADTA8AArE_mUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADOAsAAk7kmUs",
+        "name": "Cubigator 12",
+        "emoji": "👨‍💻",
+        "keywords": "cubigator man technologist",
+        "filename": "AgADOAsAAk7kmUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADBgsAAmuIoEs",
+        "name": "Cubigator 13",
+        "emoji": "😵",
+        "keywords": "cubigator crossed dizzy eyes face knocked out",
+        "filename": "AgADBgsAAmuIoEs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADvAsAAv0XmUs",
+        "name": "Cubigator 14",
+        "emoji": "🙅‍♂️",
+        "keywords": "cubigator gesturing good man ng no",
+        "filename": "AgADvAsAAv0XmUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgAD5AoAArPZoUs",
+        "name": "Cubigator 15",
+        "emoji": "😡",
+        "keywords": "cubigator enraged face pout rage",
+        "filename": "AgAD5AoAArPZoUs.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADLA0AArs76Es",
+        "name": "Cubigator 16",
+        "emoji": "🛁",
+        "keywords": "cubigator bathtub",
+        "filename": "AgADLA0AArs76Es.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADBQwAAqQp6Es",
+        "name": "Cubigator 17",
+        "emoji": "🤯",
+        "keywords": "cubigator exploding head",
+        "filename": "AgADBQwAAqQp6Es.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgAD_AsAAsgj6Es",
+        "name": "Cubigator 18",
+        "emoji": "🕺",
+        "keywords": "cubigator dancing man",
+        "filename": "AgAD_AsAAsgj6Es.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADUg0AAoOa6Es",
+        "name": "Cubigator 19",
+        "emoji": "🤓",
+        "keywords": "cubigator face nerd",
+        "filename": "AgADUg0AAoOa6Es.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADpgwAAl3b6Es",
+        "name": "Cubigator 20",
+        "emoji": "🏃‍♂️",
+        "keywords": "cubigator man running",
+        "filename": "AgADpgwAAl3b6Es.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADPAkAAgedAAFI",
+        "name": "Cubigator 21",
+        "emoji": "🖕",
+        "keywords": "cubigator extended finger fu hand middle reversed",
+        "filename": "AgADPAkAAgedAAFI.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADIgoAAu8zAAFI",
+        "name": "Cubigator 22",
+        "emoji": "😴",
+        "keywords": "cubigator face sleeping",
+        "filename": "AgADIgoAAu8zAAFI.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADBg0AAiuy-Us",
+        "name": "Cubigator 23",
+        "emoji": "😍",
+        "keywords": "cubigator eyes face heart smiling",
+        "filename": "AgADBg0AAiuy-Us.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADJg4AAvW6EEg",
+        "name": "Cubigator 24",
+        "emoji": "😏",
+        "keywords": "cubigator face smirk smirking",
+        "filename": "AgADJg4AAvW6EEg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADPQ0AAoycEUg",
+        "name": "Cubigator 25",
+        "emoji": "🥁",
+        "keywords": "cubigator drum",
+        "filename": "AgADPQ0AAoycEUg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADfhoAAnMsOUg",
+        "name": "Cubigator 26",
+        "emoji": "😎",
+        "keywords": "cubigator face smiling sunglasses",
+        "filename": "AgADfhoAAnMsOUg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADPhkAAhX_gUk",
+        "name": "Cubigator 27",
+        "emoji": "🤔",
+        "keywords": "cubigator face thinking",
+        "filename": "AgADPhkAAhX_gUk.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADAR4AArk8OUg",
+        "name": "Cubigator 28",
+        "emoji": "👍",
+        "keywords": "cubigator +1 thumbs thumbsup up",
+        "filename": "AgADAR4AArk8OUg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADBxkAAnVxaEg",
+        "name": "Cubigator 29",
+        "emoji": "😨",
+        "keywords": "cubigator face fearful",
+        "filename": "AgADBxkAAnVxaEg.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "Crocosaurus-AgADdB0AAoBAEEk",
+        "name": "Cubigator 30",
+        "emoji": "😚",
+        "keywords": "cubigator closed eyes face kissing",
+        "filename": "AgADdB0AAoBAEEk.tgs",
+        "renderer": "canvas"
+      }
+    ]
+  },
+  {
+    "id": "shark_animated",
+    "name": "Shark Animated (@TgSticker)",
+    "url": "https://t.me/addstickers/shark_animated",
+    "stickers": [
+      {
+        "id": "shark_animated-AgADqhQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 01",
+        "emoji": "☺️",
+        "keywords": "shark animated (@tgsticker) face relaxed smiling",
+        "filename": "AgADqhQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADuBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 02",
+        "emoji": "📰",
+        "keywords": "shark animated (@tgsticker) newspaper",
+        "filename": "AgADuBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADihQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 03",
+        "emoji": "🛀",
+        "keywords": "shark animated (@tgsticker) bath person taking",
+        "filename": "AgADihQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADrRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 04",
+        "emoji": "👹",
+        "keywords": "shark animated (@tgsticker) japanese ogre",
+        "filename": "AgADrRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADixQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 05",
+        "emoji": "😘",
+        "keywords": "shark animated (@tgsticker) a blowing face heart kiss kissing",
+        "filename": "AgADixQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADjBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 06",
+        "emoji": "😡",
+        "keywords": "shark animated (@tgsticker) enraged face pout rage",
+        "filename": "AgADjBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADjRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 07",
+        "emoji": "😳",
+        "keywords": "shark animated (@tgsticker) face flushed",
+        "filename": "AgADjRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADsRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 08",
+        "emoji": "😴",
+        "keywords": "shark animated (@tgsticker) face sleeping",
+        "filename": "AgADsRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADjhQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 09",
+        "emoji": "🙃",
+        "keywords": "shark animated (@tgsticker) down face upside",
+        "filename": "AgADjhQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADjxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 10",
+        "emoji": "🍔",
+        "keywords": "shark animated (@tgsticker) hamburger",
+        "filename": "AgADjxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADkBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 11",
+        "emoji": "🤔",
+        "keywords": "shark animated (@tgsticker) face thinking",
+        "filename": "AgADkBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADkRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 12",
+        "emoji": "🖕",
+        "keywords": "shark animated (@tgsticker) extended finger fu hand middle reversed",
+        "filename": "AgADkRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADkhQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 13",
+        "emoji": "🧃",
+        "keywords": "shark animated (@tgsticker) beverage box",
+        "filename": "AgADkhQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADkxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 14",
+        "emoji": "😐",
+        "keywords": "shark animated (@tgsticker) face neutral",
+        "filename": "AgADkxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADtRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 15",
+        "emoji": "🏖",
+        "keywords": "shark animated (@tgsticker) beach umbrella",
+        "filename": "AgADtRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADqxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 16",
+        "emoji": "😵",
+        "keywords": "shark animated (@tgsticker) crossed dizzy eyes face knocked out",
+        "filename": "AgADqxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADthQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 17",
+        "emoji": "😱",
+        "keywords": "shark animated (@tgsticker) face fear in scream screaming",
+        "filename": "AgADthQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADlBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 18",
+        "emoji": "😭",
+        "keywords": "shark animated (@tgsticker) crying face loudly sob",
+        "filename": "AgADlBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADsBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 19",
+        "emoji": "🤑",
+        "keywords": "shark animated (@tgsticker) face money mouth",
+        "filename": "AgADsBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADlRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 20",
+        "emoji": "🤣",
+        "keywords": "shark animated (@tgsticker) floor laughing on rofl rolling the",
+        "filename": "AgADlRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADlhQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 21",
+        "emoji": "🤩",
+        "keywords": "shark animated (@tgsticker) star struck",
+        "filename": "AgADlhQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADlxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 22",
+        "emoji": "🌈",
+        "keywords": "shark animated (@tgsticker) rainbow",
+        "filename": "AgADlxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADmBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 23",
+        "emoji": "🎁",
+        "keywords": "shark animated (@tgsticker) gift wrapped",
+        "filename": "AgADmBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADpxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 24",
+        "emoji": "😏",
+        "keywords": "shark animated (@tgsticker) face smirk smirking",
+        "filename": "AgADpxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADmRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 25",
+        "emoji": "🍪",
+        "keywords": "shark animated (@tgsticker) cookie",
+        "filename": "AgADmRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADmhQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 26",
+        "emoji": "🤷‍♀️",
+        "keywords": "shark animated (@tgsticker) shrugging woman",
+        "filename": "AgADmhQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADrxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 27",
+        "emoji": "💃",
+        "keywords": "shark animated (@tgsticker) dancer dancing woman",
+        "filename": "AgADrxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADmxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 28",
+        "emoji": "🥳",
+        "keywords": "shark animated (@tgsticker) face partying",
+        "filename": "AgADmxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADnBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 29",
+        "emoji": "🤗",
+        "keywords": "shark animated (@tgsticker) face hands hugging hugs open smiling",
+        "filename": "AgADnBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADnRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 30",
+        "emoji": "👎",
+        "keywords": "shark animated (@tgsticker) 1 down thumbs thumbsdown",
+        "filename": "AgADnRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADnhQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 31",
+        "emoji": "👍",
+        "keywords": "shark animated (@tgsticker) +1 thumbs thumbsup up",
+        "filename": "AgADnhQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADnxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 32",
+        "emoji": "🥱",
+        "keywords": "shark animated (@tgsticker) face yawning",
+        "filename": "AgADnxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADoBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 33",
+        "emoji": "📖",
+        "keywords": "shark animated (@tgsticker) book open",
+        "filename": "AgADoBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADoRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 34",
+        "emoji": "🤪",
+        "keywords": "shark animated (@tgsticker) face zany",
+        "filename": "AgADoRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADuRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 35",
+        "emoji": "❌",
+        "keywords": "shark animated (@tgsticker) cross mark x",
+        "filename": "AgADuRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADohQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 36",
+        "emoji": "🤒",
+        "keywords": "shark animated (@tgsticker) face thermometer",
+        "filename": "AgADohQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADoxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 37",
+        "emoji": "💔",
+        "keywords": "shark animated (@tgsticker) broken heart",
+        "filename": "AgADoxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADpBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 38",
+        "emoji": "🤦‍♂️",
+        "keywords": "shark animated (@tgsticker) facepalming man",
+        "filename": "AgADpBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADpRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 39",
+        "emoji": "😝",
+        "keywords": "shark animated (@tgsticker) closed eyes face out squinting stuck tongue",
+        "filename": "AgADpRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADphQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 40",
+        "emoji": "🍑",
+        "keywords": "shark animated (@tgsticker) peach",
+        "filename": "AgADphQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADqBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 41",
+        "emoji": "👋",
+        "keywords": "shark animated (@tgsticker) hand wave waving",
+        "filename": "AgADqBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADqRQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 42",
+        "emoji": "🏊‍♂️",
+        "keywords": "shark animated (@tgsticker) man swimming",
+        "filename": "AgADqRQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADrBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 43",
+        "emoji": "👋",
+        "keywords": "shark animated (@tgsticker) hand wave waving",
+        "filename": "AgADrBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADrhQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 44",
+        "emoji": "😵",
+        "keywords": "shark animated (@tgsticker) crossed dizzy eyes face knocked out",
+        "filename": "AgADrhQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADshQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 45",
+        "emoji": "👏",
+        "keywords": "shark animated (@tgsticker) clap clapping hands",
+        "filename": "AgADshQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADsxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 46",
+        "emoji": "🙃",
+        "keywords": "shark animated (@tgsticker) down face upside",
+        "filename": "AgADsxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADtBQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 47",
+        "emoji": "🌌",
+        "keywords": "shark animated (@tgsticker) milky way",
+        "filename": "AgADtBQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      },
+      {
+        "id": "shark_animated-AgADtxQAAowt_Qc",
+        "name": "Shark Animated (@TgSticker) 48",
+        "emoji": "😊",
+        "keywords": "shark animated (@tgsticker) blush eyes face smiling",
+        "filename": "AgADtxQAAowt_Qc.tgs",
+        "renderer": "canvas"
+      }
+    ]
+  }
+]

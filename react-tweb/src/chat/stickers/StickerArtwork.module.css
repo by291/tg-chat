@@ -1,0 +1,29 @@
+.artwork {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.preview {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.canvas canvas,
+.canvas svg {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}

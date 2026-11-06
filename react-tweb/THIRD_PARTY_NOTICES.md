@@ -42,3 +42,30 @@ respective licenses in the installed packages. Exact versions are recorded in `p
 
 `public/assets/evening-window.svg`, `public/assets/sample-tone.wav`, and the example text document
 were created for this study. The audio is a generated four-second tone, not a person's recording.
+
+## Public Telegram sticker packs
+
+The following public packs were downloaded through the Telegram Bot API with TStickers on
+November 7, 2026. The bundled `.tgs` files are unchanged gzip-compressed Lottie animations:
+
+- Duck: https://t.me/addstickers/UtyaDuck (40 stickers)
+- Cubigator: https://t.me/addstickers/Crocosaurus (30 stickers)
+- Shark Animated (@TgSticker): https://t.me/addstickers/shark_animated (48 stickers)
+
+Files are located under `public/assets/stickers/`, grouped by Telegram pack name. Each WebP
+preview is a 100 × 100 first-frame rendering generated locally with rlottie-python. The catalog
+preserves Telegram file-unique IDs, pack order, and associated emoji. English search terms are
+also derived from the downloaded filenames produced by TStickers.
+
+Provenance and per-file SHA-256 checksums are recorded in `public/assets/stickers/SOURCES.json`.
+Sticker artwork remains the property of its respective creators. Public availability does not
+relicense the artwork under this project's GPL license; no separate artwork license is asserted.
+No private chat media, bot credentials, or API response caches are included.
+
+Download tool: https://github.com/FHPythonUtils/TStickers (MIT).
+Preview renderer: https://github.com/laggykiller/rlottie-python.
+Neither tool is a runtime dependency of the React application.
+
+Emoji Mart and `@emoji-mart/data` provide Unicode emoji metadata and search under the MIT
+license. Lottie Web provides animation playback under the MIT license. Emoji glyphs are drawn
+by the operating system; no proprietary emoji artwork is bundled.

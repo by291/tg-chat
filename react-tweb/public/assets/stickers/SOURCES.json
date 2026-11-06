@@ -1,0 +1,602 @@
+{
+  "retrievedOn": "2026-11-07",
+  "source": "Telegram Bot API; original files downloaded with TStickers",
+  "format": "Unmodified TGS animations with locally rendered first-frame WebP previews",
+  "packs": [
+    "https://t.me/addstickers/UtyaDuck",
+    "https://t.me/addstickers/Crocosaurus",
+    "https://t.me/addstickers/shark_animated"
+  ],
+  "files": [
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD8gADVp29Cg.tgs",
+      "sha256": "a34d668493927d74a2b2032a496f7e31f77d47c2e6f3a4e568933950d293e206"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADBAEAAladvQo.tgs",
+      "sha256": "5a5bb3f097f0864f7b3323068a2193a9cdb7826cc1878985d9934809d48bbd80"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD_gADVp29Cg.tgs",
+      "sha256": "018f57fc1e5576f13b829d23ed7288a3a5c74efda4e3d45ad62c0472bcf5f89b"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD_wADVp29Cg.tgs",
+      "sha256": "393e0355a00041bb423ad18abad1abd90951fad85e49e9f079ca9714822fc567"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADAQEAAladvQo.tgs",
+      "sha256": "71119c9939e83479b6678c99494900a1f15a7af6c36a625edab43c1e06e059e0"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD8wADVp29Cg.tgs",
+      "sha256": "68a296ba26965440ca75d5c66bfc07385079250b8e7d4c104d365f11e8497e2a"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD9AADVp29Cg.tgs",
+      "sha256": "ce89ae9a17139a2ff00bae7ad86525698a8762c52a0084a163835e70d7daf4a8"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD9QADVp29Cg.tgs",
+      "sha256": "c2db0c5dcb72206d45dd143693fe91d548b681ab24160d05c109e32ba5ba4a1a"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD9gADVp29Cg.tgs",
+      "sha256": "2e6249aa44ca0f40c4cc0be96cf96f2aa7222b6997c3deaa95394765436e3052"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD9wADVp29Cg.tgs",
+      "sha256": "b6a699de9a2aee0dbce927692a8cc62a78a1a5a96840b0bca7dbc15b67a67678"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD-AADVp29Cg.tgs",
+      "sha256": "4bb8832792a64f08cd4345f504c380c6eaa1336dd2174fce7c7cee69262f94ff"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADBwEAAladvQo.tgs",
+      "sha256": "4043e5b87dcd980ff19937d968191e20999dcb1b3416e14a9702c0e174baacd3"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD-QADVp29Cg.tgs",
+      "sha256": "2cdbf4d03de421b6e0bc73871f4fc7abb685ef3b3b30b581e8ab75c71501b15a"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADBQEAAladvQo.tgs",
+      "sha256": "15726f52e07e1842169384623aca245c5f9c37ca2cf732e5c2bb732dc8b464b4"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD-gADVp29Cg.tgs",
+      "sha256": "652fab8c75ba631f777b4397418f6c582e1be63f3d447cd3168437ef363ea76e"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD-wADVp29Cg.tgs",
+      "sha256": "d7cbd6340227a8f50b145cb380d9ecb8e7840184a6d3b17ff55ceb67b7c82bd2"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADAgEAAladvQo.tgs",
+      "sha256": "7cd55718288eb1b1d1edfd0e774d9038e076a7f5aadf9835a92cf942948a4bc1"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADAwEAAladvQo.tgs",
+      "sha256": "6065ee3ce7cc90020a7e2e6d59987817389875ea6cae5fa6730856ad91910011"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADBgEAAladvQo.tgs",
+      "sha256": "e7c3789440767938733526e3831d3a8150330151b05e45c77bb600ce382f94f8"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADCAEAAladvQo.tgs",
+      "sha256": "57909fe2c47f0c5b6cdf4e2c7f1403c3661f53b05efe0c05892ad3d3abe53c0f"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADCQEAAladvQo.tgs",
+      "sha256": "965051acf75421bcfa7d70a1c3e42045e4f1a63a36698f27d250358a14a98fae"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADCwEAAladvQo.tgs",
+      "sha256": "ba9567a87289ffe9084a0cbff2f27c66921c1bbbc57062c94021e4dac657c9b3"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADDAEAAladvQo.tgs",
+      "sha256": "1b01965a69a898cd51bcca7c35b59cb2c61c1ffd410d4ef0fba8ca128cc16db7"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADDQEAAladvQo.tgs",
+      "sha256": "9d4be86853ff0f212efb9d5e8ca61e3b999a6a281f0394765aa9155aba0f94ff"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADDgEAAladvQo.tgs",
+      "sha256": "7cd71f14187446f829af69c3a96a47e6e3ed82786ce33e42741e293abd11166c"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgAD2gEAAladvQo.tgs",
+      "sha256": "5a87cb288e198b79f368f55d160800a610d9f6b1775cb52fcccfc8325cec245b"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADSAIAAladvQo.tgs",
+      "sha256": "cf2d5fbee6986544da6202828c01898bcb8e8debc50611e0c7433e8066834c61"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADSQIAAladvQo.tgs",
+      "sha256": "e2a0a1de6e4d7d456ba44fef6d9ac3651bae2addc099370cc99f0ba1768bd0e4"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADTwIAAladvQo.tgs",
+      "sha256": "8a63b41c51b1337eb3f1ca5dc506667a846018b8045def063a93e8c5b7ff8382"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADSgIAAladvQo.tgs",
+      "sha256": "40cfce64ceb92861880ccb58b7d4d1b768ccefa4094691a9ea3e0097bb431947"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADryUAApuicEs.tgs",
+      "sha256": "e3327b49b4abb4c0919ac93668e7ad15bbc6fbd3741fadb82a7dcb6d70175f15"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADTgIAAladvQo.tgs",
+      "sha256": "e81ea8894a34c2673dc7e7afa5055eded2622f15dab8f452ea79c240c6969f3f"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADTQIAAladvQo.tgs",
+      "sha256": "eae90034ade3fc346cefae104c1a7bfd4411ef6474ed64137144ed670d5dba7b"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADSwIAAladvQo.tgs",
+      "sha256": "1f0b318040b210a65b48d386d9680b29212da0d01dee9cc9f56d485334bdc11a"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADUAIAAladvQo.tgs",
+      "sha256": "d5ddf06f3b3605115508d99019369a213c8af833045adc37712723f606fbfc3f"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADBQMAAladvQo.tgs",
+      "sha256": "9498e8bbd32c043327b9b660da66ec177a5900c20d614fda2cf412b7989901a2"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADex0AAkWOKUg.tgs",
+      "sha256": "050602b8dae82d6a396d0441014ec22989485ddc38d2b6b66f68f483682f0bd4"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADQxgAArbIKUg.tgs",
+      "sha256": "cdf1b45365cefce976db23e86e5e839feaac1dbda918cc5d2bf3fe48437c815a"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADXhgAAogOKEg.tgs",
+      "sha256": "e4db4e93aceae15c9ac387e464906437855c5879b65d9576a9e602304a297196"
+    },
+    {
+      "pack": "UtyaDuck",
+      "file": "AgADRh4AAvyUOEk.tgs",
+      "sha256": "b8fccfec56c3a8dc443ce4477206d1d11126092698c41a750cfc6a84186ba8fb"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADsw4AAln8mUs.tgs",
+      "sha256": "1d0fb3071c90f8d7f0aa3d58079fb23fa10d7257577373b3cecfcb2983779181"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgAD-wwAAtM_YUs.tgs",
+      "sha256": "095d6a1023952972bc8c54e9788d90f38be525a125270cdd0f002752c268f872"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgAD-woAAm80oUs.tgs",
+      "sha256": "3f94bb387708e788a8c40221af78c0d9c2bce1e88947f4944a73cfae794adb20"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADDAsAAo0jmUs.tgs",
+      "sha256": "8858e4886d202bc4eedefcc7fccfb0cbd92599bc3c45c4b14b3e7ffd0a9a78b5"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgAD2A8AAkjyYEs.tgs",
+      "sha256": "15da76729418300a5bf990a4366e0a604735423ce74f07b2f6a70e752fc3e69a"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADRA8AAmkKqEs.tgs",
+      "sha256": "478dabdcd262c043f76dd24e677ee27b3031564ff7c86d649babea32ff86a521"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADKwwAAiIwWEs.tgs",
+      "sha256": "b75db5953122c155e7d6badbad597dba2a386ed5083756575866f15baea7cb54"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgAD7goAAp2hYUs.tgs",
+      "sha256": "d52d4dea89fed2a717a4f26c3ae666f58286318adf57c40e74210a050bec9444"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADDg0AAlkAAZhL.tgs",
+      "sha256": "b55fd93b3e09a5977d99961545e808ba8e125fee778177324c904c299e62ef24"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADiA0AArvroUs.tgs",
+      "sha256": "593c5d4c37ebd02ad4f17c3722693ef6e98ead637b300307bae95c32ca0f2736"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADTA8AArE_mUs.tgs",
+      "sha256": "2fe4d7f9d8168f7bdc2bf06e5ff753b820732c4803c9f4fe4292e4f06e40a898"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADOAsAAk7kmUs.tgs",
+      "sha256": "25776779e0a5af05ebd21617b0ac647630acdbe465b8d2e48b8b93f19b3259f3"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADBgsAAmuIoEs.tgs",
+      "sha256": "1b291ce05f793a1427e11a20f180c6b9e6c3a6993a41d84a33e7269c13cf9449"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADvAsAAv0XmUs.tgs",
+      "sha256": "b6de861514a8426842b4b1508641c407dfe84042dd3db20a4aa6b63224bf3dd6"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgAD5AoAArPZoUs.tgs",
+      "sha256": "61840d00404c770f1fec3200911039ae18aa8b78409964ce7d3ffd9628eba613"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADLA0AArs76Es.tgs",
+      "sha256": "2cb9040c3de4d0fd5e172468db77e478d37038fb9f7273aa230ff7494cabe23e"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADBQwAAqQp6Es.tgs",
+      "sha256": "c69487697c3c28255299189e0f42bddf4f48a4c72fd4ddf1fb592f9b2177cee5"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgAD_AsAAsgj6Es.tgs",
+      "sha256": "38547ea7effc5a80f532153a2ecf12c21446a9a28d08da07dfa68d7d72738ce3"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADUg0AAoOa6Es.tgs",
+      "sha256": "d4f8092bd01ce4e8f8cd4ab6b61c1070cf77792d49a192d3c6cdee9f5a3b55a2"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADpgwAAl3b6Es.tgs",
+      "sha256": "5d260ed2b6b98b4125e290df7d9ab61b65d09ccdde52b5389719148c8f7dcf9e"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADPAkAAgedAAFI.tgs",
+      "sha256": "d5a3a8910002eb8faf94ad44ae05dd997f0f80f5c539dc0480dec34726650b31"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADIgoAAu8zAAFI.tgs",
+      "sha256": "bdfb8560c5f56eb286b652df4a111d17d9dc286993ccd50a9846c25a381feb39"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADBg0AAiuy-Us.tgs",
+      "sha256": "8bb9ff5822908e4aace4d0530848558c1ff553ba45d992e1469ccd4837c6b2f7"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADJg4AAvW6EEg.tgs",
+      "sha256": "2121d2cc801bf15191abba157a480153dfe6a2d0ad2a1709c2887715031ba30b"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADPQ0AAoycEUg.tgs",
+      "sha256": "1addee29cb971d3c89d07070e41aef8bc2546a02b5da8bc6feb3f224b1a53810"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADfhoAAnMsOUg.tgs",
+      "sha256": "a64c9b3c0898b8ca94dbaa4fdc5df93798b52250761aa6b04f208361aa47a175"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADPhkAAhX_gUk.tgs",
+      "sha256": "df48712afc6f1eb366fd79bf6925a92d2075c73bebb3463ba15dc14dff8c7350"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADAR4AArk8OUg.tgs",
+      "sha256": "f3f27e6e6ae22431e92449c27aa04f4d313fef9cb36e43066171db56126bce44"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADBxkAAnVxaEg.tgs",
+      "sha256": "28fb8b6a46cfb88abbb693e1cfd07734a990797be5a303a1f34534f956d7e27e"
+    },
+    {
+      "pack": "Crocosaurus",
+      "file": "AgADdB0AAoBAEEk.tgs",
+      "sha256": "456bea7a5b27437323ba85be9ef70cc45e7b4e870c9992b59e84fa1bda3c6f0f"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADqhQAAowt_Qc.tgs",
+      "sha256": "be47f263e7a307f8e2b93a652d8f12859be5f564bb4bb396f0de51cd0637eb09"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADuBQAAowt_Qc.tgs",
+      "sha256": "814dc4c12e3d5234370a599dc044bc96c4307a5ebd9357f1b2202d58bb6f5251"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADihQAAowt_Qc.tgs",
+      "sha256": "ca3b1d275cffabcf964a09032625ed164c98e05d16d787a92fd85eeb5fedfd69"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADrRQAAowt_Qc.tgs",
+      "sha256": "516278ab82f7f5df2e25a14d26e52055c4452b25c9dab2be76649523ecf8d8b5"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADixQAAowt_Qc.tgs",
+      "sha256": "f118f5a03faad9011464f19917fe6f4e60387cf84d95a0187c9d8d758a88872c"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADjBQAAowt_Qc.tgs",
+      "sha256": "caa84c0376e2c1dfc1c83525bef4897eb60fbc1219671b3fb1eeaf5c526106bb"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADjRQAAowt_Qc.tgs",
+      "sha256": "aa02b2ff6dc4bc22889e8010e3d067d554cb0421c5e6cf19c3c7b153c9f70a3e"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADsRQAAowt_Qc.tgs",
+      "sha256": "e94816bc1a7c54fb94aecda6a5f26427a231f9f2f3fc7a36e9f30bbb3b1aa73b"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADjhQAAowt_Qc.tgs",
+      "sha256": "830199fa123213ed4e9d30a62c5a817f54faea1e8be17a65add0b1a298efd0fa"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADjxQAAowt_Qc.tgs",
+      "sha256": "a3c474f4647a06209f24cad3a1736f201abcc2361d43550eba1b55a4d2a4efbc"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADkBQAAowt_Qc.tgs",
+      "sha256": "3645970020b6d368cd655b16e552768176e9bfcd7c0a34301abaf95ac3a8b959"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADkRQAAowt_Qc.tgs",
+      "sha256": "581139d046f87ca0022e3e18cba38689dc4131d286c51f9049d610ec1f5bd613"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADkhQAAowt_Qc.tgs",
+      "sha256": "cd4b58280aa3b9bd535b29b3bad63ae29c473946997109648c0aaa93013ca77b"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADkxQAAowt_Qc.tgs",
+      "sha256": "536ac4297f7f82f8919c565b01f5422e9e0fdbbb51187d5d90ec1499b4d3e589"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADtRQAAowt_Qc.tgs",
+      "sha256": "ad2f7e2a274ec60d90111328d28191ac82a35a051243b040e308d5db4648ee9d"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADqxQAAowt_Qc.tgs",
+      "sha256": "b91bfa5b906b331fd8a43156d63c3e67781ad202a8d8f710ca23447697de1ff9"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADthQAAowt_Qc.tgs",
+      "sha256": "195eb4ca2cd270204f9a75369c95d1055db8302e6cebca6e06b8b8cfd258cfca"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADlBQAAowt_Qc.tgs",
+      "sha256": "f14986dae9c2b3438cf32a1904367faf01306b5e48b1c4d60ee0acf82c028c52"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADsBQAAowt_Qc.tgs",
+      "sha256": "bed380ff4ffd4dfa739ad08e89126ec42aa33ce6f7ceffa4c503fcfeaa4ac4f4"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADlRQAAowt_Qc.tgs",
+      "sha256": "c0c57afbbbaf1eddfdd930aa780b0541ad598aebf7f3465f982e850447de7c9e"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADlhQAAowt_Qc.tgs",
+      "sha256": "33a75c7315c2f6865f4ad209c48685b31dcdd452d3eef05ab6fbcc1e147243a5"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADlxQAAowt_Qc.tgs",
+      "sha256": "c0ead84206fee6057123d1a63e53beceabc0ca8f34a62452c6fc311fed7311ec"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADmBQAAowt_Qc.tgs",
+      "sha256": "a9e8129d20beb887ccd9dc0f8cc95fe5112d2fba7245cd380f5aa233c3765217"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADpxQAAowt_Qc.tgs",
+      "sha256": "033d40b90888ea11799e95fa7ab9855037598d2a6b188994612c7c19a6b2031d"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADmRQAAowt_Qc.tgs",
+      "sha256": "7f265b6f388978dccf9748ba3a11758f74528c58e016959be57ce1ae3ae00427"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADmhQAAowt_Qc.tgs",
+      "sha256": "4c071046f5f35228ba5f3c0eae7d1363a07982cfcb07ced03f4aeaf699ec61f3"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADrxQAAowt_Qc.tgs",
+      "sha256": "2537bea7cddd7b2b6ea062800e81c862166777dbd4c6f868ffb07e8adb4fb5e0"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADmxQAAowt_Qc.tgs",
+      "sha256": "a1cd0e6b1fe93d6f1bf3ddc95fe97ee14dbee030b5434aa1391ee426aa339581"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADnBQAAowt_Qc.tgs",
+      "sha256": "2db7ae51258ebe2ac917436ce1530af2e70fbd2b6f3d1a428be9e48e4203579a"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADnRQAAowt_Qc.tgs",
+      "sha256": "c9d6e9a27c7d22f9d9090eced581cc434acf2ef72602d2ba14fb09035bab528f"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADnhQAAowt_Qc.tgs",
+      "sha256": "2a3e6f3e13ad683787fa91678db047844ffd5fe9287643d507627d42f96eb565"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADnxQAAowt_Qc.tgs",
+      "sha256": "54a4df42fb053dbcc692f82f6928584e4b1f6716972ea2384ef8b5f71215bc66"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADoBQAAowt_Qc.tgs",
+      "sha256": "818a53907c325ae86596c936a5d765ee24bcadce0057c3ea1645525d3f3b0f89"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADoRQAAowt_Qc.tgs",
+      "sha256": "0b1443485449a4729ee1a01611f158ed258df80f008cf686e1d71358e428c47a"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADuRQAAowt_Qc.tgs",
+      "sha256": "2714255950cdf08d53298304705a0802c0f16ea3d47caa8c21d59fb2d680d9ef"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADohQAAowt_Qc.tgs",
+      "sha256": "f6ee91d416edd4fe0696aaad9f079c51d2358e219b7f798ab238d121ed15713d"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADoxQAAowt_Qc.tgs",
+      "sha256": "feea1e00d6d3d17f3a9c6354fb6e2c1239bb439053cbd37d7a9426f7b3d5696a"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADpBQAAowt_Qc.tgs",
+      "sha256": "7d3cdc28633e9c7fb6c77a6226360dfeac721e76de09cce6fdf00b94c68edf4c"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADpRQAAowt_Qc.tgs",
+      "sha256": "e6966e4458bf1df9c71406ead23a3852615bee0c0bdd91cdbc9a0784be27e34a"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADphQAAowt_Qc.tgs",
+      "sha256": "aa69071acf646b21dc940d246d643c1f4f0ed26ca3b06b962733b1d19234045c"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADqBQAAowt_Qc.tgs",
+      "sha256": "e3a45d992782c3f198e778fb3a1e1cd26e72f15d9ff16e114b6b9f348023a541"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADqRQAAowt_Qc.tgs",
+      "sha256": "a0ff0e6cff19a66911b9c67e47025ddaf6be423774692146663c11dc2656412f"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADrBQAAowt_Qc.tgs",
+      "sha256": "b81be22074706acdd092505ddb3640ff7222d0efd781449beedb5fdda5935971"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADrhQAAowt_Qc.tgs",
+      "sha256": "faff1e52f9dae50015ed040d6976efe7dbac99decc42128aedf299e1b4c77577"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADshQAAowt_Qc.tgs",
+      "sha256": "09f7bda633806264163d4f60f1fbbaff67aec5fd71b4e31b9c592c62e017a704"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADsxQAAowt_Qc.tgs",
+      "sha256": "9fea323f3c44d39c3af4a5dd9a90816f0181d50c647f96d83eaa4bf088696c7f"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADtBQAAowt_Qc.tgs",
+      "sha256": "888bdf415e85dc901d98f705d311b354d5b2e8d9a2a37d42c4100acefde418db"
+    },
+    {
+      "pack": "shark_animated",
+      "file": "AgADtxQAAowt_Qc.tgs",
+      "sha256": "24c7f309c9b6a57c037cc78a65887543ae7b06aef8ea06eea59a5d55859d60b9"
+    }
+  ]
+}
