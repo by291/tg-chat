@@ -53,7 +53,7 @@
   overflow: hidden auto;
   /* Virtual offsets own positioning; browser anchoring must not correct them again. */
   overflow-anchor: none;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--secondary-color) transparent;
 }

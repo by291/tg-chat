@@ -29,6 +29,7 @@
   max-height: 160px;
   padding: 1px 3px;
   resize: none;
+  overscroll-behavior-y: contain;
   border: 0;
   color: var(--text-color);
   background: transparent;

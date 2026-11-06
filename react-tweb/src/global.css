@@ -84,6 +84,15 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  /* Keep the document fixed; individual scrolling panes retain native edge feedback. */
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   color: var(--text-color);

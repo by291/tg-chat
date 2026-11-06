@@ -173,6 +173,7 @@
 
 .searchPanel {
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   padding: 16px;
   background: var(--panel-color);
   visibility: hidden;
@@ -237,7 +238,7 @@
   overflow-y: auto;
   padding: 0 8px;
   overflow-anchor: none;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   scrollbar-width: thin;
 }
 
