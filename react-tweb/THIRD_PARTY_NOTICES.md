@@ -18,6 +18,16 @@ The React implementation was written for this learning project. The CSS uses mea
 properties from the referenced project. The original landscape illustration is in
 `public/assets/quiet-hills.svg`.
 
+## Roboto fonts
+
+- Project: https://github.com/googlefonts/roboto
+- License: Apache License 2.0; the full text is in `public/assets/fonts/LICENSE.txt`
+- Included assets: `roboto-regular-latin.woff2` and `roboto-medium-latin.woff2`
+- Source: the unchanged Latin 400 and 500 webfonts referenced by tweb's
+  `src/scss/fonts/_roboto.scss`, renamed for readability
+
+These fonts are served locally so text metrics do not depend on an installed system font.
+
 ## Package dependencies
 
 React, Vite, Ark UI, TanStack Virtual, Lucide, Motion, idb-keyval, Zod, and development dependencies retain their

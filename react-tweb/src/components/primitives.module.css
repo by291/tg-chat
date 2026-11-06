@@ -45,8 +45,9 @@
   border-radius: 50%;
   color: white;
   background: linear-gradient(145deg, #60c5fa, #3489d5);
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 500;
+  line-height: 1;
   user-select: none;
 }
 
