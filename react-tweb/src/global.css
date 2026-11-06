@@ -105,6 +105,12 @@ a:focus-visible,
   outline-offset: 3px;
 }
 
+:root[data-input-method='pointer'] button:focus-visible,
+:root[data-input-method='pointer'] a:focus-visible,
+:root[data-input-method='pointer'] [tabindex]:focus-visible {
+  outline: none;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: #9a9da0;

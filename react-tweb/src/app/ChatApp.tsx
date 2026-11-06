@@ -6,12 +6,14 @@ import { conversations } from '../chat/demo/fixtures';
 import { MediaViewer } from '../chat/media/MediaViewer';
 import type { Message } from '../chat/model';
 import { useChatState } from '../chat/state/useChatState';
+import { useInputModality } from './useInputModality';
 import styles from './ChatApp.module.css';
 
 const NOTICE_DURATION = 4000;
 
 /** Compose the application shell around persistent conversation state and transient panels. */
 export function ChatApp() {
+  useInputModality();
   const { state, dispatch, isReady, storageError } = useChatState();
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(true);
