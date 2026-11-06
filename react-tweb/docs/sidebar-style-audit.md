@@ -150,8 +150,16 @@ Telegram K virtualizes the left conversation list as well as the message history
 The deferred layer also coordinates pinned ordering, loading, and retained data. Its extra cached
 items are distinct from mounted DOM rows. `VirtualConversationList` uses the existing TanStack
 Virtual dependency for the normal and archived lists: 72px rows, stable conversation IDs, and four
-overscan rows at each edge. The archive entry reserves one row. Separate scroll offsets survive
+overscan rows at each edge. The archive entry is a keyed virtual row, not padding outside the list.
+Separate scroll offsets survive
 switching between the main list and archive; search leaves the main list mounted.
+
+Archiving removes the conversation immediately and lets remaining mounted rows glide into place.
+Newly inserted conversations and the archive entry appear at their destination without a separate
+fade. Removing the last archived conversation removes the entry with the same list update.
+`conversationScrollAnchor` follows upstream `useShouldAnimate`: compare rows visible in either
+layout, and adjust the scroll offset when all of them move by the same amount. Those updates skip
+the glide so changes above the viewport do not make every visible row slide together.
 
 Arrow keys, Home, and End scroll the virtualizer before focusing the destination row. In a 1100 by
 300px browser viewport, seven of the nine fixture conversations were mounted. End moved the

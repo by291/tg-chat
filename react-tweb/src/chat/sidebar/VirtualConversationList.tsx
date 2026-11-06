@@ -2,6 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   type DragEvent,
   type KeyboardEvent,
@@ -9,11 +10,21 @@ import {
 } from 'react';
 import type { ConversationListEntry } from './conversationList';
 import { useConversationGlide } from './useConversationGlide';
+import { getConversationScrollAdjustment } from './conversationScrollAnchor';
 import styles from './ChatSidebar.module.css';
 
 const ROW_HEIGHT = 72;
 const OVERSCAN_ROWS = 4;
 const COMPOSE_CLEARANCE = 86;
+const ARCHIVE_ROW_KEY = 'archive';
+
+type ConversationListRow =
+  | { key: string; kind: 'archive' }
+  | {
+      key: string;
+      kind: 'conversation';
+      conversation: ConversationListEntry;
+    };
 
 interface VirtualConversationListProps {
   conversations: ConversationListEntry[];
@@ -26,9 +37,10 @@ interface VirtualConversationListProps {
 }
 
 interface VirtualConversationRowProps {
-  conversationId: string;
+  conversationId?: string;
   index: number;
   top: number;
+  canGlide: boolean;
   children: ReactNode;
 }
 
@@ -36,9 +48,10 @@ function VirtualConversationRow({
   conversationId,
   index,
   top,
+  canGlide,
   children,
 }: VirtualConversationRowProps) {
-  const rowRef = useConversationGlide(top);
+  const rowRef = useConversationGlide({ top, canGlide });
 
   return (
     <div
@@ -66,18 +79,48 @@ export function VirtualConversationList({
   const viewportRef = useRef<HTMLElement>(null);
   const focusFrameRef = useRef<number | undefined>(undefined);
   const draggedIdRef = useRef<string | undefined>(undefined);
-  const getItemKey = useCallback((index: number) => conversations[index].id, [conversations]);
+  const previousKeysRef = useRef<string[]>([]);
+  const rows: ConversationListRow[] = conversations.map((conversation) => ({
+    key: `conversation:${conversation.id}`,
+    kind: 'conversation',
+    conversation,
+  }));
+  if (archiveEntry) {
+    rows.unshift({ key: ARCHIVE_ROW_KEY, kind: 'archive' });
+  }
+  const rowKeys = rows.map((row) => row.key);
+  const getItemKey = useCallback((index: number) => rowKeys[index], [rowKeys]);
   const virtualizer = useVirtualizer({
-    count: conversations.length,
+    count: rows.length,
     getScrollElement: () => viewportRef.current,
     getItemKey,
     estimateSize: () => ROW_HEIGHT,
     overscan: OVERSCAN_ROWS,
     initialOffset,
-    paddingStart: archiveEntry ? ROW_HEIGHT : 0,
     paddingEnd: COMPOSE_CLEARANCE,
   });
   const virtualRows = virtualizer.getVirtualItems();
+  const scrollTop = virtualizer.scrollOffset ?? initialOffset;
+  const viewportHeight = virtualizer.scrollRect?.height ?? 0;
+  const scrollAdjustment = getConversationScrollAdjustment({
+    previousKeys: previousKeysRef.current,
+    currentKeys: rowKeys,
+    scrollTop,
+    viewportHeight,
+    rowHeight: ROW_HEIGHT,
+  });
+
+  useLayoutEffect(() => {
+    previousKeysRef.current = rowKeys;
+    if (scrollAdjustment === undefined || scrollAdjustment === 0) {
+      return;
+    }
+
+    // Offscreen insertions or removals move the viewport instead of animating its entire contents.
+    const maximumOffset = Math.max(0, virtualizer.getTotalSize() - viewportHeight);
+    const nextOffset = Math.max(0, Math.min(scrollTop + scrollAdjustment, maximumOffset));
+    virtualizer.scrollToOffset(nextOffset);
+  }, [rowKeys, scrollAdjustment, scrollTop, viewportHeight, virtualizer]);
 
   useEffect(() => {
     return () => {
@@ -142,14 +185,14 @@ export function VirtualConversationList({
         nextIndex = 0;
         break;
       case 'End':
-        nextIndex = conversations.length - 1;
+        nextIndex = rows.length - 1;
         break;
       default:
         return;
     }
 
     event.preventDefault();
-    nextIndex = Math.max(0, Math.min(nextIndex, conversations.length - 1));
+    nextIndex = Math.max(0, Math.min(nextIndex, rows.length - 1));
     virtualizer.scrollToIndex(nextIndex, { align: 'auto' });
     if (focusFrameRef.current !== undefined) {
       cancelAnimationFrame(focusFrameRef.current);
@@ -189,25 +232,38 @@ export function VirtualConversationList({
         draggedIdRef.current = undefined;
       }}
       onScroll={(event) => onScrollOffsetChange(event.currentTarget.scrollTop)}
-      data-total-rows={conversations.length}
+      data-total-rows={rows.length}
       data-rendered-rows={virtualRows.length}
     >
       <div className={styles.virtualList} style={{ height: virtualizer.getTotalSize() }}>
-        {archiveEntry}
         {virtualRows.map((item) => {
-          const conversation = conversations[item.index];
+          const row = rows[item.index];
+          if (row.kind === 'archive') {
+            return (
+              <VirtualConversationRow
+                key={row.key}
+                index={item.index}
+                top={item.start}
+                canGlide={scrollAdjustment === undefined}
+              >
+                {archiveEntry}
+              </VirtualConversationRow>
+            );
+          }
+          const conversation = row.conversation;
           return (
             <VirtualConversationRow
-              key={conversation.id}
+              key={row.key}
               conversationId={conversation.id}
               index={item.index}
               top={item.start}
+              canGlide={scrollAdjustment === undefined}
             >
               {renderRow(conversation)}
             </VirtualConversationRow>
           );
         })}
-        {conversations.length === 0 && <p className={styles.empty}>No conversations</p>}
+        {rows.length === 0 && <p className={styles.empty}>No conversations</p>}
       </div>
     </nav>
   );

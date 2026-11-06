@@ -475,9 +475,7 @@
 }
 
 .archiveEntry {
-  position: absolute;
-  top: 0;
-  animation: archive-enter 200ms ease;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -592,7 +590,8 @@
 }
 
 /* Moving rows must cover each other instead of letting their text show through. */
-.virtualConversation[data-gliding='true'] .chatRow:not([data-active='true']) {
+.virtualConversation[data-gliding='true'] .chatRow:not([data-active='true']),
+.virtualConversation[data-gliding='true'] .archiveEntry {
   background: var(--surface-color);
   transition: none;
 }
@@ -619,15 +618,6 @@
 .sidebar[data-selecting='true'] .footer {
   opacity: 0;
   visibility: hidden;
-}
-
-@keyframes archive-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .reorderGrip {

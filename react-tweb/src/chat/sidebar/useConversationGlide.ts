@@ -3,8 +3,13 @@ import { useReducedMotion } from 'motion/react';
 
 const GLIDE_DURATION_MS = 120;
 
+interface ConversationGlideOptions {
+  top: number;
+  canGlide: boolean;
+}
+
 /** Glide a mounted row from its drawn position to its new layout position. */
-export function useConversationGlide(top: number) {
+export function useConversationGlide({ top, canGlide }: ConversationGlideOptions) {
   const rowRef = useRef<HTMLDivElement>(null);
   const previousTopRef = useRef<number | undefined>(undefined);
   const animationRef = useRef<Animation | undefined>(undefined);
@@ -14,7 +19,8 @@ export function useConversationGlide(top: number) {
     const row = rowRef.current;
     const previousTop = previousTopRef.current;
     previousTopRef.current = top;
-    if (!row || (previousTop === top && !shouldReduceMotion)) {
+    const shouldKeepAnimation = previousTop === top && canGlide && !shouldReduceMotion;
+    if (!row || shouldKeepAnimation) {
       return;
     }
 
@@ -26,8 +32,9 @@ export function useConversationGlide(top: number) {
     animationRef.current = undefined;
     delete row.dataset.gliding;
 
-    const canGlide = previousTop !== undefined && drawnTop !== top && !shouldReduceMotion;
-    if (!canGlide) {
+    const shouldAnimate =
+      canGlide && previousTop !== undefined && drawnTop !== top && !shouldReduceMotion;
+    if (!shouldAnimate) {
       return;
     }
 
@@ -44,7 +51,7 @@ export function useConversationGlide(top: number) {
       animationRef.current = undefined;
       delete row.dataset.gliding;
     };
-  }, [top, shouldReduceMotion]);
+  }, [top, canGlide, shouldReduceMotion]);
 
   useLayoutEffect(() => {
     return () => {
