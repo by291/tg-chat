@@ -13,6 +13,7 @@ const WIDTH_SETTLE_DELAY_MS = 100;
 const FOLLOW_BOTTOM_DISTANCE = 80;
 const MIN_HISTORY_PREFETCH_DISTANCE = 360;
 const SHOW_JUMP_DISTANCE = 160;
+const READ_BOTTOM_DISTANCE = 1;
 const HISTORY_TOP_PADDING = 40;
 const HISTORY_BOTTOM_PADDING = 12;
 
@@ -21,6 +22,7 @@ interface VirtualHistoryOptions {
   hasOlder: boolean;
   loadOlder: () => void;
   navigation?: MessageNavigation;
+  onReachLatest?: () => void;
 }
 
 interface NavigationWindow {
@@ -37,6 +39,7 @@ export function useVirtualHistory({
   hasOlder,
   loadOlder,
   navigation,
+  onReachLatest,
 }: VirtualHistoryOptions) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isInitializedRef = useRef(false);
@@ -144,6 +147,7 @@ export function useVirtualHistory({
         virtualizer.scrollToEnd({ behavior: 'auto' });
       }
       isInitializedRef.current = true;
+      scheduleScrollWork();
     });
     return () => {
       cancelAnimationFrame(frame);
@@ -307,8 +311,39 @@ export function useVirtualHistory({
     };
   }, [virtualizer]);
 
+  useEffect(() => {
+    // Returning to the foreground can make an already visible message readable without scrolling.
+    window.addEventListener('focus', scheduleScrollWork);
+    document.addEventListener('visibilitychange', scheduleScrollWork);
+    return () => {
+      window.removeEventListener('focus', scheduleScrollWork);
+      document.removeEventListener('visibilitychange', scheduleScrollWork);
+    };
+  }, []);
+
+  function markVisibleLatestRead() {
+    const viewport = viewportRef.current;
+    const canRead =
+      isInitializedRef.current &&
+      !isResizingRef.current &&
+      !cancelNavigationRef.current &&
+      !navigationWindow &&
+      document.visibilityState === 'visible' &&
+      document.hasFocus();
+    if (!canRead || !viewport?.clientHeight || !viewport.clientWidth) {
+      return;
+    }
+
+    // Use the rendered bottom, not the looser threshold that merely shows the jump button.
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    if (distanceFromBottom <= READ_BOTTOM_DISTANCE) {
+      onReachLatest?.();
+    }
+  }
+
   function updateScrollPosition() {
     rememberReadingPosition();
+    markVisibleLatestRead();
     // User scrolling needs history ahead of the viewport, including during momentum. Only layout
     // rebuilding and explicit message navigation defer pagination; waiting for scroll idle hits
     // the loaded boundary and stops the gesture before the next page can be inserted.

@@ -114,6 +114,31 @@
   content: '';
 }
 
+.unreadBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  color: white;
+  background: var(--accent-color);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+  transition: background-color 200ms ease-in-out;
+}
+
+.unreadBadge[data-muted='true'] {
+  background: #bdc5c7;
+}
+
 @media (hover: hover) {
   .jumpButton:hover::before {
     background: var(--hover-color);
@@ -125,10 +150,16 @@
     width: 46px;
     height: 46px;
   }
+
+  .unreadBadge {
+    top: -12px;
+    right: 3px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .jumpButton {
+  .jumpButton,
+  .unreadBadge {
     transition: none;
   }
 }

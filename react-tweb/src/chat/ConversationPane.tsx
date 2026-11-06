@@ -48,6 +48,17 @@ export function ConversationPane({
   }, [messages]);
   const displayedMessages = isPinnedView ? pinnedMessages : messages;
   const headerActions = useHeaderActions({ conversation, state, dispatch, onNotify });
+  const unreadCount = headerActions.entry?.unreadCount ?? 0;
+  const markLatestRead = useCallback(() => {
+    if (unreadCount === 0) {
+      return;
+    }
+    dispatch({
+      type: 'update-conversations',
+      chatIds: [conversation.id],
+      changes: { unreadCount: 0, isMarkedUnread: false },
+    });
+  }, [conversation.id, dispatch, unreadCount]);
 
   useEffect(() => {
     // Clearing history or expiring a message must not leave an editable copy in the composer.
@@ -222,6 +233,9 @@ export function ConversationPane({
       <MessageTimeline
         messages={options.messages}
         searchQuery=""
+        unreadCount={options.isPinnedView ? 0 : unreadCount}
+        isMuted={headerActions.entry?.isMuted ?? false}
+        onReachLatest={isPinnedView || options.isPinnedView ? undefined : markLatestRead}
         selectedIds={headerActions.isSelecting ? headerActions.selectedIds : undefined}
         onToggleSelection={headerActions.toggleMessage}
         messageIdPrefix={options.isPinnedView ? 'pinned-message' : undefined}

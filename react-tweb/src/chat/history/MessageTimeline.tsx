@@ -23,6 +23,9 @@ interface MessageTimelineProps {
   isPreview?: boolean;
   messageIdPrefix?: string;
   searchQuery: string;
+  unreadCount?: number;
+  isMuted?: boolean;
+  onReachLatest?: () => void;
   navigation?: MessageNavigation;
   selectedIds?: string[];
   onToggleSelection?: (messageId: string) => void;
@@ -41,6 +44,9 @@ function VirtualMessageHistory({
   messages,
   messageById,
   searchQuery,
+  unreadCount = 0,
+  isMuted = false,
+  onReachLatest,
   navigation,
   selectedIds,
   onToggleSelection,
@@ -63,6 +69,7 @@ function VirtualMessageHistory({
     hasOlder,
     loadOlder,
     navigation,
+    onReachLatest,
   });
   const menu = useMessageMenu({
     viewportRef: scroll.viewportRef,
@@ -72,7 +79,12 @@ function VirtualMessageHistory({
   const totalHeight = scroll.virtualizer.getTotalSize();
   const viewportHeight = scroll.virtualizer.scrollRect?.height || 0;
   const bottomAlignment = Math.max(0, viewportHeight - totalHeight);
-  const isJumpVisible = scroll.canJumpToLatest && !searchQuery;
+  const isJumpVisible = (scroll.canJumpToLatest || unreadCount > 0) && !searchQuery;
+  const unreadNoun = unreadCount === 1 ? 'message' : 'messages';
+  const jumpLabel =
+    unreadCount > 0
+      ? `Jump to latest message, ${unreadCount} unread ${unreadNoun}`
+      : 'Jump to latest message';
 
   useEffect(() => {
     if (!navigation) {
@@ -201,7 +213,7 @@ function VirtualMessageHistory({
       )}
       {!isPreview && (
         <IconButton
-          label="Jump to latest message"
+          label={jumpLabel}
           className={styles.jumpButton}
           data-visible={isJumpVisible}
           aria-hidden={!isJumpVisible}
@@ -215,6 +227,11 @@ function VirtualMessageHistory({
               d="M19.5869 12.5869C19.9111 12.2628 19.9111 11.7372 19.5869 11.4131C19.2628 11.089 18.7372 11.089 18.4131 11.4131L12.8301 16.9961L12.8301 5C12.8301 4.5416 12.4584 4.16992 12 4.16992C11.5416 4.16996 11.1699 4.54163 11.1699 5L11.1699 16.9961L5.58692 11.4131C5.26278 11.089 4.73721 11.089 4.41309 11.4131C4.08899 11.7372 4.08899 12.2628 4.41309 12.5869L11.4131 19.5869C11.5687 19.7426 11.7799 19.8301 12 19.8301C12.2201 19.8301 12.4313 19.7425 12.5869 19.5869L19.5869 12.5869Z"
             />
           </svg>
+          {unreadCount > 0 && (
+            <span className={styles.unreadBadge} data-muted={isMuted} aria-hidden="true">
+              {unreadCount.toLocaleString('en-US')}
+            </span>
+          )}
         </IconButton>
       )}
     </DeferredMessageMedia>

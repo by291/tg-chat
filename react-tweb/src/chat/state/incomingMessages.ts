@@ -27,14 +27,13 @@ export function receiveMessage({ state, message }: IncomingMessageOptions): Chat
   const shouldLeaveArchive =
     preferences?.isArchived && !isMuted && !state.archivePreferences?.keepUnmutedArchived;
   const unreadCount = preferences?.unreadCount ?? conversation.unreadCount ?? 0;
-  const isActive = state.activeChatId === message.chatId;
   const updatedState = updateConversations({
     state,
     chatIds: [message.chatId],
     changes: {
       isArchived: shouldLeaveArchive ? false : preferences?.isArchived,
-      unreadCount: isActive ? 0 : unreadCount + 1,
-      isMarkedUnread: isActive ? false : preferences?.isMarkedUnread,
+      // An open chat can be scrolled into history; only its visible timeline can mark it read.
+      unreadCount: unreadCount + 1,
       hasClearedHistory: false,
     },
   });
