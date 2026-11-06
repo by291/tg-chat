@@ -25,6 +25,8 @@ interface MessageTimelineProps {
   messageIdPrefix?: string;
   searchQuery: string;
   navigation?: MessageNavigation;
+  selectedIds?: string[];
+  onToggleSelection?: (messageId: string) => void;
   onCommand: (command: MessageCommand) => void;
   onReact: (messageId: string, emoji: string) => void;
   onVote: (messageId: string, optionId: string) => void;
@@ -41,6 +43,8 @@ function VirtualMessageHistory({
   messageById,
   searchQuery,
   navigation,
+  selectedIds,
+  onToggleSelection,
   isPreview,
   messageIdPrefix,
   onCommand,
@@ -61,7 +65,10 @@ function VirtualMessageHistory({
     loadOlder,
     navigation,
   });
-  const menu = useMessageMenu({ viewportRef: scroll.viewportRef, isDisabled: isPreview });
+  const menu = useMessageMenu({
+    viewportRef: scroll.viewportRef,
+    isDisabled: isPreview || selectedIds !== undefined,
+  });
   const virtualItems = scroll.virtualizer.getVirtualItems();
   const totalHeight = scroll.virtualizer.getTotalSize();
   const viewportHeight = scroll.virtualizer.scrollRect?.height || 0;
@@ -98,7 +105,19 @@ function VirtualMessageHistory({
           menu.onKeyDown(event);
         }}
         onContextMenu={menu.onContextMenu}
-        onClickCapture={menu.onClick}
+        onClickCapture={(event) => {
+          if (selectedIds === undefined) {
+            menu.onClick(event);
+            return;
+          }
+          const target = event.target as HTMLElement;
+          const messageId = target.closest<HTMLElement>('[data-message-id]')?.dataset.messageId;
+          if (messageId) {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleSelection?.(messageId);
+          }
+        }}
         onPointerDownCapture={menu.onPointerDown}
         onPointerMove={menu.onPointerMove}
         onPointerUp={menu.cancelLongPress}
@@ -136,6 +155,8 @@ function VirtualMessageHistory({
                 ) : (
                   <MessageBubble
                     message={row.message}
+                    isSelecting={selectedIds !== undefined}
+                    isSelected={selectedIds?.includes(row.message.id)}
                     isPreview={isPreview}
                     isMenuOpen={menu.isOpen && menu.target?.messageId === row.message.id}
                     menuContentId={menu.contentId}

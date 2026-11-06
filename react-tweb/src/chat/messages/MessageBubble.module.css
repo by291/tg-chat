@@ -411,3 +411,32 @@
     max-width: calc(100% - 89px);
   }
 }
+
+.messageRow[data-selected='true'] {
+  background: rgb(0 0 0 / 10%);
+}
+
+.selectionCheckbox {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 2px solid white;
+  border-radius: 50%;
+  color: white;
+  background: rgb(0 0 0 / 18%);
+  cursor: pointer;
+}
+
+.messageRow[data-selected='true'] .selectionCheckbox {
+  background: var(--accent-color);
+}
+
+.messageRow[data-selecting='true'] .bubble {
+  pointer-events: none;
+}

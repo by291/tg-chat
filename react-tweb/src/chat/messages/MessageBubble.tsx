@@ -1,4 +1,4 @@
-import { MoreHorizontal } from 'lucide-react';
+import { Check, MoreHorizontal } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { memo, useEffect, useRef } from 'react';
 import { MessageBody, MessageText } from './MessageBody';
@@ -15,6 +15,8 @@ const MESSAGE_ENTRY_DURATION = 0.2;
 interface MessageBubbleProps {
   message: Message;
   isPreview?: boolean;
+  isSelecting?: boolean;
+  isSelected?: boolean;
   isMenuOpen?: boolean;
   menuContentId?: string;
   idPrefix?: string;
@@ -53,6 +55,8 @@ function ReplyThumbnail({ source }: { source: string }) {
 export const MessageBubble = memo(function MessageBubble({
   message,
   isPreview = false,
+  isSelecting = false,
+  isSelected = false,
   isMenuOpen = false,
   menuContentId,
   idPrefix,
@@ -105,6 +109,8 @@ export const MessageBubble = memo(function MessageBubble({
       id={elementId}
       className={styles.messageRow}
       data-message-id={message.id}
+      data-selecting={isSelecting}
+      data-selected={isSelected}
       data-own={isOwn}
       data-group-start={isGroupStart}
       data-group-end={isGroupEnd}
@@ -117,6 +123,16 @@ export const MessageBubble = memo(function MessageBubble({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: shouldReduceMotion ? 0 : MESSAGE_ENTRY_DURATION }}
     >
+      {isSelecting && (
+        <button
+          className={styles.selectionCheckbox}
+          role="checkbox"
+          aria-checked={isSelected}
+          aria-label={`Select message from ${message.authorName}`}
+        >
+          {isSelected && <Check size={16} />}
+        </button>
+      )}
       {!isOwn && (
         <span className={styles.senderAvatar} data-visible={isGroupEnd} aria-hidden="true">
           {message.authorName.slice(0, 1)}
