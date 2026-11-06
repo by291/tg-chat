@@ -72,14 +72,65 @@
 
 .jumpButton {
   position: absolute;
-  right: 8px;
-  bottom: 12px;
+  right: 0;
+  bottom: 8px;
   z-index: 4;
-  width: 48px;
-  height: 48px;
-  color: var(--secondary-color);
+  width: 54px;
+  height: 54px;
+  color: var(--text-color);
   background: var(--surface-color);
-  box-shadow: var(--surface-shadow);
+  box-shadow: 0 1px 8px 1px rgb(0 0 0 / 12%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  /* Keep the control mounted so returning to the bottom can finish its exit fade. */
+  transition:
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 200ms;
+}
+
+.jumpButton[data-visible='true'] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.jumpButton svg {
+  width: 24px;
+  height: 24px;
+  stroke: none;
+}
+
+.jumpButton:hover {
+  background: var(--surface-color);
+}
+
+.jumpButton::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  content: '';
+}
+
+@media (hover: hover) {
+  .jumpButton:hover::before {
+    background: var(--hover-color);
+  }
+}
+
+@media (max-width: 600px) {
+  .jumpButton {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jumpButton {
+    transition: none;
+  }
 }
 
 .emptyState {
