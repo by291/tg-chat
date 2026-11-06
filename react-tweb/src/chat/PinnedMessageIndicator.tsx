@@ -56,14 +56,13 @@ export function PinnedMessageIndicator({ count, index }: PinnedMessageIndicatorP
   // These offsets preserve the upstream two-pin gap and three-pin bottom alignment.
   const clipStride = count === 2 ? segmentHeight + SEGMENT_GAP * 2 : segmentStride;
   const markOffset = count === 3 && index === 2 ? segmentStride * index + 1 : segmentStride * index;
-  const hasOverflow = count > 4;
-  const hasTopFade = hasOverflow && index > 1;
-  const hasBottomFade = hasOverflow && index < count - 2;
+  const hasEdgeFades = count > 4;
+  const hasTopFade = hasEdgeFades && index > 1;
+  const hasBottomFade = hasEdgeFades && index < count - 2;
 
   return (
     <span
       className={styles.indicator}
-      data-overflow={hasOverflow}
       data-fade-top={hasTopFade}
       data-fade-bottom={hasBottomFade}
       aria-hidden="true"

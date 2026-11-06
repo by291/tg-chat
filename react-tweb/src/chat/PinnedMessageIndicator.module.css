@@ -3,9 +3,7 @@
   flex: 0 0 3px;
   width: 3px;
   height: 40px;
-}
-
-.indicator[data-overflow='true'] {
+  /* Four pins already span 46px; clip the moving track independently of edge fades. */
   overflow: hidden;
 }
 
