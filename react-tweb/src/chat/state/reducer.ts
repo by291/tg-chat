@@ -1,4 +1,5 @@
 import { applyPollVote } from './pollVoting';
+import { clearConversations, updateConversations } from './conversationActions';
 import { CURRENT_USER_ID, type ChatAction, type ChatState, type Message } from '../model';
 
 type MessageChange = Extract<ChatAction, { messageId: string }>;
@@ -43,10 +44,32 @@ function updateMessage(message: Message, action: MessageChange): Message {
 /** Apply one conversation action without mutating the previous state. */
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case 'update-conversations':
+      return updateConversations({
+        state,
+        chatIds: action.chatIds,
+        changes: action.changes,
+      });
+    case 'clear-conversations':
+      return clearConversations({
+        state,
+        chatIds: action.chatIds,
+        mode: action.mode,
+      });
     case 'restore':
       return action.state;
-    case 'select-chat':
-      return { ...state, activeChatId: action.chatId };
+    case 'select-chat': {
+      const nextState = updateConversations({
+        state,
+        chatIds: [action.chatId],
+        changes: {
+          unreadCount: 0,
+          isMarkedUnread: false,
+          isDeleted: false,
+        },
+      });
+      return { ...nextState, activeChatId: action.chatId };
+    }
     case 'toggle-theme':
       return { ...state, isDark: !state.isDark };
     case 'set-draft':

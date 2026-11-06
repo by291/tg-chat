@@ -29,17 +29,29 @@ export const messageSchema = z.object({
   isPinned: z.boolean().optional(),
 });
 
+export const conversationPreferencesSchema = z.object({
+  isPinned: z.boolean().optional(),
+  isMuted: z.boolean().optional(),
+  isArchived: z.boolean().optional(),
+  isDeleted: z.boolean().optional(),
+  isMarkedUnread: z.boolean().optional(),
+  unreadCount: z.int().nonnegative().optional(),
+  hasClearedHistory: z.boolean().optional(),
+});
+
 export const chatStateSchema = z.object({
   version: z.union([z.literal(1), z.literal(2)]),
   messages: z.array(messageSchema),
   drafts: z.record(z.string(), z.string()),
   activeChatId: z.string(),
   isDark: z.boolean(),
+  conversationPreferences: z.record(z.string(), conversationPreferencesSchema).optional(),
 });
 
 export type Attachment = z.infer<typeof attachmentSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type ChatState = z.infer<typeof chatStateSchema>;
+export type ConversationPreferences = z.infer<typeof conversationPreferencesSchema>;
 
 export interface Conversation {
   id: string;
@@ -47,6 +59,7 @@ export interface Conversation {
   subtitle: string;
   initials: string;
   color: string;
+  kind?: 'group' | 'private' | 'channel' | 'saved';
   preview: string;
   time: string;
   unreadCount?: number;
@@ -55,6 +68,16 @@ export interface Conversation {
 }
 
 export type ChatAction =
+  | {
+      type: 'update-conversations';
+      chatIds: string[];
+      changes: ConversationPreferences;
+    }
+  | {
+      type: 'clear-conversations';
+      chatIds: string[];
+      mode: 'history' | 'delete';
+    }
   | {
       type: 'restore';
       state: ChatState;

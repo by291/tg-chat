@@ -4,6 +4,7 @@ import { DEFAULT_CHAT_ID, type ChatState, type Conversation, type Message } from
 export const conversations: Conversation[] = [
   {
     id: 'dev',
+    kind: 'group',
     title: 'dev',
     subtitle: '3 members',
     initials: 'D',
@@ -13,6 +14,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'lab',
+    kind: 'group',
     title: 'Message lab',
     subtitle: '3 members · local history study',
     initials: 'ML',
@@ -22,6 +24,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'design',
+    kind: 'group',
     title: 'Design conversations',
     subtitle: '5 members',
     initials: 'DC',
@@ -32,6 +35,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'alex',
+    kind: 'private',
     title: 'Alex Morgan',
     subtitle: 'last seen recently',
     initials: 'AM',
@@ -42,6 +46,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'saved',
+    kind: 'saved',
     title: 'Saved Messages',
     subtitle: 'your personal cloud',
     initials: 'saved',
@@ -51,6 +56,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'webk',
+    kind: 'channel',
     title: 'WebK Channel',
     subtitle: '24,108 subscribers',
     initials: 'W',
@@ -62,6 +68,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'weekend',
+    kind: 'group',
     title: 'Weekend people',
     subtitle: '8 members',
     initials: 'WP',
@@ -73,6 +80,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'frontend',
+    kind: 'group',
     title: 'Frontend notes',
     subtitle: '4 members',
     initials: 'FN',
@@ -83,6 +91,7 @@ export const conversations: Conversation[] = [
   },
   {
     id: 'mia',
+    kind: 'private',
     title: 'Mia Chen',
     subtitle: 'last seen recently',
     initials: 'MC',
