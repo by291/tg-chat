@@ -287,8 +287,40 @@ has been ported.
 Observed geometry includes a 360px floating sidebar, a centered 696px conversation, a 48px toolbar
 and composer, and 16px outer spacing. Upstream bubble values include 15px and 5px radii, 2px spacing
 within a sender group, and 4px/5px/8px text padding. This study uses 200ms message/composer motion
-and 280ms sidebar layout transitions. It approximates the visible animation; it does not reproduce
+and 300ms opening / 250ms closing profile transitions. It approximates the visible animation;
+it does not reproduce
 Telegram's full send morph, sticker player, or history animation scheduler.
+
+## Topbar search, profile motion, and conversation actions
+
+`ChatHeader` crossfades its title and actions into `ChatSearch` in 200ms, matching
+`chat.ts` and `topbarSearch.tsx`. The avatar stays in place on desktop. Search keeps its query,
+sender filter, and result cursor locally; it calls message-ID navigation rather than filtering
+or remounting `MessageTimeline`. `SearchResults` virtualizes the 56px result rows inside a
+271px dropdown. `SearchDateDialog` uses Ark's dialog and one shared date-picker state machine
+inside a virtual month list: 40px headings/cells, 4px week gaps, and a 312px desktop / 280px mobile scroll viewport.
+Six-week months retain their full height below the viewport; the header and confirmation never
+scroll. Partially visible month headings retain their space but hide their text until the
+whole heading row is visible, avoiding a clipped title above the footer. Month arrows animate
+the scroll offset, and the title follows the viewport center,
+matching `popups/datePicker.tsx`. Month geometry, day labels, and date values are prepared once
+on open. Memoized month grids render native day buttons; Ark retains selection and table keyboard
+navigation. Scroll state stays below the shared date-picker hook, and buffered virtual updates
+avoid synchronous React flushes during scrolling. An IntersectionObserver updates each heading's
+visibility without rerendering its date grid.
+Public-post search requires Telegram connectivity and is not offered in the local study.
+
+`ChatApp.module.css` follows `_rightSidebar.scss` and `_chat.scss`: the profile slides by its
+full width and the chat moves with a transform. The profile remains mounted after its first
+open so closing has an exit animation and reopening retains the selected tab and scroll.
+Below the docking threshold it overlays the chat rather than squeezing the message column.
+Reduced motion disables these transitions. The profile content remains a smaller local demo.
+
+`ChatHeaderMenu` follows `topbar.ts` for group menu ordering and the mobile search entry.
+`useHeaderActions` reuses the list's mute and removal dialogs and persistence. Message selection
+keeps the composer mounted with its draft. Auto-delete captures a deadline on each new outgoing
+or incoming message; old history is unchanged. Expiration runs while open and on restore/focus.
+Video Chat explains the local-only limitation and never starts a network call.
 
 ## Tests worth reading
 
