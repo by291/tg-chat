@@ -160,6 +160,88 @@ messages. All writes continue using the existing IndexedDB key.
 
 ## What Ark UI does
 
+`ChatHeader.tsx` follows the measured Web K toolbar geometry: a 48px plate with a 24px radius,
+40px avatar, 16px avatar-to-title gap, 16px title, 14px subtitle, and 40px utility buttons separated
+by 4px. On the existing mobile breakpoint, search moves into the More menu. Calls remain outside
+the local demo's scope.
+
+`PinnedMessageBar.tsx` owns the separate 48px pinned plate, its 8px top gap, 3px accent border,
+14px title and summary, optional 40px media thumbnail, pin menu, and unpin confirmation. It follows
+`_chatPinned.scss` and `components/chat/pinnedMessage.tsx`. Clicking cycles through local pins and
+jumps through the existing history navigation. The pin list reuses `MessageTimeline`, with separate
+message DOM IDs; the ordinary history and composer stay mounted while that list is open.
+
+`PinnedMessageIndicator.tsx` follows `pinnedMessageBorder.ts`: 3px width, a 40px viewport,
+40/19/12/10px segment heights, and a 250ms moving track and highlight. More than four pins enable
+6px edge fades. The two- and three-pin offsets retain the upstream geometry rather than dividing
+the available height evenly.
+
+`PinnedMessagePreview.tsx` follows `AnimatedSuper`, `AnimatedCounter`, and `_chatPinned.scss`.
+The title stays still while old and new subtitles roll and crossfade over 200ms with ease-in-out.
+Older pins enter from above; wrapping to the newest enters from below. Text and media travel 20px
+and 40px respectively. The counter animates changed digits independently and scales to 0.68 while
+fading out on the newest pin. Media scales out before its row is released; text shifts 46px when a
+thumbnail is present. Motion retains outgoing rows through their exit, including interrupted
+selections, and initial mounts stay still. Reduced motion retains crossfades without rolling.
+
+Manual browser inspection used six temporary pins on a separate localhost origin, covering text,
+media, middle-track fades, repeated selection, wrapping, and returning to a single pin. The temporary
+pins were removed afterward. No tests were added or run. Selecting the pin preview from the visible
+history position remains outside this implementation.
+
+Message-ID navigation uses `history/animateHistoryNavigation.ts`, following tweb's
+`helpers/fastSmoothScroll.ts`: 250–600ms by distance, at most 1500px of animated travel, and the
+upstream power easing for short and long paths. Tall messages align their beginning; other targets
+are centered. Distant navigation loads history, mounts and measures the bounded animation corridor,
+positions near the destination, then animates. The temporary range is a union with the visible
+rows, so it never mounts every row between distant endpoints. Wheel, touch, keyboard, and a newer
+navigation request cancel the previous movement; reduced motion lands immediately.
+
+The animation writes intermediate scroll positions directly, while TanStack owns measurements,
+scroll observations, and final index reconciliation. Issuing a new `scrollToOffset` command on
+every frame would repeatedly restart the virtualizer's command reconciliation. Stable history
+arrays preserve its measurement cache. Memoized bubbles avoid rebuilding unchanged content during
+range updates, and the shared message-menu contents mount only when opened.
+
+The timeline itself is memoized, and its command callbacks and pin list retain their identities.
+Draft edits still use the existing persistence flow, but do not rerender the unchanged history.
+The appeared-message set is initialized lazily; the loaded-window start is recomputed only when
+its inputs change. Navigation resolves its target index once per row revision, then reads current
+measurements at that index instead of searching every animation frame.
+
+Scroll events and virtualizer commits share one animation-frame task. Reading anchors come from
+TanStack's measured rows and the scroll offset, including bottom alignment for short histories;
+DOM measurement remains necessary when the available width changes. Responsive width changes
+settle for 100ms before rebuilding, preserving the anchor from before the transition. A bounded
+four-frame correction includes newly reported row sizes; user interaction or a newer navigation
+cancels it. Anchor restoration applies its relative offset before clamping at the scroll boundary.
+
+Navigation retains both the original mounted range and the destination corridor until completion
+or cancellation. It does not mount the gap between distant ranges. Automatic history pagination
+pauses during explicit message navigation and width rebuilding, but continues during user scrolling
+and momentum. Approaching the start within one viewport (at least 360px) requests the next local page
+before reaching the loaded boundary. Each boundary is requested once until the prepended rows commit;
+TanStack's end anchoring preserves the current reading position. Scrolling toward newer messages
+does not request older pages.
+`messages/deferredMedia.tsx` postpones new photo, album, link-image, reply-thumbnail, and video-poster
+sources during navigation. Existing images remain visible, frames retain their dimensions, and
+media loading resumes after the temporary range is released. Audio and video already use
+`preload="none"`. This coordination is local to the history view, not a global application lock.
+
+`messages/MessageMenu.tsx` owns one Ark menu per history view. `useMessageMenu.ts` delegates pointer,
+keyboard, and touch long-press entry points from the viewport. It uses a virtual anchor rectangle,
+closes when the history scrolls or its target unmounts, and releases the target DOM reference after
+exit. Escape returns focus to the message button; selecting Reply or Edit restores that focus
+before the composer deliberately takes it. Preview histories do not mount a menu controller.
+
+During the earlier navigation implementation, a local development-browser observation showed a frame gap
+of 125ms before the final mounting optimizations. After them, the sampled intervals were mostly
+about 8ms with a maximum near 25ms. These are local observations, not a general frame-rate guarantee.
+Temporary frame logging was removed. The subsequent shared-menu and rendering changes were checked
+manually for menu positioning, keyboard access, reply focus, retained drafts, long-distance navigation,
+and width-change anchoring. They have not received a new frame-time benchmark. No automated tests
+were added or run for these changes.
+
 The archive entry and archive page header share `sidebar/ArchiveMenu.tsx`. Their commands live in
 `sidebar/useArchiveActions.ts`; `ArchiveSettingsPage.tsx` owns the editable settings view and
 `ArchiveDialogs.tsx` owns help and confirmation dialogs. `SidebarNavigation.tsx` keeps both pages
