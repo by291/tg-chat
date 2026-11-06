@@ -1,0 +1,64 @@
+.navigation {
+  --navigation-duration: 250ms;
+  --navigation-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+  isolation: isolate;
+}
+
+.navigation[data-secondary-open='true'] {
+  --navigation-duration: 300ms;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-color);
+  visibility: hidden;
+  transition:
+    transform var(--navigation-duration) var(--navigation-easing),
+    filter var(--navigation-duration) var(--navigation-easing),
+    visibility 0s var(--navigation-duration);
+}
+
+.page[data-active='true'] {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.primary {
+  z-index: 0;
+  transform: translateX(0);
+  filter: brightness(1);
+}
+
+.navigation[data-secondary-open='true'] > .primary {
+  transform: translateX(-25%);
+  filter: brightness(0.8);
+}
+
+.secondary {
+  z-index: 1;
+  transform: translateX(100%);
+}
+
+.secondary[data-active='true'] {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation,
+  .navigation[data-secondary-open='true'] {
+    --navigation-duration: 0ms;
+  }
+
+  .navigation > .page {
+    transform: none;
+    filter: none;
+  }
+}
