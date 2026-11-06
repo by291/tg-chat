@@ -443,3 +443,27 @@
 .messageRow[data-selecting='true'] .bubble {
   pointer-events: none;
 }
+
+/* Desktop text selection yields to message selection; touch text selection starts in that mode. */
+:global(:where(:root[data-touch-supported='false']))
+  .messageRow:not([data-selecting='true'])
+  .bubble,
+:global(:where(:root[data-touch-supported='true'])) .messageRow[data-selecting='true'] .bubble {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+:global(:where(:root[data-touch-supported='true'])) .messageRow[data-selecting='true'] .bubble {
+  pointer-events: auto;
+}
+
+/* Bubble text is copyable, but its navigation and action surfaces are not. */
+.author,
+.forwarded,
+.bubble button,
+.bubble img,
+.bubble video,
+.bubble svg {
+  -webkit-user-select: none;
+  user-select: none;
+}

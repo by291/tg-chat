@@ -173,6 +173,13 @@
   padding: 6px 0;
 }
 
+/* These cards are playback/contact actions rather than selectable message text. */
+.voice,
+.contactCard {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .playButton {
   cursor: pointer;
 }
