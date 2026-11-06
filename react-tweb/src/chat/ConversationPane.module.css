@@ -16,3 +16,27 @@
 .historyPage[hidden] {
   display: none;
 }
+
+.selectionToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--surface-color);
+}
+
+.selectionToolbar strong {
+  flex: 1;
+  padding-left: 12px;
+}
+
+.pinnedSlot {
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .pinnedSlot[data-search-open='true'] {
+    display: none;
+  }
+}

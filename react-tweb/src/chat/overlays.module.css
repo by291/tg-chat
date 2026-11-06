@@ -102,6 +102,7 @@
 }
 
 .menuSeparator {
+  border: 0;
   height: 1px;
   margin: 5px;
   background: var(--border-color);

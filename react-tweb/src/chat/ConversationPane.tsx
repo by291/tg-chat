@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useState, type Dispatch } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch } from 'react';
+import { Copy, Trash2, X } from 'lucide-react';
+import { IconButton } from '../components/IconButton';
+import { HeaderActionDialog } from './HeaderActionDialog';
+import { useHeaderActions } from './useHeaderActions';
+import { ConversationMuteDialog } from './sidebar/ConversationMuteDialog';
+import { ConversationRemovalDialog } from './sidebar/ConversationDialogs';
 import { ChatHeader } from './ChatHeader';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
 import { PinnedMessageBar } from './PinnedMessageBar';
@@ -33,7 +39,6 @@ export function ConversationPane({
   const [pendingDelete, setPendingDelete] = useState<Message>();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPinnedView, setIsPinnedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [navigation, setNavigation] = useState<MessageNavigation>();
   const messages = useMemo(() => {
     return state.messages.filter((message) => message.chatId === conversation.id);
@@ -42,15 +47,33 @@ export function ConversationPane({
     return messages.filter((message) => message.isPinned);
   }, [messages]);
   const displayedMessages = isPinnedView ? pinnedMessages : messages;
-  const searchResultCount = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) {
-      return displayedMessages.length;
+  const headerActions = useHeaderActions({ conversation, state, dispatch, onNotify });
+
+  useEffect(() => {
+    // Clearing history or expiring a message must not leave an editable copy in the composer.
+    if (replyMessage && !messages.some((message) => message.id === replyMessage.id)) {
+      setReplyMessage(undefined);
     }
-    return displayedMessages.filter((message) => {
-      return describeMessage(message).toLowerCase().includes(normalizedQuery);
-    }).length;
-  }, [displayedMessages, searchQuery]);
+    if (editingMessage && !messages.some((message) => message.id === editingMessage.id)) {
+      setEditingMessage(undefined);
+    }
+  }, [messages, replyMessage, editingMessage]);
+
+  function searchJump(messageId: string) {
+    // Search navigation keeps the input and result cursor alive; pin jumps close search.
+    setNavigation({ messageId, requestId: Date.now() });
+  }
+
+  async function copySelectedMessages() {
+    const selected = messages.filter((message) => headerActions.selectedIds.includes(message.id));
+    try {
+      await navigator.clipboard.writeText(selected.map(describeMessage).join('\n'));
+      onNotify('Copied to clipboard');
+      headerActions.clearSelection();
+    } catch {
+      onNotify('Could not access the clipboard');
+    }
+  }
 
   function clearComposerContext() {
     setReplyMessage(undefined);
@@ -86,7 +109,6 @@ export function ConversationPane({
     });
     clearComposerContext();
     setNavigation(undefined);
-    setSearchQuery('');
     setIsSearchOpen(false);
   }
 
@@ -160,14 +182,12 @@ export function ConversationPane({
 
   const jumpToMessage = useCallback((messageId: string) => {
     setIsPinnedView(false);
-    setSearchQuery('');
     setIsSearchOpen(false);
     setNavigation({ messageId, requestId: Date.now() });
   }, []);
 
   function openPinnedMessages() {
     setIsSearchOpen(false);
-    setSearchQuery('');
     setIsPinnedView(true);
   }
 
@@ -175,7 +195,6 @@ export function ConversationPane({
     if (isPinnedView) {
       setIsPinnedView(false);
       setIsSearchOpen(false);
-      setSearchQuery('');
       return;
     }
     onBack();
@@ -183,7 +202,6 @@ export function ConversationPane({
 
   function toggleSearch() {
     setIsSearchOpen(!isSearchOpen);
-    setSearchQuery('');
   }
 
   function confirmDelete() {
@@ -203,9 +221,11 @@ export function ConversationPane({
     return (
       <MessageTimeline
         messages={options.messages}
-        searchQuery={options.isPinnedView === isPinnedView ? searchQuery : ''}
+        searchQuery=""
+        selectedIds={headerActions.isSelecting ? headerActions.selectedIds : undefined}
+        onToggleSelection={headerActions.toggleMessage}
         messageIdPrefix={options.isPinnedView ? 'pinned-message' : undefined}
-        navigation={options.isPinnedView ? undefined : navigation}
+        navigation={navigation}
         onCommand={applyMessageCommand}
         onReact={reactToMessage}
         onVote={voteOnMessage}
@@ -218,26 +238,27 @@ export function ConversationPane({
   return (
     <main className={styles.conversation} aria-label={`${conversation.title} conversation`}>
       <ChatHeader
-        conversation={conversation}
+        conversation={headerActions.entry ?? conversation}
+        messages={displayedMessages}
+        isSelecting={headerActions.isSelecting}
+        onAction={headerActions.runAction}
+        onAutoDelete={headerActions.setAutoDelete}
+        onSearchJump={searchJump}
         isSearchOpen={isSearchOpen}
-        searchQuery={searchQuery}
-        searchResultCount={searchResultCount}
         pinnedCount={isPinnedView ? pinnedMessages.length : undefined}
-        onSearchQueryChange={setSearchQuery}
         onToggleSearch={toggleSearch}
         onOpenDetails={onOpenDetails}
         onBack={goBack}
-        onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
       />
       <div className={styles.historyPage} hidden={isPinnedView}>
-        {!isSearchOpen && (
+        <div className={styles.pinnedSlot} data-search-open={isSearchOpen}>
           <PinnedMessageBar
             messages={pinnedMessages}
             onJump={jumpToMessage}
             onOpenList={openPinnedMessages}
             onUnpin={(message) => applyMessageCommand({ action: 'pin', message })}
           />
-        )}
+        </div>
         {renderTimeline({ messages, isPinnedView: false })}
       </div>
       {isPinnedView && (
@@ -245,7 +266,7 @@ export function ConversationPane({
           {renderTimeline({ messages: pinnedMessages, isPinnedView: true })}
         </div>
       )}
-      <div hidden={isPinnedView}>
+      <div hidden={isPinnedView || headerActions.isSelecting}>
         <MessageComposer
           key={editingMessage?.id || 'compose'}
           draft={state.drafts[conversation.id] || ''}
@@ -257,6 +278,45 @@ export function ConversationPane({
           onNotify={onNotify}
         />
       </div>
+      {headerActions.isSelecting && (
+        <div className={styles.selectionToolbar}>
+          <IconButton label="Clear selection" onClick={headerActions.clearSelection}>
+            <X />
+          </IconButton>
+          <strong>{headerActions.selectedIds.length} Messages</strong>
+          <IconButton
+            label="Copy selected messages"
+            disabled={!headerActions.selectedIds.length}
+            onClick={() => void copySelectedMessages()}
+          >
+            <Copy />
+          </IconButton>
+          <IconButton
+            label="Delete selected messages"
+            disabled={!headerActions.selectedIds.length}
+            onClick={() => headerActions.setDialog('delete-messages')}
+          >
+            <Trash2 />
+          </IconButton>
+        </div>
+      )}
+      <ConversationMuteDialog
+        conversation={headerActions.actions.muteConversation}
+        onCancel={headerActions.actions.cancelMute}
+        onConfirm={headerActions.actions.confirmMute}
+      />
+      <ConversationRemovalDialog
+        request={headerActions.actions.confirmation}
+        onCancel={headerActions.actions.cancelRemoval}
+        onConfirm={headerActions.actions.confirmRemoval}
+      />
+      <HeaderActionDialog
+        mode={headerActions.dialog}
+        selectedCount={headerActions.selectedIds.length}
+        onClose={() => headerActions.setDialog(undefined)}
+        onAutoDelete={headerActions.setAutoDelete}
+        onDelete={headerActions.deleteSelectedMessages}
+      />
       <DeleteMessageDialog
         isOpen={Boolean(pendingDelete)}
         onCancel={() => setPendingDelete(undefined)}

@@ -1,46 +1,56 @@
-import { Menu } from '@ark-ui/react/menu';
-import { ArrowLeft, Info, MoreVertical, Moon, Search, X } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Search, Video } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Avatar } from '../components/Avatar';
 import { IconButton } from '../components/IconButton';
-import { Ripple } from '../components/Ripple';
-import { MenuDismissLayer } from './MenuDismissLayer';
-import type { Conversation } from './model';
+import { ChatHeaderMenu, type HeaderAction } from './ChatHeaderMenu';
+import { ChatSearch } from './search/ChatSearch';
+import type { Conversation, Message } from './model';
 import styles from './ChatHeader.module.css';
-import overlays from './overlays.module.css';
+
+const SEARCH_TRANSITION_DURATION = 0.2;
 
 interface ChatHeaderProps {
   conversation: Conversation;
+  messages: Message[];
   isSearchOpen: boolean;
-  searchQuery: string;
-  searchResultCount: number;
+  isSelecting: boolean;
   pinnedCount?: number;
-  onSearchQueryChange: (query: string) => void;
   onToggleSearch: () => void;
+  onSearchJump: (messageId: string) => void;
   onOpenDetails: () => void;
   onBack: () => void;
-  onToggleTheme: () => void;
+  onAction: (action: HeaderAction) => void;
+  onAutoDelete: (days: number) => void;
 }
 
-/** Render the floating conversation toolbar and its inline history search. */
+/** Crossfade the identity and actions into in-place search while keeping the avatar stationary. */
 export function ChatHeader({
   conversation,
+  messages,
   isSearchOpen,
-  searchQuery,
-  searchResultCount,
+  isSelecting,
   pinnedCount,
-  onSearchQueryChange,
   onToggleSearch,
+  onSearchJump,
   onOpenDetails,
   onBack,
-  onToggleTheme,
+  onAction,
+  onAutoDelete,
 }: ChatHeaderProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
   const isPinnedView = pinnedCount !== undefined;
+  const transition = {
+    duration: shouldReduceMotion ? 0 : SEARCH_TRANSITION_DURATION,
+    ease: 'easeInOut' as const,
+  };
 
   return (
     <div className={styles.headerStack}>
-      <header className={styles.header} data-pinned-view={isPinnedView}>
+      <header
+        className={styles.header}
+        data-pinned-view={isPinnedView}
+        data-search-open={isSearchOpen}
+      >
         <IconButton
           label={isPinnedView ? 'Back to conversation' : 'Back to chats'}
           className={styles.backButton}
@@ -58,80 +68,68 @@ export function ChatHeader({
             className={styles.identity}
             onClick={onOpenDetails}
             aria-label="Open chat information"
+            disabled={isSearchOpen}
           >
             <Avatar initials={conversation.initials} color={conversation.color} size="small" />
-            <span className={styles.identityText}>
+            <motion.span
+              className={styles.identityText}
+              animate={{ opacity: isSearchOpen ? 0 : 1 }}
+              transition={transition}
+            >
               <strong>{conversation.title}</strong>
               <span>{conversation.subtitle}</span>
-            </span>
+            </motion.span>
           </button>
         )}
-        <IconButton
-          label="Search messages"
-          className={`${styles.utilityButton} ${styles.searchButton}`}
-          onClick={onToggleSearch}
-          aria-pressed={isSearchOpen}
+        <motion.div
+          className={styles.actions}
+          animate={{ opacity: isSearchOpen ? 0 : 1 }}
+          transition={transition}
+          inert={isSearchOpen}
         >
-          <Search />
-        </IconButton>
-        <Menu.Root
-          open={isMenuOpen}
-          onOpenChange={(details) => setIsMenuOpen(details.open)}
-          onPointerDownOutside={(event) => event.preventDefault()}
-          positioning={{ placement: 'bottom-end', gutter: 4 }}
-          lazyMount
-          unmountOnExit
-        >
-          <Menu.Trigger asChild>
-            <IconButton label="Chat options" className={styles.utilityButton}>
-              <MoreVertical />
+          {conversation.kind === 'group' && (
+            <IconButton
+              label="Video chat"
+              className={`${styles.utilityButton} ${styles.searchButton}`}
+              onClick={() => onAction('call')}
+            >
+              <Video />
             </IconButton>
-          </Menu.Trigger>
-          <MenuDismissLayer
-            isOpen={isMenuOpen}
-            label="Dismiss chat menu"
-            onDismiss={() => setIsMenuOpen(false)}
+          )}
+          <IconButton
+            label="Search messages"
+            className={`${styles.utilityButton} ${styles.searchButton}`}
+            onClick={onToggleSearch}
           >
-            <Menu.Positioner>
-              <Menu.Content className={overlays.menu}>
-                <Menu.Item value="info" className={overlays.menuItem} onSelect={onOpenDetails}>
-                  <Info /> Chat information
-                  <Ripple />
-                </Menu.Item>
-                <Menu.Item value="search" className={overlays.menuItem} onSelect={onToggleSearch}>
-                  <Search /> Search messages
-                  <Ripple />
-                </Menu.Item>
-                <Menu.Item value="theme" className={overlays.menuItem} onSelect={onToggleTheme}>
-                  <Moon /> Change appearance
-                  <Ripple />
-                </Menu.Item>
-              </Menu.Content>
-            </Menu.Positioner>
-          </MenuDismissLayer>
-        </Menu.Root>
-      </header>
-      {isSearchOpen && (
-        <div className={styles.searchBar}>
-          <Search size={20} />
-          <input
-            autoFocus
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                onToggleSearch();
-              }
-            }}
-            placeholder="Search in this conversation"
-            aria-label="Search in this conversation"
-          />
-          <span className={styles.resultCount}>{searchQuery && `${searchResultCount} found`}</span>
-          <IconButton label="Close search" onClick={onToggleSearch}>
-            <X />
+            <Search />
           </IconButton>
-        </div>
-      )}
+          <ChatHeaderMenu
+            conversation={conversation}
+            isSelecting={isSelecting}
+            onSearch={onToggleSearch}
+            onAction={onAction}
+            onAutoDelete={onAutoDelete}
+          />
+        </motion.div>
+        <AnimatePresence>
+          {isSearchOpen && (
+            <motion.div
+              className={styles.searchLayer}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={transition}
+            >
+              <ChatSearch
+                messages={messages}
+                canFilterSender={conversation.kind === 'group'}
+                onClose={onToggleSearch}
+                onJump={onSearchJump}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </header>
     </div>
   );
 }
