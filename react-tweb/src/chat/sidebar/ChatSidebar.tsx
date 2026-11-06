@@ -23,8 +23,10 @@ import { SidebarNavigation } from './SidebarNavigation';
 import { SidebarPageHeader } from './SidebarPageHeader';
 import { ArchiveMenu, type ArchiveMenuAction } from './ArchiveMenu';
 import { ArchiveSettingsPage } from './ArchiveSettingsPage';
+import { StickerSettingsPage } from './StickerSettingsPage';
 import { ArchiveConfirmationDialog, ArchiveHelpDialog } from './ArchiveDialogs';
 import { useArchiveActions } from './useArchiveActions';
+import { useClosingDialogValue } from './useClosingDialogValue';
 import styles from './ChatSidebar.module.css';
 
 interface ChatSidebarProps {
@@ -38,6 +40,7 @@ interface ChatSidebarProps {
 export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: ChatSidebarProps) {
   const [query, setQuery] = useState('');
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [isStickerSettingsOpen, setIsStickerSettingsOpen] = useState(false);
   const conversations = useConversationList(state);
   const scrollOffsets = useRef({ inbox: 0, archive: 0 });
   const actions = useSidebarActions({ conversations, dispatch });
@@ -56,6 +59,14 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
     dispatch,
     onSearch: openArchiveSearch,
   });
+  let openSettingsPage: 'archive' | 'stickers' | undefined;
+  if (archive.isSettingsOpen) {
+    openSettingsPage = 'archive';
+  } else if (isStickerSettingsOpen) {
+    openSettingsPage = 'stickers';
+  }
+  // Keep the outgoing page intact until the sidebar's slide-out transition has finished.
+  const settingsPage = useClosingDialogValue(openSettingsPage);
   const normalizedQuery = query.trim().toLowerCase();
   const matchingChats = conversations.filter((conversation) => {
     if (searchScope === 'archive' && !conversation.isArchived) {
@@ -177,6 +188,7 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
             onSelectChat={selectChat}
             onToggleTheme={onToggleTheme}
             onOpenArchive={openArchive}
+            onOpenStickerSettings={() => setIsStickerSettingsOpen(true)}
             archiveUnreadCount={archive.unreadCount}
           />
           <div className={styles.searchField} data-archive={searchScope === 'archive'}>
@@ -362,6 +374,11 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
           archive.requestCloseSettings();
           return;
         }
+        if (isStickerSettingsOpen && event.key === 'Escape') {
+          event.preventDefault();
+          setIsStickerSettingsOpen(false);
+          return;
+        }
         if (isSelecting && event.key === 'Escape') {
           event.preventDefault();
           actions.clearSelection();
@@ -380,7 +397,7 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
       }}
     >
       <SidebarNavigation
-        isSecondaryOpen={archive.isSettingsOpen}
+        isSecondaryOpen={archive.isSettingsOpen || isStickerSettingsOpen}
         primary={
           <SidebarNavigation
             isSecondaryOpen={isArchiveOpen}
@@ -389,13 +406,17 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
           />
         }
         secondary={
-          <ArchiveSettingsPage
-            keepUnmutedArchived={archive.keepUnmutedArchived}
-            hasChanges={archive.hasSettingsChanges}
-            onChange={archive.changeSettings}
-            onBack={archive.requestCloseSettings}
-            onSave={archive.saveSettings}
-          />
+          settingsPage === 'archive' ? (
+            <ArchiveSettingsPage
+              keepUnmutedArchived={archive.keepUnmutedArchived}
+              hasChanges={archive.hasSettingsChanges}
+              onChange={archive.changeSettings}
+              onBack={archive.requestCloseSettings}
+              onSave={archive.saveSettings}
+            />
+          ) : (
+            <StickerSettingsPage onBack={() => setIsStickerSettingsOpen(false)} />
+          )
         }
       />
       <ArchiveHelpDialog
