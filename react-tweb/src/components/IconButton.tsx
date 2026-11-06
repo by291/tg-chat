@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
+import { Ripple } from './Ripple';
 import styles from './primitives.module.css';
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -18,6 +19,7 @@ export function IconButton({ label, children, className = '', ...attributes }: I
       {...attributes}
     >
       {children}
+      <Ripple />
     </button>
   );
 }

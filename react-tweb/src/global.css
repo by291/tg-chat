@@ -46,6 +46,9 @@
   --duration-normal: 200ms;
   --duration-slow: 280ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ripple-color: rgb(0 0 0 / 8%);
+  --ripple-duration: 0.7s;
+  --ripple-start-scale: 0;
 }
 
 :root[data-theme='dark'] {
@@ -65,6 +68,14 @@
   --outgoing-meta-color: #b7b0e4;
   --reply-color: rgb(193 148 224 / 13%);
   --service-color: rgb(102 91 137 / 60%);
+  --ripple-color: rgb(255 255 255 / 8%);
+}
+
+@media (max-width: 925px) {
+  :root {
+    --ripple-duration: 0.4s;
+    --ripple-start-scale: 0.27;
+  }
 }
 
 * {
