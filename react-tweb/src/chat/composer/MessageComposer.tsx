@@ -77,7 +77,7 @@ export function MessageComposer({
       return;
     }
 
-    // The menu restores trigger focus first; editing takes focus on the following frame.
+    // The menu restores message-row focus first; editing takes focus on the following frame.
     const frame = requestAnimationFrame(() => editorRef.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [contextMessage, forwardMessages]);

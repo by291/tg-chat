@@ -445,7 +445,9 @@ clear the relevant forward context. Reload persistence for pending forwards is i
 
 The row is an interaction surface, including the whitespace on both sides of its bubble:
 
-- Desktop right-click opens the same menu anywhere on that row.
+- Desktop right-click opens the same menu anywhere on that row. There is no extra three-dot
+  button beside ordinary messages. Keyboard users focus the row and use Shift+F10 or Context Menu;
+  closing the menu restores row focus unless an action moves focus into the composer.
 - A click while selecting toggles that row, including its whitespace and media.
 - A drag from an unselected row adds crossed rows; a drag from a selected row removes them.
   The direction is fixed for that gesture, and visited rows are processed only once.

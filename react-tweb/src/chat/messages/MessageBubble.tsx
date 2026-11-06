@@ -1,11 +1,10 @@
-import { Check, MoreHorizontal } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { memo, useEffect, useRef } from 'react';
 import { MessageBody, MessageText } from './MessageBody';
 import { MessageMetadata } from './MessageMetadata';
 import { MessageTail } from './MessageTail';
 import { useDeferredMediaSource } from './deferredMedia';
-import { IconButton } from '../../components/IconButton';
 import { describeMessage } from '../messageFormatting';
 import { CURRENT_USER_ID, type Message } from '../model';
 import styles from './MessageBubble.module.css';
@@ -17,8 +16,6 @@ interface MessageBubbleProps {
   isPreview?: boolean;
   isSelecting?: boolean;
   isSelected?: boolean;
-  isMenuOpen?: boolean;
-  menuContentId?: string;
   idPrefix?: string;
   replyMessage?: Message;
   isGroupStart: boolean;
@@ -56,8 +53,6 @@ export const MessageBubble = memo(function MessageBubble({
   isPreview = false,
   isSelecting = false,
   isSelected = false,
-  isMenuOpen = false,
-  menuContentId,
   idPrefix,
   replyMessage,
   isGroupStart,
@@ -200,16 +195,6 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
       </div>
-      <IconButton
-        label={`Actions for ${describeMessage(message)}`}
-        className={styles.moreButton}
-        data-message-menu-trigger
-        aria-haspopup="menu"
-        aria-expanded={isMenuOpen}
-        aria-controls={isMenuOpen ? menuContentId : undefined}
-      >
-        <MoreHorizontal />
-      </IconButton>
     </motion.article>
   );
 });

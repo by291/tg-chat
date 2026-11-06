@@ -260,30 +260,6 @@
   font-weight: 400;
 }
 
-.moreButton {
-  width: 30px;
-  height: 30px;
-  opacity: 0;
-  color: white;
-  background: var(--service-color);
-  transition: opacity var(--duration-fast);
-}
-
-:global(:where(:root[data-touch-supported='false'])) .messageRow:is(:hover, :active) .moreButton {
-  opacity: 1;
-}
-
-:global(:root[data-input-method='keyboard']) .messageRow:focus-within .moreButton,
-.moreButton[aria-expanded='true'] {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .moreButton {
-    opacity: 0.55;
-  }
-}
-
 .senderAvatar {
   position: absolute;
   bottom: var(--message-gap);
@@ -428,10 +404,6 @@
 
 .messageRow[data-selecting='true'] .senderAvatar {
   transform: translateX(40px) scale(0.76);
-}
-
-.messageRow[data-selecting='true'] .moreButton {
-  visibility: hidden;
 }
 
 .selectionCheckbox {

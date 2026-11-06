@@ -59,7 +59,8 @@ describe('conversation interaction', () => {
     const user = userEvent.setup();
     render(<ConversationTestScreen />);
     const originalText = 'The floating layout is so nice.';
-    await user.click(screen.getByRole('button', { name: `Actions for ${originalText}` }));
+    await user.click(screen.getByRole('group', { name: `Message: ${originalText}` }));
+    await user.keyboard('{Shift>}{F10}{/Shift}');
     await waitFor(() => expect(document.activeElement?.getAttribute('role')).toBe('menu'));
     await user.keyboard('e');
     await waitFor(() =>
@@ -82,7 +83,8 @@ describe('conversation interaction', () => {
   it('lets a keyboard user select a quick reaction from the message menu', async () => {
     const user = userEvent.setup();
     render(<ConversationTestScreen />);
-    await user.click(screen.getByRole('button', { name: 'Actions for This feels familiar ✨' }));
+    await user.click(screen.getByRole('group', { name: 'Message: This feels familiar ✨' }));
+    await user.keyboard('{Shift>}{F10}{/Shift}');
     await waitFor(() => expect(document.activeElement?.getAttribute('role')).toBe('menu'));
     await user.keyboard('{Home}');
     await waitFor(() =>

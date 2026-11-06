@@ -212,6 +212,9 @@ function VirtualMessageHistory({
                 data-index={item.index}
                 data-row-key={row.key}
                 data-message-id={isMessageRow ? row.key : undefined}
+                role={isMessageRow ? 'group' : undefined}
+                aria-label={isMessageRow ? `Message: ${describeMessage(row.message)}` : undefined}
+                tabIndex={isMessageRow && !isPreview ? 0 : undefined}
                 data-menu-open={menu.isOpen && menu.target?.messageId === row.key}
                 data-selected={selectedIds?.includes(row.key)}
                 className={styles.virtualRow}
@@ -229,8 +232,6 @@ function VirtualMessageHistory({
                       isSelecting={selectedIds !== undefined}
                       isSelected={selectedIds?.includes(row.message.id)}
                       isPreview={isPreview}
-                      isMenuOpen={menu.isOpen && menu.target?.messageId === row.message.id}
-                      menuContentId={menu.contentId}
                       idPrefix={messageIdPrefix}
                       replyMessage={messageById.get(row.message.replyToId || '')}
                       isGroupStart={row.isGroupStart}

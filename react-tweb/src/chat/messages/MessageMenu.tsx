@@ -64,7 +64,7 @@ const MORE_REACTIONS = [
 export interface MessageMenuTarget {
   messageId: string;
   selectedIds?: string[];
-  trigger: HTMLButtonElement;
+  row: HTMLElement;
   point: { x: number; y: number };
 }
 
@@ -156,10 +156,10 @@ export function MessageMenu({
     ? `${target.messageId}:${target.point.x}:${target.point.y}`
     : 'message-menu';
 
-  function restoreTriggerFocus() {
+  function restoreRowFocus() {
     // Restore before dispatching a command so reply/edit can focus the composer next.
-    if (target?.trigger.isConnected) {
-      target.trigger.focus({ preventScroll: true });
+    if (target?.row.isConnected) {
+      target.row.focus({ preventScroll: true });
     }
   }
 
@@ -171,7 +171,7 @@ export function MessageMenu({
       setIsExpanded((current) => !current);
       return;
     }
-    restoreTriggerFocus();
+    restoreRowFocus();
     onClose();
 
     const reactionPrefix = 'react-';
@@ -214,7 +214,7 @@ export function MessageMenu({
         }
       }}
       onPointerDownOutside={(event) => event.preventDefault()}
-      onEscapeKeyDown={restoreTriggerFocus}
+      onEscapeKeyDown={restoreRowFocus}
       onExitComplete={() => {
         if (!isOpen) {
           setIsExpanded(false);

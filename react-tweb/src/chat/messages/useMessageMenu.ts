@@ -28,15 +28,16 @@ function findMessageTarget(element: EventTarget | null): MessageMenuTarget | und
     return undefined;
   }
   const row = findMessageRow(element);
-  const trigger = row?.querySelector<HTMLButtonElement>('[data-message-menu-trigger]');
   const messageId = row?.dataset.messageId;
-  if (!trigger || !messageId) {
+  if (!row || !messageId) {
     return undefined;
   }
-  const rectangle = trigger.getBoundingClientRect();
+  // Keyboard menus anchor to the content; pointer menus use the actual press coordinates.
+  const content = row.querySelector<HTMLElement>('[data-message-content]');
+  const rectangle = (content ?? row).getBoundingClientRect();
   return {
     messageId,
-    trigger,
+    row,
     point: { x: rectangle.left, y: rectangle.bottom },
   };
 }
@@ -106,19 +107,18 @@ export function useMessageMenu({
     if (!(element instanceof Element)) {
       return;
     }
-    const isMenuButton = Boolean(element.closest('[data-message-menu-trigger]'));
     const isTouchTap = lastPointerTypeRef.current === 'touch' && selectedIds === undefined;
     const isInteractiveContent = Boolean(
       element.closest('button, a, input, video, audio, [data-message-media]'),
     );
-    if (!isMenuButton && (!isTouchTap || isInteractiveContent)) {
+    if (!isTouchTap || isInteractiveContent) {
       return;
     }
     const nextTarget = findMessageTarget(element);
     if (nextTarget) {
       event.preventDefault();
       event.stopPropagation();
-      const point = isMenuButton ? nextTarget.point : { x: event.clientX, y: event.clientY };
+      const point = { x: event.clientX, y: event.clientY };
       openMenu({ ...nextTarget, point });
     }
   }
@@ -126,10 +126,7 @@ export function useMessageMenu({
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const isContextShortcut =
       event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
-    const isMenuButton =
-      event.target instanceof Element && event.target.closest('[data-message-menu-trigger]');
-    const isArrowShortcut = isMenuButton && (event.key === 'ArrowDown' || event.key === 'ArrowUp');
-    if (!isContextShortcut && !isArrowShortcut) {
+    if (!isContextShortcut) {
       return;
     }
     const nextTarget = findMessageTarget(event.target);
@@ -173,7 +170,7 @@ export function useMessageMenu({
 
   // A virtual row can disappear without a user click. Never leave actions targeting a detached row.
   useLayoutEffect(() => {
-    if (isOpen && (!target?.trigger.isConnected || isDisabled)) {
+    if (isOpen && (!target?.row.isConnected || isDisabled)) {
       closeMenu();
     }
   });
