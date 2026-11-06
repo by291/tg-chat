@@ -2,6 +2,8 @@ import { AlbumFrame, PhotoFrame, VideoFrame } from './MessageMediaFrames';
 import { ContactCard, DocumentCard, LinkPreview } from './MessageCards';
 import { PollMessage } from './PollMessage';
 import { VoiceMessage } from './VoiceMessage';
+import { findSticker, STICKER_MESSAGE_SIZE } from '../stickers/stickerCatalog';
+import { StickerArtwork } from '../stickers/StickerArtwork';
 import type { Message } from '../model';
 import styles from './MessageBody.module.css';
 
@@ -23,7 +25,15 @@ export function MessageBody({ message, onOpenMedia, onVote }: MessageBodyProps) 
     );
   }
   if (message.sticker) {
-    return <div className={styles.sticker}>{message.sticker}</div>;
+    const sticker = findSticker(message.sticker);
+    if (sticker) {
+      return (
+        <div style={{ width: STICKER_MESSAGE_SIZE, height: STICKER_MESSAGE_SIZE }}>
+          <StickerArtwork sticker={sticker} />
+        </div>
+      );
+    }
+    return <p>Sticker unavailable</p>;
   }
 
   const media = message.media;

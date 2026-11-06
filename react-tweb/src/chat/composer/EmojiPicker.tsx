@@ -1,132 +1,188 @@
 import { Popover } from '@ark-ui/react/popover';
 import { Portal } from '@ark-ui/react/portal';
 import { Tabs } from '@ark-ui/react/tabs';
-import { Search, Smile } from 'lucide-react';
-import { useState } from 'react';
+import { Delete, Smile, Sticker as StickerIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
+import { EmojiBrowser } from './emoticons/EmojiBrowser';
+import { StickerBrowser } from './emoticons/StickerBrowser';
+import { usePickerPreferences } from './emoticons/pickerPreferences';
+import type { Sticker } from '../stickers/stickerCatalog';
 import styles from './EmojiPicker.module.css';
-import overlays from '../overlays.module.css';
 
-const EMOJI = [
-  { symbol: '😀', name: 'grinning smile happy' },
-  { symbol: '😄', name: 'smiling happy' },
-  { symbol: '😁', name: 'beaming smile' },
-  { symbol: '😂', name: 'laugh tears joy' },
-  { symbol: '🥰', name: 'love hearts' },
-  { symbol: '😍', name: 'heart eyes love' },
-  { symbol: '😎', name: 'cool sunglasses' },
-  { symbol: '🥳', name: 'party celebration' },
-  { symbol: '🤔', name: 'thinking' },
-  { symbol: '🫡', name: 'salute' },
-  { symbol: '🥹', name: 'happy tears' },
-  { symbol: '😴', name: 'sleep tired' },
-  { symbol: '👋', name: 'wave hello' },
-  { symbol: '👍', name: 'thumbs up like' },
-  { symbol: '👏', name: 'clap applause' },
-  { symbol: '🙌', name: 'raised hands celebration' },
-  { symbol: '❤️', name: 'red heart love' },
-  { symbol: '💜', name: 'purple heart love' },
-  { symbol: '🔥', name: 'fire hot' },
-  { symbol: '✨', name: 'sparkles' },
-  { symbol: '🎉', name: 'party popper celebration' },
-  { symbol: '💯', name: 'hundred perfect' },
-  { symbol: '🚀', name: 'rocket launch' },
-  { symbol: '💻', name: 'computer coding laptop' },
-  { symbol: '🌿', name: 'leaf nature' },
-  { symbol: '🌸', name: 'flower blossom' },
-  { symbol: '☀️', name: 'sun sunny' },
-  { symbol: '🌈', name: 'rainbow' },
-  { symbol: '☕', name: 'coffee cup' },
-  { symbol: '🍕', name: 'pizza food' },
-  { symbol: '🐱', name: 'cat' },
-  { symbol: '🐻', name: 'bear' },
-];
-
-// prettier-ignore
-const STICKERS = [
-  '👋',
-  '🥰',
-  '🐻',
-  '🎉',
-  '🔥',
-  '💜',
-];
+const HOVER_OPEN_DELAY = 200;
+const HOVER_CLOSE_DELAY = 200;
 
 interface EmojiPickerProps {
   onSelectEmoji: (emoji: string) => void;
-  onSelectSticker: (sticker: string) => void;
+  onSelectSticker?: (sticker: string) => void;
+  onDeleteCharacter?: () => void;
 }
 
-/** Offer a local searchable emoji palette and large emoji stickers. */
-export function EmojiPicker({ onSelectEmoji, onSelectSticker }: EmojiPickerProps) {
+/** Anchor a Telegram-style palette while keeping drafts and selection owned by the editor. */
+export function EmojiPicker({
+  onSelectEmoji,
+  onSelectSticker,
+  onDeleteCharacter,
+}: EmojiPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const matchingEmoji = EMOJI.filter((emoji) => emoji.name.includes(query.trim().toLowerCase()));
+  const [tab, setTab] = useState('emoji');
+  const activeTab = onSelectSticker ? tab : 'emoji';
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const isClickOpenedRef = useRef(false);
+  const { preferences, rememberEmoji, setTone, rememberSticker, toggleFavorite } =
+    usePickerPreferences();
 
-  function sendSticker(sticker: string) {
-    onSelectSticker(sticker);
+  function cancelHoverTimer() {
+    clearTimeout(hoverTimerRef.current);
+  }
+
+  useEffect(() => cancelHoverTimer, []);
+
+  function sendSticker(sticker: Sticker) {
+    rememberSticker(sticker.id);
+    onSelectSticker?.(sticker.id);
     setIsOpen(false);
+    isClickOpenedRef.current = false;
+  }
+
+  function scheduleHoverClose() {
+    cancelHoverTimer();
+    if (!isClickOpenedRef.current) {
+      hoverTimerRef.current = setTimeout(() => setIsOpen(false), HOVER_CLOSE_DELAY);
+    }
   }
 
   return (
     <Popover.Root
       open={isOpen}
-      onOpenChange={(details) => setIsOpen(details.open)}
-      positioning={{ placement: 'top-end', gutter: 12 }}
+      onOpenChange={(details) => {
+        cancelHoverTimer();
+        setIsOpen(details.open);
+        if (!details.open) {
+          isClickOpenedRef.current = false;
+        }
+      }}
+      autoFocus={false}
+      positioning={{
+        placement: 'top-end',
+        gutter: 8,
+        overflowPadding: 8,
+        getAnchorRect: () => {
+          const composer = triggerRef.current?.closest('[data-message-composer]');
+          return (
+            composer?.getBoundingClientRect() ?? triggerRef.current?.getBoundingClientRect() ?? null
+          );
+        },
+      }}
       lazyMount
       unmountOnExit
     >
-      <Popover.Trigger asChild>
-        <IconButton label="Emoji and stickers">
+      <Popover.Anchor asChild>
+        <IconButton
+          ref={triggerRef}
+          label="Emoji and stickers"
+          data-open={isOpen}
+          className={styles.trigger}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          onClick={() => {
+            cancelHoverTimer();
+            // A click pins a hover-opened panel; only a second click closes it.
+            isClickOpenedRef.current = !isClickOpenedRef.current;
+            setIsOpen(isClickOpenedRef.current);
+          }}
+          onPointerEnter={(event) => {
+            cancelHoverTimer();
+            if (event.pointerType === 'mouse') {
+              hoverTimerRef.current = setTimeout(() => setIsOpen(true), HOVER_OPEN_DELAY);
+            }
+          }}
+          onPointerLeave={scheduleHoverClose}
+        >
           <Smile />
         </IconButton>
-      </Popover.Trigger>
+      </Popover.Anchor>
       <Portal>
-        <Popover.Positioner>
-          <Popover.Content className={overlays.popover}>
-            <Tabs.Root defaultValue="emoji">
-              <Tabs.Content value="emoji">
-                <Popover.Title className={styles.title}>Emoji</Popover.Title>
-                <label className={styles.search}>
-                  <Search size={18} />
-                  <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search emoji"
-                    aria-label="Search emoji"
+        <Popover.Positioner className={styles.positioner}>
+          <Popover.Content
+            className={styles.panel}
+            aria-label="Emoji and stickers"
+            onPointerEnter={cancelHoverTimer}
+            onFocusCapture={() => {
+              isClickOpenedRef.current = true;
+            }}
+            onContextMenuCapture={() => {
+              isClickOpenedRef.current = true;
+            }}
+            onPointerLeave={(event) => {
+              const nextTarget = event.relatedTarget;
+              const isPickerOverlay =
+                nextTarget instanceof Element &&
+                Boolean(nextTarget.closest('[data-emoticon-overlay]'));
+              if (isPickerOverlay || event.buttons > 0) {
+                return;
+              }
+              scheduleHoverClose();
+            }}
+            onPointerDownCapture={(event) => {
+              // Buttons retain the text selection; the search input must still be focusable.
+              if (
+                event.pointerType === 'mouse' &&
+                event.target instanceof Element &&
+                !event.target.closest('input')
+              ) {
+                event.preventDefault();
+              }
+            }}
+          >
+            <Tabs.Root
+              value={activeTab}
+              onValueChange={(details) => setTab(details.value)}
+              className={styles.tabRoot}
+              lazyMount
+            >
+              <Tabs.Content value="emoji" className={styles.tabContent}>
+                <EmojiBrowser
+                  recentEmoji={preferences.recentEmoji}
+                  tones={preferences.tones}
+                  onSelect={(emoji) => {
+                    const tone = preferences.tones[emoji.id] ?? 0;
+                    onSelectEmoji((emoji.skins[tone] ?? emoji.skins[0]).native);
+                    rememberEmoji(emoji.id);
+                  }}
+                  onToneChange={setTone}
+                />
+              </Tabs.Content>
+              {onSelectSticker && (
+                <Tabs.Content value="stickers" className={styles.tabContent}>
+                  <StickerBrowser
+                    recentStickers={preferences.recentStickers}
+                    favoriteStickers={preferences.favoriteStickers}
+                    onSelect={sendSticker}
+                    onToggleFavorite={toggleFavorite}
                   />
-                </label>
-                <div className={styles.emojiGrid}>
-                  {matchingEmoji.map((emoji) => (
-                    <button
-                      key={emoji.symbol}
-                      aria-label={emoji.name}
-                      onClick={() => onSelectEmoji(emoji.symbol)}
-                    >
-                      {emoji.symbol}
-                    </button>
-                  ))}
-                </div>
-                {matchingEmoji.length === 0 && <p className={styles.empty}>No emoji found</p>}
-              </Tabs.Content>
-              <Tabs.Content value="stickers">
-                <Popover.Title className={styles.title}>Everyday expressions</Popover.Title>
-                <div className={styles.stickerGrid}>
-                  {STICKERS.map((sticker) => (
-                    <button
-                      key={sticker}
-                      aria-label={`Send ${sticker} sticker`}
-                      onClick={() => sendSticker(sticker)}
-                    >
-                      {sticker}
-                    </button>
-                  ))}
-                </div>
-              </Tabs.Content>
+                </Tabs.Content>
+              )}
               <Tabs.List className={styles.tabs}>
-                <Tabs.Trigger value="emoji">Emoji</Tabs.Trigger>
-                <Tabs.Trigger value="stickers">Stickers</Tabs.Trigger>
-                <Tabs.Indicator className={styles.indicator} />
+                <Tabs.Trigger value="emoji" aria-label="Emoji">
+                  <Smile size={24} />
+                </Tabs.Trigger>
+                {onSelectSticker && (
+                  <Tabs.Trigger value="stickers" aria-label="Stickers">
+                    <StickerIcon size={24} />
+                  </Tabs.Trigger>
+                )}
+                {onDeleteCharacter && activeTab === 'emoji' && (
+                  <button
+                    className={styles.delete}
+                    aria-label="Delete last character"
+                    onClick={onDeleteCharacter}
+                  >
+                    <Delete size={22} />
+                  </button>
+                )}
               </Tabs.List>
             </Tabs.Root>
           </Popover.Content>

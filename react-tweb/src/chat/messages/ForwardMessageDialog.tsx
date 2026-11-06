@@ -163,7 +163,7 @@ export function ForwardMessageDialog({
             </div>
             <footer className={styles.footer} inert={!isSelecting} aria-hidden={!isSelecting}>
               <div className={styles.caption}>
-                <EmojiPicker onSelectEmoji={appendEmoji} onSelectSticker={appendEmoji} />
+                <EmojiPicker onSelectEmoji={appendEmoji} />
                 <input
                   aria-label="Forward caption"
                   placeholder="Add a caption..."

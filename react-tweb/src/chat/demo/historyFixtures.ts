@@ -164,7 +164,7 @@ function createShowcase(): Message[] {
       text: 'const message = {\n  id: "stable-message-id",\n  text: "Hello, React"\n};',
       textStyle: 'code',
     },
-    { text: '', sticker: '🌿' },
+    { text: '', sticker: 'shark_animated-AgADqhQAAowt_Qc' },
     {
       text: 'Scroll up to explore 1,000 earlier messages. This reply goes to archive note 12.',
       replyToId: 'lab-history-12',

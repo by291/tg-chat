@@ -4,6 +4,7 @@ import { IconButton } from '../../components/IconButton';
 import { createAttachment } from './attachments';
 import { shouldSubmitMessage } from './composerKeyboard';
 import { EmojiPicker } from './EmojiPicker';
+import { deleteCharacter } from './deleteCharacter';
 import { describeMessage } from '../messageFormatting';
 import type { Attachment, Message } from '../model';
 import styles from './MessageComposer.module.css';
@@ -134,9 +135,20 @@ export function MessageComposer({
     updateText(text.slice(0, start) + emoji + text.slice(end));
 
     requestAnimationFrame(() => {
-      editor?.focus();
+      // Search keeps focus while repeated insertions still advance the editor's saved caret.
       editor?.setSelectionRange(start + emoji.length, start + emoji.length);
     });
+  }
+
+  function deleteLastCharacter() {
+    const editor = editorRef.current;
+    const result = deleteCharacter({
+      text,
+      selectionStart: editor?.selectionStart ?? text.length,
+      selectionEnd: editor?.selectionEnd ?? text.length,
+    });
+    updateText(result.text);
+    requestAnimationFrame(() => editor?.setSelectionRange(result.caret, result.caret));
   }
 
   async function attachImage(file?: File) {
@@ -168,6 +180,7 @@ export function MessageComposer({
   return (
     <div
       className={styles.composer}
+      data-message-composer
       data-dragging={isDragging}
       onDragOver={(event) => {
         event.preventDefault();
@@ -257,14 +270,10 @@ export function MessageComposer({
         />
         <EmojiPicker
           onSelectEmoji={insertEmoji}
-          onSelectSticker={(sticker) => {
-            if (editingMessage) {
-              insertEmoji(sticker);
-              return;
-            }
-
-            onSubmit({ text: '', sticker });
-          }}
+          onDeleteCharacter={deleteLastCharacter}
+          onSelectSticker={
+            editingMessage ? undefined : (sticker) => onSubmit({ text: '', sticker })
+          }
         />
         <IconButton
           label={editingMessage ? 'Save message' : 'Send message'}

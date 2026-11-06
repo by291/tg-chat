@@ -1,3 +1,4 @@
+import { findSticker } from './stickers/stickerCatalog';
 import { MESSAGE_GROUP_INTERVAL, type Message } from './model';
 
 const timeFormatter = new Intl.DateTimeFormat('en', {
@@ -51,7 +52,8 @@ export function describeMessage(message?: Message): string {
   }
 
   if (message.sticker) {
-    return `${message.sticker} Sticker`;
+    const sticker = findSticker(message.sticker);
+    return sticker ? `${sticker.emoji} Sticker` : 'Sticker unavailable';
   }
 
   if (message.attachment) {

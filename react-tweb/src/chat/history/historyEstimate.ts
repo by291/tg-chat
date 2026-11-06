@@ -1,4 +1,5 @@
 import { getMediaGeometry } from '../media/mediaGeometry';
+import { findSticker, STICKER_MESSAGE_SIZE } from '../stickers/stickerCatalog';
 import type { HistoryRow } from './historyRows';
 
 const DEFAULT_VIEWPORT_WIDTH = 696;
@@ -52,7 +53,9 @@ export function estimateHistoryRow(row: HistoryRow, viewportWidth = DEFAULT_VIEW
   height += message.replyToId ? REPLY_HEIGHT : 0;
   height += message.reactions.length ? REACTION_HEIGHT : 0;
   height += message.text ? estimateTextHeight(message.text, availableWidth) : 0;
-  height += message.sticker ? STICKER_HEIGHT : 0;
+  if (message.sticker) {
+    height += findSticker(message.sticker) ? STICKER_MESSAGE_SIZE : STICKER_HEIGHT;
+  }
 
   const media = message.media;
   const photo = message.attachment;

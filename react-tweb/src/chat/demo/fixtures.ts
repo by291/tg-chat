@@ -172,7 +172,7 @@ const devMessages: Message[] = [
     authorId: 'you',
     authorName: 'You',
     text: '',
-    sticker: '👋',
+    sticker: 'UtyaDuck-AgAD8gADVp29Cg',
     createdAt: DEMO_DATE + 10 * MINUTE,
     reactions: [],
   },
