@@ -1,4 +1,5 @@
-import { BadgeCheck, BellOff, Check, CheckCheck, Pin } from 'lucide-react';
+import { BadgeCheck, Check, CheckCheck, GripVertical, Pin, VolumeX } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Avatar } from '../../components/Avatar';
 import { Ripple } from '../../components/Ripple';
 import { describeMessage, formatMessageTime } from '../messageFormatting';
@@ -6,12 +7,23 @@ import type { ChatState } from '../model';
 import { ConversationMenu } from './ConversationMenu';
 import type { ConversationListEntry, ConversationMenuAction } from './conversationList';
 import styles from './ChatSidebar.module.css';
+import { readPreviewAnchor, type PreviewAnchor } from './previewPosition';
+
+const MUTE_FADE_SECONDS = 0.2;
+const BADGE_SCALE_SECONDS = 0.25;
+// prettier-ignore
+const BADGE_ENTER_EASING = [
+  0.35,
+  0.35,
+  0.47,
+  1.34,
+] as const;
 
 interface ChatRowProps {
   conversation: ConversationListEntry;
   isSelecting: boolean;
   isSelected: boolean;
-  onMenuAction: (action: ConversationMenuAction) => void;
+  onMenuAction: (action: ConversationMenuAction, anchor?: PreviewAnchor) => void;
   state: ChatState;
   onSelect: () => void;
 }
@@ -33,6 +45,9 @@ export function ChatRow({
   const fallbackPreview = conversation.hasClearedHistory ? '' : conversation.preview;
   const preview = lastMessage ? describeMessage(lastMessage) : fallbackPreview;
   const time = lastMessage ? formatMessageTime(lastMessage.createdAt) : conversation.time;
+  const shouldReduceMotion = useReducedMotion();
+  const badgeDuration = shouldReduceMotion ? 0 : BADGE_SCALE_SECONDS;
+  const canReorder = isSelecting && conversation.isPinned;
 
   return (
     <ConversationMenu conversation={conversation} isSelecting={isSelecting} onAction={onMenuAction}>
@@ -41,23 +56,44 @@ export function ChatRow({
         className={styles.chatRow}
         data-active={isActive}
         data-selected={isSelected}
+        data-selecting={isSelecting}
+        data-reorderable={canReorder}
+        draggable={canReorder}
         aria-pressed={isSelecting ? isSelected : undefined}
         aria-current={isActive ? 'page' : undefined}
-        onClick={onSelect}
+        onClick={(event) => {
+          if (event.shiftKey && !isSelecting) {
+            onMenuAction('preview', readPreviewAnchor(event.currentTarget));
+            return;
+          }
+          onSelect();
+        }}
       >
+        <span className={styles.selectionCheck} data-checked={isSelected} aria-hidden="true">
+          <Check size={16} />
+        </span>
         <span className={styles.avatarContainer}>
           <Avatar initials={conversation.initials} color={conversation.color} />
-          {isSelecting && (
-            <span className={styles.selectionCheck} data-checked={isSelected}>
-              {isSelected && <Check size={14} />}
-            </span>
-          )}
         </span>
         <span className={styles.rowContent}>
           <span className={styles.rowHeading}>
             <span className={styles.chatTitle}>{conversation.title}</span>
             {conversation.isVerified && <BadgeCheck className={styles.verified} size={17} />}
-            {conversation.isMuted && <BellOff className={styles.mutedIcon} size={14} />}
+            <AnimatePresence initial={false}>
+              {conversation.isMuted && (
+                <motion.span
+                  key="muted"
+                  className={styles.mutedIcon}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : MUTE_FADE_SECONDS }}
+                  aria-label="Muted"
+                >
+                  <VolumeX size={18} />
+                </motion.span>
+              )}
+            </AnimatePresence>
             <span className={styles.chatTime}>
               {lastMessage?.authorId === 'you' && <CheckCheck size={16} />}
               {time}
@@ -68,24 +104,41 @@ export function ChatRow({
               {draft && <span className={styles.draftLabel}>Draft: </span>}
               {draft || preview}
             </span>
-            {conversation.isPinned && !hasUnread && (
-              <Pin className={styles.pinnedIcon} size={16} aria-label="Pinned" />
-            )}
-            {hasUnread && (
-              <span
-                className={styles.unread}
-                data-muted={conversation.isMuted}
-                aria-label={
-                  conversation.unreadCount
-                    ? `${conversation.unreadCount} unread messages`
-                    : 'Marked as unread'
-                }
-              >
-                {Boolean(conversation.unreadCount) && conversation.unreadCount}
-              </span>
-            )}
+            <AnimatePresence initial={false}>
+              {conversation.isPinned && !hasUnread && (
+                <motion.span
+                  key="pinned"
+                  className={styles.pinnedIcon}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ duration: badgeDuration, ease: BADGE_ENTER_EASING }}
+                >
+                  <Pin size={16} aria-label="Pinned" />
+                </motion.span>
+              )}
+              {hasUnread && (
+                <motion.span
+                  key="unread"
+                  className={styles.unread}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ duration: badgeDuration, ease: BADGE_ENTER_EASING }}
+                  data-muted={conversation.isMuted}
+                  aria-label={
+                    conversation.unreadCount
+                      ? `${conversation.unreadCount} unread messages`
+                      : 'Marked as unread'
+                  }
+                >
+                  {Boolean(conversation.unreadCount) && conversation.unreadCount}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </span>
         </span>
+        {canReorder && <GripVertical className={styles.reorderGrip} aria-label="Drag to reorder" />}
         <Ripple />
       </button>
     </ConversationMenu>

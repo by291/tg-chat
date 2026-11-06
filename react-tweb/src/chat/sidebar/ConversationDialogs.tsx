@@ -1,23 +1,10 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
-import { X } from 'lucide-react';
-import { Avatar } from '../../components/Avatar';
-import { IconButton } from '../../components/IconButton';
-import { describeMessage, formatMessageTime } from '../messageFormatting';
-import { CURRENT_USER_ID, type ChatState } from '../model';
-import { getDeleteConversationLabel, type ConversationListEntry } from './conversationList';
+import { getDeleteConversationLabel } from './conversationList';
 import type { ConversationConfirmation } from './useSidebarActions';
 import overlays from '../overlays.module.css';
 import styles from './ConversationDialogs.module.css';
-
-const PREVIEW_MESSAGE_LIMIT = 8;
-
-interface ConversationPreviewProps {
-  conversation?: ConversationListEntry;
-  state: ChatState;
-  onClose: () => void;
-  onOpen: (chatId: string) => void;
-}
+import { useClosingDialogValue } from './useClosingDialogValue';
 
 interface ConversationConfirmationProps {
   request?: ConversationConfirmation;
@@ -25,88 +12,13 @@ interface ConversationConfirmationProps {
   onConfirm: () => void;
 }
 
-/** Show recent local messages without selecting the conversation or marking it as read. */
-export function ConversationPreview({
-  conversation,
-  state,
-  onClose,
-  onOpen,
-}: ConversationPreviewProps) {
-  const chatMessages = state.messages.filter((message) => message.chatId === conversation?.id);
-  const messages = chatMessages.slice(-PREVIEW_MESSAGE_LIMIT);
-
-  return (
-    <Dialog.Root
-      open={Boolean(conversation)}
-      onOpenChange={(details) => {
-        if (!details.open) {
-          onClose();
-        }
-      }}
-      lazyMount
-      unmountOnExit
-    >
-      <Portal>
-        <Dialog.Backdrop className={overlays.backdrop} />
-        <Dialog.Positioner className={overlays.dialogPositioner}>
-          <Dialog.Content className={styles.preview}>
-            {conversation && (
-              <>
-                <header className={styles.header}>
-                  <Avatar
-                    initials={conversation.initials}
-                    color={conversation.color}
-                    size="small"
-                  />
-                  <div>
-                    <Dialog.Title>{conversation.title}</Dialog.Title>
-                    <Dialog.Description>Preview · {conversation.subtitle}</Dialog.Description>
-                  </div>
-                  <IconButton label="Close preview" onClick={onClose}>
-                    <X />
-                  </IconButton>
-                </header>
-                <div className={styles.messages}>
-                  {messages.map((message) => (
-                    <article
-                      key={message.id}
-                      className={styles.message}
-                      data-own={message.authorId === CURRENT_USER_ID}
-                    >
-                      <strong>{message.authorName}</strong>
-                      {message.attachment && (
-                        <img src={message.attachment.url} alt={message.attachment.name} />
-                      )}
-                      <p>{describeMessage(message)}</p>
-                      <time>{formatMessageTime(message.createdAt)}</time>
-                    </article>
-                  ))}
-                  {messages.length === 0 && <p className={styles.empty}>No messages yet</p>}
-                </div>
-                <button
-                  className={styles.openChat}
-                  onClick={() => {
-                    onOpen(conversation.id);
-                    onClose();
-                  }}
-                >
-                  Open chat
-                </button>
-              </>
-            )}
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
-  );
-}
-
 /** Confirm destructive list actions before removing local history or conversations. */
 export function ConversationRemovalDialog({
-  request,
+  request: openRequest,
   onCancel,
   onConfirm,
 }: ConversationConfirmationProps) {
+  const request = useClosingDialogValue(openRequest);
   const isDeleting = request?.mode === 'delete';
   const isSingle = request?.conversations.length === 1;
   let title = isDeleting ? 'Delete conversations?' : 'Clear history?';
@@ -120,7 +32,7 @@ export function ConversationRemovalDialog({
 
   return (
     <Dialog.Root
-      open={Boolean(request)}
+      open={Boolean(openRequest)}
       onOpenChange={(details) => {
         if (!details.open) {
           onCancel();
@@ -131,9 +43,9 @@ export function ConversationRemovalDialog({
       unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop className={overlays.backdrop} />
+        <Dialog.Backdrop className={styles.backdrop} />
         <Dialog.Positioner className={overlays.dialogPositioner}>
-          <Dialog.Content className={overlays.dialog}>
+          <Dialog.Content className={`${overlays.dialog} ${styles.confirmation}`}>
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Description>
               {isDeleting

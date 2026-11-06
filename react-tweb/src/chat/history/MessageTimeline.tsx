@@ -18,6 +18,7 @@ export interface MessageNavigation {
 
 interface MessageTimelineProps {
   messages: Message[];
+  isPreview?: boolean;
   searchQuery: string;
   navigation?: MessageNavigation;
   onCommand: (command: MessageCommand) => void;
@@ -36,6 +37,7 @@ function VirtualMessageHistory({
   messageById,
   searchQuery,
   navigation,
+  isPreview,
   onCommand,
   onReact,
   onVote,
@@ -100,6 +102,7 @@ function VirtualMessageHistory({
                 data-index={item.index}
                 data-row-key={row.key}
                 className={styles.virtualRow}
+                inert={isPreview}
                 style={{ transform: `translateY(${item.start + bottomAlignment}px)` }}
               >
                 {row.kind === 'date' ? (
@@ -109,6 +112,7 @@ function VirtualMessageHistory({
                 ) : (
                   <MessageBubble
                     message={row.message}
+                    isPreview={isPreview}
                     replyMessage={messageById.get(row.message.replyToId || '')}
                     isGroupStart={row.isGroupStart}
                     isGroupEnd={row.isGroupEnd}
@@ -165,8 +169,8 @@ export function MessageTimeline(props: MessageTimelineProps) {
   const pinnedMessage = props.messages.filter((message) => message.isPinned).at(-1);
 
   return (
-    <div className={styles.timelineArea}>
-      {pinnedMessage && !normalizedQuery && (
+    <div className={styles.timelineArea} data-preview={props.isPreview}>
+      {pinnedMessage && !normalizedQuery && !props.isPreview && (
         <button
           className={styles.pinnedMessage}
           onClick={() => props.onJumpToMessage(pinnedMessage.id)}

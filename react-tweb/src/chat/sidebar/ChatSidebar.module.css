@@ -143,7 +143,8 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  /* Search scales past its bounds; only the virtual viewport may own scrolling. */
+  overflow: clip;
 }
 
 .conversationsPanel,
@@ -233,7 +234,9 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 8px 86px;
+  padding: 0 8px;
+  overflow-anchor: none;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
 }
 
@@ -330,6 +333,7 @@
   background: var(--accent-color);
   font-size: 14px;
   font-weight: 500;
+  transition: background-color 250ms ease;
   /* The badge must not inherit the preview row's line box. */
   line-height: 22px;
   text-align: center;
@@ -349,6 +353,8 @@
 }
 
 .mutedIcon {
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
   color: var(--secondary-color);
 }
@@ -367,6 +373,9 @@
   align-items: center;
   justify-content: flex-end;
   pointer-events: none;
+  transition:
+    opacity 200ms ease,
+    visibility 200ms;
 }
 
 .composeButton {
@@ -407,27 +416,44 @@
 
 .selectionCheck {
   position: absolute;
-  right: -1px;
-  bottom: -1px;
+  left: 12px;
+  top: 50%;
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   place-items: center;
-  border: 2px solid var(--surface-color);
+  border: 2px solid #c4c9cb;
   border-radius: 50%;
   color: white;
-  background: var(--secondary-color);
+  background: transparent;
+  transform: translateY(-50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 200ms ease,
+    visibility 200ms,
+    background-color 200ms ease,
+    border-color 200ms ease;
+}
+
+.selectionCheck svg {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  transition: stroke-dashoffset 200ms ease;
 }
 
 .selectionCheck[data-checked='true'] {
+  border-color: var(--accent-color);
   background: var(--accent-color);
 }
 
-.chatRow[data-selected='true']:not([data-active='true']) {
-  background: var(--reply-color);
+.selectionCheck[data-checked='true'] svg {
+  stroke-dashoffset: 0;
 }
 
 .pinnedIcon {
+  display: inline-flex;
   flex: 0 0 auto;
   color: var(--secondary-color);
   fill: currentColor;
@@ -449,7 +475,9 @@
 }
 
 .archiveEntry {
-  position: relative;
+  position: absolute;
+  top: 0;
+  animation: archive-enter 200ms ease;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -500,16 +528,22 @@
   display: flex;
   flex: 0 0 56px;
   align-items: center;
-  gap: 2px;
-  padding: 6px 12px;
-  color: var(--secondary-color);
+  height: 56px;
+  gap: 8px;
+  padding: 6px 16px;
+  color: var(--text-color);
 }
 
 .selectionCount {
   flex: 1;
-  padding-left: 8px;
+  min-width: 0;
+  padding-left: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-color);
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .composeButton:hover {
@@ -532,4 +566,86 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+.headerSlot {
+  position: relative;
+  flex: 0 0 56px;
+}
+
+.selectionPlate {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  background: var(--surface-color);
+}
+
+.virtualList {
+  position: relative;
+}
+
+.virtualConversation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+  transition: transform 300ms var(--menu-easing);
+}
+
+.chatRow[data-selecting='true'] .avatarContainer,
+.chatRow[data-selecting='true'] .rowContent {
+  transform: translateX(38px);
+}
+
+.chatRow[data-selecting='true'] .rowContent {
+  margin-right: 38px;
+}
+
+.chatRow .avatarContainer,
+.chatRow .rowContent {
+  transition: transform 300ms var(--menu-easing);
+}
+
+.chatRow[data-selecting='true'] .selectionCheck {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sidebar[data-selecting='true'] .footer {
+  opacity: 0;
+  visibility: hidden;
+}
+
+@keyframes archive-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.reorderGrip {
+  position: absolute;
+  top: 24px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  color: var(--secondary-color);
+  pointer-events: none;
+}
+
+.chatRow[data-active='true'] .reorderGrip {
+  color: white;
+}
+
+.chatRow[data-reorderable='true'] {
+  cursor: grab;
+}
+
+.chatRow[data-reorderable='true'] .chatTime,
+.chatRow[data-reorderable='true'] .unread,
+.chatRow[data-reorderable='true'] .pinnedIcon {
+  opacity: 0 !important;
 }

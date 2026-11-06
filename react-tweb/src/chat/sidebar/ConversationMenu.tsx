@@ -15,7 +15,7 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
-import { useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 import { Ripple } from '../../components/Ripple';
 import { MenuDismissLayer } from '../MenuDismissLayer';
 import {
@@ -25,11 +25,12 @@ import {
 } from './conversationList';
 import overlays from '../overlays.module.css';
 import styles from './ChatSidebar.module.css';
+import { readPreviewAnchor, type PreviewAnchor } from './previewPosition';
 
 interface ConversationMenuProps {
   conversation: ConversationListEntry;
   isSelecting: boolean;
-  onAction: (action: ConversationMenuAction) => void;
+  onAction: (action: ConversationMenuAction, anchor?: PreviewAnchor) => void;
   children: ReactElement;
 }
 
@@ -102,6 +103,7 @@ export function ConversationMenu({
   children,
 }: ConversationMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const items = getMenuItems(conversation);
 
   return (
@@ -113,7 +115,9 @@ export function ConversationMenu({
       lazyMount
       unmountOnExit
     >
-      <Menu.ContextTrigger asChild>{children}</Menu.ContextTrigger>
+      <Menu.ContextTrigger ref={triggerRef} asChild>
+        {children}
+      </Menu.ContextTrigger>
       <MenuDismissLayer
         isOpen={isOpen && !isSelecting}
         label="Dismiss conversation menu"
@@ -127,7 +131,12 @@ export function ConversationMenu({
                 value={item.action}
                 className={overlays.menuItem}
                 data-danger={item.action === 'delete'}
-                onSelect={() => onAction(item.action)}
+                onSelect={() => {
+                  const anchor = triggerRef.current
+                    ? readPreviewAnchor(triggerRef.current)
+                    : undefined;
+                  onAction(item.action, anchor);
+                }}
               >
                 <item.icon />
                 {item.label}

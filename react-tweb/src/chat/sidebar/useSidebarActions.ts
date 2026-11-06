@@ -1,6 +1,10 @@
 import { useState, type Dispatch } from 'react';
 import type { ChatAction, ConversationPreferences } from '../model';
 import type { ConversationListEntry, ConversationMenuAction } from './conversationList';
+import type { ConversationPreviewRequest } from './ConversationPreview';
+import type { PreviewAnchor } from './previewPosition';
+
+const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;
 
 export interface ConversationConfirmation {
   mode: 'history' | 'delete';
@@ -15,7 +19,8 @@ interface SidebarActionsOptions {
 /** Coordinate transient menu dialogs and selection with persistent conversation actions. */
 export function useSidebarActions({ conversations, dispatch }: SidebarActionsOptions) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [preview, setPreview] = useState<ConversationListEntry>();
+  const [preview, setPreview] = useState<ConversationPreviewRequest>();
+  const [muteConversation, setMuteConversation] = useState<ConversationListEntry>();
   const [confirmation, setConfirmation] = useState<ConversationConfirmation>();
   const selectedConversations = conversations.filter((conversation) => {
     return selectedIds.includes(conversation.id);
@@ -64,7 +69,20 @@ export function useSidebarActions({ conversations, dispatch }: SidebarActionsOpt
     setSelectedIds([]);
   }
 
-  function runMenuAction(conversation: ConversationListEntry, action: ConversationMenuAction) {
+  function confirmMute(hours: number) {
+    if (!muteConversation) {
+      return;
+    }
+    const mutedUntil = hours === 0 ? 0 : Date.now() + hours * MILLISECONDS_PER_HOUR;
+    updateConversation(muteConversation, { isMuted: true, mutedUntil });
+    setMuteConversation(undefined);
+  }
+
+  function runMenuAction(
+    conversation: ConversationListEntry,
+    action: ConversationMenuAction,
+    anchor?: PreviewAnchor,
+  ) {
     switch (action) {
       case 'open-tab': {
         const url = new URL(window.location.href);
@@ -73,7 +91,9 @@ export function useSidebarActions({ conversations, dispatch }: SidebarActionsOpt
         return;
       }
       case 'preview':
-        setPreview(conversation);
+        if (anchor) {
+          setPreview({ chatId: conversation.id, anchor });
+        }
         return;
       case 'select':
         toggleSelection(conversation.id);
@@ -88,7 +108,11 @@ export function useSidebarActions({ conversations, dispatch }: SidebarActionsOpt
         updateConversation(conversation, { isPinned: !conversation.isPinned });
         return;
       case 'mute':
-        updateConversation(conversation, { isMuted: !conversation.isMuted });
+        if (conversation.isMuted) {
+          updateConversation(conversation, { isMuted: false, mutedUntil: 0 });
+          return;
+        }
+        setMuteConversation(conversation);
         return;
       case 'archive':
         updateConversation(conversation, { isArchived: !conversation.isArchived });
@@ -107,10 +131,13 @@ export function useSidebarActions({ conversations, dispatch }: SidebarActionsOpt
     selectedConversations,
     preview,
     confirmation,
+    muteConversation,
     toggleSelection,
     applySelectionChanges,
     runMenuAction,
     confirmRemoval,
+    confirmMute,
+    cancelMute: () => setMuteConversation(undefined),
     clearSelection: () => setSelectedIds([]),
     closePreview: () => setPreview(undefined),
     cancelRemoval: () => setConfirmation(undefined),

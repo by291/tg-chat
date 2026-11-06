@@ -404,3 +404,9 @@
     max-width: calc(100% - 89px);
   }
 }
+
+@container (max-width: 432px) {
+  .messageRow[data-own='true'] .bubble {
+    max-width: calc(100% - 89px);
+  }
+}

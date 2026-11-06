@@ -6,6 +6,14 @@
   min-height: 0;
 }
 
+.timelineArea[data-preview='true'] {
+  container-type: inline-size;
+}
+
+.timelineArea[data-preview='true'] .virtualRow {
+  pointer-events: none;
+}
+
 .viewport {
   flex: 1;
   min-height: 0;

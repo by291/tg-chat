@@ -1,112 +1,161 @@
-.preview {
-  display: flex;
-  flex-direction: column;
-  width: min(440px, calc(100vw - 32px));
-  max-height: min(720px, calc(100dvh - 64px));
-  overflow: hidden;
-  border-radius: 20px;
-  background: var(--surface-color);
-  box-shadow: 0 16px 64px rgb(0 0 0 / 20%);
+.backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  background: rgb(0 0 0 / 30%);
+}
+
+.backdrop[data-state='open'] {
+  animation: dialog-fade-in 200ms ease;
+}
+
+.backdrop[data-state='closed'] {
+  animation: dialog-fade-out 200ms ease;
+}
+
+.muteDialog,
+.confirmation {
   outline: none;
 }
 
-.header {
+.muteDialog[data-state='open'],
+.confirmation[data-state='open'] {
+  animation: dialog-enter 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.muteDialog[data-state='closed'],
+.confirmation[data-state='closed'] {
+  animation: dialog-exit 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.muteDialog {
+  width: min(256px, 100%);
+  padding: 16px 8px 20px;
+  border-radius: 40px;
+  background: var(--surface-color);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+}
+
+.muteHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 16px;
+  padding: 0 16px;
 }
 
-.header > div {
-  flex: 1;
-  min-width: 0;
+.muteHeader > span[aria-hidden='true'] {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  font-size: 14px;
 }
 
-.header h2,
-.header p {
+.muteHeader h2 {
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 16px;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
 }
 
-.header p {
-  margin-top: 4px;
-  color: var(--secondary-color);
-  font-size: 13px;
-}
-
-.messages {
+.muteOption {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 100px;
-  padding: 16px;
-  overflow-y: auto;
-  background: var(--panel-color);
-}
-
-.message {
-  align-self: flex-start;
-  max-width: 90%;
-  padding: 8px 10px;
+  align-items: center;
+  gap: 32px;
+  height: 54px;
+  padding: 0 16px;
   border-radius: 12px;
-  background: var(--surface-color);
-  box-shadow: var(--surface-shadow);
-  font-size: 15px;
-  line-height: 21px;
-  overflow-wrap: anywhere;
-}
-
-.message[data-own='true'] {
-  align-self: flex-end;
-  background: var(--outgoing-color);
-}
-
-.message strong {
-  color: var(--accent-color);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.message img {
-  display: block;
-  width: 100%;
-  max-height: 180px;
-  margin: 6px 0;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.message p {
-  margin: 2px 0;
-  white-space: pre-wrap;
-}
-
-.message time {
-  display: block;
-  color: var(--secondary-color);
-  text-align: right;
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.openChat {
-  flex-shrink: 0;
-  padding: 16px;
-  border: 0;
-  color: var(--accent-color);
-  background: var(--surface-color);
-  font-weight: 500;
+  font-size: 16px;
   cursor: pointer;
 }
 
-.openChat:hover {
+.muteOption:hover {
   background: var(--hover-color);
 }
 
-.empty {
-  color: var(--secondary-color);
-  text-align: center;
+.radioControl {
+  display: grid;
+  flex: 0 0 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid var(--secondary-color);
+  border-radius: 50%;
+  transition: border-color 200ms ease;
+}
+
+.radioControl::after {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  transform: scale(0);
+  transition: transform 200ms ease;
+  content: '';
+}
+
+.radioControl[data-state='checked'] {
+  border-color: var(--accent-color);
+}
+
+.radioControl[data-state='checked']::after {
+  transform: scale(1);
+}
+
+.radioControl[data-focus-visible] {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 3px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+  padding-right: 8px;
+}
+
+.actions button {
+  position: relative;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dialog-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(48px);
+  }
 }

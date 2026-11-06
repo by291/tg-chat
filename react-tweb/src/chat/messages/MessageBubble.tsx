@@ -25,6 +25,7 @@ const MESSAGE_ENTRY_DURATION = 0.2;
 
 interface MessageBubbleProps {
   message: Message;
+  isPreview?: boolean;
   replyMessage?: Message;
   isGroupStart: boolean;
   isGroupEnd: boolean;
@@ -54,6 +55,7 @@ function getReplyThumbnailUrl(message?: Message) {
 /** Render one message with sender grouping, media, reactions, and accessible context actions. */
 export function MessageBubble({
   message,
+  isPreview = false,
   replyMessage,
   isGroupStart,
   isGroupEnd,
@@ -84,6 +86,7 @@ export function MessageBubble({
   const hasCaption = Boolean(message.text);
   const isLinkPreview = message.media?.kind === 'link';
   const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
+  const elementId = `${isPreview ? 'preview-message' : 'message'}-${message.id}`;
 
   useEffect(() => {
     onAppear(message.id);
@@ -113,7 +116,7 @@ export function MessageBubble({
 
   if (message.isService) {
     return (
-      <div id={`message-${message.id}`} className={styles.serviceRow}>
+      <div id={elementId} className={styles.serviceRow}>
         <span>{message.text}</span>
       </div>
     );
@@ -121,7 +124,7 @@ export function MessageBubble({
 
   return (
     <motion.article
-      id={`message-${message.id}`}
+      id={elementId}
       className={styles.messageRow}
       data-own={isOwn}
       data-group-start={isGroupStart}
