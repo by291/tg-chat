@@ -81,7 +81,10 @@ storage notice. One tab is the supported editing owner; cross-tab reconciliation
 For sidebar actions, read `sidebar/ConversationMenu.tsx`, `sidebar/useSidebarActions.ts`, and
 `state/conversationActions.ts`. The menu names available commands, the hook owns selection and
 confirmation dialogs, and reducer helpers persist the actual changes. `sidebar/conversationList.ts`
-combines fixture defaults with saved preferences and orders pinned chats. See the
+combines fixture defaults with saved preferences, resolves mute deadlines, and orders pinned chats.
+`sidebar/VirtualConversationList.tsx` owns the fixed-height sidebar window and pinned drag order.
+`sidebar/ConversationPreview.tsx` positions a read-only instance of the existing message timeline;
+it does not maintain a second set of bubble renderers. See the
 [sidebar audit](./sidebar-style-audit.md) for upstream menu and list-virtualization references.
 
 ## Virtual history and scrolling ownership

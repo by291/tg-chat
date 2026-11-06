@@ -86,19 +86,55 @@ The local menu supports opening a new tab, previewing, selecting, toggling read 
 muting, archiving, clearing history, and deleting. Saved Messages omits mute and archive. Preview
 does not mark messages as read; opening the conversation does. Clear and delete require a dialog.
 Archived conversations remain reachable through the archive entry. Multi-selection exposes read,
-mute, archive, and delete actions. The former Local demo footer label is removed.
+pin, mute, archive, and delete actions. The former Local demo footer label is removed.
 
 `useSidebarActions` owns temporary selection and dialogs. `conversationList` resolves fixture values
 and persisted overrides. `state/conversationActions` updates preferences or clears local messages
 and drafts. The optional preferences field preserves compatibility with existing saved snapshots.
 
-This demonstration uses a persistent mute toggle, not timed notification settings. Preview shows
-the latest eight local messages with text or image content, not Telegram's complete preview player.
+Single-chat mute opens the Notifications dialog: one, four, or eight hours; one or three days;
+or forever. The deadline is stored locally. `useConversationList` schedules the next expiration
+and refreshes after window focus or document visibility changes. Unmute applies immediately;
+bulk mute uses the permanent toggle, matching the upstream selection action.
+
 Saved Messages grouping, server permissions, and folder-specific commands are not reproduced.
 Opening a new tab selects the requested local chat; cross-tab editing reconciliation is unsupported.
 
-Manual browser checks covered opening without selecting or reading, preview dismissal, pinning,
-archive navigation, and multi-selection cancellation. No new tests were added or run for this change.
+## Preview and selection
+
+`src/components/popups/chatPreview.tsx` and `src/scss/partials/popups/_chatPreview.scss` define the
+upstream preview. `ConversationPreview` follows its 432 by 540px desktop size, 8px sidebar gap,
+viewport clamping, and 120ms opacity transition. On narrow screens it becomes a centered modal
+with 8px side gutters. Resizing closes it because the row anchor belongs to the previous layout.
+
+The preview reuses `MessageTimeline` and its normal bubble renderers, grouping, and virtual history.
+It starts at the latest message and remains scrollable. Bubble interactions are inert, as upstream;
+preview message IDs use a separate prefix so the main conversation keeps unique DOM IDs. The
+floating 48px header contains close, avatar, name, and subtitle. The 48px bottom plate toggles
+read/unread without selecting the conversation or closing the preview. Shift-click opens the same
+preview from a row. The main conversation and composer stay mounted throughout.
+
+`dialogsSelectionHeader.tsx`, `dialogsSelectionBase.ts`, and `_chatlist.scss` are the selection
+references. The normal header stays mounted under a 200ms fading selection plate. The plate shows
+the selected-chat count and a More menu. Each row opens a 38px lane for its 24px checkbox; avatar
+and text translate over 300ms. Selecting alone adds no row background. Pinned rows replace their
+metadata with a drag grip, and dragging changes persisted pinned order.
+
+Ordinary row reordering follows `createItemGlide` in `verticalVirtualList.tsx`: commit the new
+layout top, then animate the outer transform from the previously drawn position over 120ms with
+`ease`. This differs from the 300ms sortable-drag transition. `useConversationGlide` reads the
+current transform before replacing an interrupted animation, so repeated moves remain continuous.
+Moving rows get an opaque surface background; the active row keeps its accent background.
+Newly mounted rows do not glide from an unrelated position. The checkbox lane has its own transform.
+
+Mute icons enter
+and leave over 200ms. Unread and pinned badges scale over 250ms with the upstream overshoot curve;
+muted badge colors transition too. Presence is retained through exits instead of clearing content
+as soon as an action closes its dialog. Initial mounts and returning virtual rows do not replay
+state-change animations. Reduced motion removes movement.
+
+Manual browser checks covered anchored and narrow-screen previews, selection and Escape behavior,
+mute confirmation and unmute, pinned dragging, and list windowing. No new tests were added or run.
 
 ## Upstream conversation-list virtualization
 
@@ -112,6 +148,13 @@ Telegram K virtualizes the left conversation list as well as the message history
    mounts visible entries conditionally, and positions them within the full list height.
 
 The deferred layer also coordinates pinned ordering, loading, and retained data. Its extra cached
-items are distinct from mounted DOM rows. The React study currently renders its nine local sidebar
-conversations directly; only the message timeline is virtualized. No sidebar virtualizer was added
-as part of the context-menu work.
+items are distinct from mounted DOM rows. `VirtualConversationList` uses the existing TanStack
+Virtual dependency for the normal and archived lists: 72px rows, stable conversation IDs, and four
+overscan rows at each edge. The archive entry reserves one row. Separate scroll offsets survive
+switching between the main list and archive; search leaves the main list mounted.
+
+Arrow keys, Home, and End scroll the virtualizer before focusing the destination row. In a 1100 by
+300px browser viewport, seven of the nine fixture conversations were mounted. End moved the
+window to the last conversation and focused it; the first two DOM rows were then unmounted.
+The outer panel uses `overflow: clip` so search's scale transition cannot turn it into a second
+programmatically scrolled viewport. Search results retain their separate compact rendering.
