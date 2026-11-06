@@ -1,8 +1,11 @@
 import { ArrowDown } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
+import { DeferredMessageMedia } from '../messages/deferredMedia';
+import { MessageMenu } from '../messages/MessageMenu';
+import { useMessageMenu } from '../messages/useMessageMenu';
 import { describeMessage } from '../messageFormatting';
 import type { Message, MessageCommand } from '../model';
 import { useHistoryWindow } from './useHistoryWindow';
@@ -47,11 +50,18 @@ function VirtualMessageHistory({
   onJumpToMessage,
 }: VirtualMessageHistoryProps) {
   const allRows = useMemo(() => createHistoryRows(messages), [messages]);
-  const appearedIdsRef = useRef(new Set(messages.map((message) => message.id)));
+  // A lazy initializer avoids rebuilding the full ID set on every virtual-range update.
+  const [appearedIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [highlightedId, setHighlightedId] = useState('');
   const history = useHistoryWindow(allRows);
   const { rows, hasOlder, loadOlder } = history;
-  const scroll = useVirtualHistory({ rows, hasOlder, loadOlder, navigation });
+  const scroll = useVirtualHistory({
+    rows,
+    hasOlder,
+    loadOlder,
+    navigation,
+  });
+  const menu = useMessageMenu({ viewportRef: scroll.viewportRef, isDisabled: isPreview });
   const virtualItems = scroll.virtualizer.getVirtualItems();
   const totalHeight = scroll.virtualizer.getTotalSize();
   const viewportHeight = scroll.virtualizer.scrollRect?.height || 0;
@@ -67,12 +77,15 @@ function VirtualMessageHistory({
     return () => window.clearTimeout(timeout);
   }, [navigation]);
 
-  function markMessageAppeared(messageId: string) {
-    appearedIdsRef.current.add(messageId);
-  }
+  const markMessageAppeared = useCallback(
+    (messageId: string) => {
+      appearedIds.add(messageId);
+    },
+    [appearedIds],
+  );
 
   return (
-    <>
+    <DeferredMessageMedia isDeferred={scroll.isNavigating}>
       <div
         ref={scroll.viewportRef}
         className={styles.viewport}
@@ -80,7 +93,16 @@ function VirtualMessageHistory({
         onWheel={scroll.cancelAutomaticScroll}
         onTouchStart={scroll.cancelAutomaticScroll}
         onPointerDown={scroll.cancelAutomaticScroll}
-        onKeyDown={scroll.cancelAutomaticScroll}
+        onKeyDown={(event) => {
+          scroll.cancelAutomaticScroll();
+          menu.onKeyDown(event);
+        }}
+        onContextMenu={menu.onContextMenu}
+        onClickCapture={menu.onClick}
+        onPointerDownCapture={menu.onPointerDown}
+        onPointerMove={menu.onPointerMove}
+        onPointerUp={menu.cancelLongPress}
+        onPointerCancel={menu.cancelLongPress}
         aria-label="Message history"
         data-total-rows={allRows.length}
         data-loaded-rows={rows.length}
@@ -115,12 +137,14 @@ function VirtualMessageHistory({
                   <MessageBubble
                     message={row.message}
                     isPreview={isPreview}
+                    isMenuOpen={menu.isOpen && menu.target?.messageId === row.message.id}
+                    menuContentId={menu.contentId}
                     idPrefix={messageIdPrefix}
                     replyMessage={messageById.get(row.message.replyToId || '')}
                     isGroupStart={row.isGroupStart}
                     isGroupEnd={row.isGroupEnd}
                     isHighlighted={row.key === highlightedId}
-                    shouldAnimate={!appearedIdsRef.current.has(row.key)}
+                    shouldAnimate={!appearedIds.has(row.key)}
                     onAppear={markMessageAppeared}
                     onCommand={onCommand}
                     onReact={onReact}
@@ -142,6 +166,18 @@ function VirtualMessageHistory({
           )}
         </div>
       </div>
+      {!isPreview && (
+        <MessageMenu
+          contentId={menu.contentId}
+          target={menu.target}
+          message={menu.target ? messageById.get(menu.target.messageId) : undefined}
+          isOpen={menu.isOpen}
+          onClose={menu.closeMenu}
+          onExitComplete={menu.releaseTarget}
+          onCommand={onCommand}
+          onReact={onReact}
+        />
+      )}
       {scroll.canJumpToLatest && !searchQuery && (
         <IconButton
           label="Jump to latest message"
@@ -151,12 +187,12 @@ function VirtualMessageHistory({
           <ArrowDown />
         </IconButton>
       )}
-    </>
+    </DeferredMessageMedia>
   );
 }
 
 /** Keep a bounded message DOM while preserving grouping and message-ID navigation. */
-export function MessageTimeline(props: MessageTimelineProps) {
+export const MessageTimeline = memo(function MessageTimeline(props: MessageTimelineProps) {
   const normalizedQuery = props.searchQuery.trim().toLowerCase();
   const messageById = useMemo(() => {
     return new Map(props.messages.map((message) => [message.id, message]));
@@ -181,4 +217,4 @@ export function MessageTimeline(props: MessageTimelineProps) {
       />
     </div>
   );
-}
+});

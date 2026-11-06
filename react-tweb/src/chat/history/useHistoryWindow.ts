@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { HistoryRow } from './historyRows';
 
 export const INITIAL_HISTORY_ROWS = 60;
@@ -11,8 +11,12 @@ export function useHistoryWindow(allRows: HistoryRow[]) {
     const initialIndex = Math.max(0, allRows.length - INITIAL_HISTORY_ROWS);
     return allRows[initialIndex]?.key;
   });
-  const savedIndex = allRows.findIndex((row) => row.key === firstLoadedKey);
-  const startIndex = Math.max(0, savedIndex);
+  const startIndex = useMemo(() => {
+    const savedIndex = allRows.findIndex((row) => row.key === firstLoadedKey);
+    return Math.max(0, savedIndex);
+  }, [allRows, firstLoadedKey]);
+  // Stable rows keep the virtualizer's key and measurement caches intact during scrolling.
+  const rows = useMemo(() => allRows.slice(startIndex), [allRows, startIndex]);
 
   function loadOlder() {
     const nextIndex = Math.max(0, startIndex - HISTORY_PAGE_ROWS);
@@ -30,7 +34,7 @@ export function useHistoryWindow(allRows: HistoryRow[]) {
   }
 
   return {
-    rows: allRows.slice(startIndex),
+    rows,
     hasOlder: startIndex > 0,
     loadOlder,
     revealMessage,

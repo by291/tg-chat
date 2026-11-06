@@ -1,5 +1,6 @@
 import { createAlbumPhoto } from '../media/photoGallery';
 import { useRef } from 'react';
+import { useDeferredMediaSource } from './deferredMedia';
 import { useVisiblePlayback } from './useVisiblePlayback';
 import { getMediaGeometry } from '../media/mediaGeometry';
 import type { MessageMedia, PhotoAttachment } from '../messageMedia';
@@ -16,6 +17,7 @@ interface PhotoFrameProps {
 
 /** Reserve the photo frame independently of the image loading lifecycle. */
 export function PhotoFrame({ photo, hasCaption, onOpen }: PhotoFrameProps) {
+  const source = useDeferredMediaSource(photo.url);
   const frame = getMediaGeometry({ ...photo, hasCaption });
   return (
     <button
@@ -25,13 +27,28 @@ export function PhotoFrame({ photo, hasCaption, onOpen }: PhotoFrameProps) {
       aria-label={`Open image: ${photo.name}`}
     >
       <img
-        src={photo.url}
+        src={source}
         alt={photo.name}
         width={photo.width}
         height={photo.height}
         loading="lazy"
+        decoding="async"
       />
     </button>
+  );
+}
+
+function AlbumPhoto({ photo }: { photo: PhotoAttachment }) {
+  const source = useDeferredMediaSource(photo.url);
+  return (
+    <img
+      src={source}
+      alt={photo.name}
+      width={photo.width}
+      height={photo.height}
+      loading="lazy"
+      decoding="async"
+    />
   );
 }
 
@@ -53,13 +70,7 @@ export function AlbumFrame({
           aria-label={`Open album photo ${index + 1}: ${photo.name}`}
           onClick={() => onOpenMedia(createAlbumPhoto(message, photo, index))}
         >
-          <img
-            src={photo.url}
-            alt={photo.name}
-            width={photo.width}
-            height={photo.height}
-            loading="lazy"
-          />
+          <AlbumPhoto photo={photo} />
         </button>
       ))}
     </div>
@@ -75,6 +86,7 @@ export function VideoFrame({
   hasCaption: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const poster = useDeferredMediaSource(media.poster);
   useVisiblePlayback(videoRef);
   const frame = getMediaGeometry({ ...media, hasCaption, isVideo: true });
   const width = media.isRound ? ROUND_VIDEO_SIZE : frame.width;
@@ -89,7 +101,7 @@ export function VideoFrame({
       <video
         ref={videoRef}
         src={media.url}
-        poster={media.poster}
+        poster={poster}
         width={media.width}
         height={media.height}
         controls

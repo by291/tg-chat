@@ -268,7 +268,8 @@
 }
 
 .messageRow:hover .moreButton,
-.messageRow:focus-within .moreButton {
+.messageRow:focus-within .moreButton,
+.moreButton[aria-expanded='true'] {
   opacity: 1;
 }
 

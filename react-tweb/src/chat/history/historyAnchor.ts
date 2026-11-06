@@ -1,5 +1,7 @@
 import type { Virtualizer } from '@tanstack/react-virtual';
 
+const RESTORE_MEASUREMENT_FRAMES = 4;
+
 export interface ReadingAnchor {
   key: string;
   offset: number;
@@ -16,6 +18,28 @@ export function readHistoryAnchor(viewport: HTMLElement): ReadingAnchor | undefi
     }
   }
   return undefined;
+}
+
+/** Read the current anchor from measured rows without walking the mounted message DOM. */
+export function readMeasuredHistoryAnchor({
+  viewport,
+  virtualizer,
+}: {
+  viewport: HTMLElement;
+  virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
+}): ReadingAnchor | undefined {
+  const totalHeight = virtualizer.getTotalSize();
+  const viewportHeight = virtualizer.scrollRect?.height ?? 0;
+  const bottomAlignment = Math.max(0, viewportHeight - totalHeight);
+  const scrollTop = viewport.scrollTop;
+  const item = virtualizer.getVirtualItemForOffset(Math.max(0, scrollTop - bottomAlignment));
+  if (!item) {
+    return undefined;
+  }
+  return {
+    key: String(item.key),
+    offset: item.start + bottomAlignment - scrollTop,
+  };
 }
 
 /** Rebuild width-sensitive measurements and restore the same row's viewport-relative offset. */
@@ -41,9 +65,32 @@ export function remeasureHistory({
     return;
   }
   const anchorIndex = virtualizer.measurementsCache.findIndex((item) => item.key === anchor.key);
-  const position = virtualizer.getOffsetForIndex(anchorIndex, 'start');
-  if (anchorIndex >= 0 && position) {
-    // The virtualizer also adjusts this offset target as newly mounted rows report actual sizes.
-    virtualizer.scrollToOffset(position[0] - anchor.offset, { behavior: 'auto' });
-  }
+  let frame = 0;
+  let remainingFrames = RESTORE_MEASUREMENT_FRAMES;
+
+  const restoreMeasuredAnchor = () => {
+    virtualizer.getTotalSize();
+    const item = virtualizer.measurementsCache[anchorIndex];
+    if (!item || item.key !== anchor.key) {
+      return;
+    }
+    const bottomAlignment = Math.max(0, viewport.clientHeight - virtualizer.getTotalSize());
+    // Apply the relative offset before clamping at the scroll boundary.
+    virtualizer.scrollToOffset(item.start + bottomAlignment - anchor.offset, {
+      behavior: 'auto',
+    });
+
+    // Rebuilt estimates can mount different rows whose ResizeObserver reports arrive next frame.
+    // A short, cancellable settling pass keeps those first measurements on the same reading anchor.
+    remainingFrames -= 1;
+    if (remainingFrames > 0) {
+      frame = requestAnimationFrame(restoreMeasuredAnchor);
+    }
+  };
+
+  restoreMeasuredAnchor();
+  return () => {
+    cancelAnimationFrame(frame);
+    virtualizer.cancelScroll();
+  };
 }
