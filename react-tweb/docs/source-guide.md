@@ -25,13 +25,13 @@ the parts of the conversation that are read and changed together.
 | Directory            | Responsibility                                                               |
 | -------------------- | ---------------------------------------------------------------------------- |
 | `src/app/`           | Application layout, selected chat, transient panels, and notices             |
-| `src/components/`    | Reusable `Avatar` and `IconButton` presentation components                   |
+| `src/components/`    | Reusable avatars, icon buttons, and press ripples                            |
 | `src/chat/`          | Conversation orchestration, header, delete dialog, and common chat contracts |
 | `src/chat/composer/` | Draft input, keyboard behavior, emoji picker, and attachment preparation     |
 | `src/chat/history/`  | Timeline rendering, virtual measurements, paging, and scroll anchoring       |
 | `src/chat/messages/` | Bubble shell, metadata, tails, content renderers, and playback visibility    |
 | `src/chat/media/`    | Photo gallery, viewer navigation, and media geometry                         |
-| `src/chat/sidebar/`  | Conversation list and filtering                                              |
+| `src/chat/sidebar/`  | Conversation rows, account menu, and local search transitions                |
 | `src/chat/details/`  | Chat information and shared-photo panel                                      |
 | `src/chat/state/`    | Reducer transitions, poll voting, persistence, and state restoration         |
 | `src/chat/demo/`     | Initial conversations, archive fixtures, and the message showcase            |
