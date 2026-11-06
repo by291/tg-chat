@@ -1,0 +1,222 @@
+.dialog {
+  --calendar-cell-size: 40px;
+  --calendar-week-gap: 4px;
+  --calendar-scroll-height: 312px;
+
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+  border-radius: 40px;
+  background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
+}
+
+.picker {
+  display: contents;
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 56px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0 0 0 12px;
+  font-size: 20px;
+}
+
+.header button:not(:first-child) {
+  color: var(--accent-color);
+}
+
+.description {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.calendar {
+  position: relative;
+  flex: 0 1 var(--calendar-scroll-height);
+  min-height: 0;
+  height: var(--calendar-scroll-height);
+  overflow: hidden auto;
+  /* Virtual offsets own positioning; browser anchoring must not correct them again. */
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--secondary-color) transparent;
+}
+
+.months {
+  position: relative;
+  width: 100%;
+}
+
+.monthSection {
+  position: absolute;
+  inset: 0 0 auto;
+  padding-inline: 16px;
+}
+
+.month {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--calendar-cell-size);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Reserve the heading's space without painting clipped text against the fixed footer. */
+.month[data-visible='false'] {
+  visibility: hidden;
+}
+
+/* Keep DOM height equal to the virtual month's precomputed 40px rows and 4px gaps. */
+.table,
+.table thead,
+.table tbody {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-spacing: 0;
+}
+
+.table tr {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.table tbody {
+  display: grid;
+  row-gap: var(--calendar-week-gap);
+}
+
+.table th,
+.table td {
+  height: var(--calendar-cell-size);
+  min-width: 0;
+  padding: 0;
+}
+
+.table th {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.table th:nth-last-child(-n + 2),
+.table td:nth-last-child(-n + 2) .day:not([data-selected]) {
+  color: #dc5563;
+}
+
+.day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: var(--calendar-cell-size);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Keep the number centered independently of the selection circle. */
+.day::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--calendar-cell-size);
+  height: var(--calendar-cell-size);
+  border-radius: 50%;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  transition: background-color 120ms;
+  content: '';
+}
+
+.day > span {
+  position: relative;
+}
+
+.day:hover::before {
+  background: var(--hover-color);
+}
+
+.day[data-selected] {
+  color: white;
+}
+
+.day[data-selected]::before {
+  background: var(--accent-color);
+}
+
+.day[data-disabled] {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.day[data-disabled]::before {
+  background: transparent;
+}
+
+.day[data-outside-range] {
+  visibility: hidden;
+}
+
+.footer {
+  flex-shrink: 0;
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.footer button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  color: white;
+  background: var(--accent-color);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .dialog {
+    --calendar-scroll-height: 280px;
+
+    width: min(312px, 100%);
+  }
+
+  .header {
+    padding-inline: 8px;
+  }
+
+  .header h2 {
+    margin-left: 4px;
+    font-size: 18px;
+  }
+}
