@@ -322,6 +322,52 @@ keeps the composer mounted with its draft. Auto-delete captures a deadline on ea
 or incoming message; old history is unchanged. Expiration runs while open and on restore/focus.
 Video Chat explains the local-only limitation and never starts a network call.
 
+## Pointer, keyboard, selection, and scroll boundaries
+
+`useInputModality` enables focus rings only after navigation keys. Typing and caret movement
+inside an editor keep pointer mode, and overlay focus restoration cannot add a pointer ring.
+Ark controls and the voice seek control follow the same rule. `IconButton` keeps its accessible
+name without adding a native browser tooltip to every icon.
+
+The device policy follows `environment/touchSupport.ts` and `index.ts`. `main.tsx` records
+touch support once, independently of keyboard focus. The zero-specificity device selectors
+must not outrank a component's selected or open state.
+
+The hover policy follows `mixins/_hover.scss`, `_button.scss`, and `_chatlist.scss`:
+
+- Non-touch devices enable hover and pressed styles on individual interactive controls.
+- Ordinary controls use the neutral hover color; primary and danger actions keep their own colors.
+- Selected conversations keep their accent background. An open context menu keeps its row highlighted.
+- Menu press scaling and ripple feedback also work on touch devices. Keyboard menu highlighting
+  remains available without enabling synthetic touch hover.
+
+The selection policy follows `base.scss` and `_chatBubble.scss`:
+
+- Interface text is unselectable; inputs and editable content explicitly allow selection.
+- Desktop bubble content is selectable outside message-selection mode, including link previews,
+  document descriptions, code, quotes, and media captions.
+- Sender labels, forwarded headers, metadata, buttons, media, voice controls, and contact cards
+  opt out of selection even inside a selectable bubble.
+- Desktop message-selection mode disables text selection. On touch devices, bubble text becomes
+  selectable in message-selection mode, as in tweb.
+
+Scroll containment follows `_scrollable.scss`; `none` is not a global application policy.
+The fixed document uses `overflow: hidden`, while each actual scroll container owns its axis:
+
+| Surface                                                          | Scroll policy                                           | Source reference                           |
+| ---------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
+| Conversations, archived conversations, message history, previews | Vertical containment                                    | `scrollable.ts`, `_scrollable.scss`        |
+| Conversation search, message search, sender results              | Vertical containment                                    | `sidebarLeft/index.ts`, `_chatSearch.scss` |
+| Chat information, archive settings, scrollable dialogs           | Vertical containment                                    | `sliderTab.ts`, popup scrollable           |
+| Calendar month viewport                                          | Vertical containment                                    | `popups/datePicker.tsx`                    |
+| Multiline message editor                                         | Vertical containment                                    | `chat/inputEditor`, live editor scrollable |
+| Long code blocks                                                 | Horizontal containment; vertical gestures reach history | Horizontal scrollable policy               |
+
+`overscroll-behavior-y: contain` retains native edge feedback but prevents scrolling another pane.
+Horizontal containment leaves the vertical axis alone. Non-scrolling headers, buttons, and layout
+wrappers do not receive overscroll overrides. The current emoji grid fits its popover and does not
+have an independent scroll viewport; tweb's larger emoji and sticker catalogs use scrollables.
+
 ## Tests worth reading
 
 `reducer.test.ts` follows user-visible state changes rather than asserting private function calls.
