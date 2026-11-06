@@ -102,7 +102,8 @@
     box-shadow 200ms ease-in-out;
 }
 
-.searchField:hover:not(:focus-within) {
+:global(:where(:root[data-touch-supported='false']))
+  .searchField:is(:hover, :active):not(:focus-within) {
   border-color: var(--secondary-color);
 }
 
@@ -256,10 +257,13 @@
   transition: background-color var(--duration-fast);
 }
 
-.chatRow:hover,
+:global(:where(:root[data-touch-supported='false'])) .chatRow:is(:hover, :active),
+:global(:where(:root[data-touch-supported='false'])) .searchResult:is(:hover, :active) {
+  background: var(--hover-color);
+}
+
 .chatRow[data-state='open'],
-.searchResult[data-state='open'],
-.searchResult:hover {
+.searchResult[data-state='open'] {
   background: var(--hover-color);
 }
 
@@ -404,7 +408,12 @@
   color: #df3f40;
 }
 
-.contextMenu [data-danger='true'][data-highlighted] {
+:global(:where(:root[data-touch-supported='false']))
+  .contextMenu
+  [data-danger='true'][data-highlighted],
+:global(:where(:root[data-input-method='keyboard']))
+  .contextMenu
+  [data-danger='true'][data-highlighted] {
   background: rgb(223 63 64 / 8%);
 }
 
@@ -490,7 +499,10 @@
   cursor: pointer;
 }
 
-.archiveEntry:hover,
+:global(:where(:root[data-touch-supported='false'])) .archiveEntry:is(:hover, :active) {
+  background: var(--hover-color);
+}
+
 .archiveEntry[data-state='open'] {
   background: var(--hover-color);
 }
@@ -571,7 +583,7 @@
   white-space: nowrap;
 }
 
-.composeButton:hover {
+:global(:where(:root[data-touch-supported='false'])) .composeButton:is(:hover, :active) {
   background: var(--accent-hover);
 }
 

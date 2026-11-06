@@ -69,7 +69,7 @@
   cursor: pointer;
 }
 
-.muteOption:hover {
+:global(:where(:root[data-touch-supported='false'])) .muteOption:is(:hover, :active) {
   background: var(--hover-color);
 }
 

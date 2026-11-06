@@ -267,7 +267,10 @@
   transition: opacity var(--duration-fast);
 }
 
-.messageRow:hover .moreButton,
+:global(:where(:root[data-touch-supported='false'])) .messageRow:is(:hover, :active) .moreButton {
+  opacity: 1;
+}
+
 :global(:root[data-input-method='keyboard']) .messageRow:focus-within .moreButton,
 .moreButton[aria-expanded='true'] {
   opacity: 1;

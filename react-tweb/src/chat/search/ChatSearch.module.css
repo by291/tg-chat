@@ -83,7 +83,10 @@
   cursor: pointer;
 }
 
-.result:hover,
+:global(:where(:root[data-touch-supported='false'])) .result:is(:hover, :active) {
+  background: var(--hover-color);
+}
+
 .result[data-active='true'] {
   background: var(--hover-color);
 }

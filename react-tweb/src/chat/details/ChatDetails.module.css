@@ -52,6 +52,10 @@
   cursor: pointer;
 }
 
+:global(:where(:root[data-touch-supported='false'])) .notificationButton:is(:hover, :active) {
+  background: var(--hover-filled-color);
+}
+
 .about {
   display: flex;
   align-items: center;
@@ -108,6 +112,12 @@
 .tabList button[data-selected] {
   color: var(--accent-color);
   background: var(--reply-color);
+}
+
+:global(:where(:root[data-touch-supported='false']))
+  .tabList
+  button:not([data-selected]):is(:hover, :active) {
+  background: var(--hover-color);
 }
 
 .indicator {

@@ -33,6 +33,6 @@
   cursor: pointer;
 }
 
-.preview:hover {
+:global(:where(:root[data-touch-supported='false'])) .preview:is(:hover, :active) {
   background: var(--reply-color);
 }

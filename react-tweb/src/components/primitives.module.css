@@ -15,7 +15,7 @@
   transition: background-color var(--duration-fast);
 }
 
-.iconButton:hover {
+:global(:where(:root[data-touch-supported='false'])) .iconButton:is(:hover, :active) {
   background: var(--hover-color);
 }
 

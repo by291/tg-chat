@@ -43,7 +43,7 @@
   background: var(--accent-color);
 }
 
-.sendButton:hover {
+:global(:where(:root[data-touch-supported='false'])) .sendButton:is(:hover, :active) {
   background: var(--accent-hover);
 }
 

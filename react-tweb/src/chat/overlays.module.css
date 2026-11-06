@@ -61,7 +61,8 @@
   transform: scale(0.96);
 }
 
-.menuItem[data-highlighted] {
+:global(:where(:root[data-touch-supported='false'])) .menuItem[data-highlighted],
+:global(:where(:root[data-input-method='keyboard'])) .menuItem[data-highlighted] {
   background: var(--hover-color);
   outline: none;
 }
@@ -124,12 +125,12 @@
   transition: transform var(--duration-fast);
 }
 
-.reactionButton:hover {
+:global(:where(:root[data-touch-supported='false'])) .reactionButton:is(:hover, :active) {
   background: var(--hover-color);
   transform: translateY(-4px) scale(1.15);
 }
 
-.reactionButton[data-highlighted] {
+:global(:where(:root[data-input-method='keyboard'])) .reactionButton[data-highlighted] {
   background: var(--hover-color);
 }
 
@@ -203,7 +204,7 @@
   cursor: pointer;
 }
 
-.textButton:hover {
+:global(:where(:root[data-touch-supported='false'])) .textButton:is(:hover, :active) {
   background: var(--hover-color);
 }
 

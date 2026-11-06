@@ -44,8 +44,8 @@
   transition: transform var(--duration-fast);
 }
 
-.emojiGrid button:hover,
-.stickerGrid button:hover {
+:global(:where(:root[data-touch-supported='false'])) .emojiGrid button:is(:hover, :active),
+:global(:where(:root[data-touch-supported='false'])) .stickerGrid button:is(:hover, :active) {
   background: var(--hover-color);
   transform: scale(1.15);
 }

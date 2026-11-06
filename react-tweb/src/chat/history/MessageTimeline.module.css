@@ -102,7 +102,7 @@
   stroke: none;
 }
 
-.jumpButton:hover {
+:global(:where(:root[data-touch-supported='false'])) .jumpButton:is(:hover, :active) {
   background: var(--surface-color);
 }
 
@@ -139,10 +139,8 @@
   background: #bdc5c7;
 }
 
-@media (hover: hover) {
-  .jumpButton:hover::before {
-    background: var(--hover-color);
-  }
+:global(:where(:root[data-touch-supported='false'])) .jumpButton:is(:hover, :active)::before {
+  background: var(--hover-color);
 }
 
 @media (max-width: 600px) {

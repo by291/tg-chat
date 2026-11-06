@@ -34,6 +34,7 @@
   --overlay-color: rgb(255 255 255 / 94%);
   --input-color: #f1f2f4;
   --hover-color: rgb(112 116 125 / 8%);
+  --hover-filled-color: color-mix(in srgb, var(--secondary-color) 8%, var(--surface-color));
   --border-color: rgb(114 118 129 / 10%);
   --accent-color: #bd5bd8;
   --accent-hover: #ad4bc8;

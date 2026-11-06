@@ -60,7 +60,7 @@
   cursor: pointer;
 }
 
-.switchRow:hover {
+:global(:where(:root[data-touch-supported='false'])) .switchRow:is(:hover, :active) {
   background: var(--hover-color);
 }
 
