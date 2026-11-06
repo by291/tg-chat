@@ -16,6 +16,7 @@ export const messageSchema = z.object({
   authorId: z.string(),
   authorName: z.string(),
   text: z.string(),
+  expiresAt: z.number().optional(),
   createdAt: z.number().min(-MAX_DATE_TIMESTAMP).max(MAX_DATE_TIMESTAMP),
   replyToId: z.string().optional(),
   attachment: attachmentSchema.optional(),
@@ -30,6 +31,7 @@ export const messageSchema = z.object({
 });
 
 export const conversationPreferencesSchema = z.object({
+  autoDeleteDays: z.int().nonnegative().optional(),
   isPinned: z.boolean().optional(),
   pinnedOrder: z.int().nonnegative().optional(),
   isMuted: z.boolean().optional(),
@@ -77,6 +79,10 @@ export interface Conversation {
 }
 
 export type ChatAction =
+  | {
+      type: 'expire-messages';
+      now: number;
+    }
   | {
       type: 'update-archive-preferences';
       changes: ArchivePreferences;

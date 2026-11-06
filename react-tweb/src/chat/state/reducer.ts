@@ -7,7 +7,18 @@ import {
 } from './conversationActions';
 import { CURRENT_USER_ID, type ChatAction, type ChatState, type Message } from '../model';
 
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
 type MessageChange = Extract<ChatAction, { messageId: string }>;
+
+function assignMessageExpiration({ state, message }: { state: ChatState; message: Message }) {
+  const autoDeleteDays = state.conversationPreferences?.[message.chatId]?.autoDeleteDays;
+  // Keep old history untouched; each new message captures the timer active when it arrives.
+  const expiresAt = autoDeleteDays
+    ? message.createdAt + autoDeleteDays * MILLISECONDS_PER_DAY
+    : undefined;
+  return { ...message, expiresAt };
+}
 
 function updateMessage(message: Message, action: MessageChange): Message {
   const isTarget = message.id === action.messageId && message.chatId === action.chatId;
@@ -49,6 +60,15 @@ function updateMessage(message: Message, action: MessageChange): Message {
 /** Apply one conversation action without mutating the previous state. */
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case 'expire-messages': {
+      const messages = state.messages.filter((message) => {
+        return !message.expiresAt || message.expiresAt > action.now;
+      });
+      if (messages.length === state.messages.length) {
+        return state;
+      }
+      return { ...state, messages };
+    }
     case 'update-archive-preferences':
       return {
         ...state,
@@ -90,7 +110,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         drafts: { ...state.drafts, [action.chatId]: action.text },
       };
     case 'send': {
-      const message = action.message;
+      const message = assignMessageExpiration({ state, message: action.message });
       const hasContent =
         message.text.trim() || message.attachment || message.sticker || message.media;
       const isDuplicate = state.messages.some((entry) => entry.id === message.id);
@@ -105,7 +125,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     }
     case 'receive':
-      return receiveMessage({ state, message: action.message });
+      return receiveMessage({
+        state,
+        message: assignMessageExpiration({ state, message: action.message }),
+      });
     case 'delete':
       return {
         ...state,
