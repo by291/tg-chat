@@ -31,7 +31,9 @@ export const messageSchema = z.object({
 
 export const conversationPreferencesSchema = z.object({
   isPinned: z.boolean().optional(),
+  pinnedOrder: z.int().nonnegative().optional(),
   isMuted: z.boolean().optional(),
+  mutedUntil: z.number().nonnegative().optional(),
   isArchived: z.boolean().optional(),
   isDeleted: z.boolean().optional(),
   isMarkedUnread: z.boolean().optional(),
@@ -68,6 +70,10 @@ export interface Conversation {
 }
 
 export type ChatAction =
+  | {
+      type: 'reorder-pinned-conversations';
+      chatIds: string[];
+    }
   | {
       type: 'update-conversations';
       chatIds: string[];

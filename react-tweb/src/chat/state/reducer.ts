@@ -1,5 +1,9 @@
 import { applyPollVote } from './pollVoting';
-import { clearConversations, updateConversations } from './conversationActions';
+import {
+  clearConversations,
+  reorderPinnedConversations,
+  updateConversations,
+} from './conversationActions';
 import { CURRENT_USER_ID, type ChatAction, type ChatState, type Message } from '../model';
 
 type MessageChange = Extract<ChatAction, { messageId: string }>;
@@ -44,6 +48,8 @@ function updateMessage(message: Message, action: MessageChange): Message {
 /** Apply one conversation action without mutating the previous state. */
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case 'reorder-pinned-conversations':
+      return reorderPinnedConversations({ state, chatIds: action.chatIds });
     case 'update-conversations':
       return updateConversations({
         state,
