@@ -58,9 +58,10 @@ export function useMessageMenu({ viewportRef, isDisabled }: MessageMenuOptions) 
     cancelLongPress();
   }, [cancelLongPress]);
 
-  const releaseTarget = useCallback(() => {
-    // Release the DOM reference after exit, so an offscreen bubble is not retained by the menu.
-    setTarget(undefined);
+  const releaseTarget = useCallback((exitingTarget?: MessageMenuTarget) => {
+    // An old exit animation may finish after another message has opened its menu.
+    // Release only its own DOM reference, never the newly opened target.
+    setTarget((current) => (current === exitingTarget ? undefined : current));
   }, []);
 
   function openMenu(nextTarget: MessageMenuTarget) {

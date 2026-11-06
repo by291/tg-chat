@@ -1,0 +1,154 @@
+.menu {
+  --message-menu-offset: 16px;
+  width: 292px;
+  max-width: calc(100vw - 16px);
+  outline: none;
+  pointer-events: auto;
+  transform-origin: var(--transform-origin);
+}
+
+.menu[data-own='true'] {
+  --message-menu-offset: 56px;
+}
+
+.items,
+.reactionBar {
+  background: var(--overlay-color);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
+}
+
+.items {
+  width: 196px;
+  margin-top: 8px;
+  margin-left: var(--message-menu-offset);
+  padding: 4px;
+  border-radius: 16px;
+  transform-origin: top left;
+}
+
+.items [data-danger='true'] {
+  color: var(--danger-color, #df3f40);
+}
+
+:global(:where(:root[data-touch-supported='false'])) .items [data-danger='true'][data-highlighted] {
+  background: rgb(223 63 64 / 8%);
+}
+
+.reactionBar {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  padding: 2px;
+  border-radius: 24px;
+  transform-origin: bottom left;
+}
+
+.reactionBar::after {
+  position: absolute;
+  bottom: -8px;
+  right: 20px;
+  width: 16px;
+  height: 8px;
+  border-radius: 0 0 16px 16px;
+  background: inherit;
+  content: '';
+}
+
+.menu[data-own='false'] .reactionBar::after {
+  right: auto;
+  left: 20px;
+}
+
+.reaction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-width: 0;
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  outline: none;
+}
+
+.reaction span {
+  transition: transform 160ms var(--menu-easing);
+}
+
+.reaction svg {
+  width: 20px;
+  height: 20px;
+  color: var(--secondary-color);
+}
+
+.reaction[data-selected='true'],
+:global(:where(:root[data-touch-supported='false'])) .reaction[data-highlighted],
+:global(:where(:root[data-input-method='keyboard'])) .reaction[data-highlighted] {
+  background: var(--hover-color);
+}
+
+:global(:where(:root[data-touch-supported='false'])) .reaction[data-highlighted] span {
+  transform: translateY(-3px) scale(1.2);
+}
+
+.menu[data-own='true'] .items {
+  transform-origin: top right;
+}
+
+.menu[data-own='true'] .reactionBar {
+  transform-origin: bottom right;
+}
+
+.menu[data-state='open'] .items {
+  animation: menu-enter 200ms var(--menu-easing);
+}
+
+.menu[data-state='open'] .reactionBar {
+  animation: reaction-enter 200ms var(--menu-easing);
+}
+
+.menu[data-state='closed'] {
+  pointer-events: none;
+  animation: menu-exit 200ms var(--menu-easing);
+}
+
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes reaction-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes menu-exit {
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu,
+  .menu[data-state] .items,
+  .menu[data-state] .reactionBar,
+  .reaction span {
+    animation: none;
+    transition: none;
+  }
+}

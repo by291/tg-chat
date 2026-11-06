@@ -109,36 +109,6 @@
   background: var(--border-color);
 }
 
-.reactionBar {
-  display: flex;
-  gap: 2px;
-  padding: 3px 4px 8px;
-}
-
-.reactionButton {
-  padding: 5px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  font-size: 24px;
-  cursor: pointer;
-  transition: transform var(--duration-fast);
-}
-
-:global(:where(:root[data-touch-supported='false'])) .reactionButton:is(:hover, :active) {
-  background: var(--hover-color);
-  transform: translateY(-4px) scale(1.15);
-}
-
-:global(:where(:root[data-input-method='keyboard'])) .reactionButton[data-highlighted] {
-  background: var(--hover-color);
-}
-
-:global(:root[data-input-method='keyboard']) .reactionButton[data-highlighted] {
-  outline: 2px solid var(--accent-color);
-  outline-offset: -2px;
-}
-
 .popover {
   width: min(360px, calc(100vw - 32px));
   overflow: hidden;
