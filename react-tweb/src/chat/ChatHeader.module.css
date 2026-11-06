@@ -9,8 +9,8 @@
   display: flex;
   align-items: center;
   height: 48px;
-  padding: 4px;
-  border-radius: 26px;
+  padding: 0 4px;
+  border-radius: 24px;
   background: var(--surface-color);
   box-shadow: var(--surface-shadow);
 }
@@ -19,7 +19,7 @@
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -33,20 +33,57 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
 }
 
-.identityText strong {
+.identityText strong,
+.pinnedTitle strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 16px;
   font-weight: 600;
+  line-height: 21px;
 }
 
-.identityText > span {
+.identityText > span,
+.pinnedTitle > span {
+  overflow: hidden;
+  color: #707579;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 18.375px;
+}
+
+:global([data-theme='dark']) .identityText > span,
+:global([data-theme='dark']) .pinnedTitle > span {
   color: var(--secondary-color);
-  font-size: 13px;
+}
+
+.identity > span:first-child {
+  font-size: 14.815px;
+}
+
+.utilityButton {
+  margin-left: 4px;
+}
+
+.header button > svg {
+  width: 24px;
+  height: 24px;
+}
+
+.pinnedTitle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  padding-left: 16px;
+}
+
+.header[data-pinned-view='true'] .backButton {
+  display: inline-flex;
 }
 
 .backButton {
@@ -97,6 +134,10 @@
   }
 
   .identity {
-    gap: 8px;
+    margin-left: 9px;
+  }
+
+  .searchButton {
+    display: none;
   }
 }

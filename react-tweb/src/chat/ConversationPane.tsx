@@ -1,6 +1,7 @@
-import { useMemo, useState, type Dispatch } from 'react';
+import { useCallback, useMemo, useState, type Dispatch } from 'react';
 import { ChatHeader } from './ChatHeader';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
+import { PinnedMessageBar } from './PinnedMessageBar';
 import { MessageComposer, type ComposedMessage } from './composer/MessageComposer';
 import { MessageTimeline, type MessageNavigation } from './history/MessageTimeline';
 import { describeMessage } from './messageFormatting';
@@ -31,14 +32,25 @@ export function ConversationPane({
   const [editingMessage, setEditingMessage] = useState<Message>();
   const [pendingDelete, setPendingDelete] = useState<Message>();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isPinnedView, setIsPinnedView] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [navigation, setNavigation] = useState<MessageNavigation>();
   const messages = useMemo(() => {
     return state.messages.filter((message) => message.chatId === conversation.id);
   }, [state.messages, conversation.id]);
-  const searchResultCount = messages.filter((message) => {
-    return describeMessage(message).toLowerCase().includes(searchQuery.trim().toLowerCase());
-  }).length;
+  const pinnedMessages = useMemo(() => {
+    return messages.filter((message) => message.isPinned);
+  }, [messages]);
+  const displayedMessages = isPinnedView ? pinnedMessages : messages;
+  const searchResultCount = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return displayedMessages.length;
+    }
+    return displayedMessages.filter((message) => {
+      return describeMessage(message).toLowerCase().includes(normalizedQuery);
+    }).length;
+  }, [displayedMessages, searchQuery]);
 
   function clearComposerContext() {
     setReplyMessage(undefined);
@@ -78,40 +90,95 @@ export function ConversationPane({
     setIsSearchOpen(false);
   }
 
-  async function copyMessage(message: Message) {
-    try {
-      await navigator.clipboard.writeText(describeMessage(message));
-      onNotify('Copied to clipboard');
-    } catch {
-      onNotify('Could not access the clipboard. Select the message text to copy it.');
-    }
-  }
+  const copyMessage = useCallback(
+    async (message: Message) => {
+      try {
+        await navigator.clipboard.writeText(describeMessage(message));
+        onNotify('Copied to clipboard');
+      } catch {
+        onNotify('Could not access the clipboard. Select the message text to copy it.');
+      }
+    },
+    [onNotify],
+  );
 
-  function applyMessageCommand({ action, message }: MessageCommand) {
-    switch (action) {
-      case 'reply':
-        setReplyMessage(message);
-        setEditingMessage(undefined);
-        return;
-      case 'edit':
-        setEditingMessage(message);
-        setReplyMessage(undefined);
-        return;
-      case 'delete':
-        setPendingDelete(message);
-        return;
-      case 'copy':
-        void copyMessage(message);
-        return;
-      case 'pin':
-        dispatch({ type: 'pin', chatId: conversation.id, messageId: message.id });
-    }
-  }
+  // Stable timeline props let memoized history ignore draft and composer-only updates.
+  // Keep the real dependencies so changing conversations or callbacks never uses stale state.
+  const applyMessageCommand = useCallback(
+    ({ action, message }: MessageCommand) => {
+      switch (action) {
+        case 'reply':
+          setIsPinnedView(false);
+          setReplyMessage(message);
+          setEditingMessage(undefined);
+          return;
+        case 'edit':
+          setIsPinnedView(false);
+          setEditingMessage(message);
+          setReplyMessage(undefined);
+          return;
+        case 'delete':
+          setPendingDelete(message);
+          return;
+        case 'copy':
+          void copyMessage(message);
+          return;
+        case 'pin':
+          dispatch({
+            type: 'pin',
+            chatId: conversation.id,
+            messageId: message.id,
+          });
+      }
+    },
+    [copyMessage, dispatch, conversation.id],
+  );
 
-  function jumpToMessage(messageId: string) {
+  const reactToMessage = useCallback(
+    (messageId: string, emoji: string) => {
+      dispatch({
+        type: 'react',
+        chatId: conversation.id,
+        messageId,
+        emoji,
+      });
+    },
+    [dispatch, conversation.id],
+  );
+
+  const voteOnMessage = useCallback(
+    (messageId: string, optionId: string) => {
+      dispatch({
+        type: 'vote',
+        chatId: conversation.id,
+        messageId,
+        optionId,
+      });
+    },
+    [dispatch, conversation.id],
+  );
+
+  const jumpToMessage = useCallback((messageId: string) => {
+    setIsPinnedView(false);
     setSearchQuery('');
     setIsSearchOpen(false);
     setNavigation({ messageId, requestId: Date.now() });
+  }, []);
+
+  function openPinnedMessages() {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setIsPinnedView(true);
+  }
+
+  function goBack() {
+    if (isPinnedView) {
+      setIsPinnedView(false);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+      return;
+    }
+    onBack();
   }
 
   function toggleSearch() {
@@ -132,6 +199,22 @@ export function ConversationPane({
     setPendingDelete(undefined);
   }
 
+  function renderTimeline(options: { messages: Message[]; isPinnedView: boolean }) {
+    return (
+      <MessageTimeline
+        messages={options.messages}
+        searchQuery={options.isPinnedView === isPinnedView ? searchQuery : ''}
+        messageIdPrefix={options.isPinnedView ? 'pinned-message' : undefined}
+        navigation={options.isPinnedView ? undefined : navigation}
+        onCommand={applyMessageCommand}
+        onReact={reactToMessage}
+        onVote={voteOnMessage}
+        onOpenMedia={onOpenMedia}
+        onJumpToMessage={jumpToMessage}
+      />
+    );
+  }
+
   return (
     <main className={styles.conversation} aria-label={`${conversation.title} conversation`}>
       <ChatHeader
@@ -139,36 +222,41 @@ export function ConversationPane({
         isSearchOpen={isSearchOpen}
         searchQuery={searchQuery}
         searchResultCount={searchResultCount}
+        pinnedCount={isPinnedView ? pinnedMessages.length : undefined}
         onSearchQueryChange={setSearchQuery}
         onToggleSearch={toggleSearch}
         onOpenDetails={onOpenDetails}
-        onBack={onBack}
+        onBack={goBack}
         onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
       />
-      <MessageTimeline
-        messages={messages}
-        searchQuery={searchQuery}
-        navigation={navigation}
-        onCommand={applyMessageCommand}
-        onReact={(messageId, emoji) => {
-          dispatch({ type: 'react', chatId: conversation.id, messageId, emoji });
-        }}
-        onVote={(messageId, optionId) => {
-          dispatch({ type: 'vote', chatId: conversation.id, messageId, optionId });
-        }}
-        onOpenMedia={onOpenMedia}
-        onJumpToMessage={jumpToMessage}
-      />
-      <MessageComposer
-        key={editingMessage?.id || 'compose'}
-        draft={state.drafts[conversation.id] || ''}
-        replyMessage={replyMessage}
-        editingMessage={editingMessage}
-        onDraftChange={(text) => dispatch({ type: 'set-draft', chatId: conversation.id, text })}
-        onSubmit={submitMessage}
-        onCancelContext={clearComposerContext}
-        onNotify={onNotify}
-      />
+      <div className={styles.historyPage} hidden={isPinnedView}>
+        {!isSearchOpen && (
+          <PinnedMessageBar
+            messages={pinnedMessages}
+            onJump={jumpToMessage}
+            onOpenList={openPinnedMessages}
+            onUnpin={(message) => applyMessageCommand({ action: 'pin', message })}
+          />
+        )}
+        {renderTimeline({ messages, isPinnedView: false })}
+      </div>
+      {isPinnedView && (
+        <div className={styles.historyPage}>
+          {renderTimeline({ messages: pinnedMessages, isPinnedView: true })}
+        </div>
+      )}
+      <div hidden={isPinnedView}>
+        <MessageComposer
+          key={editingMessage?.id || 'compose'}
+          draft={state.drafts[conversation.id] || ''}
+          replyMessage={replyMessage}
+          editingMessage={editingMessage}
+          onDraftChange={(text) => dispatch({ type: 'set-draft', chatId: conversation.id, text })}
+          onSubmit={submitMessage}
+          onCancelContext={clearComposerContext}
+          onNotify={onNotify}
+        />
+      </div>
       <DeleteMessageDialog
         isOpen={Boolean(pendingDelete)}
         onCancel={() => setPendingDelete(undefined)}

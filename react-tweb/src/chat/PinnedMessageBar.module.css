@@ -1,0 +1,38 @@
+.plate {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  height: 48px;
+  margin-top: 8px;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
+}
+
+.iconButton svg {
+  width: 24px;
+  height: 24px;
+}
+
+.preview {
+  --ripple-color: var(--reply-color);
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: 44px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.preview:hover {
+  background: var(--reply-color);
+}

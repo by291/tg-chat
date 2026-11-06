@@ -1,4 +1,4 @@
-import { ArrowDown, Pin } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createHistoryRows } from './historyRows';
@@ -19,6 +19,7 @@ export interface MessageNavigation {
 interface MessageTimelineProps {
   messages: Message[];
   isPreview?: boolean;
+  messageIdPrefix?: string;
   searchQuery: string;
   navigation?: MessageNavigation;
   onCommand: (command: MessageCommand) => void;
@@ -38,6 +39,7 @@ function VirtualMessageHistory({
   searchQuery,
   navigation,
   isPreview,
+  messageIdPrefix,
   onCommand,
   onReact,
   onVote,
@@ -113,6 +115,7 @@ function VirtualMessageHistory({
                   <MessageBubble
                     message={row.message}
                     isPreview={isPreview}
+                    idPrefix={messageIdPrefix}
                     replyMessage={messageById.get(row.message.replyToId || '')}
                     isGroupStart={row.isGroupStart}
                     isGroupEnd={row.isGroupEnd}
@@ -166,22 +169,9 @@ export function MessageTimeline(props: MessageTimelineProps) {
       return describeMessage(message).toLowerCase().includes(normalizedQuery);
     });
   }, [props.messages, normalizedQuery]);
-  const pinnedMessage = props.messages.filter((message) => message.isPinned).at(-1);
 
   return (
     <div className={styles.timelineArea} data-preview={props.isPreview}>
-      {pinnedMessage && !normalizedQuery && !props.isPreview && (
-        <button
-          className={styles.pinnedMessage}
-          onClick={() => props.onJumpToMessage(pinnedMessage.id)}
-        >
-          <Pin size={19} />
-          <span>
-            <strong>Pinned message</strong>
-            <span>{describeMessage(pinnedMessage)}</span>
-          </span>
-        </button>
-      )}
       <VirtualMessageHistory
         key={normalizedQuery}
         {...props}

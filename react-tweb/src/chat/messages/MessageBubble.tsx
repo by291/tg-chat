@@ -26,6 +26,7 @@ const MESSAGE_ENTRY_DURATION = 0.2;
 interface MessageBubbleProps {
   message: Message;
   isPreview?: boolean;
+  idPrefix?: string;
   replyMessage?: Message;
   isGroupStart: boolean;
   isGroupEnd: boolean;
@@ -56,6 +57,7 @@ function getReplyThumbnailUrl(message?: Message) {
 export function MessageBubble({
   message,
   isPreview = false,
+  idPrefix,
   replyMessage,
   isGroupStart,
   isGroupEnd,
@@ -86,7 +88,8 @@ export function MessageBubble({
   const hasCaption = Boolean(message.text);
   const isLinkPreview = message.media?.kind === 'link';
   const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
-  const elementId = `${isPreview ? 'preview-message' : 'message'}-${message.id}`;
+  const messageIdPrefix = idPrefix ?? (isPreview ? 'preview-message' : 'message');
+  const elementId = `${messageIdPrefix}-${message.id}`;
 
   useEffect(() => {
     onAppear(message.id);
