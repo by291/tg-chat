@@ -78,6 +78,8 @@ export const conversationSchema = z.object({
   isMuted: z.boolean().optional(),
   isVerified: z.boolean().optional(),
   about: z.string().optional(),
+  phone: z.string().optional(),
+  isContact: z.boolean().optional(),
   memberIds: z.array(z.string()).optional(),
 });
 

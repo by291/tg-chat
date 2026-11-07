@@ -83,8 +83,7 @@
   font-size: 16px;
 }
 
-.documentCard,
-.contactCard {
+.documentCard {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -168,9 +167,8 @@
   padding: 6px 0;
 }
 
-/* These cards are playback/contact actions rather than selectable message text. */
-.voice,
-.contactCard {
+/* Playback controls must not select message text during a drag. */
+.voice {
   -webkit-user-select: none;
   user-select: none;
 }

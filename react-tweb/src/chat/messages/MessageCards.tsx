@@ -1,7 +1,9 @@
-import { Download, FileText, UserRound } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 import { useDeferredMediaSource } from './deferredMedia';
 import type { MessageMedia } from '../messageMedia';
 import styles from './MessageBody.module.css';
+
+export { ContactMessage as ContactCard } from './ContactMessage';
 
 const BYTES_PER_KILOBYTE = 1024;
 
@@ -42,22 +44,6 @@ export function LinkPreview({ media }: { media: Extract<MessageMedia, { kind: 'l
           decoding="async"
         />
       )}
-    </a>
-  );
-}
-
-/** Make a shared contact readable and expose its telephone link. */
-export function ContactCard({ media }: { media: Extract<MessageMedia, { kind: 'contact' }> }) {
-  return (
-    <a className={styles.contactCard} href={`tel:${media.phone}`}>
-      <span className={styles.fileIcon}>
-        <UserRound />
-      </span>
-      <span className={styles.cardText}>
-        <strong>{media.name}</strong>
-        <span>{media.phone}</span>
-        <small>View contact</small>
-      </span>
     </a>
   );
 }

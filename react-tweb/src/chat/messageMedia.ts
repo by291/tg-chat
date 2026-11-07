@@ -12,6 +12,23 @@ export const attachmentSchema = z.object({
   height: z.number().positive(),
 });
 
+const contactDetailSchema = z.object({
+  // These normalized fields can be supplied without storing a raw vCard payload.
+  // prettier-ignore
+  type: z.enum([
+    'phone',
+    'email',
+    'organization',
+    'address',
+    'website',
+    'note',
+    'birthday',
+    'name',
+  ]),
+  value: z.string(),
+  label: z.string().optional(),
+});
+
 export const messageMediaSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('album'),
@@ -52,6 +69,8 @@ export const messageMediaSchema = z.discriminatedUnion('kind', [
     name: z.string(),
     phone: z.string(),
     initials: z.string(),
+    userId: z.string().min(1).optional(),
+    details: z.array(contactDetailSchema).optional(),
   }),
   z.object({
     kind: z.literal('poll'),
@@ -103,3 +122,5 @@ export type PhotoAttachment = z.infer<typeof attachmentSchema>;
 export type PollMedia = Extract<MessageMedia, { kind: 'poll' }>;
 
 export type ChecklistMedia = Extract<MessageMedia, { kind: 'checklist' }>;
+export type ContactMedia = Extract<MessageMedia, { kind: 'contact' }>;
+export type ContactDetail = z.infer<typeof contactDetailSchema>;

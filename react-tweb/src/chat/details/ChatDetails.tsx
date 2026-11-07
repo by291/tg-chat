@@ -62,8 +62,14 @@ export function ChatDetails({
   const entries = useConversationList(state);
   const actions = useSidebarActions({ conversations: entries, dispatch });
   const entry = entries.find((candidate) => candidate.id === conversation.id);
-  const contacts = getConversations(state).filter((candidate) => candidate.kind === 'private');
-  const members = contacts.filter((contact) => conversation.memberIds?.includes(contact.id));
+  const privateConversations = getConversations(state).filter(
+    (candidate) => candidate.kind === 'private',
+  );
+  const contacts = privateConversations.filter((candidate) => candidate.isContact !== false);
+  // Existing group membership does not depend on whether a peer is in the address book.
+  const members = privateConversations.filter((candidate) => {
+    return conversation.memberIds?.includes(candidate.id);
+  });
   const tabs = SHARED_TABS.filter((tab) => isGroup || tab.value !== 'members');
 
   useEffect(() => {

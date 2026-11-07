@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { conversations, createInitialState } from '../demo/fixtures';
 import { chatReducer } from '../state/reducer';
+import type { ChatState } from '../model';
 import { ChatDetails } from './ChatDetails';
 
 beforeEach(() => {
@@ -23,8 +24,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function DetailsScreen() {
-  const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
+function DetailsScreen({ initialState }: { initialState?: ChatState }) {
+  const [state, dispatch] = useReducer(
+    chatReducer,
+    initialState,
+    (savedState) => savedState ?? createInitialState(),
+  );
   const conversation = conversations[0];
   return (
     <ChatDetails
@@ -46,6 +51,30 @@ function DetailsScreen() {
     />
   );
 }
+
+it('excludes unsaved private peers from the add-members contact choices', async () => {
+  const user = userEvent.setup();
+  const state = createInitialState();
+  state.localConversations = [
+    {
+      id: 'contact:maya',
+      kind: 'private',
+      title: 'Maya Chen',
+      subtitle: '+1 202 555 0142',
+      initials: 'MC',
+      color: 'blue',
+      preview: '',
+      time: '',
+      isContact: false,
+    },
+  ];
+  render(<DetailsScreen initialState={state} />);
+  await user.click(screen.getByRole('button', { name: 'Add Members' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Add Members' });
+
+  expect(within(dialog).queryByRole('checkbox', { name: 'Maya Chen' })).toBeNull();
+  expect(within(dialog).getByRole('checkbox', { name: 'Alex Morgan' })).toBeTruthy();
+});
 
 it('keeps mute state while switching between members and shared file categories', async () => {
   const user = userEvent.setup();

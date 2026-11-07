@@ -39,6 +39,7 @@ export function NewChatPage({
   const contacts = conversations.filter((conversation) => {
     return (
       conversation.kind === 'private' &&
+      conversation.isContact !== false &&
       conversation.title.toLowerCase().includes(query.toLowerCase())
     );
   });
