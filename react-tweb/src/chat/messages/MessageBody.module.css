@@ -1,6 +1,8 @@
 .photoFrame {
   position: relative;
   display: block;
+  width: var(--photo-width);
+  aspect-ratio: var(--photo-ratio);
   max-width: 100%;
   overflow: hidden;
   padding: 0;
@@ -20,6 +22,7 @@
 
 .photoFrame .photoImage {
   position: relative;
+  width: var(--photo-image-width);
   margin: 0 auto;
   max-width: 100%;
 }
@@ -74,5 +77,16 @@
 @media (max-width: 760px) {
   .album {
     grid-auto-rows: 112px;
+  }
+}
+
+@media (max-width: 600px) {
+  .photoFrame {
+    width: var(--photo-mobile-width);
+    aspect-ratio: var(--photo-mobile-ratio);
+  }
+
+  .photoFrame .photoImage {
+    width: var(--photo-mobile-image-width);
   }
 }

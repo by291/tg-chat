@@ -1,5 +1,6 @@
 const MAX_MEDIA_WIDTH = 420;
 const MAX_MEDIA_HEIGHT = 400;
+const MOBILE_MEDIA_SIDE = 340;
 const MIN_MEDIA_SIDE = 200;
 const MIN_PHOTO_WIDTH = 120;
 const MIN_VIDEO_WIDTH = 368;
@@ -11,11 +12,18 @@ interface MediaGeometryOptions {
   height: number;
   hasCaption: boolean;
   isVideo?: boolean;
+  isMobile?: boolean;
   availableWidth?: number;
 }
 
-function fitMediaImage({ width, height }: Pick<MediaGeometryOptions, 'width' | 'height'>) {
-  const fitScale = Math.min(MAX_MEDIA_WIDTH / width, MAX_MEDIA_HEIGHT / height, 1);
+function fitMediaImage({
+  width,
+  height,
+  isMobile = false,
+}: Pick<MediaGeometryOptions, 'width' | 'height' | 'isMobile'>) {
+  const maximumWidth = isMobile ? MOBILE_MEDIA_SIDE : MAX_MEDIA_WIDTH;
+  const maximumHeight = isMobile ? MOBILE_MEDIA_SIDE : MAX_MEDIA_HEIGHT;
+  const fitScale = Math.min(maximumWidth / width, maximumHeight / height, 1);
   let frameWidth = Math.max(MIN_RENDERED_SIDE, Math.floor(width * fitScale));
   let frameHeight = Math.max(MIN_RENDERED_SIDE, Math.floor(height * fitScale));
 
@@ -34,9 +42,14 @@ export function getMediaGeometry({
   height,
   hasCaption,
   isVideo = false,
+  isMobile = false,
   availableWidth = MAX_MEDIA_WIDTH,
 }: MediaGeometryOptions) {
-  const fittedImage = fitMediaImage({ width, height });
+  const fittedImage = fitMediaImage({
+    width,
+    height,
+    isMobile,
+  });
 
   // A caption needs a readable line length even when the source is a narrow portrait.
   const minimumWidth = isVideo ? MIN_VIDEO_WIDTH : MIN_PHOTO_WIDTH;

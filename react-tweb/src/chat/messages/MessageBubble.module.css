@@ -381,6 +381,7 @@
 }
 
 .bubble[data-visual-media='true'] {
+  width: min-content;
   padding: 0;
 }
 
@@ -642,10 +643,6 @@
 .bubble[data-structured='link'] > .messageContent:last-child {
   min-height: 12px;
   line-height: 12px;
-}
-
-.bubble[data-structured='video'] {
-  width: min-content;
 }
 
 .bubble[data-structured='video'][data-standalone='true'] .mediaContent {

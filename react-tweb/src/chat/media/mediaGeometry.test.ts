@@ -28,6 +28,34 @@ describe('media geometry before decoding', () => {
     expect(panorama.imageWidth).toBeGreaterThan(0);
   });
 
+  it('uses the handheld height limit while retaining space for a portrait caption', () => {
+    const frame = getPhotoGeometry({
+      width: 300,
+      height: 900,
+      hasCaption: true,
+      isMobile: true,
+    });
+
+    expect(frame.width).toBe(320);
+    expect(frame.height).toBe(340);
+    expect(frame.imageWidth).toBe(113);
+    expect(frame.isFitted).toBe(true);
+  });
+
+  it('fits a handheld landscape without cropping or widening its image', () => {
+    const frame = getPhotoGeometry({
+      width: 1200,
+      height: 800,
+      hasCaption: false,
+      isMobile: true,
+    });
+
+    expect(frame.width).toBe(340);
+    expect(frame.height).toBe(226);
+    expect(frame.imageWidth).toBe(frame.width);
+    expect(frame.isFitted).toBe(false);
+  });
+
   it('fits a landscape into the Telegram desktop frame', () => {
     const frame = getMediaGeometry({
       width: 1200,

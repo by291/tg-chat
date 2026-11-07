@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { createAlbumPhoto } from '../media/photoGallery';
 import { rememberPhotoSource } from '../media/mediaViewerTransition';
 import { PhotoBackdrop } from './PhotoBackdrop';
@@ -19,26 +20,39 @@ interface PhotoFrameProps {
 /** Reserve the photo frame independently of the image loading lifecycle. */
 export function PhotoFrame({ messageId, photo, hasCaption, onOpen }: PhotoFrameProps) {
   const source = useDeferredMediaSource(photo.url);
-  const frame = getPhotoGeometry({ ...photo, hasCaption });
+  const desktopFrame = getPhotoGeometry({ ...photo, hasCaption });
+  const mobileFrame = getPhotoGeometry({
+    ...photo,
+    hasCaption,
+    isMobile: true,
+  });
   const borderWidth = 2;
-  const imageWidth = (frame.imageWidth / (frame.width - borderWidth)) * 100;
+  const desktopImageWidth = (desktopFrame.imageWidth / (desktopFrame.width - borderWidth)) * 100;
+  const mobileImageWidth = (mobileFrame.imageWidth / (mobileFrame.width - borderWidth)) * 100;
+  const hasBackdrop = desktopFrame.isFitted || mobileFrame.isFitted;
+  const frameStyle = {
+    '--photo-width': `${desktopFrame.width}px`,
+    '--photo-ratio': `${desktopFrame.width} / ${desktopFrame.height}`,
+    '--photo-image-width': `${desktopImageWidth}%`,
+    '--photo-mobile-width': `${mobileFrame.width}px`,
+    '--photo-mobile-ratio': `${mobileFrame.width} / ${mobileFrame.height}`,
+    '--photo-mobile-image-width': `${mobileImageWidth}%`,
+  } as CSSProperties;
 
   return (
     <button
       className={styles.photoFrame}
       data-photo-id={messageId}
-      data-fitted={frame.isFitted}
-      style={{ width: frame.width, aspectRatio: `${frame.width} / ${frame.height}` }}
+      style={frameStyle}
       onClick={(event) => {
         rememberPhotoSource(messageId, event.currentTarget);
         onOpen();
       }}
       aria-label={`Open image: ${photo.name}`}
     >
-      {frame.isFitted && <PhotoBackdrop source={source} />}
+      {hasBackdrop && <PhotoBackdrop source={source} />}
       <img
         className={styles.photoImage}
-        style={frame.isFitted ? { width: `${imageWidth}%` } : undefined}
         src={source}
         alt={photo.name}
         width={photo.width}
