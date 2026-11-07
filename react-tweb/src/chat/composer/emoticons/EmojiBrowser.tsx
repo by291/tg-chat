@@ -10,6 +10,8 @@ import {
 import { EmojiCell } from './EmojiCell';
 import { PickerGrid, type PickerGridControls } from './PickerGrid';
 import { PickerSearch } from './PickerSearch';
+import { PickerResults } from './PickerResults';
+import { normalizeGroupEmoji, type EmojiSearchGroup } from './emojiSearchGroups';
 import styles from '../EmojiPicker.module.css';
 
 const EMOJI_COLUMNS = 8;
@@ -29,7 +31,10 @@ export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: Emo
   const [catalog, setCatalog] = useState<EmojiMartData>();
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<EmojiSearchGroup>();
+  const isFiltering = Boolean(query.trim()) || Boolean(selectedGroup);
+  const isSearching = isSearchFocused || isFiltering;
   const [matches, setMatches] = useState<Emoji[]>([]);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
   const [activeSection, setActiveSection] = useState('recent');
@@ -89,6 +94,25 @@ export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: Emo
     if (!catalog) {
       return [];
     }
+    if (selectedGroup) {
+      const emojiByNative = new Map(
+        Object.values(catalog.emojis).map((emoji) => [
+          normalizeGroupEmoji(emoji.skins[0].native),
+          emoji,
+        ]),
+      );
+      const items = selectedGroup.emoticons.flatMap((emoticon) => {
+        const emoji = emojiByNative.get(emoticon);
+        return emoji ? [emoji] : [];
+      });
+      return [
+        {
+          id: selectedGroup.id,
+          title: selectedGroup.label,
+          items,
+        },
+      ];
+    }
     if (query.trim()) {
       return [
         {
@@ -112,7 +136,7 @@ export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: Emo
           items: category.emojis.map((id) => catalog.emojis[id]).filter(Boolean),
         })),
     ];
-  }, [catalog, matches, query, sessionRecents]);
+  }, [catalog, matches, query, selectedGroup, sessionRecents]);
 
   return (
     <div className={styles.browser} data-searching={isSearching}>
@@ -135,32 +159,34 @@ export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: Emo
       <PickerSearch
         label="Search Emoji"
         query={query}
-        isSearching={isSearching}
+        selectedGroup={selectedGroup}
         onQueryChange={setQuery}
-        onSearchingChange={setIsSearching}
+        onFocusChange={(details) => setIsSearchFocused(details.isFocused)}
+        onGroupChange={setSelectedGroup}
       />
-      {!catalog && <p className={styles.empty}>{error || 'Loading emoji…'}</p>}
-      {catalog && query.trim() && matches.length === 0 ? (
-        <p className={styles.empty}>{isLoadingSearch ? 'Searching…' : 'No emoji found'}</p>
-      ) : (
-        <PickerGrid
-          key={query.trim() ? 'search' : 'categories'}
-          sections={sections}
-          columns={EMOJI_COLUMNS}
-          rowHeight={EMOJI_ROW_HEIGHT}
-          controlsRef={gridRef}
-          onSectionChange={setActiveSection}
-          renderItem={(emoji) => (
-            <EmojiCell
-              key={emoji.id}
-              emoji={emoji}
-              tone={tones[emoji.id] ?? 0}
-              onSelect={onSelect}
-              onToneChange={onToneChange}
-            />
-          )}
-        />
-      )}
+      <PickerResults viewKey={selectedGroup?.id ?? (query.trim() ? 'search' : 'categories')}>
+        {!catalog && <p className={styles.empty}>{error || 'Loading emoji…'}</p>}
+        {catalog && query.trim() && matches.length === 0 ? (
+          <p className={styles.empty}>{isLoadingSearch ? 'Searching…' : 'No emoji found'}</p>
+        ) : (
+          <PickerGrid
+            sections={sections}
+            columns={EMOJI_COLUMNS}
+            rowHeight={EMOJI_ROW_HEIGHT}
+            controlsRef={isFiltering ? undefined : gridRef}
+            onSectionChange={isFiltering ? undefined : setActiveSection}
+            renderItem={(emoji) => (
+              <EmojiCell
+                key={emoji.id}
+                emoji={emoji}
+                tone={tones[emoji.id] ?? 0}
+                onSelect={onSelect}
+                onToneChange={onToneChange}
+              />
+            )}
+          />
+        )}
+      </PickerResults>
     </div>
   );
 }

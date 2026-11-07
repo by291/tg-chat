@@ -51,12 +51,12 @@
   overflow-x: auto;
   scrollbar-width: none;
   transition:
-    margin-top 200ms var(--ease-out),
-    opacity 200ms var(--ease-out);
+    transform 300ms var(--menu-easing),
+    opacity 300ms var(--menu-easing);
 }
 
 .browser[data-searching='true'] .packBar {
-  margin-top: -49px;
+  transform: translateY(-49px);
   opacity: 0;
   pointer-events: none;
 }
@@ -87,34 +87,79 @@
 }
 
 .searchRow {
+  flex: 0 0 42px;
+  padding: 0 8px 4px;
+  transition: transform 300ms var(--menu-easing);
+}
+
+.browser[data-searching='true'] .searchRow,
+.browser[data-searching='true'] .results {
+  /* Keep the search field 8px from the top without laying out virtual rows on every frame. */
+  transform: translateY(-41px);
+}
+
+.results {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  transition: transform 300ms var(--menu-easing);
+}
+
+.browser[data-searching='true'] .results {
+  margin-bottom: -41px;
+}
+
+.resultsLayer {
+  position: absolute;
+  inset: 0;
   display: flex;
-  flex: 0 0 44px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px 6px;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.resultsLayer[data-exiting='true'] {
+  pointer-events: none;
 }
 
 .search {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  position: relative;
   height: 38px;
-  padding: 0 12px;
   border-radius: 22px;
   color: var(--secondary-color);
   background: var(--input-color);
 }
 
-.search > svg {
-  flex-shrink: 0;
+.searchIcon,
+.search .searchBack {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%) scale(1);
+  transition:
+    opacity 250ms ease-in-out,
+    transform 250ms ease-in-out;
+}
+
+.searchIcon {
+  pointer-events: none;
+}
+
+.searchIcon[data-hidden='true'],
+.search .searchBack[data-hidden='true'] {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.5);
+  pointer-events: none;
+}
+
+.search .searchBack {
+  left: 10px;
 }
 
 .search input {
   width: 100%;
+  height: 100%;
   min-width: 0;
-  padding: 0;
+  padding: 0 36px 0 42px;
   border: 0;
   background: transparent;
   outline: none;
@@ -122,32 +167,74 @@
   line-height: 20px;
 }
 
-.search input::placeholder {
-  color: var(--secondary-color);
-}
-
-.search button,
-.searchBack {
+.search button {
   display: grid;
-  flex-shrink: 0;
+  flex: 0 0 28px;
   place-items: center;
   width: 28px;
   height: 28px;
-  padding: 0;
+  padding: 2px;
   border: 0;
   border-radius: 50%;
-  color: var(--secondary-color);
+  color: inherit;
   background: transparent;
   cursor: pointer;
 }
 
+.search .searchClear {
+  position: absolute;
+  top: 5px;
+  right: 3px;
+}
+
 .searchFilters {
+  position: absolute;
+  inset: 0 0 0 42px;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  transition: opacity 300ms var(--menu-easing);
+}
+
+.searchFilters::-webkit-scrollbar {
+  display: none;
+}
+
+.searchFilters[data-hidden='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.searchFilters[data-scrolled='true'] {
+  mask-image: linear-gradient(to right, transparent, black 12px);
+}
+
+.searchPlaceholder {
+  flex: 0 0 132px;
+  font-size: 14px;
+  line-height: 24px;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.searchCategories {
   display: flex;
   flex-shrink: 0;
-  gap: 4px;
-  font-size: 20px;
-  filter: grayscale(1);
-  opacity: 0.65;
+  align-items: center;
+  gap: 7px;
+  padding-right: 6px;
+}
+
+.searchCategories button {
+  color: color-mix(in srgb, var(--text-color) 30%, transparent);
+}
+
+.searchCategories button[aria-pressed='true'] {
+  color: color-mix(in srgb, var(--text-color) 70%, transparent);
+  background: color-mix(in srgb, var(--text-color) 8%, transparent);
 }
 
 .viewport {
@@ -422,6 +509,11 @@
 @media (prefers-reduced-motion: reduce) {
   .panel,
   .packBar,
+  .searchRow,
+  .results,
+  .searchIcon,
+  .search .searchBack,
+  .searchFilters,
   .preview {
     animation: none !important;
     transition: none;

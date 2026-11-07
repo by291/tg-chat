@@ -6,6 +6,8 @@ import { STICKERS, STICKER_PACKS, type Sticker } from '../../stickers/stickerCat
 import { StickerPlaybackScope } from '../../stickers/StickerPlaybackScope';
 import { PickerGrid, type PickerGridControls, type PickerSection } from './PickerGrid';
 import { PickerSearch } from './PickerSearch';
+import { PickerResults } from './PickerResults';
+import { matchesEmojiGroup, type EmojiSearchGroup } from './emojiSearchGroups';
 import { StickerCell } from './StickerCell';
 import styles from '../EmojiPicker.module.css';
 
@@ -27,7 +29,10 @@ export function StickerBrowser({
   onToggleFavorite,
 }: StickerBrowserProps) {
   const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<EmojiSearchGroup>();
+  const isFiltering = Boolean(query.trim()) || Boolean(selectedGroup);
+  const isSearching = isSearchFocused || isFiltering;
   const [activeSection, setActiveSection] = useState(STICKER_PACKS[0].id);
   const [viewedPackId, setViewedPackId] = useState<string>();
   const gridRef = useRef<PickerGridControls>(null);
@@ -37,6 +42,15 @@ export function StickerBrowser({
   const hasRecentStickers = STICKERS.some((sticker) => recentStickers.includes(sticker.id));
 
   const sections = useMemo(() => {
+    if (selectedGroup) {
+      return [
+        {
+          id: selectedGroup.id,
+          title: selectedGroup.label,
+          items: STICKERS.filter((sticker) => matchesEmojiGroup(sticker.emoji, selectedGroup)),
+        },
+      ];
+    }
     const normalizedQuery = query.trim().toLowerCase();
     if (normalizedQuery) {
       const items = STICKERS.filter((sticker) => {
@@ -76,7 +90,7 @@ export function StickerBrowser({
       });
     }
     return groups;
-  }, [query, recentStickers, favoriteStickers]);
+  }, [query, selectedGroup, recentStickers, favoriteStickers]);
   const hasResults = sections.some((section) => section.items.length > 0);
 
   function renderSticker(sticker: Sticker) {
@@ -127,23 +141,25 @@ export function StickerBrowser({
       <PickerSearch
         label="Search Stickers"
         query={query}
-        isSearching={isSearching}
+        selectedGroup={selectedGroup}
         onQueryChange={setQuery}
-        onSearchingChange={setIsSearching}
+        onFocusChange={(details) => setIsSearchFocused(details.isFocused)}
+        onGroupChange={setSelectedGroup}
       />
-      {hasResults ? (
-        <PickerGrid
-          key={query.trim() ? 'search' : 'packs'}
-          sections={sections}
-          columns={STICKER_COLUMNS}
-          rowHeight={STICKER_ROW_HEIGHT}
-          controlsRef={gridRef}
-          onSectionChange={setActiveSection}
-          renderItem={renderSticker}
-        />
-      ) : (
-        <p className={styles.empty}>No stickers found</p>
-      )}
+      <PickerResults viewKey={selectedGroup?.id ?? (query.trim() ? 'search' : 'packs')}>
+        {hasResults ? (
+          <PickerGrid
+            sections={sections}
+            columns={STICKER_COLUMNS}
+            rowHeight={STICKER_ROW_HEIGHT}
+            controlsRef={isFiltering ? undefined : gridRef}
+            onSectionChange={isFiltering ? undefined : setActiveSection}
+            renderItem={renderSticker}
+          />
+        ) : (
+          <p className={styles.empty}>No stickers found</p>
+        )}
+      </PickerResults>
       <Dialog.Root
         open={Boolean(viewedPack)}
         onOpenChange={(details) => {

@@ -1,101 +1,191 @@
 import { ArrowLeft, Search, X } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { EMOJI_SEARCH_GROUPS, type EmojiSearchGroup } from './emojiSearchGroups';
+import { useFilterScroll } from './useFilterScroll';
 import styles from '../EmojiPicker.module.css';
 
-const SEARCH_FILTERS = [
-  {
-    label: 'Love',
-    symbol: '♡',
-    query: 'love',
-  },
-  {
-    label: 'Approval',
-    symbol: '👍',
-    query: 'thumbsup',
-  },
-  {
-    label: 'Cheers',
-    symbol: '🎉',
-    query: 'party',
-  },
-  {
-    label: 'Laughter',
-    symbol: '☺',
-    query: 'laugh',
-  },
-];
+const DRAG_THRESHOLD = 4;
+const VERTICAL_WHEEL_DIVISOR = 4;
+
+interface FilterDrag {
+  startX: number;
+  scrollLeft: number;
+}
 
 interface PickerSearchProps {
   label: string;
   query: string;
-  isSearching: boolean;
+  selectedGroup: EmojiSearchGroup | undefined;
   onQueryChange: (query: string) => void;
-  onSearchingChange: (isSearching: boolean) => void;
+  onFocusChange: (details: { isFocused: boolean }) => void;
+  onGroupChange: (group: EmojiSearchGroup | undefined) => void;
 }
 
-/** Expand text search without letting palette clicks replace the composer's selection. */
+/** Keep text input and horizontally scrollable emotion filters in the same search field. */
 export function PickerSearch({
   label,
   query,
-  isSearching,
+  selectedGroup,
   onQueryChange,
-  onSearchingChange,
+  onFocusChange,
+  onGroupChange,
 }: PickerSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<FilterDrag | undefined>(undefined);
+  const didDragRef = useRef(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const hasQuery = Boolean(query.trim());
+  const { scrollToOffset, cancelScroll } = useFilterScroll(filtersRef);
+
+  useEffect(() => {
+    const container = filtersRef.current;
+    if (!container) {
+      return;
+    }
+
+    function scrollFilters(event: WheelEvent) {
+      cancelScroll();
+      event.stopPropagation();
+      if (!container || event.deltaX || container.scrollWidth <= container.clientWidth) {
+        return;
+      }
+      // Match Telegram's mouse-wheel conversion without replacing native trackpad scrolling.
+      event.preventDefault();
+      container.scrollLeft += event.deltaY / VERTICAL_WHEEL_DIVISOR;
+    }
+
+    container.addEventListener('wheel', scrollFilters, { passive: false });
+    return () => container.removeEventListener('wheel', scrollFilters);
+  }, []);
+
+  function selectGroup(group: EmojiSearchGroup, button: HTMLButtonElement) {
+    onGroupChange(group);
+    const container = filtersRef.current;
+    if (!container) {
+      return;
+    }
+
+    const buttonBounds = button.getBoundingClientRect();
+    const containerBounds = container.getBoundingClientRect();
+    const centerOffset = (container.clientWidth - buttonBounds.width) / 2;
+    scrollToOffset(container.scrollLeft + buttonBounds.left - containerBounds.left - centerOffset);
+  }
+
+  function clearGroup() {
+    onGroupChange(undefined);
+    scrollToOffset(0);
+  }
+
   return (
     <div className={styles.searchRow}>
-      {isSearching && (
+      <div className={styles.search}>
+        <Search className={styles.searchIcon} data-hidden={Boolean(selectedGroup)} size={20} />
         <button
           className={styles.searchBack}
-          aria-label="Back from search"
-          onClick={() => {
-            onQueryChange('');
-            onSearchingChange(false);
-            inputRef.current?.blur();
-          }}
+          data-hidden={!selectedGroup}
+          aria-hidden={!selectedGroup}
+          tabIndex={selectedGroup ? 0 : -1}
+          aria-label="Clear category"
+          onClick={clearGroup}
         >
           <ArrowLeft size={22} />
         </button>
-      )}
-      <label className={styles.search}>
-        <Search size={18} />
         <input
           ref={inputRef}
+          data-picker-search-input
           value={query}
-          placeholder={label}
           aria-label={label}
-          onFocus={() => onSearchingChange(true)}
-          onChange={(event) => onQueryChange(event.target.value)}
+          onFocus={() => onFocusChange({ isFocused: true })}
+          onBlur={() => onFocusChange({ isFocused: false })}
+          onChange={(event) => {
+            const nextQuery = event.target.value;
+            if (nextQuery.trim() && selectedGroup) {
+              clearGroup();
+            }
+            onQueryChange(nextQuery);
+          }}
         />
-        {query && (
+        <div
+          ref={filtersRef}
+          className={styles.searchFilters}
+          data-hidden={hasQuery}
+          data-scrolled={isScrolled}
+          aria-hidden={hasQuery}
+          inert={hasQuery}
+          onScroll={(event) => setIsScrolled(event.currentTarget.scrollLeft > 0)}
+          onPointerDown={(event) => {
+            cancelScroll();
+            didDragRef.current = false;
+            if (event.pointerType !== 'mouse' || event.button !== 0) {
+              return;
+            }
+            dragRef.current = {
+              startX: event.clientX,
+              scrollLeft: event.currentTarget.scrollLeft,
+            };
+          }}
+          onPointerMove={(event) => {
+            const drag = dragRef.current;
+            if (!drag || event.buttons !== 1) {
+              return;
+            }
+            const distance = event.clientX - drag.startX;
+            if (Math.abs(distance) < DRAG_THRESHOLD && !didDragRef.current) {
+              return;
+            }
+            didDragRef.current = true;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            event.currentTarget.scrollLeft = drag.scrollLeft - distance;
+          }}
+          onPointerUp={() => {
+            dragRef.current = undefined;
+          }}
+          onPointerCancel={() => {
+            dragRef.current = undefined;
+          }}
+          onClickCapture={(event) => {
+            // Releasing a drag must not select the category under the pointer.
+            if (didDragRef.current) {
+              event.preventDefault();
+              event.stopPropagation();
+              didDragRef.current = false;
+            }
+          }}
+        >
+          <span className={styles.searchPlaceholder} onClick={() => inputRef.current?.focus()}>
+            {label}
+          </span>
+          <div className={styles.searchCategories} role="group" aria-label="Emotion filters">
+            {EMOJI_SEARCH_GROUPS.map((group) => {
+              const GroupIcon = group.icon;
+              return (
+                <button
+                  key={group.id}
+                  aria-label={group.label}
+                  aria-pressed={selectedGroup?.id === group.id}
+                  onClick={(event) => selectGroup(group, event.currentTarget)}
+                >
+                  <GroupIcon size={24} strokeWidth={1.5} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {hasQuery && (
           <button
+            className={styles.searchClear}
+            onPointerDown={(event) => event.preventDefault()}
             aria-label="Clear search"
             onClick={() => {
               onQueryChange('');
               inputRef.current?.focus();
             }}
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         )}
-        {!isSearching && (
-          <span className={styles.searchFilters}>
-            {SEARCH_FILTERS.map((filter) => (
-              <button
-                key={filter.label}
-                aria-label={filter.label}
-                onClick={(event) => {
-                  event.preventDefault();
-                  onSearchingChange(true);
-                  onQueryChange(filter.query);
-                }}
-              >
-                {filter.symbol}
-              </button>
-            ))}
-          </span>
-        )}
-      </label>
+      </div>
     </div>
   );
 }

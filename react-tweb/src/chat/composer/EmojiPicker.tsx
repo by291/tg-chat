@@ -127,12 +127,16 @@ export function EmojiPicker({
               scheduleHoverClose();
             }}
             onPointerDownCapture={(event) => {
-              // Buttons retain the text selection; the search input must still be focusable.
-              if (
-                event.pointerType === 'mouse' &&
-                event.target instanceof Element &&
-                !event.target.closest('input')
-              ) {
+              if (event.pointerType !== 'mouse' || !(event.target instanceof Element)) {
+                return;
+              }
+
+              // Preserve the editor selection, but let clicks outside the search input blur it.
+              // Blocking every pointerdown traps search focus and prevents Telegram's collapse.
+              const focusedElement = event.currentTarget.ownerDocument.activeElement;
+              const isSearchFocused = focusedElement?.matches('[data-picker-search-input]');
+              const isInputTarget = Boolean(event.target.closest('input'));
+              if (!isSearchFocused && !isInputTarget) {
                 event.preventDefault();
               }
             }}
