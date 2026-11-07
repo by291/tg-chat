@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ChatDetails } from '../chat/details/ChatDetails';
 import { ChatSidebar } from '../chat/sidebar/ChatSidebar';
 import { ConversationPane } from '../chat/ConversationPane';
-import { conversations } from '../chat/demo/fixtures';
+import { getConversations } from '../chat/state/conversations';
 import { MediaViewer } from '../chat/media/MediaViewer';
 import type { Message } from '../chat/model';
 import { useConversationList } from '../chat/sidebar/conversationList';
@@ -36,7 +36,9 @@ export function ChatApp() {
 
   useEffect(
     () => {
-      const isKnownConversation = conversations.some((entry) => entry.id === requestedChatId);
+      const isKnownConversation = getConversations(state).some(
+        (entry) => entry.id === requestedChatId,
+      );
       if (isReady && requestedChatId && isKnownConversation) {
         dispatch({ type: 'select-chat', chatId: requestedChatId });
         setIsMobileChatOpen(true);

@@ -68,6 +68,15 @@ function updateMessage(message: Message, action: MessageChange): Message {
 /** Apply one conversation action without mutating the previous state. */
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case 'save-conversation': {
+      const remainingConversations = (state.localConversations ?? []).filter(
+        (conversation) => conversation.id !== action.conversation.id,
+      );
+      return {
+        ...state,
+        localConversations: [action.conversation, ...remainingConversations],
+      };
+    }
     case 'expire-messages': {
       const messages = state.messages.filter((message) => {
         return !message.expiresAt || message.expiresAt > action.now;
@@ -142,7 +151,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const drafts = shouldPreserveDraft ? state.drafts : { ...state.drafts, [message.chatId]: '' };
       return {
         ...state,
-        messages: [...state.messages, { ...message, ...content }],
+        messages: [
+          ...state.messages,
+          {
+            ...message,
+            ...content,
+          },
+        ],
         draftCustomEmoji: shouldPreserveDraft
           ? state.draftCustomEmoji
           : { ...state.draftCustomEmoji, [message.chatId]: [] },

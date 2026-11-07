@@ -1,5 +1,7 @@
+import { Archive, ArrowLeft, MoreVertical, Search, X } from 'lucide-react';
+import { NewChatMenu, type NewChatMode } from './NewChatMenu';
+import { NewChatPage } from './NewChatPage';
 import type { ThemeOrigin } from '../../app/useThemeTransition';
-import { Archive, ArrowLeft, MoreVertical, Pencil, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState, type Dispatch } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
@@ -42,6 +44,9 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
   const [query, setQuery] = useState('');
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [isStickerSettingsOpen, setIsStickerSettingsOpen] = useState(false);
+  const [newChatMode, setNewChatMode] = useState<NewChatMode>();
+  const [creationSession, setCreationSession] = useState(0);
+  const closingNewChatMode = useClosingDialogValue(newChatMode);
   const conversations = useConversationList(state);
   const scrollOffsets = useRef({ inbox: 0, archive: 0 });
   const actions = useSidebarActions({ conversations, dispatch });
@@ -130,6 +135,7 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
   }
 
   function selectChat(chatId: string) {
+    setNewChatMode(undefined);
     setIsSearching(false);
     setQuery('');
     setSearchScope('all');
@@ -268,13 +274,12 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
             renderRow={renderConversationRow}
           />
           <div className={styles.footer}>
-            <IconButton
-              label="Open dev conversation"
-              className={styles.composeButton}
-              onClick={() => selectChat('dev')}
-            >
-              <Pencil />
-            </IconButton>
+            <NewChatMenu
+              onChoose={(mode) => {
+                setCreationSession((session) => session + 1);
+                setNewChatMode(mode);
+              }}
+            />
           </div>
         </div>
         <nav
@@ -370,6 +375,11 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
         if (event.defaultPrevented || archive.isHelpOpen || archive.confirmation) {
           return;
         }
+        if (newChatMode && event.key === 'Escape') {
+          event.preventDefault();
+          setNewChatMode(undefined);
+          return;
+        }
         if (archive.isSettingsOpen && event.key === 'Escape') {
           event.preventDefault();
           archive.requestCloseSettings();
@@ -398,26 +408,43 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
       }}
     >
       <SidebarNavigation
-        isSecondaryOpen={archive.isSettingsOpen || isStickerSettingsOpen}
+        isSecondaryOpen={Boolean(newChatMode)}
+        secondary={
+          closingNewChatMode && (
+            <NewChatPage
+              key={creationSession}
+              mode={closingNewChatMode}
+              conversations={conversations}
+              dispatch={dispatch}
+              onBack={() => setNewChatMode(undefined)}
+              onSelectChat={selectChat}
+            />
+          )
+        }
         primary={
           <SidebarNavigation
-            isSecondaryOpen={isArchiveOpen}
-            primary={primaryPage}
-            secondary={archivePage}
+            isSecondaryOpen={archive.isSettingsOpen || isStickerSettingsOpen}
+            primary={
+              <SidebarNavigation
+                isSecondaryOpen={isArchiveOpen}
+                primary={primaryPage}
+                secondary={archivePage}
+              />
+            }
+            secondary={
+              settingsPage === 'archive' ? (
+                <ArchiveSettingsPage
+                  keepUnmutedArchived={archive.keepUnmutedArchived}
+                  hasChanges={archive.hasSettingsChanges}
+                  onChange={archive.changeSettings}
+                  onBack={archive.requestCloseSettings}
+                  onSave={archive.saveSettings}
+                />
+              ) : (
+                <StickerSettingsPage onBack={() => setIsStickerSettingsOpen(false)} />
+              )
+            }
           />
-        }
-        secondary={
-          settingsPage === 'archive' ? (
-            <ArchiveSettingsPage
-              keepUnmutedArchived={archive.keepUnmutedArchived}
-              hasChanges={archive.hasSettingsChanges}
-              onChange={archive.changeSettings}
-              onBack={archive.requestCloseSettings}
-              onSave={archive.saveSettings}
-            />
-          ) : (
-            <StickerSettingsPage onBack={() => setIsStickerSettingsOpen(false)} />
-          )
         }
       />
       <ArchiveHelpDialog

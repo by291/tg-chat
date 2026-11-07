@@ -1,7 +1,7 @@
 import { createHistoryMessages } from '../demo/historyFixtures';
 import { get, set } from 'idb-keyval';
 import { chatStateSchema, type ChatState } from '../model';
-import { conversations } from '../demo/fixtures';
+import { getConversations } from './conversations';
 
 const STORAGE_KEY = 'react-tweb.conversations.v1';
 
@@ -12,7 +12,7 @@ export function parseSavedState(value: unknown): ChatState | undefined {
     return undefined;
   }
 
-  const hasConversation = conversations.some((conversation) => {
+  const hasConversation = getConversations(result.data).some((conversation) => {
     return conversation.id === result.data.activeChatId;
   });
 

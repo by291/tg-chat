@@ -47,6 +47,54 @@ function SidebarTestScreen() {
 }
 
 describe('sidebar search', () => {
+  it('requires a group name and opens the created local group', async () => {
+    const user = userEvent.setup();
+    render(<SidebarTestScreen />);
+
+    await user.click(screen.getByRole('button', { name: 'New Chats' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'New Group' }));
+    await user.click(screen.getByRole('checkbox', { name: /Alex Morgan/ }));
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(
+      (screen.getByRole('button', { name: 'Create Group' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    await user.type(screen.getByRole('textbox', { name: 'Group Name' }), 'Reading club');
+    await user.click(screen.getByRole('button', { name: 'Create Group' }));
+
+    expect(screen.getByLabelText('Selected conversation').textContent).toMatch(/^local-/);
+    await user.type(screen.getByRole('textbox', { name: 'Search conversations' }), 'Reading club');
+    expect(screen.getByRole('button', { name: /Reading club/ })).toBeTruthy();
+  });
+
+  it('opens and dismisses creation choices without selecting a conversation', async () => {
+    const user = userEvent.setup();
+    render(<SidebarTestScreen />);
+
+    expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
+    await user.click(screen.getByRole('button', { name: 'New Chats' }));
+    expect(await screen.findByRole('menuitem', { name: 'New Group' })).toBeTruthy();
+    expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('menu', { name: 'New Chats' }));
+    });
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'New Group' })).toBeNull();
+    });
+  });
+
+  it('opens a private chat only after choosing a contact', async () => {
+    const user = userEvent.setup();
+    render(<SidebarTestScreen />);
+
+    await user.click(screen.getByRole('button', { name: 'New Chats' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'New Private Chat' }));
+    expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
+    await user.click(screen.getByRole('button', { name: /Alex Morgan/ }));
+
+    expect(screen.getByLabelText('Selected conversation').textContent).toBe('alex');
+  });
+
   it('restores the full list and keyboard focus when search is dismissed', async () => {
     const user = userEvent.setup();
     render(<SidebarTestScreen />);

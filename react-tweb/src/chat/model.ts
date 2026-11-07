@@ -29,7 +29,12 @@ export const messageSchema = z.object({
   media: messageMediaSchema.optional(),
   forwardedFrom: z.string().optional(),
   isService: z.boolean().optional(),
-  textStyle: z.enum(['plain', 'code', 'quote']).optional(),
+  // prettier-ignore
+  textStyle: z.enum([
+    'plain',
+    'code',
+    'quote',
+  ]).optional(),
   reactions: z.array(z.string()),
   isEdited: z.boolean().optional(),
   isPinned: z.boolean().optional(),
@@ -53,6 +58,28 @@ export const archivePreferencesSchema = z.object({
   keepUnmutedArchived: z.boolean().optional(),
 });
 
+export const conversationSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  subtitle: z.string(),
+  initials: z.string(),
+  color: z.string(),
+  // prettier-ignore
+  kind: z.enum([
+    'group',
+    'private',
+    'channel',
+    'saved',
+  ]).optional(),
+  preview: z.string(),
+  time: z.string(),
+  unreadCount: z.number().optional(),
+  isMuted: z.boolean().optional(),
+  isVerified: z.boolean().optional(),
+  about: z.string().optional(),
+  memberIds: z.array(z.string()).optional(),
+});
+
 export const chatStateSchema = z.object({
   version: z.union([z.literal(1), z.literal(2)]),
   messages: z.array(messageSchema),
@@ -63,6 +90,7 @@ export const chatStateSchema = z.object({
   isDark: z.boolean(),
   conversationPreferences: z.record(z.string(), conversationPreferencesSchema).optional(),
   archivePreferences: archivePreferencesSchema.optional(),
+  localConversations: z.array(conversationSchema).optional(),
 });
 
 export type Attachment = z.infer<typeof attachmentSchema>;
@@ -71,21 +99,13 @@ export type ChatState = z.infer<typeof chatStateSchema>;
 export type ConversationPreferences = z.infer<typeof conversationPreferencesSchema>;
 export type ArchivePreferences = z.infer<typeof archivePreferencesSchema>;
 
-export interface Conversation {
-  id: string;
-  title: string;
-  subtitle: string;
-  initials: string;
-  color: string;
-  kind?: 'group' | 'private' | 'channel' | 'saved';
-  preview: string;
-  time: string;
-  unreadCount?: number;
-  isMuted?: boolean;
-  isVerified?: boolean;
-}
+export type Conversation = z.infer<typeof conversationSchema>;
 
 export type ChatAction =
+  | {
+      type: 'save-conversation';
+      conversation: Conversation;
+    }
   | {
       type: 'interact';
       chatId: string;

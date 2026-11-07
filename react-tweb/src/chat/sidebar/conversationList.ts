@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ChatState, Conversation } from '../model';
-import { conversations } from '../demo/fixtures';
+import { getConversations } from '../state/conversations';
 
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 
@@ -19,6 +19,7 @@ export type ConversationMenuAction =
 /** Resolve persisted list changes and keep pinned conversations ahead of the remaining rows. */
 export function getConversationList(state: ChatState, now = Date.now()): ConversationListEntry[] {
   const entries: ConversationListEntry[] = [];
+  const conversations = getConversations(state);
   for (const [fixtureIndex, conversation] of conversations.entries()) {
     const preferences = state.conversationPreferences?.[conversation.id];
     if (preferences?.isDeleted) {

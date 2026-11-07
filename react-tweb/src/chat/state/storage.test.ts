@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { get } from 'idb-keyval';
+import { get, set } from 'idb-keyval';
 import { createInitialState } from '../demo/fixtures';
-import { loadChatState, parseSavedState } from './storage';
+import { loadChatState, parseSavedState, saveChatState } from './storage';
+import { chatReducer } from './reducer';
+import { getConversations } from './conversations';
 
 vi.mock('idb-keyval', () => ({ get: vi.fn(), set: vi.fn() }));
 
@@ -19,6 +21,41 @@ describe('saved conversations', () => {
     expect(restored?.activeChatId).toBe('');
     expect(restored?.drafts.dev).toBe('Keep this draft');
     expect(restored?.messages).toEqual(state.messages);
+  });
+
+  it('restores a locally created group and its profile edits alongside existing chats', async () => {
+    const group = {
+      id: 'local-reading',
+      title: 'Reading club',
+      subtitle: '2 members',
+      initials: 'R',
+      color: 'blue',
+      kind: 'group' as const,
+      preview: '',
+      time: '',
+      memberIds: ['you', 'alex'],
+    };
+    let state = chatReducer(createInitialState(), {
+      type: 'save-conversation',
+      conversation: group,
+    });
+    state = chatReducer(state, {
+      type: 'save-conversation',
+      conversation: { ...group, title: 'Book club' },
+    });
+    state = chatReducer(state, { type: 'select-chat', chatId: group.id });
+    vi.mocked(set).mockImplementation(async (_key, snapshot) => {
+      vi.mocked(get).mockResolvedValue(snapshot);
+    });
+
+    await saveChatState(state);
+    const restored = await loadChatState();
+    expect(restored).toBeDefined();
+    const catalog = getConversations(restored!);
+    expect(catalog.filter((conversation) => conversation.id === group.id)).toEqual([
+      { ...group, title: 'Book club' },
+    ]);
+    expect(catalog.some((conversation) => conversation.id === 'dev')).toBe(true);
   });
 
   it('retains messages and drafts when no conversation is selected', () => {

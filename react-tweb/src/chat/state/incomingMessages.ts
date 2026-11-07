@@ -1,4 +1,4 @@
-import { conversations } from '../demo/fixtures';
+import { getConversations } from './conversations';
 import { CURRENT_USER_ID, type ChatState, type Message } from '../model';
 import { updateConversations } from './conversationActions';
 
@@ -9,7 +9,7 @@ interface IncomingMessageOptions {
 
 /** Apply a local incoming message and the archive policy without changing the active conversation. */
 export function receiveMessage({ state, message }: IncomingMessageOptions): ChatState {
-  const conversation = conversations.find((entry) => entry.id === message.chatId);
+  const conversation = getConversations(state).find((entry) => entry.id === message.chatId);
   const isDuplicate = state.messages.some((entry) => entry.id === message.id);
   const hasContent = Boolean(
     message.text.trim() || message.attachment || message.sticker || message.media,
@@ -40,6 +40,12 @@ export function receiveMessage({ state, message }: IncomingMessageOptions): Chat
 
   return {
     ...updatedState,
-    messages: [...state.messages, { ...message, text: message.text.trim() }],
+    messages: [
+      ...state.messages,
+      {
+        ...message,
+        text: message.text.trim(),
+      },
+    ],
   };
 }

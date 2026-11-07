@@ -383,15 +383,6 @@
     visibility 200ms;
 }
 
-.composeButton {
-  pointer-events: auto;
-  width: 54px;
-  height: 54px;
-  color: white;
-  background: var(--accent-color);
-  box-shadow: 0 3px 9px rgb(123 65 150 / 18%);
-}
-
 .contextMenu {
   min-width: 180px;
   width: max-content;
@@ -582,10 +573,6 @@
   font-size: 20px;
   font-weight: 500;
   white-space: nowrap;
-}
-
-:global(:where(:root[data-touch-supported='false'])) .composeButton:is(:hover, :active) {
-  background: var(--accent-hover);
 }
 
 .empty {
