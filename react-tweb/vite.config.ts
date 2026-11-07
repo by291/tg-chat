@@ -3,6 +3,10 @@ import { defineConfig } from 'vite';
 
 const libraryChunks = [
   {
+    name: 'editor',
+    test: /\/node_modules\/(lexical|@lexical)\//,
+  },
+  {
     name: 'react',
     test: /\/node_modules\/(react|react-dom|scheduler)\//,
   },

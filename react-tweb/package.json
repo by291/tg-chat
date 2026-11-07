@@ -14,9 +14,11 @@
   "dependencies": {
     "@ark-ui/react": "5.40.0",
     "@emoji-mart/data": "^1.2.1",
+    "@lexical/react": "^0.53.0",
     "@tanstack/react-virtual": "3.14.22",
     "emoji-mart": "^5.6.0",
     "idb-keyval": "6.3.0",
+    "lexical": "^0.53.0",
     "lottie-web": "^5.13.0",
     "lucide-react": "1.68.0",
     "motion": "14.9.1",
