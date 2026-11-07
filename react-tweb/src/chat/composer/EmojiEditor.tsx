@@ -64,6 +64,11 @@ interface EmojiEditorProps {
   onError: (message: string) => void;
 }
 
+// Lexical unmounts its placeholder on input; our persistent sibling must finish its exit animation.
+function renderNoPlaceholder() {
+  return null;
+}
+
 function isSameEditorValue(current: EmojiText, incoming: EmojiText) {
   if (current.text !== incoming.text || (current.richText ?? '') !== (incoming.richText ?? '')) {
     return false;
@@ -271,7 +276,7 @@ function EditorSurface(props: EmojiEditorProps) {
             aria-label={props.label ?? 'Message'}
             aria-multiline="true"
             aria-placeholder={props.placeholder}
-            placeholder={<span className={styles.placeholder}>{props.placeholder}</span>}
+            placeholder={renderNoPlaceholder}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 // Cancel the composer context without also closing a surrounding chat layer.
@@ -284,6 +289,13 @@ function EditorSurface(props: EmojiEditorProps) {
         }
         ErrorBoundary={LexicalErrorBoundary}
       />
+      <span
+        className={styles.placeholder}
+        data-visible={!props.value.text && !props.value.richText}
+        aria-hidden="true"
+      >
+        {props.placeholder}
+      </span>
       <ComposerFormattingToolbar isExpanded={props.isExpanded ?? false} onError={props.onError} />
     </div>
   );

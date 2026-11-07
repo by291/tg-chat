@@ -1,7 +1,8 @@
-import { Check, ImagePlus, Maximize2, Minimize2, Paperclip, Send, X } from 'lucide-react';
+import { ImagePlus, Maximize2, Minimize2, Paperclip, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createAttachment } from './attachments';
+import { ComposerSendButton } from './ComposerSendButton';
 import { EmojiEditor, type EmojiEditorControls } from './EmojiEditor';
 import type { EmojiText, CustomEmojiEntity } from '../emoji/customEmojiEntities';
 import { EmojiPicker } from './EmojiPicker';
@@ -285,14 +286,12 @@ export function MessageComposer({
             editingMessage ? undefined : (sticker) => onSubmit({ text: '', sticker })
           }
         />
-        <IconButton
-          label={editingMessage ? 'Save message' : 'Send message'}
-          className={styles.sendButton}
-          disabled={!canSubmit || isPreparingAttachment}
-          onClick={sendMessage}
-        >
-          {editingMessage ? <Check /> : <Send />}
-        </IconButton>
+        <ComposerSendButton
+          isEditing={Boolean(editingMessage)}
+          hasContent={hasContent}
+          isPreparingAttachment={isPreparingAttachment}
+          onSend={sendMessage}
+        />
       </div>
       <DiscardEditDialog
         isOpen={isDiscardOpen}

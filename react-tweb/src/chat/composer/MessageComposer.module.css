@@ -95,3 +95,21 @@
 .fileInput {
   display: none;
 }
+
+.sendButton[data-mode='voice']:disabled {
+  opacity: 1;
+}
+
+.sendGlyph {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sendButton[data-mode='send'] .sendGlyph svg {
+  fill: currentColor;
+  stroke-width: 1;
+}

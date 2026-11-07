@@ -178,7 +178,7 @@ describe('conversation interaction', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Cancel reply or edit' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Send message' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save message' })).toBeNull();
 
     await openMessageAction({
       user,
@@ -188,7 +188,7 @@ describe('conversation interaction', () => {
     await user.click(screen.getByRole('button', { name: 'Save message' }));
     const message = screen.getByRole('group', { name: `Message: ${originalText}` });
     expect(within(message).queryByText('edited')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Send message' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save message' })).toBeNull();
   });
 
   it('keeps an edited message until discard is confirmed, then restores the unsent draft', async () => {
@@ -245,7 +245,7 @@ describe('conversation interaction', () => {
     await waitFor(() => {
       expect(screen.queryByRole('group', { name: `Message: ${originalText}` })).toBeNull();
     });
-    expect(screen.getByRole('button', { name: 'Send message' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save message' })).toBeNull();
   });
 
   it('preserves the draft when jumping to and cancelling a reply', async () => {
