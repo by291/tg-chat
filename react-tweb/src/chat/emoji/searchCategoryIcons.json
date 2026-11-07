@@ -1,0 +1,79 @@
+[
+  {
+    "id": "5355088357070218139",
+    "emoji": "\u2764\ufe0f",
+    "name": "Love",
+    "renderer": "canvas",
+    "category": "love"
+  },
+  {
+    "id": "5357465415310124060",
+    "emoji": "\ud83d\udc4d",
+    "name": "Approval",
+    "renderer": "canvas",
+    "category": "approval"
+  },
+  {
+    "id": "5357216259962315463",
+    "emoji": "\ud83d\udc4e",
+    "name": "Disapproval",
+    "renderer": "canvas",
+    "category": "disapproval"
+  },
+  {
+    "id": "5357257143756005264",
+    "emoji": "\ud83c\udf89",
+    "name": "Cheers",
+    "renderer": "canvas",
+    "category": "cheers"
+  },
+  {
+    "id": "5354785574760753200",
+    "emoji": "\ud83d\ude04",
+    "name": "Laughter",
+    "renderer": "canvas",
+    "category": "laughter"
+  },
+  {
+    "id": "5354978715145085779",
+    "emoji": "\ud83d\ude26",
+    "name": "Astonishment",
+    "renderer": "canvas",
+    "category": "astonishment"
+  },
+  {
+    "id": "5355181227148059369",
+    "emoji": "\ud83d\ude14",
+    "name": "Sadness",
+    "renderer": "canvas",
+    "category": "sadness"
+  },
+  {
+    "id": "5355125405458113381",
+    "emoji": "\ud83d\ude21",
+    "name": "Anger",
+    "renderer": "canvas",
+    "category": "anger"
+  },
+  {
+    "id": "5357252827313874903",
+    "emoji": "\ud83d\ude10",
+    "name": "Neutral",
+    "renderer": "canvas",
+    "category": "neutral"
+  },
+  {
+    "id": "5354848362887653592",
+    "emoji": "\ud83e\udd14",
+    "name": "Doubt",
+    "renderer": "canvas",
+    "category": "doubt"
+  },
+  {
+    "id": "5354832952544993830",
+    "emoji": "\ud83e\udd2a",
+    "name": "Silly",
+    "renderer": "canvas",
+    "category": "silly"
+  }
+]

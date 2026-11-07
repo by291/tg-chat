@@ -1,0 +1,1668 @@
+{
+  "retrievedOn": "2026-11-07",
+  "source": "Telegram Bot API",
+  "format": "Original TGS with locally rendered first-frame WebP previews",
+  "packs": [
+    "https://t.me/addemoji/FaceEmoji",
+    "https://t.me/addemoji/HandEmoji",
+    "https://t.me/addemoji/GoldUtyaEmoji"
+  ],
+  "files": [
+    {
+      "file": "FaceEmoji/5249007745805328497.tgs",
+      "sha256": "f883abf6e0212888b6bffecf49cfdd0f1dba4e7543ac7a75ff8528e639b83afe",
+      "previewSha256": "fc053f225a6ec576fc2a350e2bc4e5043c96a320afdd8e29728a535768e1b035"
+    },
+    {
+      "file": "FaceEmoji/5371006802949315307.tgs",
+      "sha256": "ad1b668fad2591dae6e5bc7e7d3317f256e7eabaab2032fe719d6708e34be0c4",
+      "previewSha256": "ebb1dba49b033796a2f75b16a82b57b6400aa771f03a9f22f437535cf976a60c"
+    },
+    {
+      "file": "FaceEmoji/5472116818497771781.tgs",
+      "sha256": "9fdda56fc9cdc240b05cbec9e3a301972bf89d9b0706074c7a92b21dace0ada5",
+      "previewSha256": "d96866a87a145d7f7d4d2fbc5d2840757b7f1c760dcfe90a49194636671547e9"
+    },
+    {
+      "file": "FaceEmoji/5226876951855113572.tgs",
+      "sha256": "3f4cdff2bff0cc74dc8ac1d263588790488a7ce28690d8c87cf9502504b48da2",
+      "previewSha256": "827d7ddbad39711289c997d8fb01cf1d9f169692cdea5d2f60ae201a578ecfd4"
+    },
+    {
+      "file": "FaceEmoji/5370800648814073452.tgs",
+      "sha256": "7bcd29917d1b4fb77e50ffec983e52f4d279dd548e9af901897627945b3ac6fd",
+      "previewSha256": "4d8bda0f6b3bf085c96276804d451c933be64eb39db84ffbe02a36146b37b9df"
+    },
+    {
+      "file": "FaceEmoji/5364343169779504660.tgs",
+      "sha256": "2ffca750b6ae6fa734c3e64eb0b7779aee2e864c25d3f89b45628da3ac3f6bde",
+      "previewSha256": "778be775341c5369a555ab4669f04303b7d5b3de40321b487bf6b8c6649eb3cd"
+    },
+    {
+      "file": "FaceEmoji/5409351484988987888.tgs",
+      "sha256": "940194e81bcdcb073e6f423634ac7dc9ba6a9ca582db4be1699a86e13b59f88b",
+      "previewSha256": "c758f98b02266cb2a1a522d054eca77c8bc36230765c44f78c188e359bc99165"
+    },
+    {
+      "file": "FaceEmoji/5388929052935462187.tgs",
+      "sha256": "8e7c8b2633bc68d37bde1cf3607b77ed6238f56973df801401a6227877c03ea3",
+      "previewSha256": "640bec22156165bb6c79e0e96cd959a1488a3a9e080cc2fbd29123c05c91337e"
+    },
+    {
+      "file": "FaceEmoji/5470139003237835974.tgs",
+      "sha256": "472a2ad3f64124b65d3a269182938a0c5e011b224ffd94f22bd337dcc6a24e4b",
+      "previewSha256": "b528108d7752a05d46917ee416db6d3bd94bbe08bf38e48a751e402eb9aec8b1"
+    },
+    {
+      "file": "FaceEmoji/5379556755690756903.tgs",
+      "sha256": "e8fd67e99a62f527c493ea5253d64cae549c223dc085ca4ad85b19cb0b166749",
+      "previewSha256": "6f86a0038473d81f9a9ab93c4c3079fea38a6fefa8c6dee6c0ab35089cc5349e"
+    },
+    {
+      "file": "FaceEmoji/5393147196151438001.tgs",
+      "sha256": "b9fcd933122750568f7a52acccc30a30469be8113c68f201f2c85bbc4e0f9510",
+      "previewSha256": "918c962d974b490e1d4f834db5d6cc0cce973c15d0591ce6d2a0ac57e53d81a3"
+    },
+    {
+      "file": "FaceEmoji/5251304316358108171.tgs",
+      "sha256": "4803a24db6b10315fe7fb8099cadf68a28dec5151e6728d8ae5505cabb612d99",
+      "previewSha256": "b9639e1787b07b45315e2397fdaecdb813bfdaab0eb762ea93b799ef34f1d466"
+    },
+    {
+      "file": "FaceEmoji/5377672218530552628.tgs",
+      "sha256": "c66ce4e52357df9ddfaa48b48c5bf3e984b9c8d98b471a186882faea3aca26ac",
+      "previewSha256": "12ad811655bc418ed72b12560177caea336d0b6b3c556fd02ee4f44b6916cc71"
+    },
+    {
+      "file": "FaceEmoji/5372914270939913780.tgs",
+      "sha256": "9dee9313b2d5cc4e7eb27e3e76cded65b1d47aa306575f746e348fe027af2cfe",
+      "previewSha256": "98e2bde01bc816c24a35d23f32340ebf6eb1cd705b009da7dbf28c82836b576a"
+    },
+    {
+      "file": "FaceEmoji/5249198485302944651.tgs",
+      "sha256": "94c293dc62b594e8541ead4bc8f4505298a046ffdd31315fed48533e2f0ff491",
+      "previewSha256": "c099ea807afa09eae251c639da18a675db0a98c0921ce6291a71a37b2e8045c8"
+    },
+    {
+      "file": "FaceEmoji/5375131899993792435.tgs",
+      "sha256": "d37322bedfa2b13033831f3d09be46ced945880757086426b72ddffd46eb45b0",
+      "previewSha256": "2924eeb72575565d508d0f0954a9251b09d884af92a9436d32beb8e5dc8fa7b7"
+    },
+    {
+      "file": "FaceEmoji/5404412517411725259.tgs",
+      "sha256": "6bacb55467346ebeb176a1a0621d5c546412f42606fb5c19960d7cc11d6329a0",
+      "previewSha256": "1b2b2b3acc26f25b6899d9c8c032b24991ee61dfaad328cb15cdfd4d4ca30019"
+    },
+    {
+      "file": "FaceEmoji/5366531532926231383.tgs",
+      "sha256": "7b0514b1811ff3824f399f7a74998869248a7f0046a5a2320aee1f41796cc149",
+      "previewSha256": "86794a17c547059c44eadb23f254b2be67728a9968149f76288bf370c7c7bb63"
+    },
+    {
+      "file": "FaceEmoji/5368809197032971971.tgs",
+      "sha256": "b2bd2ae50f52446e19bea4aef1c99320f274e477034999f5307193f17b9d01f5",
+      "previewSha256": "9703eea7edaf47aac5adb3a3fe7858e0d91d8311abde458a643f372d582fbe1b"
+    },
+    {
+      "file": "FaceEmoji/5251397349644706382.tgs",
+      "sha256": "c2e26796894bd3c3a463d8e6ca7e297bba883fb2964296e63186ee15c458d8af",
+      "previewSha256": "38075e23d84fa3903741127591ce783e38d6d4ceb46289a7aa5b983c81457a24"
+    },
+    {
+      "file": "FaceEmoji/5375088228766325394.tgs",
+      "sha256": "1f57f23015db914d0c524f98d2af267ab17093651a2a0069576917170a1cedaf",
+      "previewSha256": "61e79ca8759c505da8225a542d3e29749ad80f492d52b0e29dc2dcaeb5675529"
+    },
+    {
+      "file": "FaceEmoji/5246885387716011812.tgs",
+      "sha256": "6ce8857f5db5ad698bc6ebd7b0d328410ec345f8db47fef7f62dbc4a3e58d9bc",
+      "previewSha256": "c52c26f4a2474f546bc3ed38a2c8937bea7a33a82754dd0f8243d54fa26c00e1"
+    },
+    {
+      "file": "FaceEmoji/5391164853995969598.tgs",
+      "sha256": "aa9d288752e87f8053917b7974f7a101b434b1d657b70721b362810f75493e2b",
+      "previewSha256": "9f370ba11e56c2eb0b0da5b4d28f51c8bd52a4ca3d74f3c9305c4e79d4be90e9"
+    },
+    {
+      "file": "FaceEmoji/5384455522374135242.tgs",
+      "sha256": "631a060cff9b70b858e39cd0dfa36fd585c52f73e38e4db887aac36f9b344f72",
+      "previewSha256": "dabf7b10283510c49f371b97824eab3cbcf63a20fe36b1c5de64cbe3d8c9004d"
+    },
+    {
+      "file": "FaceEmoji/5246723750916795204.tgs",
+      "sha256": "8e7d10731f9e785328706c6a1d45fce18c7e2b2716f26b8c9e5c290f53063b60",
+      "previewSha256": "ebc68ef4d987da69c849d5109f1bca8d2a8b98304bc6ecd6a1d356986f7f069d"
+    },
+    {
+      "file": "FaceEmoji/5404743771059395517.tgs",
+      "sha256": "aab320bfe2225ff0807ab629314973a92a69a4c37eafa7bee6227abe1e79015b",
+      "previewSha256": "b700771e31f47024e0c6a0e327dab53db8b4c2b77e4f26a623f01bd7c55bd7ca"
+    },
+    {
+      "file": "FaceEmoji/5474143626449656407.tgs",
+      "sha256": "97bff455eeb5f2dac81b5d8b7731fd6f8adfe8748f41a17baf2ecd9ab4ff9178",
+      "previewSha256": "4ed14f0e8d474bc4b635f7ab7d32ccd8fe16211f7a1e7612f63110631bdcc748"
+    },
+    {
+      "file": "FaceEmoji/5381855971943389791.tgs",
+      "sha256": "b6117d45907411f8776b8b35597f1c3a183ffa3ab7982cdaad2f0207f2ff84d1",
+      "previewSha256": "30f8cf51a7d08d17d3a559b86c0bffc97c3216487c17aacb3043c5654340946a"
+    },
+    {
+      "file": "FaceEmoji/5454173029250636981.tgs",
+      "sha256": "31b1f329c55d7a9c1c13124827f9c673ed3466a319fd06ecb7ee6f1500057786",
+      "previewSha256": "5e1b4b90e9e714228aac2c6e06c25bea0e9c926c7005decbd75f3fa7f0066465"
+    },
+    {
+      "file": "FaceEmoji/5377344615605083432.tgs",
+      "sha256": "af8719e5f62a4ec77fce361dd2fd109c4826377c0559ec71567450d1f89899a3",
+      "previewSha256": "91de1c60fd0f5cda4e87f3008709c68dc6ff1959d3c2e518c50925614971be07"
+    },
+    {
+      "file": "FaceEmoji/5445397461877136201.tgs",
+      "sha256": "58fb49eeb528251b9805ca9a72762da2e0a39a9d93ffe653e756af536a724272",
+      "previewSha256": "d36c2393cfc0bc28de67ddac6be7e4be762d521b134b2ec8c2e93b8619b11a46"
+    },
+    {
+      "file": "FaceEmoji/5251434509701751661.tgs",
+      "sha256": "708ce9210a988d5d851eda9b4caf149f1a1570c9d129c1698570794ff557a34d",
+      "previewSha256": "8928e0037a6d3c8d83bb7a54644281d46e029683acfc31c19deb72d30b448dd5"
+    },
+    {
+      "file": "FaceEmoji/5470010106974314312.tgs",
+      "sha256": "50ab118e681f69698b36c1e378c8e5c7c4255c5217676d78b54cb67a00be9e24",
+      "previewSha256": "1e6cdb70e293ed765eb2b31a761db24a883d3b8d1721fdaab28196ed29254e25"
+    },
+    {
+      "file": "FaceEmoji/5233550579413819858.tgs",
+      "sha256": "faebfd8367507ed487e5a30986b6830534837a6fdfb9f649f24ff5b4349615fb",
+      "previewSha256": "f834dca64198279ce731191735a48e49eedba68fdbf290aa3b24eb3fdd726dbe"
+    },
+    {
+      "file": "FaceEmoji/5247224183326256799.tgs",
+      "sha256": "3a814c1320a68c2ba11e1384b101c8b51a33dc3c9f1cda802e380212c1c560b9",
+      "previewSha256": "f696cc1e43b25130411edd0a79eea40cf975d0b17d8f8ba07b1f506fc2f8f4c6"
+    },
+    {
+      "file": "FaceEmoji/5449656926973469265.tgs",
+      "sha256": "4d72990c43e9e2dfd8fdf1d315a182c1821068000d47850eb7d9abbf2242a903",
+      "previewSha256": "e4a687136d53c1a241b022a0f728a8252b2fcf2997e7a897e500e5a0e8050e27"
+    },
+    {
+      "file": "FaceEmoji/5391210243210353922.tgs",
+      "sha256": "98510085aa2795cb4e0a1cf0cf824c7a9d43d7ff5cae7aa219ab9ee4a0d606ee",
+      "previewSha256": "e07e936594d5b312f795a7abe1f1267bdb8a63cd28acf5b352fd0bd3c1b49d15"
+    },
+    {
+      "file": "FaceEmoji/5382319231410904354.tgs",
+      "sha256": "1903ce7aad025913e951d67140a12bfef59f117d530cae2e8d8e451f8503528b",
+      "previewSha256": "2de3f4e3ebad78e122b13c6d6bdfe54f1b61d4bece60ae5124af574e52741ed9"
+    },
+    {
+      "file": "FaceEmoji/5228804314134226293.tgs",
+      "sha256": "8d6282413c06a91a4851c900cc5319536664987cf196b542f6893f416741f905",
+      "previewSha256": "9f4b47e4ff3097f2bf71780d2783fc897cd0e7bb25882a11af7687517afd6f1d"
+    },
+    {
+      "file": "FaceEmoji/5391042881219731337.tgs",
+      "sha256": "62d4332e87ddf35c79d5f9cec05bb714e621fc9cca4f7fcb4f56dbba0344cecf",
+      "previewSha256": "c844a352e3ce73f1710ee6361be85cd8092809599f3508ecd43b97e4120edfb6"
+    },
+    {
+      "file": "FaceEmoji/5206186681346039457.tgs",
+      "sha256": "3bd0cae22eb2d7758177bebce8f61d9b31f5b752fb059d210e485ee86b7754d1",
+      "previewSha256": "8b6f88ecc458dfb7475aa261946f2d8a92d058e0962d7c8fd51300757b083bd9"
+    },
+    {
+      "file": "FaceEmoji/5203980348056149676.tgs",
+      "sha256": "5c51f86b0c418e595475b9e9237a4af6806e0ea3c049c36dd96adde6a2ed9d9b",
+      "previewSha256": "eceea73129251cc48f2cf993128f067c059c606da05218399ce53161e70dc0ea"
+    },
+    {
+      "file": "FaceEmoji/5235887071687615448.tgs",
+      "sha256": "030e0f791c7a4d481255c1de90774adf79ccb2255cb31d52e40a582388bce627",
+      "previewSha256": "b0d0dfde3da52d49ff50e9d64b96d45bac247dbadae14b89f02536a599544eb9"
+    },
+    {
+      "file": "FaceEmoji/5204204867471547076.tgs",
+      "sha256": "ff7205262f10be15ec6ed8c00808fcf7bdfcf6ab930d5dc9c6bd56119485e9a9",
+      "previewSha256": "6a89872e9d63be43277570d30c861b2ba4fca4ad0e140e092a456a244690615b"
+    },
+    {
+      "file": "FaceEmoji/5249030062455398728.tgs",
+      "sha256": "1040a7a0857b475c0b454f48cae5aa9657f072cf4b99b9e1d1bbb4f960829655",
+      "previewSha256": "8cc31a9e7fc49c98624ea71f191e4230714da3f77ec182c6d799f315598dae75"
+    },
+    {
+      "file": "FaceEmoji/5249065319841931818.tgs",
+      "sha256": "2f55d4610fa4f7093186ae04cb9e054d9335ca5c4d2e086dbe6b6fd9b5a2aac4",
+      "previewSha256": "d9c2005af75e1d90238bcf8dae20cb6111eb14c713c9b3f82540efc3499fe3cb"
+    },
+    {
+      "file": "FaceEmoji/5199790590279033017.tgs",
+      "sha256": "8188a670325789be40abfa6f5182246e49a6b75eb5ecf015efd0cae90b1b4c13",
+      "previewSha256": "823bfd46ba6a1b8dd8cea91cfcc0d9aec5c7e691b41509fad0a6742fb27063a7"
+    },
+    {
+      "file": "FaceEmoji/5208782954716733247.tgs",
+      "sha256": "41731cbff15d3973b986a3ecfa045be9310e196012e031ef47704fb9f5f53efc",
+      "previewSha256": "e98780a667a293a67a19967bf8c1a25664990f67ac712846ea50de16f2bac47e"
+    },
+    {
+      "file": "FaceEmoji/5226772700113935347.tgs",
+      "sha256": "04bad24cfd16ea0f1e575cc5f494dfd71e2a69a8ad255371fd45b9442467170d",
+      "previewSha256": "e389bf5e808f6523cf577ce78585e59a73239905ea8232fef0e7fa93eed1dd6e"
+    },
+    {
+      "file": "FaceEmoji/5195227797412387977.tgs",
+      "sha256": "33b53a15acf2b982e36929a6f96326e3ec496a00f5322c236dc84477511c8efd",
+      "previewSha256": "508e734ae0d405b041dc2f2fa399e1539ea15c5592c5cec9d4f82dfe434d8a68"
+    },
+    {
+      "file": "FaceEmoji/5208847714233621951.tgs",
+      "sha256": "7267d0be1b03e971840c9aa7689aa3d3078c56f97a045b902138557e2e284b92",
+      "previewSha256": "c1aee89c137f54c0847368d28dea5355e7715d000fb7abeb4fd602fc74dd62ad"
+    },
+    {
+      "file": "FaceEmoji/5204265911841727318.tgs",
+      "sha256": "84d61a2a2ec1245c003b8b2f0fe1c05503d09a66154f007f7ac6b13f2aee8e31",
+      "previewSha256": "359ffc2bf9f09d75cf2e6085877c85a2b7eea2227af86eaa197f6efc885f98ea"
+    },
+    {
+      "file": "FaceEmoji/5206432422194849059.tgs",
+      "sha256": "21bb7343bf5c6a6522ae088a63e9f49b3d164834f57f92c41315e848d36cf6e6",
+      "previewSha256": "78aaf875be041283402e0347d188a7f70fff69ee454c548a7716e509e7ee46f0"
+    },
+    {
+      "file": "FaceEmoji/5384186459852906360.tgs",
+      "sha256": "5e6896d243675d515a2446b961aa37103d324bd18d7ee2a65cfa4611cc8956b6",
+      "previewSha256": "50274ff41ef6f9cafd836a4014218a70588f47a63328e5b742e6b4998a7aa419"
+    },
+    {
+      "file": "FaceEmoji/5238025132177369293.tgs",
+      "sha256": "de915cd2b392fa64b7fdb090ce2a224ad087359c44718abb5994d7ffc77d80ab",
+      "previewSha256": "2bd2afcf3a0b41c48e92c7a54e6915ebc55b67a4dda27fb92ded3ebe1333b7db"
+    },
+    {
+      "file": "FaceEmoji/5242500556819274882.tgs",
+      "sha256": "94f88a5845c6aa1b8aef0bcc715adae164c33b4743d8b3b6808e89773089d589",
+      "previewSha256": "5e2d6e318691a9ea0ffda49fa9d4653b587a6e9b6eef104bd4c56268a9b94df2"
+    },
+    {
+      "file": "HandEmoji/5377637695583426942.tgs",
+      "sha256": "a82f8554d94949f1f0d55acf9172c26f4ab62eb2ef9723e864ca2bdf433e922d",
+      "previewSha256": "f3b85b477e62ee8a80debfc094cb39a9bf5087f51b1e5b9be0bfa6e731e6c148"
+    },
+    {
+      "file": "HandEmoji/5416025958656253132.tgs",
+      "sha256": "b3a70886d12be1d42a4225ff5144d77b3dc71f1a8f80d0198a8c3850a56efa16",
+      "previewSha256": "2e384dbd7da03acaacd65800895dee0fc97b698cafecc1bb5b070fbda0530033"
+    },
+    {
+      "file": "HandEmoji/5393362124904866975.tgs",
+      "sha256": "30be167892af69f6656ea11e2ba302988cc22121094bc1abe44c3dd05967eec8",
+      "previewSha256": "e2057a656d1f5b8d399f8c5e23a9a23397d9e1e188c8dfe9aa5e5e03931b10cf"
+    },
+    {
+      "file": "HandEmoji/5370626028328722645.tgs",
+      "sha256": "dde7df629c32fa785143a13d47fc1cfa240f02573e580e74b47c5031b3fd55fd",
+      "previewSha256": "bd52d1606f1385eb1125b9d785c1861553743efd39814b70b450855b0cf6b4d1"
+    },
+    {
+      "file": "HandEmoji/5413807449134079799.tgs",
+      "sha256": "863d916df8f2938eded52b25cc0a62ad77734f62a788c55206115b831049846d",
+      "previewSha256": "be870065c3fd5ac0434384743c7e937d28de8abda509177c8d8301e6f4bff50d"
+    },
+    {
+      "file": "HandEmoji/5407057942388153892.tgs",
+      "sha256": "b6a32be0f13c3f49b64fb4887c24a114e1749f3a95f88a920331d8e7ce6c0b42",
+      "previewSha256": "f5e3de515dd7492f86974de8052d8a50fcc5714734ae14b5c40fb996bfd23176"
+    },
+    {
+      "file": "HandEmoji/5382237760176265857.tgs",
+      "sha256": "d6cfc7815c9dd5e7d1d612f1002396b0c2f193fecf16b5d8ca8a6eae659da351",
+      "previewSha256": "114a08e82d525dfd8fb0b043a3c5d6d3bb0f4002383da0ce16f268d8d1467010"
+    },
+    {
+      "file": "HandEmoji/5375314504823347930.tgs",
+      "sha256": "291cdd637e7d21b5da97207689d9582dfc91d186fc1ce6a5f26236f2b44b6c98",
+      "previewSha256": "eea9de970dd44df5a399320b42b749e46c425e7369e86aecfe628103b26c9ca7"
+    },
+    {
+      "file": "HandEmoji/5388881284309195257.tgs",
+      "sha256": "51cd08d5344fbc61e5ba77d247da2c92fc0039e230376a80af5a151350ccae9f",
+      "previewSha256": "965942b77d30eb10cb6e42df0e8b1eb838ec79ae89a07fdf38f4381e78692cd6"
+    },
+    {
+      "file": "HandEmoji/5411307709448331025.tgs",
+      "sha256": "313797fbe0b99340d5382f069bbc23598848deb5012de58ad37020486b40e69e",
+      "previewSha256": "16125ae8e2cd29643a0e08617a372ed5e9510f426fa2462e8657706cd00c040a"
+    },
+    {
+      "file": "HandEmoji/5386853570119212191.tgs",
+      "sha256": "8c602cb45a6a3d6625053e9dcc49e09f18033a2eb203c5efff6ee8de42ef19b4",
+      "previewSha256": "23e7ebb384ce7e2ebfb899e19ec2f6621e20438751331acd227889236d58fcc0"
+    },
+    {
+      "file": "HandEmoji/5413683612342034207.tgs",
+      "sha256": "ea2f0dc706898c3103ab56bf24231f5b38935b7bd8a0584c26a55a4fa9c82e99",
+      "previewSha256": "e889f08e8db3556ccff01bf6cd4b1ede7ea269bc39b4a5660858b211dd9399a2"
+    },
+    {
+      "file": "HandEmoji/5375285788672006208.tgs",
+      "sha256": "3570bf2342fd0bf74b5cb0de0270f172e54f789abf1d4b7fa328da8f2a2cc05f",
+      "previewSha256": "c4c62d64eee58d5423e24453c7c3ffe07d3b3168c4a7712b643b1cd6253123e3"
+    },
+    {
+      "file": "HandEmoji/5377548235709619284.tgs",
+      "sha256": "22e117474e5eca173c9937cb70e513f3465f68a25b2b5967260528c71473e5c0",
+      "previewSha256": "3509460eb982397849ea8ec49537094e4a6428f07923417c0b705cf0c5bffd6a"
+    },
+    {
+      "file": "HandEmoji/5381888390356541373.tgs",
+      "sha256": "bb2fc595a4f629245a60ddbac6bccb1a1d6388b36909bc005ccda961367bb483",
+      "previewSha256": "80b457a196af022e54d3533a5ae1f2e6fbf763440812b1da90f952b587bfdee2"
+    },
+    {
+      "file": "HandEmoji/5368324170671202286.tgs",
+      "sha256": "06adbf50a8851aaf02770c29c09b717d6c302a05721f8f71464e14883c08b283",
+      "previewSha256": "30a95faf5e491770898fddf38036b061b9e0a6c0b1386a21a1fbeaeb5ea638ea"
+    },
+    {
+      "file": "HandEmoji/5375297105910831597.tgs",
+      "sha256": "42108492010f50f4fc9c3b1007b157d157e097da4a3d0e21811967bc3b44c03f",
+      "previewSha256": "570cd3aeeaec1580939fb6f12031fe6076be6afb3a7f30aee9c2cd0fba592436"
+    },
+    {
+      "file": "HandEmoji/5406765321971308150.tgs",
+      "sha256": "0d3b916c8d19cbf886775267a52404720e3f965293b47fa0ba484ee1fa0401ea",
+      "previewSha256": "2194b2a99d2f3584599434726b804281c407faed43d21d1e5f9baa522f1d5e9f"
+    },
+    {
+      "file": "HandEmoji/5408832021579438038.tgs",
+      "sha256": "266d49708deae684b80c4a146716b1d8d0048041eb0eb32c90e505527c32c6ee",
+      "previewSha256": "67d7b3f9e4f424b67b01336bf0323bdddc5048466cc057fa6990ff040812828d"
+    },
+    {
+      "file": "HandEmoji/5371031529076039304.tgs",
+      "sha256": "5fdfbf776770f8a3d2a3b360cf916aa5141f65457be089e16b3e938ecd287e1a",
+      "previewSha256": "77fc6378f2b2902641980ff4e35c71e64cdbce24d61cef61bed58b8f94c1bcf0"
+    },
+    {
+      "file": "HandEmoji/5370740716840425754.tgs",
+      "sha256": "f95c50329ad49929801ede716adb240db82d6d4c87e00020ef86ec39328f9817",
+      "previewSha256": "2f47821b225440b568a693040d485eb64901b37267fceb26a36db97040482e23"
+    },
+    {
+      "file": "HandEmoji/5384226763826010446.tgs",
+      "sha256": "daba828b1a0720df84889184025db96538a0ae7dcf9fcd2ff0eb9a6e4d0e9a4e",
+      "previewSha256": "8d0ba5486577a71ffe974fa71c6aeaca93539e51cc7dd37a22e4d88be2a9b7d5"
+    },
+    {
+      "file": "HandEmoji/5195448447062251797.tgs",
+      "sha256": "83c22b7fed339b0d2de8cf9cc60d50c49f5aaff4e6864bb95d4dce119cd9c7b2",
+      "previewSha256": "a1753e981fe2d6d603743ae6a787de5c10968b48fe7eaaf0a447e8bb406c9c7c"
+    },
+    {
+      "file": "HandEmoji/5375053319272144244.tgs",
+      "sha256": "f3f69bfb6d25f23dd1bb8a9839e03e09b8be2e268113da4c48910c1f6864b04a",
+      "previewSha256": "cd7c1506ec38450f9a01ffdd7b3fb08d17c5e3317e01f4b1af03171331a734ee"
+    },
+    {
+      "file": "HandEmoji/5370997336841393598.tgs",
+      "sha256": "d30e5febba087d8aa225fa78ab9d40773eb8419c0109208e0ac3cf0dcd557354",
+      "previewSha256": "927375f8c2dfb4c976b80c8d19ad50e616bffc774c72c71655db43228f599c15"
+    },
+    {
+      "file": "HandEmoji/5377860677400536988.tgs",
+      "sha256": "3c084ded8930a8b4e3a3f284225ca8a91908bb13f5a957d089871cc5c85ebfae",
+      "previewSha256": "c09c9a1de8bec7f500576f599314e065bd802b8332806c754b8ed7feca832c54"
+    },
+    {
+      "file": "HandEmoji/5384612769716774600.tgs",
+      "sha256": "6cda4c381011fa328268dbed71739004abfa8c4cd31687b458ef72beece61e11",
+      "previewSha256": "daa3abc9305c2b593f6880955bc8f2518044539aa02350df4fa2496b2278c5f3"
+    },
+    {
+      "file": "HandEmoji/5384611567125928766.tgs",
+      "sha256": "1bea56c89f1cfc99794da2460d7006de3408a2bbaf7eea0246f3c749691db0d1",
+      "previewSha256": "82253f2a48bddfcc0e3f391622750717b415afae61c749d5ed55150b1f1c5e50"
+    },
+    {
+      "file": "HandEmoji/5415898080299980921.tgs",
+      "sha256": "87ac763108acdbb5f9ae72bc63be97c6f78048ed576a0acd4df17e2b68b40741",
+      "previewSha256": "325f5a47aba15fdfb7be6ac94eab4b79ffc889e113eb59d547cddfbd856c5b7c"
+    },
+    {
+      "file": "HandEmoji/5420363154070707696.tgs",
+      "sha256": "711fe8ded0416c14a20754aa8cd926993992f1596dee07d3722f6d8bb934bc65",
+      "previewSha256": "3467f144bd01b4a0f4f5c8529906a04a7ff84f111f397a5989adb635e352ca1e"
+    },
+    {
+      "file": "HandEmoji/5420200958925742055.tgs",
+      "sha256": "4c6105c2816335f574a6ec5757ba8b44acff2295f01d56c732c5a9e185147189",
+      "previewSha256": "36413f713ac707873f5e83bdf644b0ea7d77ae8da92499f54119bb6ac777d34b"
+    },
+    {
+      "file": "HandEmoji/5427078438517218023.tgs",
+      "sha256": "8066b82775e9202b947e7248a33baa216d400946db9520908da54e35a695d661",
+      "previewSha256": "c4dc8c8c86c874f0ba7bef9f205fa494ae1446834dfbe6ab2e1dc0794888c3f2"
+    },
+    {
+      "file": "HandEmoji/5431781500720781493.tgs",
+      "sha256": "c5e2d59ee069903bd63043163f43e9ff1322fd4b0854adbe511d3d687399c74d",
+      "previewSha256": "79a6ca75a97bb867aec9b4fe772f2d8f22fac3e92a11e6829885311ca7856aa5"
+    },
+    {
+      "file": "HandEmoji/5431889291515010120.tgs",
+      "sha256": "c6240a62017f874cfd037f8da61aa043cac49f6fe37603e8390db419b9d14c59",
+      "previewSha256": "9cea88e5b8b405bb43d3d93bc68338f57c0e23a9a9592489d6b5d61ff762810d"
+    },
+    {
+      "file": "HandEmoji/5435884367014536083.tgs",
+      "sha256": "53f4e4d36de126799f2bdc67d18071038e51e831e7145b743194d815d6186926",
+      "previewSha256": "dd5ef897a79328bddc00a3ad3aef30e02bb9fa3403e0fd0af5cf0f4c052cd39e"
+    },
+    {
+      "file": "HandEmoji/5438583951528565450.tgs",
+      "sha256": "359a6da5f746a6c0c27e2cea712e3fb3a0796f85bc515c3a6e46aa3a9c63a8c5",
+      "previewSha256": "2da27d701ef85b493f8e92dbc8de60d8b2afbc4788a27be9f4f46043239b5459"
+    },
+    {
+      "file": "HandEmoji/5443048677406940863.tgs",
+      "sha256": "9224b011efcb29ea5b075fcf236036037fb49302155d407b18ca53bcce1a3358",
+      "previewSha256": "d9d264451b6cea10a9a7ecc3bd8bfedc08241a0fb5b87939042666cd7126e02c"
+    },
+    {
+      "file": "HandEmoji/5447315718825582234.tgs",
+      "sha256": "970ce3112c29f0750fefcb44cb01354660efe9ce4436eb734c4107aa1cc0e10d",
+      "previewSha256": "79df6a86e14878423577df8d8c1a627f7d09978474a7a6a11b7dbd1d494bc232"
+    },
+    {
+      "file": "HandEmoji/5452023368054216810.tgs",
+      "sha256": "429342fb7018ad6c22cc62ab0a21239ea498ca81b8dc97d022538144f7d4e324",
+      "previewSha256": "ca26f11813b66e5d740077731a9c785187bd952ed5689ac127576f5de32b5ac9"
+    },
+    {
+      "file": "HandEmoji/5204235688156862937.tgs",
+      "sha256": "95f8612d6e0c895d2eb99b07d39eec513fd3fb1505392084a373c0bfbd240a9c",
+      "previewSha256": "5635b55c20336ad6fba92d70f6b6102e91d76d629cb3cdb8e1ff1e81512fbc6e"
+    },
+    {
+      "file": "HandEmoji/5453984836668627018.tgs",
+      "sha256": "0d96a5fe7f8f18a9f8dfeb1f6085880d8dc0f93b723c8645d72b6135552decaf",
+      "previewSha256": "4caeff73991840493f83053339bc066f8a248c34ac79dce7f8876382e3f7982c"
+    },
+    {
+      "file": "HandEmoji/5204337251248512239.tgs",
+      "sha256": "87c25f4160922b2a40a4046f3b22b1ea6c60e6ec149e7489e5adc2261cb5e6f3",
+      "previewSha256": "caf3834ab493bebcd8969c0e68e8283684588bd6af0f0200b8f326169d0dfc7f"
+    },
+    {
+      "file": "HandEmoji/5458520502521829759.tgs",
+      "sha256": "f63ca5dc87e37d215fab986f3fe72e270816937192240c8c0d2cbdedca7f8478",
+      "previewSha256": "345f1e3aff7f61df3d9f6772d30d8881ce7980d1edd62d9643b180966e08fd31"
+    },
+    {
+      "file": "HandEmoji/5463090760041634232.tgs",
+      "sha256": "e1ceeca564fa2a326c873ac91a4725aa0c8332acc487b5b7610f5786ed482677",
+      "previewSha256": "2146d6d15c1ad2272df566c9b2214e09b81b732323b089e2ffdf08875a74b493"
+    },
+    {
+      "file": "HandEmoji/5467579593571443199.tgs",
+      "sha256": "63259498d503bcf9bd4c751b2c54b04e76e07215bbb3caa99bb3ac9a00bd7edc",
+      "previewSha256": "277950763d020eded81c599e2b83429d73b90ada1d7a7bea5c3924c773337a7c"
+    },
+    {
+      "file": "HandEmoji/5469651945356533523.tgs",
+      "sha256": "7c289db6f31d5277864286a6d43332ca23e769a99ebe3cb17ac86d9e90c6186f",
+      "previewSha256": "021940c3ed2d1255c33f4eac101c900c3de720d375e95aa3e32da1b440eaba07"
+    },
+    {
+      "file": "HandEmoji/5474283861426838934.tgs",
+      "sha256": "2cb1ba8138d288a0a1b337518bfd46116315dd459eeed8b37b142421037f5406",
+      "previewSha256": "b1a0ce8bb965d4f85ebebd1640ebdbb73fe6922d3a0d1f65875a54f5234f871e"
+    },
+    {
+      "file": "HandEmoji/5194948396904881244.tgs",
+      "sha256": "e054bad91c26a5893f634d82295ed7f287de4e5a090ca769b511ef50d09479c3",
+      "previewSha256": "7d22385455de3717e976bc6dc3cf733a33afd57a3e5f7b42f10ac1314ca71a46"
+    },
+    {
+      "file": "HandEmoji/5197311131428855039.tgs",
+      "sha256": "53363db9f1a5675a7103a6bd2a452b256b703a149e05a1e71b52f4f878050bf8",
+      "previewSha256": "43271fe93a1a83a860652375c8df58cce0ffefcc290dac6b81ba2c182b0bc825"
+    },
+    {
+      "file": "HandEmoji/5201743838326037402.tgs",
+      "sha256": "1e84a872a145bba097c70719368c5e142b855fa8c03495a9ff514ba188d1cb91",
+      "previewSha256": "495e3f6715c3e1dc0725794ff14a593d26d56200a6d773d8069007361f014392"
+    },
+    {
+      "file": "HandEmoji/5204118276635892650.tgs",
+      "sha256": "6fe5de14bcb3a8193868ceb7ffc70d7917b6404590828ab43927615040ce8b7e",
+      "previewSha256": "844e29773351f016ce6a30ae63c5eb48ab21396d63c93a6b82491d42889b69de"
+    },
+    {
+      "file": "HandEmoji/5204128352629169390.tgs",
+      "sha256": "1b37ccd5d685a999f01a24dc95bf2fff15fc9ba4cbebb73b6855db42b4438f53",
+      "previewSha256": "8c7efae791f46c6c9a99985e5aacaa7e7488cc5bfcfd2e7107ab2b2207f0da49"
+    },
+    {
+      "file": "HandEmoji/5210763162273456025.tgs",
+      "sha256": "666a7a2bdeafebed4dbc51455ddf7327562297d1e015bb1600a3904650fb7607",
+      "previewSha256": "88803f38d1990e68166cff812a573cd519449a51c25a26ddc5966b25548c8142"
+    },
+    {
+      "file": "HandEmoji/5215584804229095049.tgs",
+      "sha256": "9f950dba7b9880c2d1bb2db6ed0ce6ae89aca7c6aafb9515881c3f16e8e43faf",
+      "previewSha256": "98b6e0672127e8cd5dc7454f246f6d516d55411a13b6a1ac85e9648fdac88ffc"
+    },
+    {
+      "file": "HandEmoji/5219722648736504043.tgs",
+      "sha256": "c3c7ab85a6135080abc738945cda3c43c41409602c5a040f0665b7ceb828eab4",
+      "previewSha256": "67e977c1c36992a4f90fbbec8d6a569b8df4ebb208bcb7deaed5d5262a2469ce"
+    },
+    {
+      "file": "HandEmoji/5224254822781296893.tgs",
+      "sha256": "efed523e75315e50673e38b6d80680354b47b6eadde8d1b234d27a33afa9bdf2",
+      "previewSha256": "105a8c87f0c2129b9f62d9264ac7f4f2324d9489884b4a56b1229b57f896e535"
+    },
+    {
+      "file": "HandEmoji/5235882793900188063.tgs",
+      "sha256": "69045dc31d9507d008992ca1ab9f78694cc10dcf0529120c05c8ec655f828306",
+      "previewSha256": "15bd9aee833d6ff234c17b7c4df1f576f3294c22c4846e5692b208784d7fd2e9"
+    },
+    {
+      "file": "HandEmoji/5244516275165601594.tgs",
+      "sha256": "e9e69dbc6f46e8619c210c2ebe6c6d30010a773708095cd61d1cde7e857a6d64",
+      "previewSha256": "f1429613356a95b7dae4ca921abe1583082dbc5a75edbaabaf48eb213f8aa7ff"
+    },
+    {
+      "file": "HandEmoji/5244482516722655121.tgs",
+      "sha256": "8b3ae01db949acb34ad7f5207e81bc5ebe7cf2f2ba0043f7eb445722dd2f3700",
+      "previewSha256": "c98ab82ed6c8917bce9a6f172cdd121beaadd453ca28099a3e57b3bdb642566c"
+    },
+    {
+      "file": "HandEmoji/5247152118069992250.tgs",
+      "sha256": "b696669d6e042476eb031fb21e8baf5794534fc530d1a88f5d25b9a0a0fd9ce7",
+      "previewSha256": "5f4fd9ac08d29ce045f92c500322ea534175daa0c9c0460b86b8cad3c29db62e"
+    },
+    {
+      "file": "HandEmoji/5249007818819771926.tgs",
+      "sha256": "040b52d39430bcce95ff089784bd100a982d3a1b95a61c7c3e4d42ee69e6853f",
+      "previewSha256": "f9f01fe9831b78b6c8eadc192bf3c1b08c04d513bd08c19091b79d87e650e9d8"
+    },
+    {
+      "file": "HandEmoji/5255907722435501318.tgs",
+      "sha256": "944d670d10a81be07923e5ee0eb445446d798d3642a6f9769de9cb92a79357e4",
+      "previewSha256": "37693d9ea469d71978f81e0bdb7524ed040ddf294a055e60bd844095ee55b98e"
+    },
+    {
+      "file": "HandEmoji/5256246913182735967.tgs",
+      "sha256": "2cd5cabab61f03ebbc8fe6eb8dd9564d79b9eb216f263761fb423a0a7e47336f",
+      "previewSha256": "852647be76accfff7c5b15ab8731dede7f23b82a78c13010ff4e75b586e1b8c5"
+    },
+    {
+      "file": "HandEmoji/5253596497454310931.tgs",
+      "sha256": "4b7d0ab5763d886503e6b86e343733a5cf17b3b738836af542c655b7a0e14ca9",
+      "previewSha256": "e46795dd9470e6655139ff533062caff7d612c5accb678b7cdfbd7a63f38bebc"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431437173192671571.tgs",
+      "sha256": "4fd52da6dddc90ae9250d06399b8b381eb49bfbebb25d1690ebee56540b237a6",
+      "previewSha256": "6047af0cda57726d04dd1448389866b0a259215912a2c25299721a1b25127973"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429226063899150780.tgs",
+      "sha256": "be4c3d7bf8262d1d23c01ec9e56a6d413fddd4b3eefd6d94cc4dab48b7e56e2d",
+      "previewSha256": "98366627a8fd7001e61a2cf76186efd932bfaba95e33ba2d483d8f256c7f324e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429347336595720213.tgs",
+      "sha256": "2465ae318ddbf75fb5bfd8bbca0a9a44bc733aa82b50a0e850a8b56688f10400",
+      "previewSha256": "ce010df1385148fe7ad8071ffc4a98bec9864a5efbbaf6987de1eb686f4f7497"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429511885382764308.tgs",
+      "sha256": "d7a869d93bffd65c9accdbffad56f6f8d15d5ecfed29bcdade563e24b221ddf4",
+      "previewSha256": "db64ac2c36c596d7bd76068856b80fcb929127037542b090d35e2d2c317b1903"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429352640880330417.tgs",
+      "sha256": "68e4c8e0f90def6fccf6f57591a6d23d238db94850e375aac38a6082a5d031d2",
+      "previewSha256": "25ce4ab208223906f1e9bf1572e5e4fe494d878578f43fcb19301eedd8619b69"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429503312628040719.tgs",
+      "sha256": "0e429cb6d2b7061dc7d4d53b2d5c128ff5412695a29b44262475a18945119f56",
+      "previewSha256": "f3735dcd63bc31c4487204179331a459df677aa2dc8996c5a29fdefb099c5baf"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431701296501508168.tgs",
+      "sha256": "a4d357aeb2cb8892af456b4e31b6ddb8e41e628fe03a69dbce696d55d54ef83c",
+      "previewSha256": "4d939ce65b664db9f428fa588aea718f86aed441917389922cc6b13f171cc353"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429242943120623604.tgs",
+      "sha256": "761148738a6a16fcc732c5212cebb675ea9157b348b3d5e1879191c4503ce216",
+      "previewSha256": "55f20d3d6120dd80a3ede6844b2cf8b55d9b4101f72499c7e851922b876e5f22"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431606532343088171.tgs",
+      "sha256": "383e69e7a15b71a2e8946812a96e70e51cdb7c1d49d77bf37a8a4b8cd9c65d2c",
+      "previewSha256": "17e35a0c3403aad97c4ae3b258f260a03931c6eedfd40788fda15344e632d838"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429369021885598432.tgs",
+      "sha256": "428881af85da6dea5052fa0b41b2ead289a555897a3de3aa6b2d58eb11ae4895",
+      "previewSha256": "aaf0928aa936db5b3e12101a680092ff7ea7081ef2bef18bca4aee92e1148189"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429383392846171121.tgs",
+      "sha256": "03d479f15cf10ca31cb190ef212212b1ad16f12c8a4dae0072292a3ff66c1927",
+      "previewSha256": "20ae41169674981d0ef3d1915dae3935e2308dfda5b81a6d629bcc7bcb00922c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431809229029656511.tgs",
+      "sha256": "ea45ae10fa580ce3a2b2f7b2615fbf1a8deaff36c219ac7c11542a3504fb8dcd",
+      "previewSha256": "2f8efc03d9a604b91c81e6cc8534bc85cb1c2713b3da68a5304e0893c0c337f8"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431805939084706706.tgs",
+      "sha256": "6205c2ae8790f3aa85ebc695ebf5d1d9283cb8ed2e83fa1026b602419657f011",
+      "previewSha256": "e8ad959643f6af90ecb748bc5ebc2aae06dd8e4b806c60b5253c408b103a1dce"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429127236701668265.tgs",
+      "sha256": "e81ea8894a34c2673dc7e7afa5055eded2622f15dab8f452ea79c240c6969f3f",
+      "previewSha256": "6e5236fe1e311c16a2847acbc2c93b19f12e9d35b345e9f7cd74593be984de5e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429561518024836270.tgs",
+      "sha256": "c248f9d499ac5208253ab1abfbc88583d80fbed0415ae835505690e38111953d",
+      "previewSha256": "245247fd7bbff9eeb7d34806009b3db81f2ede01f6ef4d5b373ae73749248c26"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429387503129875330.tgs",
+      "sha256": "b9362ee3e03153008fee6106b3399e7a72e0de333727688dfe555ce3207a1f9d",
+      "previewSha256": "32aa8a14821921c6ad1c61b6f243af0d732714a7e43be8e05bb2442d84b1454a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429468682306733636.tgs",
+      "sha256": "4c00307436d954f301cba5dd6cf69cfc98744031aed6827de5084ab60e36ea15",
+      "previewSha256": "a3ff8ee8d4bcfe906eb60e4ae6bfde458cc9b6ef8b47845a498f6153d599ce68"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429509243977877757.tgs",
+      "sha256": "cfb74abe8ac64b52870b565abdbbbcc602312ab40c60fb294beee8b3d71bdd73",
+      "previewSha256": "4a1e11e5335a0e934cc689a17fdd377d35e3c076a4ff1fd06fb4b104df463ff2"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429240147096913067.tgs",
+      "sha256": "a848867414d3eca38e2ad7053299236cf991c8e4d00ec1ec8136dd0ca3afcdea",
+      "previewSha256": "2bc2a9574f8ee1fa2603beb83fb50f9c98900882314581249629dfabb8c889c3"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429280957876160028.tgs",
+      "sha256": "b4a94dc02d568785143e54b109b257f34f4254df8b41f222a632fba81fb85a0a",
+      "previewSha256": "4add6f05447de70fd0c4fe071c6bcffca6a7bf1eba50b08bd88bd3c59c8a65cd"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431629501828185344.tgs",
+      "sha256": "31eaca296191db6fe6fa1e9a32f0f310164d7c578b5d9819e7b890c386643e65",
+      "previewSha256": "9e3d07cf6da870aae0c88037b7c837bed3be9c0ce19919064b2846e7b766e430"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429295556469999475.tgs",
+      "sha256": "72aea787ffed08b52197f87600a397a925d8c3d2e1ac02d4a023628ee2bc4704",
+      "previewSha256": "be440b4a6d804777d9686aca19476519cb724b7f081186b063bd447abd4794ff"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429332991404952140.tgs",
+      "sha256": "7b04bcc370fa8b9ba86372dab59a2cafef1dcbebf05ec4ae36043fa95a977f5b",
+      "previewSha256": "c28b61ddadc566e9f2db758339fd3c55e24bf6de6ba1a9d14d3b776d9a8c834b"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429295161333007624.tgs",
+      "sha256": "14cc9bed43b9e1a98d6d690fdd1c137c3897a8f964d9134958fb28527f4adb4d",
+      "previewSha256": "7b91abffc31cc7e78245c43d40c4900ac84c5c8b44d35834540e0f162043e1a7"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431900565804170891.tgs",
+      "sha256": "fe9796584a31b09153817ed603b67e20cf6f6653a1fc318e50cccc1021e07c23",
+      "previewSha256": "dc248c09281a783c6d330c0410261db8d621ac57c335edc396d35897997ee371"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429626230297086471.tgs",
+      "sha256": "c324066eedbb9dae0103fb49acd6ee8af7ba59dd2db5614bb47eacad3b8ec8a6",
+      "previewSha256": "8438697cee32bdc6e9c85786695a046d195f2a297be5e1bbf52ec49bd5968610"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429566109344877364.tgs",
+      "sha256": "2676d8e48ea5b5ee2836559dfef87a89a9a4c840bdd421ef69d4d620bc55f437",
+      "previewSha256": "edcb3d0cbd6375e9a73161d158e8721d65f4732a104ca367c6255866fcf54749"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429139992754538785.tgs",
+      "sha256": "6fdb69759bd6ca02c025d8dbe081c95dbfc4b50d22d300603fe7d7c956fd1b74",
+      "previewSha256": "b963589e5d51ea10865ddfba10aad3bd96be47fa0757b7f1790a2b12ec6d9a56"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429333609880242337.tgs",
+      "sha256": "58e6d2da8054dcfa0c47decd08f1a2360fa0d29bb8ed7c47d3eabddc794f6614",
+      "previewSha256": "dfdfc4394f9872b606447c2ed40ee675845493cc15cfb44fc8554801cc135fc6"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429582159637662048.tgs",
+      "sha256": "4ec20859302f2bd6222a80294046fdf48e8c6b07b9fbf06467b3d86f0b750229",
+      "previewSha256": "272ba7be7306f990f4169e624117b328733cb9f52ed53da652e7ce247bc278f5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429285132584371296.tgs",
+      "sha256": "d477365209a99d5680055e33e0590550296a76bc1f4b5aa6bcd6005381b2698a",
+      "previewSha256": "3e3feb80b54a8696b3f8aa6748c95bdbe6ee0b36649dbd460a3d6e0a269ee2f0"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431763925714617848.tgs",
+      "sha256": "a0a837b3a4fb8e5ae1cfa79ee7f9afae75645b6962dbc565dc60be7f3ae724c2",
+      "previewSha256": "e1e9d91c664c3a320e99c0963a1544cc466148b8e467982c536c7c39a715b282"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429553658234684476.tgs",
+      "sha256": "8023d62fa7958c7d564d1c780649fd5c66c4158e040f0b0b73f2025879f9f9fd",
+      "previewSha256": "85c8aa9a4b508349cae67d520b09116b20009d78fb3fdc994f078f8ce74b6ecf"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429166982329027501.tgs",
+      "sha256": "c4e503d99c6df02e342742624361d4be3323e990a331c5357c653b76e0c7e0c3",
+      "previewSha256": "ddc7a14b81f91c593f97d545409bd84fb35e6c7464fa18155820484b1df2af1c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431494476646334959.tgs",
+      "sha256": "054d71f4f40329c64962ed5d35cb877d62ee8d570f4621bc7302ee63645ca0f4",
+      "previewSha256": "10daac92601f108ead49c1b913fc8e24de42b535da254421975b04a5d76b74ad"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431496422266519020.tgs",
+      "sha256": "18ee7deb8d8cd58cf981399293e925b9d20ba57ce4a0da9b497e273e7909d182",
+      "previewSha256": "3609f3dea94b953e982c795bda2d668e8906d5b09dd4a8e352dd8e6d5179a1ca"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429479990955624494.tgs",
+      "sha256": "a019322d8a21b3c6168aa3318fdb5089ab00bbb5d14142d6431634f19848e187",
+      "previewSha256": "509a96484a5b1b22e18da809f353c482514ae5f3421f303942a89e8fa71076b9"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431772249361238545.tgs",
+      "sha256": "1e7f2d0f5c8cff6d9d17cf8643ab7dc7f2449f0199e7806bbad8730ccfe8c29f",
+      "previewSha256": "9ee98a7f1de31280e547b0483233dc888fbd88326f6a078854ed7fd14db10212"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431855653331156095.tgs",
+      "sha256": "b52c1e77dc7b4331568df20d5f79a5fe17fc0cd32ae2069d85de1ad6b606c955",
+      "previewSha256": "d38fdb0d2ffa257ee469cfb436f5c08871b465eda40b3d8e03b86477ef71086d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429634996325336968.tgs",
+      "sha256": "8c86faf4278a259b0b1c09d0cabfd7289f912dcf3827cb822fde25a7e4f6a4e0",
+      "previewSha256": "057c8300924a935b61815cfccde3d0a51fa8db6c1d0aaa2d396aabca5ce29a7d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431721087710808040.tgs",
+      "sha256": "ac82b4362453faf78f0e0567ba3792e838753c242543df501984f15e026b2c9d",
+      "previewSha256": "7ab37a4aa05e8ef2cb3a9081c6f5bf27e5ce671b5e92503398957e11b711450a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429289182738532715.tgs",
+      "sha256": "3b7cf03277b28c6c8a711cb56ae1299906015609faa43d8938ff6b9faa2998bd",
+      "previewSha256": "4010ed258298922530881a028d21c0c844c1366bbb906b0a5857c05f39b38455"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429342947139143078.tgs",
+      "sha256": "b5ec66b033e257a42a2ac2d03292490b20dfea7b9143544e9261a5c5794ca8cc",
+      "previewSha256": "ac741bb9d0b1e292aecc780a8f6ff65d4e4ec7cb2d84f5dccc27fe30f0e1d4fc"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429650522632113204.tgs",
+      "sha256": "559a3f91b2b43f6607b186a1d22ae238688e85e48b85d4d354e4ad5480f0b5ab",
+      "previewSha256": "76233f39f00d18c8508d551bbcd9d3a2d0b2061a9baa5034c266e7956d387511"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431761576367505572.tgs",
+      "sha256": "ecf37f7209184832c144e9f825bfb744427683b92bc769b5b70cf4960b4da6a4",
+      "previewSha256": "c24b5b9fd6075870e39355210c0318527a4bba50fcb8cb6be7b93f9dcd0e0e5b"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429582095213153988.tgs",
+      "sha256": "f1e9c4ece3e63602bc503bb880b3b3369f42a7b8ab8960a7d48ac4f65b0cec5d",
+      "previewSha256": "f944241d9a1ca8c0def202d032128200a15c703b0ac1a605f68de0957d8362ee"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431513683740085052.tgs",
+      "sha256": "5b4be1d72cd382d8290c6a06bf86e85bca8313f077b129f49dd18a5020f649f4",
+      "previewSha256": "f7d2bfa78c794b84e7dfa6875256e78278c8c7ec49036aa56eb813559fa8c4da"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429223551343281843.tgs",
+      "sha256": "f93425055ab9936e4a401d1bcc8ca13285b59d3bce54e84c96e825d092465390",
+      "previewSha256": "a5f6598e43b7c8cb07f9e6eaa9ea7fd6ae614b99179c41717af0c52c608a729e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429629567486675820.tgs",
+      "sha256": "df75825b40bfc927a3068635b8ae1b4e67a61ed358b8d94e5b059bf985b4a2d7",
+      "previewSha256": "984a1b3e3b7dedaef1d167646d33150183bcf17159ad7e6bfea0f4185b7d1e5c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429234640948839986.tgs",
+      "sha256": "bc2c1870ee3144be7339e59645a8a04e85793ae39172d168a58d8e55cd3d7ca4",
+      "previewSha256": "9b355b6462d519d66b8323e1aba4d0f0c44a6f23f7f089da86f4264c6f0d3037"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429551248758033781.tgs",
+      "sha256": "08be54af043a639a7909250e502d67436daaae2468b347137a93afab5e9b5f50",
+      "previewSha256": "35e61711359df5cbfbff77cfc8f05ac5bf034ffd5d052402bf56c49ad4e1a28a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431495631992536642.tgs",
+      "sha256": "a6fbffe6edde1ca779010f79bab1c36a9e1918b4a0ef374bfe0c5e09c7532dea",
+      "previewSha256": "e4e828db9f5101fa36ae2f4305779c322bdb2f368d41749d04aa641abe340fed"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429225647287323409.tgs",
+      "sha256": "630f5d6310a9ad4f553fc2033a1fa7ec9c97c00884c4ae977c62a89328910858",
+      "previewSha256": "a208a79549fb8e973188b2127ad89e042eaf41ab9cde8e9d80d55054576ac5fc"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429364241586997374.tgs",
+      "sha256": "cab4e74958d28dadca2ca92b9275e05d18c6edaa6b87b2ea01622290b3c41a4b",
+      "previewSha256": "c32851b071c9ac2b3a8ba52f6f5d32f6d1900648859f6f59693a8501d0b34acb"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429406216302383570.tgs",
+      "sha256": "f9f2173a79032b28b8131f5c48c918e2df07cfc28ff1c68cdec6b658a396376d",
+      "previewSha256": "27c7433d088ff372dafe9e63c4d327b16128706522ce3ac2e7dc485b79d6fa42"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429568256828525407.tgs",
+      "sha256": "35a64637b6fe1df280512076e06bb537612a540b8a6ea1d127a27a3d15894f3f",
+      "previewSha256": "a59e011e3676f5da41ce0d99b580eba6dddafbaa7f83cb8dadcef0d56afd4699"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429534872047733355.tgs",
+      "sha256": "97f8f5967fef0df8af67dfc999d8af0d1f9d9316965f737982a81d36cba8d910",
+      "previewSha256": "cb123fce85c053702899a4d2347d9f6d4bb2861f6f2796c3d49779edee3fe5d1"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429389229706726043.tgs",
+      "sha256": "c3ce6ffcc766bf641e51736ef7ed99ed171b7a1c948ed3d17356516cb1e26a39",
+      "previewSha256": "60a3fbb5761bc22836a86a8d35ae5e3d06436a10f871b48832c86c8292668d67"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431532147804490785.tgs",
+      "sha256": "f2d15334e8cca1ddeeb310742890b96063a41a2dcc09192eb5940743cc78c0ff",
+      "previewSha256": "cd0524afe2c9fa62f20caa0d2eeae2f7a95b48f58634da12d0e5795eb3abcd2c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429623576007297020.tgs",
+      "sha256": "73d0c63ed23a1d001b9a484ac78a0e2d49e4c49d30c377737b89e14e2cd8eb7e",
+      "previewSha256": "c012a6571a0e4e10e6c9f178a951ead4320b01979fba2549242ae7880ac9302c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429532625779837915.tgs",
+      "sha256": "7e02506b8592f3e3376845ebb2f7a1b75dc1a0d78a5c02c0f72094419e483dec",
+      "previewSha256": "82d9ed208e8a79ae734fc396af75a6128f08711166b6c6c61efe3da9331e2a11"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429455466692367027.tgs",
+      "sha256": "c3df0c256cb85ee9e1d248fdb3359505efb3b72e7234d1196c534af3cface9ea",
+      "previewSha256": "812445fa85bb8c4249923241a119a0569f2403859c331a63834b5a1044bb7ad4"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429197605445847745.tgs",
+      "sha256": "124f0a2cf77fecbfd5396d239a91893eec9d64766b436875b585a79eb6ec59e9",
+      "previewSha256": "1f7dea25a215676b658da4481a22fb5138216c788423bc98483b4717a667f1b0"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431796249638487743.tgs",
+      "sha256": "5f5e26a579f2388f01568735ef7da2deb84cfaaa8441401324054c1f25901c25",
+      "previewSha256": "9aeae657ef9ac712991b6f939f4191bcbe611119a02ccd5bf106e444d56d7578"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429175331745450701.tgs",
+      "sha256": "2ad43e628ed6036745f580f1105bd52c5c31a729f716f2d44c24cd0529918a8d",
+      "previewSha256": "7cc48f614694e0b42931d0be13b24d6ecf8f7e9f5584f5bd5334a874b65791c6"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431523974481724581.tgs",
+      "sha256": "268f6eefbed3f5d188e94f192743b9606959bc4bd20ec281674c3c5904e4aa2d",
+      "previewSha256": "11e9ddf1d8681f2abb0f207d240175acceeb88b422d6ed6b896a0daa48b70fce"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429642886180259763.tgs",
+      "sha256": "e611200f1ce95f3d842b9ae994042ecd85b6bf121b4069ac95cadb1c4544a2ab",
+      "previewSha256": "7fe1ada5d2ede7306b5941c7848b4e264996a320b4b3950d55225f615386f792"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429568265418460225.tgs",
+      "sha256": "b6711dfb49a903ba623134942e4a617c3217b17ed754284f0f7aeaf76670477c",
+      "previewSha256": "5d4bd5c489ad8c07e8897e45d77fbedc25344866527b4a1caa8742114e86cb43"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431665059862432187.tgs",
+      "sha256": "f96ea5339ddf3d89bc940907c671ee1f7429b92b988228c1e19462749aa74628",
+      "previewSha256": "5050c63bbcc2010b8b84b809e84c432e8e6ca113c88ce719256f919ec9e515ed"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431756203363419412.tgs",
+      "sha256": "123333fe5df514c2e43b5c12a9a49deee1453360f49e63f9efc6c48901e1c8c6",
+      "previewSha256": "bbca401cc5880dd15e0e934e86ede6823086349c6b5a52fd42f3e64251592903"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429325161679573642.tgs",
+      "sha256": "05a57009f01932e4b2d7fdb441760e9c1792a46f9c291ee5f4062db50a137050",
+      "previewSha256": "ae9b56aa56a5b5cd1839e9a947c33dd02f8a02babfe2c945c0eaa5c2d803db2d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429609621658553521.tgs",
+      "sha256": "66558ec432d6137ad0822ce6a09aa0981f126248a8b3a92d9632b131d93b3004",
+      "previewSha256": "c5ce5387750242f9fc64c6a09507a11826b90d09f8ac101a096819890a9f3c2e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431677188850074833.tgs",
+      "sha256": "16ad1e0c17a8f213e7b00abc2302f8ec0c0e1f081bd9d95c03c5f245531d5256",
+      "previewSha256": "cd91a2dacdb5c7b9c24b2933621f1a4b0ed98e1c187a84e9e62d603bd5b66f39"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429622089948611860.tgs",
+      "sha256": "b3feb2f8dba4927ea6ec9dd1db12ac2e083a0320353448bcd3401c45893cd3e6",
+      "previewSha256": "bd01f6e1c2a5e86443ec163ab806db1fdd63bdbebe0758d2ae4367862a6e0dd5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431581716022051520.tgs",
+      "sha256": "267c5c3bf35660023388fd38c47ce1cbfd88c56b9c85ca06b9750e9e1e95b7c8",
+      "previewSha256": "782a205d3e2e92c1a63c3912c45652bdb7f08072c8171dcdacd39c339d14549e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429337436696103843.tgs",
+      "sha256": "2e4d1a04d87232a1e5ef15610e346f33d414df1b14c1389658170eb37553ab54",
+      "previewSha256": "b72a04a5afb82187248be28c032d9b56d0826acce4e951a4faa7f123336d2643"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429256145850089713.tgs",
+      "sha256": "d113e57ed6fe788e87a3a0d6ef011df51fce83f2c2a82a1b460af20ce4cb0696",
+      "previewSha256": "49c8c3e3781aa5798f96e06be32de3964552ed6fdce21999198a9fdba2b72689"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429490852927917808.tgs",
+      "sha256": "1e6eb3c77fc39a1a7bccca39fe19c3d46b3884bcc2a99a70019bd6c9c4ea4a23",
+      "previewSha256": "26df2a389da4047a36ab037907c73a8ccb2d8214b8128a6d1b7b48c039a9bfab"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431553150194565503.tgs",
+      "sha256": "25454eb8fbd0d9ce42bd491cad8728bd8d937fe4990b7660f698ff0c39b2d666",
+      "previewSha256": "772d4b1d862c1468f6268205e4186a2e516a86e488aef51adabca83dc6eecb96"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431592582289312074.tgs",
+      "sha256": "8a22ce9e3b7a994bccd35ee526864e19ffa4d068d6088eef071e81ced5f2b068",
+      "previewSha256": "15bc1827eabc7c603a67d68c0f0edb51045e6276aa0bfab96dc0319b529fe205"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429533952924731514.tgs",
+      "sha256": "3f306d1711e3ef526812dc8421d5034ac832bbff062c32866977b3f9638d515b",
+      "previewSha256": "412507ef770f4ed7804daee547152ca93b063177a6ead69c65765e4d518ea46e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431786976804092900.tgs",
+      "sha256": "97cb1d81bc3c1ed9be42873c82991e25e114c9eb494a9430bc17742055d4489b",
+      "previewSha256": "ff07145f5580635507bb37dd15298b239902f8055526c59ab82b382664657320"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431456805488182403.tgs",
+      "sha256": "0f62c0c7b952fc2baf6f90a52ea4687ed706134d181d3ec899f4538f98dc1d56",
+      "previewSha256": "6795c709896865f8d7c1482445d85fafb66cb6c0068243a601578fd9ae0559a9"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429157241343198116.tgs",
+      "sha256": "fcc1a401686bb2912a9999fcab3e4ef6694ab84ae1092c4751e171add010581f",
+      "previewSha256": "93a18b26fcb75431ae3265815785f3b7a78731bc5eda8143350664f85f72d193"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429314879527864603.tgs",
+      "sha256": "1430d2b3621ba49f1de77d51d97b7bac3e0fd88703a67614bb3689264dd02c0c",
+      "previewSha256": "e7e93390c23df68ced2565ed7254d0ab9d1cba49fc60e49889c753a57093228d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431755876945904647.tgs",
+      "sha256": "e19e221dda86ee0120f2afd63d0c65e2ab16ebac6c2a5cc02c15d461d5c1f4f0",
+      "previewSha256": "11ddb2ff6df2b1e7334e9e64633833cccf5951805cb7d21479b94f952f49c936"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429193293298682249.tgs",
+      "sha256": "c973c7a597453900144c59223b8f94c40e333875415dacb3f1ab232c110288d2",
+      "previewSha256": "fe74c3d3b20819ebd2bf0cadc971f45e7833ecc74f9e70fecea2588a4b4e6d77"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429274983576653417.tgs",
+      "sha256": "deb446ddf33b2213e189e15cce18b7f161692eaf8858f1644dedaf23da406097",
+      "previewSha256": "cc68d5c796fcb68c3e4e831b79e21fc64b524d6b26f44351aad05e67fc3796d8"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429646592737036570.tgs",
+      "sha256": "a4e343a576837ec5b5c82d273f8fc805811d2055fd0291d066f6de005132c9b2",
+      "previewSha256": "b1dd72e6b7494e788bf172ccc53933b7477891e2019a399b3739f3a8acbc63a3"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429621900970051985.tgs",
+      "sha256": "e5351ce9403cfbcbaf78cb76c3aa18500c1f84ed55c518537f1a77f4cccbbf1a",
+      "previewSha256": "5c194abdb3eb257701455a7d07ceabe01b7a6efc704f061b89b9bea8b9690afd"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429316460075828643.tgs",
+      "sha256": "9f4b472141821c14316e70d707c82adc7d5f0c35ac27fd60a1860f88965dfdc8",
+      "previewSha256": "db2942cf8fb341b8daed71e21f769b59ee96d5522ab1b7ec7b8432ad77bf8cf5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429136372097109193.tgs",
+      "sha256": "91f471667984f94c7a961b0edaf76744b6b92fe846f9ca4948deb222c603f9a2",
+      "previewSha256": "9994b87290027ed3b834d74f13936ff9663cb163086d68dbd11e5b8038bf4fa3"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429365504307383204.tgs",
+      "sha256": "0ddbfec4a1ca8b595cbb80c55d3ab9eb41515d2b7f953453c8e7ebebbf4479a7",
+      "previewSha256": "65742c9d3fba059711f67be66b9a50cc1269a8160c5e741a95e710efd0687f83"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429125845132268334.tgs",
+      "sha256": "ee57307b712e39d00fb714a24169c01c85e1c46eafd36280f98e92f83c4164ad",
+      "previewSha256": "e85753c4d621f0d28aff80ee9e45b9ad832418ceaaad7fb57218adc3a4024f40"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431733263943092458.tgs",
+      "sha256": "91466018bd94ddd90a359345e3c81797689306b7002183d8f6c0ec4122d95057",
+      "previewSha256": "36bb6542a7f9bb4babb49e6f00164f9fde5f90ffc14c02e40b703a2e9dee7bb5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429317443623339836.tgs",
+      "sha256": "04b75e0d3e336e69ca1581bc1a9aeeb616b1f0dd5730fc66eda3cf70865cfa10",
+      "previewSha256": "cd490b044eaaf05c653f459a8460a64c8f5aaa2e72c6b7652fe6d27c9968308c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429623829410368368.tgs",
+      "sha256": "0f56a399383fe34966cd0194141fe1e1e7ba39aa146fdd27ca634180f672f295",
+      "previewSha256": "9d1d4bfa3620afbf5876ebb79d9b4f2984490c617be05bf45deceb148272053a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431377387247911917.tgs",
+      "sha256": "fc8fbab0e39c97c52928b4713d6867d96d5c2cb2ebaa36d5d8a8cb2bb057bb77",
+      "previewSha256": "a8a716e5293bc29c74c844f1f59658fce6d21cc5e75b0be93ae0d66f326b2326"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436061341141978450.tgs",
+      "sha256": "2e73e73572c701ecfd0db98dc056357ed2feff224b8cc7a6fd7a1f386a0594e7",
+      "previewSha256": "f915c2e7c79434066466f457877345a9ebb068202530b57274ab22883b45d50b"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431401220021439185.tgs",
+      "sha256": "b6dc3d7fe7f3531abe2b2e9957083ffb3447fa67aaae3974b112be4d84517b36",
+      "previewSha256": "1f493d4dca9c1ff173a4cc94888746f5b51916f638a048bbfa3ef6ef50b6e74f"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429104460490099965.tgs",
+      "sha256": "23f57456c70cd927857b2720c67e6f34bb76cadb043f81ce76f97b075805f1f5",
+      "previewSha256": "5bf6bda48ece603a81ca6d0c045859fb21c61fcc95de034fb8ed50e94425f06e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429277431708010666.tgs",
+      "sha256": "93e235549d22116aa6af3cc943e81f8d44103a63d3c9f0a403dabfa440bf7671",
+      "previewSha256": "6a234459a203ebed7ebbd9b68a995229ffe338f6f328c2bea2f07c2c89574edb"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431885387389747627.tgs",
+      "sha256": "ddc8744f54f1717c025abf26296b9ca5b2fdd3044649a9a52a1fd26ff9ac6232",
+      "previewSha256": "8253ab8185e43e07bd74e1eb6ec49f3da2924a76c551585e260ef3071e681c53"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431690344334901679.tgs",
+      "sha256": "6e892993f3393a1a2b44967cc4930251974efa44d6d832374179a6be688d89c4",
+      "previewSha256": "7e44b04d2722b499ac73c18b5f2e6aed05049a6b7673da5e610e2f7c57356a30"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429157572055683772.tgs",
+      "sha256": "58b040c27338b887f646750b37aa38015ebc03bd818c42c294faceb1fdd995ff",
+      "previewSha256": "c62878299eff9408e48ce003cc0205b75db1d554519712c1a09fbb0b6f387cc4"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431679877499602469.tgs",
+      "sha256": "9c5d57bfa54a5b61d17b3fad09ab4d1479a1c0f0a7622ea4aef8f940b6136160",
+      "previewSha256": "60ebec8e06143bb8760c8359dadb4a5904961365cee9c3cf4f266af261279fa5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429544943746042427.tgs",
+      "sha256": "467b1bde7031a78b6e62f6036035b4502641894f2f930e999e5e4629feec4e08",
+      "previewSha256": "0e4c5bdbd3415a02271e339256f31753ff7d6d5660fbc0d6860795f616bbd92e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429522322153294239.tgs",
+      "sha256": "8a7f5311e312288b3b6499c516a177379f73d22c4bd1fbd00c858dfb585e7958",
+      "previewSha256": "9159500471805c1b708716f8141158aae18d2d4135ad297bb18235234d031a22"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429492931692087092.tgs",
+      "sha256": "bd081ae6d49847896150c42963a0ef921ed854db5a29918e3e2caad9327625b1",
+      "previewSha256": "a307b8b426ad99a46f8e476c296a39d606ad3edaac2384e147366020b39e96f9"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429352623700461826.tgs",
+      "sha256": "3d12e6ce7b6d4a060a1aa54213e6e1ab47b1e0e7365dad76ab117de14c3e3c93",
+      "previewSha256": "958e12f35de5a4343f12f5b8bde4b843f6abddb8525d06d5f2264e71972b9f65"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429365852199733139.tgs",
+      "sha256": "ba2bb4505a8833a93b0be8d958dd917b346522c06b82abe18133992aa555956a",
+      "previewSha256": "37d4206547a35a23beccec59ffe2c1ccbc2bc2016eb08a3767f4b1037053c553"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429414290840897810.tgs",
+      "sha256": "b9a9272263b0bf060ed15177a0a7f52857f781b03ded11e71edc2db48c948007",
+      "previewSha256": "166794092fb75ffcbcce6f03d3f428ad1cbc1c5a1f3879634b83cebd69dfad19"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431464347450753853.tgs",
+      "sha256": "57f1e291c267e37ff59e7f65126d96b2af2a4db47f40987c87b02217cb7a4401",
+      "previewSha256": "689b2ec535f61e41aa3afc49b2b2ffdc4a3ad6b82bbd417732bbc45c14f25d3e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429209012878985311.tgs",
+      "sha256": "91d2a67554abfb4fb58b1da238041fe1ad5d2495e6f77d1fb3d220617b8f3e1a",
+      "previewSha256": "5ee21f263d1ab98930b0932e7bb96c38ecd1b45a3ad02e606676ae0dbb7baa02"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429408415325636104.tgs",
+      "sha256": "9c41cb4700a00addd1118ae34c7b15788a1c203c8e12b4de622241ca62cae71d",
+      "previewSha256": "d48fa29a32ea353287c053f2653906907f5d3a6439ca4fa2dcb382ae9c22567d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431885395979683794.tgs",
+      "sha256": "8df053b84e4ef2e7932517e07e037c3fdb9ea3e51d0ec0c8725140a5ba9df492",
+      "previewSha256": "0360c4cfa77c23fedde36661bb50b0c41d56a1809788b978aa7c92e6e7dc4915"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431451582807951891.tgs",
+      "sha256": "2f726f77573ca231e3a7f0895df367cc8eada560f93638f0022109ab79d6fd3c",
+      "previewSha256": "1e9a1860397307c159a124e26a1c26bae26799e32ef475ed96e80058a264e72e"
+    },
+    {
+      "file": "GoldUtyaEmoji/5435961693605742180.tgs",
+      "sha256": "b6a699de9a2aee0dbce927692a8cc62a78a1a5a96840b0bca7dbc15b67a67678",
+      "previewSha256": "36c14ae94a1fc4135d9c0577b692da6735fe785d40693421e72dd681b0b0bc34"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431815564106417657.tgs",
+      "sha256": "5c30f9a4809906e42cd37c9a0481582149af6c76a85e088b618be4b4e9025df7",
+      "previewSha256": "9647bf826e0bc18e06383b294737691e78e8919ada11723c7fb5d34420f6e6d5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429573505278560485.tgs",
+      "sha256": "484dbe8759fbc8f38e40d30f79e890dfc42cfb1ef8c16a1e469a9e7de9d01f01",
+      "previewSha256": "509a7d071a5e975ad2055f1c08a3c486bdb564a816d48c3465458bf87677d76c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429217637173315779.tgs",
+      "sha256": "70cea48ed7eb69e8b2294c170d70861303e5b593866aab05a0773328e01de25d",
+      "previewSha256": "38675d15ced9a650a2a7ea82c393bf0d9749b47ce8230595b944ff1238a5c259"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436036481871266745.tgs",
+      "sha256": "4ce4a56f60c3c0ce99e67a572ff6924886f654a484859b9762caf6f1750fe8e7",
+      "previewSha256": "7b91abffc31cc7e78245c43d40c4900ac84c5c8b44d35834540e0f162043e1a7"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429650204804533287.tgs",
+      "sha256": "aab1e0b9abf1b3747f90d690baa27ca1191e2783911d0e9a1baea240fcf223d1",
+      "previewSha256": "d6eb82ffe092c2ee8611a41a3c5ad7a5db9307fa4f402fd8ad5ec128d2c61ed1"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429412091817641211.tgs",
+      "sha256": "57bc7bc24a38665a47abd6404f0f7d3b09605b71728b2154a7e8be6dba121e12",
+      "previewSha256": "d9e7061c3f12312a48d649bf597de302a0dbdd2f4c9e66d6bee8a17e5ff27796"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436325876767670913.tgs",
+      "sha256": "687cb2f5631d14266002caca7413b2aa9930892fca57d54f55ae4a0f87db0134",
+      "previewSha256": "1202d5831199ad32def84fcb0c8fe06e1815125fcb61c7f6d0ae04ed1c008ff9"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431419817229828599.tgs",
+      "sha256": "9aff751ff89f5b97b398a900145f411dcaaff247d5339931428c8173f9940df4",
+      "previewSha256": "6f5b4e0ae3469181a76ca8878f9d07a9fcf98a23d3a3ac61e78ac92b8a4339c0"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429455260533933243.tgs",
+      "sha256": "72a1b72761fdd29e8d4463d0613a381c03757cd6885b9f7d30dd5331673831a3",
+      "previewSha256": "23f8d2b6cf6796b371d34b776cff3e59b6a4e4d49ab0befe4771b15612d9908c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429106552139173716.tgs",
+      "sha256": "5848abcd858bb51a1f98855b483e6b32a37437170d5b7cc688e1147d745b3702",
+      "previewSha256": "0636ce65cf845e7731b34dad4eece9664c5a738c8d39a2910a4a4b370526a149"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431454610759894966.tgs",
+      "sha256": "551bfa165d09f3c4d56e817bfd11880da86ca3b734d40499cedeff0472c2c46d",
+      "previewSha256": "f52979fc43ba410dbeb5da59cb2a6f6aad56f15bb8c987777a1e856dba6d4738"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431562929835098752.tgs",
+      "sha256": "0e1e5c6f93d12768d199360b7ffa3fd191b8bc682641c42ed0769d7183d3cb3b",
+      "previewSha256": "7c370efb53d57b4fb87661038540530da7df75e14e8ebcb48af8bca8d2635f17"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429218929958473226.tgs",
+      "sha256": "9c0187cd4838985072ed7fb31b0e53e56d8ccbfffd7a68832927f58a604a9aa0",
+      "previewSha256": "a486ae01c1af0e837316c0304fb2b3a81ed44dd78864e5cfa0d9ea1746557c3b"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429558146475513312.tgs",
+      "sha256": "5f07a2a1424096fd8085077c278a28c4adca41666c3be7d48935cf1904b07063",
+      "previewSha256": "bed41165530513a10dc32326176debeb589b695ad872f6e53e277135f4c59d34"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429196785107092430.tgs",
+      "sha256": "9fd845f452ae7184638012b80a16dc69a9f44cefe3aaa0fad9c2eed27a4423a9",
+      "previewSha256": "e04a77a4bc8b091cc67d730b40c57a7e93fd1087c6bee16406831e07a56ebdc9"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431365369929418801.tgs",
+      "sha256": "04273d22852529dab4f1a91737235d0ad3a01270fb8f4eadbbdc73ddc2e65f99",
+      "previewSha256": "9208ce93b60178b894b60a118386080800e1f4e6b4fab9cde419e040a8be672c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429406104633231445.tgs",
+      "sha256": "b943c3a552515358808b012765379e869355d0de71b60cf2d64084f03f790643",
+      "previewSha256": "b8289f69d98c77c9c9a77287d367564594663cfac669744b358b39c0aab978f2"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429511915447536335.tgs",
+      "sha256": "9bb3c7e0a0660fc74aa00efa9c3ac005c6b36ff5634dfbc127f00b2779d27d3d",
+      "previewSha256": "f94cd9846047f5ae607207bb5904d2c3106a65428d374659b034ca73cefdaa3a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431406094809318479.tgs",
+      "sha256": "6f34661f2d1210fed04f9ac6a950df20f2ec50de9bf0da2275985f71aa345e42",
+      "previewSha256": "21f27cbe9434bef4f2ddf8c9922d2ca0353bc80dd67162729e03d7f0a985f02f"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431690855436009504.tgs",
+      "sha256": "cc9074a65c1c9bb348626cc6438d1e8ab558ccb05ef272d3ed217fc02366b256",
+      "previewSha256": "209088822d58d5c68f120a9f89b82ffb99db43a1d526f134ad1eaaffcef42db2"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431469862188762458.tgs",
+      "sha256": "28229570fd9fa6492498fd171194ccb26c7ef2864a8260f5168ff2fe51f88719",
+      "previewSha256": "747d9e32116468b2fe77668d6bd34986be3653bb78c387d39bdde1b9c2f55d54"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431876140325162056.tgs",
+      "sha256": "21d4e51dd339e028bc5b6abd06b0a2cf7d2622587779d87f14edef26b91de4f3",
+      "previewSha256": "93c4092f7b8449fbd8951e57026c97258e880c92080dbf321f3b4e09a0ded38a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429385420070734665.tgs",
+      "sha256": "587b088a690127f971a66e7abae1c1f4f447188f1cce4673464e3679796145d0",
+      "previewSha256": "b285405fd8dbaf48c9478e5e14cc9b4cbdf97e18f0fda470e81395ca4b3f6758"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431609714913853393.tgs",
+      "sha256": "2a8e0b82f860921a71d288c3a46351b97ae069f6a52e0601343045cbf015f5a8",
+      "previewSha256": "c2e4eb8ff63c90dcd2f586b836f44f9e4d78fe582a4b81fb12533db4146af877"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431876823224961444.tgs",
+      "sha256": "f26526064321ec9a3fa94ac67d364f8c803cf1508d10328e46f1a27514e45fc0",
+      "previewSha256": "63f3015b6b7c522d2e12d8101f8dae87f876a4c00aa44e4e3cd0a28f9785c617"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429445678461897746.tgs",
+      "sha256": "2c668861a793d3927e4e279c36aa28b1daeb6b21a815507fb200133943869e88",
+      "previewSha256": "4725245d8b80adf62593df9061cf6728563337fc8ed1d46ba2ee6f172ae40243"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429631139444706165.tgs",
+      "sha256": "cf2d5fbee6986544da6202828c01898bcb8e8debc50611e0c7433e8066834c61",
+      "previewSha256": "fd0a374b77e299c69f154b06458dae245359b08254ec4a4d7a1b784ab014f33f"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436400561953982685.tgs",
+      "sha256": "7987bba1a813626330b373ba05d4644d665378bb8f6a782d2297c101aeed1161",
+      "previewSha256": "1330afcfcb5a51bb222741014ac58b4369837e452dd529633c4c12f02999d9f5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436375522294647526.tgs",
+      "sha256": "ddd0394267fea16d0c590724f59bb2cbd8c9e7ee63a7757e9ea89f36a1c97546",
+      "previewSha256": "f83b2bcc192e278c5517badff1d54f2fa1402709d4cb98c254d4f7671ee32c23"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436013757199303730.tgs",
+      "sha256": "3b2e89fec8654e1f8d5b45b794f310f9f287e0e9b249b0e3279016e5d5873409",
+      "previewSha256": "1b3204a4b40ad81c589aab51f6a1ff0ff2f32bd878ae001626c67dbdf1afeca4"
+    },
+    {
+      "file": "GoldUtyaEmoji/5434082589579168308.tgs",
+      "sha256": "1f0b318040b210a65b48d386d9680b29212da0d01dee9cc9f56d485334bdc11a",
+      "previewSha256": "50562e0460b8128db60d260aa421bd204d51b07eacef5a3d9737a5e97682ce46"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436110196394968273.tgs",
+      "sha256": "9d4be86853ff0f212efb9d5e8ca61e3b999a6a281f0394765aa9155aba0f94ff",
+      "previewSha256": "93b479f786b7764bf01df5a732b85d25a9b1e8bc0fa248d947445bc8d4fb87fb"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436070863084474500.tgs",
+      "sha256": "050602b8dae82d6a396d0441014ec22989485ddc38d2b6b66f68f483682f0bd4",
+      "previewSha256": "062236437b35f5a92ea0e7711e694fe7510497904739844390bbdfb086029b8b"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436193785048483404.tgs",
+      "sha256": "e4db4e93aceae15c9ac387e464906437855c5879b65d9576a9e602304a297196",
+      "previewSha256": "da58e4cdea32969e757477078df88a212b82756d46ca2906bb2f5a3579c932a2"
+    },
+    {
+      "file": "GoldUtyaEmoji/5435953348484285601.tgs",
+      "sha256": "0d1952390d790a9effb7bd028edcb660365ab4cf1a751fe0e93e56d7186d21e9",
+      "previewSha256": "f89e4121ce90343657f246cb4b73626a608ea2ab8a30f64deebb19d9c6890338"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436187707669761414.tgs",
+      "sha256": "ea45ae10fa580ce3a2b2f7b2615fbf1a8deaff36c219ac7c11542a3504fb8dcd",
+      "previewSha256": "2f8efc03d9a604b91c81e6cc8534bc85cb1c2713b3da68a5304e0893c0c337f8"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436254958267681276.tgs",
+      "sha256": "393e0355a00041bb423ad18abad1abd90951fad85e49e9f079ca9714822fc567",
+      "previewSha256": "a5bfb32633cc786b476164a25afdb66615ea466888106c175c654b7cd7a89079"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436237035369154060.tgs",
+      "sha256": "71119c9939e83479b6678c99494900a1f15a7af6c36a625edab43c1e06e059e0",
+      "previewSha256": "a854013b70c502c6ec49027f39365a98fa5a668574c00ffe72fef3c585b7e84a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436368856505403151.tgs",
+      "sha256": "4043e5b87dcd980ff19937d968191e20999dcb1b3416e14a9702c0e174baacd3",
+      "previewSha256": "cbff9e57f16cd97ad3caf09801848913c1c8f496057adddddad1a6078a79e9e8"
+    },
+    {
+      "file": "GoldUtyaEmoji/5436071043473099492.tgs",
+      "sha256": "5a87cb288e198b79f368f55d160800a610d9f6b1775cb52fcccfc8325cec245b",
+      "previewSha256": "7efe18d4be618f272b64aad579e923fbd047ce3ed3a8741b5a94861c7af06d26"
+    },
+    {
+      "file": "GoldUtyaEmoji/5247156455986973437.tgs",
+      "sha256": "794481dde8f4e8ad1f645521f3060749d7776ccc5571c082097293526ddc0a18",
+      "previewSha256": "d275731b60dd98482f790d98ea55ef7f68bb2db0481692e1552cbbdcbf76b0a5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431631791045754944.tgs",
+      "sha256": "7e808959eb6b78e288943a73dfd0ea4d2d55a72f88e7637c7a86b837807254e1",
+      "previewSha256": "745859a77d668a79f1f3f7e56579545830aea7014dd23b699cd930325dbcd10a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5434141413451253017.tgs",
+      "sha256": "7cd71f14187446f829af69c3a96a47e6e3ed82786ce33e42741e293abd11166c",
+      "previewSha256": "4beb3b3fbba4502236c1c667c41a699d322dec9620a9b56a6fa62c6e7f88312c"
+    },
+    {
+      "file": "GoldUtyaEmoji/5289812546457455267.tgs",
+      "sha256": "d00c707616b04b927e208ac65f7bb6e1d2b247881178352a18a50eca34c7496e",
+      "previewSha256": "388dce4ade4b82ee3265504eeea4400c67a6eb23aeb9b02470d3564f05fa33a1"
+    },
+    {
+      "file": "GoldUtyaEmoji/5289648878138705681.tgs",
+      "sha256": "20f6646e38124367a9ff5f42fecd44437e4f8199164ca15a0ca0714c635e28dc",
+      "previewSha256": "2adc56e394bc57f13cd5fbde28b5a9800ea2940eb38e220d759a23e9f3aa371f"
+    },
+    {
+      "file": "GoldUtyaEmoji/5289481894105205105.tgs",
+      "sha256": "9781251a8e89fa452ec1b8ff28afc024a3c0ae424ed07b15df631fc9d70d16f3",
+      "previewSha256": "68a3c8c9fdf25f7348f276827188aa318331aee9369b6aabcb231ede5112a1ca"
+    },
+    {
+      "file": "GoldUtyaEmoji/5289972306355962617.tgs",
+      "sha256": "1e727ca7887152884780f03fe901a339b7f1a31de8d19388e0b35913d908738e",
+      "previewSha256": "4c2a4e921a682e58dd971ce08d3cd097731a9841cb8f2057fc702927cabf4f31"
+    },
+    {
+      "file": "GoldUtyaEmoji/5290003595192717564.tgs",
+      "sha256": "f4920257770735db6a34eefdd1bc2df72faad45ddb4c01bf72987735a17179fd",
+      "previewSha256": "1ba5a8b0aebb0db768d03c644b69229c4544ee41696bc53facb5372bdea37ed3"
+    },
+    {
+      "file": "GoldUtyaEmoji/5287269122659339019.tgs",
+      "sha256": "5f2003d164a9a334ef09e1474a799f0c06549dc604ff2cafd0633100ac1e94aa",
+      "previewSha256": "2b689151ff22fd0cf43dcd9891011d930e37ddff3519a880621b950778b6a41f"
+    },
+    {
+      "file": "GoldUtyaEmoji/5386375355575586840.tgs",
+      "sha256": "9e58d366617437ef3ffd786d067a99f468fab9c88bd2d912dba33de0f8aaa3fe",
+      "previewSha256": "c9249ee8a645e2ff3649bceeb2dd91e1bf869bac28ef1fffb60b159d65bb920d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5409258455997369862.tgs",
+      "sha256": "35c922898e77174f8f6ae5637e262ac268591f7804f3c1048dba7727200f55f5",
+      "previewSha256": "38c4ca24baa83691732806cce97b3b311c68f5849a8c23610a560d8b81bc5134"
+    },
+    {
+      "file": "GoldUtyaEmoji/5411377339458145570.tgs",
+      "sha256": "909a0d52f5d5f0292abf6d3f6fe4b874599f9a8569f2154424b543b70e740c84",
+      "previewSha256": "20d9f0f369db885f0fa5bb451b919884b29e0f402cad66fbefa64c66c3d78388"
+    },
+    {
+      "file": "GoldUtyaEmoji/5408876981297104701.tgs",
+      "sha256": "46f7e8310b0a74e87cc52b537ebd58b6e481bbf7a4c14a99d7a769736c8c7748",
+      "previewSha256": "cbb0bfb2db0a83c0f9d545eb027d9028a86a47bea8e1a99a5ce570cbfecb1b6a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5431668835138683739.tgs",
+      "sha256": "341cba1dd201aefbc76e08d481ac026a670f046a870fc02f68e6d7119c98199c",
+      "previewSha256": "3bf79c0a4297b7d32fbee418507059a7a6a9174b9bd6c529e1a484b4c01ed195"
+    },
+    {
+      "file": "GoldUtyaEmoji/5408885893354245503.tgs",
+      "sha256": "59b38cd764413b415b66d7620aea67bed93028fdaef4c965435129393b09be07",
+      "previewSha256": "77cf4087c89611f44f737bdabf2ce69a9a75b09878791235e79e9328d60366b9"
+    },
+    {
+      "file": "GoldUtyaEmoji/5195333655471345561.tgs",
+      "sha256": "2928f8a58fca23405a6ba35f2ddfbde8edf56a6f19eec4a06c97d78b804ad223",
+      "previewSha256": "145ca98769c5570639490ee86fe547803231964e11a3245db8e7ec58d5eeb233"
+    },
+    {
+      "file": "GoldUtyaEmoji/5285211734540307937.tgs",
+      "sha256": "8ddf568a8750c61b5b7a2578e2a3cc8c7a83f6d968ba2cd43a3bfd1bf6589882",
+      "previewSha256": "c2719015bab069ecc0eb5fc236d731a9681f22d0ad2837c4618a03fdf9bbb1f5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5325936008850596091.tgs",
+      "sha256": "2fdfbac7566066cf69034f4c74a539ce48df38839ccfacb2f2f997da1c08cfb6",
+      "previewSha256": "f047c4be7734379e6d78602dccabd89df16a8f3957baf0cb2615edcc22058839"
+    },
+    {
+      "file": "GoldUtyaEmoji/5222314567010376670.tgs",
+      "sha256": "c4fcbd840bb73a1736fc77c419037b74ec25e453c139c6ea1cb8b6abb7bf361b",
+      "previewSha256": "62237396bbe8f46275af0bcf409b95c205219cc9a1b7894bf10f47bed419fca3"
+    },
+    {
+      "file": "GoldUtyaEmoji/5222171093627854580.tgs",
+      "sha256": "963d02955d9543e121cd1a9e86146a1dcff236708418f924f5056e98fceb8eac",
+      "previewSha256": "6e596c8418f442ea4976e7ef01311bf8fcdc2922ed760be2389617735d228a69"
+    },
+    {
+      "file": "GoldUtyaEmoji/5323361966230623870.tgs",
+      "sha256": "1c2a120043b471b52d849a86c545c3c9f04abfc86c8b3154bb3f06d8e63393a3",
+      "previewSha256": "472cd8e765d43056fb4ea6194c6b882cacf9e86a30d6fce785814ae609c89550"
+    },
+    {
+      "file": "GoldUtyaEmoji/5221972820757602661.tgs",
+      "sha256": "ace19e6b2b8af1d614db88f471bc0311f3b091c863ee998f55ee6bf21073808a",
+      "previewSha256": "bba44f50f405a060d4035a5a10ad6840fb21871c5aaa2098fbeffab40b0bd913"
+    },
+    {
+      "file": "GoldUtyaEmoji/5231289163168371216.tgs",
+      "sha256": "4fa16ef0e8727a38dc1351cb2c636f6096bca45add9d64472514b6a38129390a",
+      "previewSha256": "256e4533a88e6005166bfd3da09e491155a8cb1916c00c2766b1b7b0a5706214"
+    },
+    {
+      "file": "GoldUtyaEmoji/5451650826885951215.tgs",
+      "sha256": "37f1d890768a92b38f6cb145aa46ef4f40fa31194225e3122464857fc18f8cc3",
+      "previewSha256": "117417b58ed1a76a6b05fa546b1edcc02de316396290287c41e9d6f9bbdc111d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5449811631695491148.tgs",
+      "sha256": "aba216c59d63c61ff7e695c0a73c7dc9600532b32193d07d316022a7405c483e",
+      "previewSha256": "44cb88cca10e0f862722aa896e6f2beb7ec14bce1f515469c1cf9872793c2176"
+    },
+    {
+      "file": "GoldUtyaEmoji/5253771538846478736.tgs",
+      "sha256": "43742f481b13a66335970f0c5feb8d6b9d5d178a12f9eb5b3e52f73f06fe37ab",
+      "previewSha256": "76e7f385548d99dec155f0875f493e9de348c38c6cf72e554ffd5e3e233000d0"
+    },
+    {
+      "file": "GoldUtyaEmoji/5253723130270085344.tgs",
+      "sha256": "3d200f3c66fd7e2ac50d76b23f5f77239142c9d92e22994ae4edd96d95feb36e",
+      "previewSha256": "1fa39ceb6299254104b0620adde72fc151083545f593443b83d14e3d1fa7c5ab"
+    },
+    {
+      "file": "GoldUtyaEmoji/5251288536648285379.tgs",
+      "sha256": "48be98d19f6af43aed33060cc7041ea30036a532e89ee57a07b6b207543c4791",
+      "previewSha256": "53814f04948ee8f306e28d1e44be8fa1eec3eb90391840d145d145f8b79ad151"
+    },
+    {
+      "file": "GoldUtyaEmoji/5251240196791362166.tgs",
+      "sha256": "bf3aef5a54a3f2279e3c62fa0278b8cabb2d4d8fd276515d7daeb4fd9a2331f1",
+      "previewSha256": "b5530e750e9b3cdb9ddeac2c85295818a3b15b68ca56a82fa0f44e4edd720bad"
+    },
+    {
+      "file": "GoldUtyaEmoji/5253983405288222414.tgs",
+      "sha256": "6c130681e4005791f4aacea0797e3be4ac276db6e6e628c4292f7971348646b4",
+      "previewSha256": "e95b2f440a2e1b7f72d1faae9720457b2d350efde0a46af0d5602066e06a9874"
+    },
+    {
+      "file": "GoldUtyaEmoji/5253770503759361631.tgs",
+      "sha256": "e130ecf98832260d03c62526f7fc9e63245a930b3e16d8995627e122c833a9b3",
+      "previewSha256": "1f2f9e01ae448cd96556a3fcde9c9354968fa49a0900aab8b51eccd91dfce88f"
+    },
+    {
+      "file": "GoldUtyaEmoji/5253616739635198019.tgs",
+      "sha256": "9db739535c2f712fd63e95f7e1d822980574319b583ada7fcae1484989bd0313",
+      "previewSha256": "ad9587d333b4f0b9d6ed2ae6ceaa0b0a31c5d388c28a614bed15f9e1788ae1d5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5253963734338008156.tgs",
+      "sha256": "0fdbd01cf5ee84f28abd27b42707e68bc13e40bd1448dffe78a7ae9787a4fa94",
+      "previewSha256": "9125e9def183745b72b3aead5b17011943d617afdf87f65f41a941d8f721fb95"
+    },
+    {
+      "file": "GoldUtyaEmoji/5301254429528320094.tgs",
+      "sha256": "a09f31e8efc81256242394070ac29866e68b623d6c8a1b910b98b4bd89c30848",
+      "previewSha256": "a84ee0984076b7feaead2662987f0957d16924abd3ea3ff8009b352ff5631df5"
+    },
+    {
+      "file": "GoldUtyaEmoji/5343781670979925711.tgs",
+      "sha256": "f570d8a989748235d608e0b912e66f8dfc02dc8295726399427c12327850afd0",
+      "previewSha256": "e4babf9a21a3d89ff6bbbe9a13cac345ac5a5ff94b45e44db1fe24d547d2f11f"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429287748219470128.tgs",
+      "sha256": "0256ea1b0a8fda296c7a7de2bbd9585c04f7038da0f8c56c68a8be33ab63da5c",
+      "previewSha256": "94be0885ad9dbfbb2548161794342060443cdcb16fe29a7c816fe5190babed4a"
+    },
+    {
+      "file": "GoldUtyaEmoji/5429423310272230483.tgs",
+      "sha256": "5fa6129fb5eac5729492d9349a858567238aa356581b1606e53ef1d9fb5edcf5",
+      "previewSha256": "fd528dd0c3443eb178cf111e4aac62efcb9001884406346f5db50d5fa69b93d7"
+    },
+    {
+      "file": "GoldUtyaEmoji/5215233467314370160.tgs",
+      "sha256": "e099d9d921cd149c9d39f5d23fcb0675dd9c34e5edf37f6bae78192ad3e71c7c",
+      "previewSha256": "62bfd6d255f516d05e99f41ece1952ce91c58972725f4e07702b7735532e1f4d"
+    },
+    {
+      "file": "GoldUtyaEmoji/5255960924195422750.tgs",
+      "sha256": "87e8a67754e71beba8c8d9bef346ec54472fd06242989912703b8b2dd43b177f",
+      "previewSha256": "d440df1977f187d2a9078455bd56a349f64b6af905f2ae1df9b977b8b33eb346"
+    },
+    {
+      "file": "GoldUtyaEmoji/5310229519607564320.tgs",
+      "sha256": "93939ec15ee2df44c4a04cafd1eecc9eda29cdccde57581689b43a5c87458597",
+      "previewSha256": "b52e0e9ed5cf6279186e243c85e673355ddbbc126634ce36a60c460f832380e1"
+    },
+    {
+      "file": "GoldUtyaEmoji/5402279799861313228.tgs",
+      "sha256": "6867ae640b1615110e17befaa7252f4b3c63fff1f9e5601969b9417684d47c87",
+      "previewSha256": "ddfff1dd891fa5d7e6d658fa03685d88281f4b5bba24de7971b52c39be2e2e02"
+    },
+    {
+      "file": "GoldUtyaEmoji/5253788830384813559.tgs",
+      "sha256": "0cb78ebcd018ffd65b6c5c97e067e2d25da1790100d8c4f3daace74c1d23e1ff",
+      "previewSha256": "b5aa1ecf39892e81265bb60895fd90b4b253181a66dbca249b78aef15ad68180"
+    },
+    {
+      "file": "SearchCategories/5355088357070218139.tgs",
+      "sha256": "67ef181c2d7f60e494018adc907695246b79203e6bc4998fbe8840c744886ea3",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5357465415310124060.tgs",
+      "sha256": "0689c55e782f57bc251e95ef39c9420e052383d16489402212c502fc3bd75053",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5357216259962315463.tgs",
+      "sha256": "1f36d62b6a61092433a6c460ffa3d5bfe2a0ab86a057b6e2fea817ab87c6f6ec",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5357257143756005264.tgs",
+      "sha256": "31c664180ab4526eb542dab0c46a7b754b1e9794cad70024646bdc5f245eda6c",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5354785574760753200.tgs",
+      "sha256": "2770830efb9dafcc2adb8fc21ec3523b1aac0c5a12af2e8300d2459fd44d3959",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5354978715145085779.tgs",
+      "sha256": "2403f78755969103aeb4b2346e7025ed979815f2a3f9c4482efda1bb38736809",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5355181227148059369.tgs",
+      "sha256": "47c28463b31dcc294f57764f95fd4b18c2007635d2d9db919f0688357063b699",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5355125405458113381.tgs",
+      "sha256": "a461c39f05a7f60c19a652879d2c14017e43d5ff529200fac60ea82bedc8395c",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5357252827313874903.tgs",
+      "sha256": "21093a4d3961dabbebf5458c3f9f72f10c0a353137df53300f727af46e2f952f",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5354848362887653592.tgs",
+      "sha256": "82af948ff1c9f0c83f2d84a6f0255cc99c5d9ae80c5d3a301806c4834043c1fe",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    },
+    {
+      "file": "SearchCategories/5354832952544993830.tgs",
+      "sha256": "529e82c0d58b9c632f3691c0b931fefe901ed5aa25448514bbed36b6365d9033",
+      "previewSha256": "59411c4f0d4903dc5581fc1adc2a2c497c47831e8324d6cf51f82403429dfaca"
+    }
+  ],
+  "categorySource": "https://core.telegram.org/api/emoji-categories"
+}

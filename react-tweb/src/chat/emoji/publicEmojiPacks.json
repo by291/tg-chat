@@ -1,0 +1,1943 @@
+[
+  {
+    "id": "FaceEmoji",
+    "name": "Face Emoji",
+    "url": "https://t.me/addemoji/FaceEmoji",
+    "emojis": [
+      {
+        "id": "5249007745805328497",
+        "emoji": "😂",
+        "name": "Face Emoji 01",
+        "renderer": "svg"
+      },
+      {
+        "id": "5371006802949315307",
+        "emoji": "🥲",
+        "name": "Face Emoji 02",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5472116818497771781",
+        "emoji": "😊",
+        "name": "Face Emoji 03",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5226876951855113572",
+        "emoji": "😇",
+        "name": "Face Emoji 04",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5370800648814073452",
+        "emoji": "😌",
+        "name": "Face Emoji 05",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5364343169779504660",
+        "emoji": "🥰",
+        "name": "Face Emoji 06",
+        "renderer": "svg"
+      },
+      {
+        "id": "5409351484988987888",
+        "emoji": "😘",
+        "name": "Face Emoji 07",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5388929052935462187",
+        "emoji": "😎",
+        "name": "Face Emoji 08",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5470139003237835974",
+        "emoji": "🥳",
+        "name": "Face Emoji 09",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5379556755690756903",
+        "emoji": "😖",
+        "name": "Face Emoji 10",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5393147196151438001",
+        "emoji": "😭",
+        "name": "Face Emoji 11",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5251304316358108171",
+        "emoji": "😠",
+        "name": "Face Emoji 12",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5377672218530552628",
+        "emoji": "😡",
+        "name": "Face Emoji 13",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5372914270939913780",
+        "emoji": "🤬",
+        "name": "Face Emoji 14",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5249198485302944651",
+        "emoji": "🤯",
+        "name": "Face Emoji 15",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5375131899993792435",
+        "emoji": "😳",
+        "name": "Face Emoji 16",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5404412517411725259",
+        "emoji": "🥶",
+        "name": "Face Emoji 17",
+        "renderer": "svg"
+      },
+      {
+        "id": "5366531532926231383",
+        "emoji": "😨",
+        "name": "Face Emoji 18",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5368809197032971971",
+        "emoji": "🤔",
+        "name": "Face Emoji 19",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5251397349644706382",
+        "emoji": "🫢",
+        "name": "Face Emoji 20",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5375088228766325394",
+        "emoji": "🫠",
+        "name": "Face Emoji 21",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5246885387716011812",
+        "emoji": "🫥",
+        "name": "Face Emoji 22",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5391164853995969598",
+        "emoji": "😐",
+        "name": "Face Emoji 23",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5384455522374135242",
+        "emoji": "😬",
+        "name": "Face Emoji 24",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5246723750916795204",
+        "emoji": "🥱",
+        "name": "Face Emoji 25",
+        "renderer": "svg"
+      },
+      {
+        "id": "5404743771059395517",
+        "emoji": "😴",
+        "name": "Face Emoji 26",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5474143626449656407",
+        "emoji": "😵‍💫",
+        "name": "Face Emoji 27",
+        "renderer": "svg"
+      },
+      {
+        "id": "5381855971943389791",
+        "emoji": "🤐",
+        "name": "Face Emoji 28",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5454173029250636981",
+        "emoji": "🤢",
+        "name": "Face Emoji 29",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5377344615605083432",
+        "emoji": "🤮",
+        "name": "Face Emoji 30",
+        "renderer": "svg"
+      },
+      {
+        "id": "5445397461877136201",
+        "emoji": "🤕",
+        "name": "Face Emoji 31",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5251434509701751661",
+        "emoji": "😈",
+        "name": "Face Emoji 32",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5470010106974314312",
+        "emoji": "💀",
+        "name": "Face Emoji 33",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5233550579413819858",
+        "emoji": "👋",
+        "name": "Face Emoji 34",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5247224183326256799",
+        "emoji": "👌",
+        "name": "Face Emoji 35",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5449656926973469265",
+        "emoji": "🤘",
+        "name": "Face Emoji 36",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5391210243210353922",
+        "emoji": "👍",
+        "name": "Face Emoji 37",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5382319231410904354",
+        "emoji": "🙏",
+        "name": "Face Emoji 38",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5228804314134226293",
+        "emoji": "💪",
+        "name": "Face Emoji 39",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5391042881219731337",
+        "emoji": "👀",
+        "name": "Face Emoji 40",
+        "renderer": "svg"
+      },
+      {
+        "id": "5206186681346039457",
+        "emoji": "🧑‍🎓",
+        "name": "Face Emoji 41",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5203980348056149676",
+        "emoji": "👨‍💻",
+        "name": "Face Emoji 42",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5235887071687615448",
+        "emoji": "🍗",
+        "name": "Face Emoji 43",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5204204867471547076",
+        "emoji": "🏋️‍♂️",
+        "name": "Face Emoji 44",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5249030062455398728",
+        "emoji": "🚗",
+        "name": "Face Emoji 45",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5249065319841931818",
+        "emoji": "✈️",
+        "name": "Face Emoji 46",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5199790590279033017",
+        "emoji": "🏖",
+        "name": "Face Emoji 47",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5208782954716733247",
+        "emoji": "🏠",
+        "name": "Face Emoji 48",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5226772700113935347",
+        "emoji": "📞",
+        "name": "Face Emoji 49",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5195227797412387977",
+        "emoji": "🚽",
+        "name": "Face Emoji 50",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5208847714233621951",
+        "emoji": "🛁",
+        "name": "Face Emoji 51",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5204265911841727318",
+        "emoji": "🛍",
+        "name": "Face Emoji 52",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5206432422194849059",
+        "emoji": "🔒",
+        "name": "Face Emoji 53",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5384186459852906360",
+        "emoji": "💔",
+        "name": "Face Emoji 54",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5238025132177369293",
+        "emoji": "🆘",
+        "name": "Face Emoji 55",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5242500556819274882",
+        "emoji": "⛔️",
+        "name": "Face Emoji 56",
+        "renderer": "canvas"
+      }
+    ]
+  },
+  {
+    "id": "HandEmoji",
+    "name": "Hand Emoji",
+    "url": "https://t.me/addemoji/HandEmoji",
+    "emojis": [
+      {
+        "id": "5377637695583426942",
+        "emoji": "😂",
+        "name": "Hand Emoji 01",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5416025958656253132",
+        "emoji": "😉",
+        "name": "Hand Emoji 02",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5393362124904866975",
+        "emoji": "😘",
+        "name": "Hand Emoji 03",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5370626028328722645",
+        "emoji": "🤪",
+        "name": "Hand Emoji 04",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5413807449134079799",
+        "emoji": "🤓",
+        "name": "Hand Emoji 05",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5407057942388153892",
+        "emoji": "🥳",
+        "name": "Hand Emoji 06",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5382237760176265857",
+        "emoji": "😏",
+        "name": "Hand Emoji 07",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5375314504823347930",
+        "emoji": "😭",
+        "name": "Hand Emoji 08",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5388881284309195257",
+        "emoji": "😠",
+        "name": "Hand Emoji 09",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5411307709448331025",
+        "emoji": "😡",
+        "name": "Hand Emoji 10",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5386853570119212191",
+        "emoji": "😨",
+        "name": "Hand Emoji 11",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5413683612342034207",
+        "emoji": "😓",
+        "name": "Hand Emoji 12",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5375285788672006208",
+        "emoji": "😪",
+        "name": "Hand Emoji 13",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5377548235709619284",
+        "emoji": "🤑",
+        "name": "Hand Emoji 14",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5381888390356541373",
+        "emoji": "👏",
+        "name": "Hand Emoji 15",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5368324170671202286",
+        "emoji": "👍",
+        "name": "Hand Emoji 16",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5375297105910831597",
+        "emoji": "👎",
+        "name": "Hand Emoji 17",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5406765321971308150",
+        "emoji": "✌️",
+        "name": "Hand Emoji 18",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5408832021579438038",
+        "emoji": "🤘",
+        "name": "Hand Emoji 19",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5371031529076039304",
+        "emoji": "👌",
+        "name": "Hand Emoji 20",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5370740716840425754",
+        "emoji": "☝️",
+        "name": "Hand Emoji 21",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5384226763826010446",
+        "emoji": "🖖",
+        "name": "Hand Emoji 22",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5195448447062251797",
+        "emoji": "👋",
+        "name": "Hand Emoji 23",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5375053319272144244",
+        "emoji": "🤙",
+        "name": "Hand Emoji 24",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5370997336841393598",
+        "emoji": "🖕",
+        "name": "Hand Emoji 25",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5377860677400536988",
+        "emoji": "❤️",
+        "name": "Hand Emoji 26",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5384612769716774600",
+        "emoji": "❓",
+        "name": "Hand Emoji 27",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5384611567125928766",
+        "emoji": "⏱",
+        "name": "Hand Emoji 28",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5415898080299980921",
+        "emoji": "🥴",
+        "name": "Hand Emoji 29",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5420363154070707696",
+        "emoji": "👆",
+        "name": "Hand Emoji 30",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5420200958925742055",
+        "emoji": "👩‍❤️‍👨",
+        "name": "Hand Emoji 31",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5427078438517218023",
+        "emoji": "🤞",
+        "name": "Hand Emoji 32",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431781500720781493",
+        "emoji": "🌺",
+        "name": "Hand Emoji 33",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431889291515010120",
+        "emoji": "✊",
+        "name": "Hand Emoji 34",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5435884367014536083",
+        "emoji": "✍️",
+        "name": "Hand Emoji 35",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5438583951528565450",
+        "emoji": "🩹",
+        "name": "Hand Emoji 36",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5443048677406940863",
+        "emoji": "😖",
+        "name": "Hand Emoji 37",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5447315718825582234",
+        "emoji": "🤏",
+        "name": "Hand Emoji 38",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5452023368054216810",
+        "emoji": "🥶",
+        "name": "Hand Emoji 39",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5204235688156862937",
+        "emoji": "🛍",
+        "name": "Hand Emoji 40",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5453984836668627018",
+        "emoji": "😶‍🌫️",
+        "name": "Hand Emoji 41",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5204337251248512239",
+        "emoji": "😴",
+        "name": "Hand Emoji 42",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5458520502521829759",
+        "emoji": "🤡",
+        "name": "Hand Emoji 43",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5463090760041634232",
+        "emoji": "🤝",
+        "name": "Hand Emoji 44",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5467579593571443199",
+        "emoji": "🫰",
+        "name": "Hand Emoji 45",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5469651945356533523",
+        "emoji": "😈",
+        "name": "Hand Emoji 46",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5474283861426838934",
+        "emoji": "🙌",
+        "name": "Hand Emoji 47",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5194948396904881244",
+        "emoji": "👽",
+        "name": "Hand Emoji 48",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5197311131428855039",
+        "emoji": "💅",
+        "name": "Hand Emoji 49",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5201743838326037402",
+        "emoji": "⛔️",
+        "name": "Hand Emoji 50",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5204118276635892650",
+        "emoji": "🏋️",
+        "name": "Hand Emoji 51",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5204128352629169390",
+        "emoji": "👨‍🎓",
+        "name": "Hand Emoji 52",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5210763162273456025",
+        "emoji": "🧼",
+        "name": "Hand Emoji 53",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5215584804229095049",
+        "emoji": "🏖",
+        "name": "Hand Emoji 54",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5219722648736504043",
+        "emoji": "🍔",
+        "name": "Hand Emoji 55",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5224254822781296893",
+        "emoji": "🧻",
+        "name": "Hand Emoji 56",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5235882793900188063",
+        "emoji": "🏠",
+        "name": "Hand Emoji 57",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5244516275165601594",
+        "emoji": "🛩",
+        "name": "Hand Emoji 58",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5244482516722655121",
+        "emoji": "🚗",
+        "name": "Hand Emoji 59",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5247152118069992250",
+        "emoji": "🔓",
+        "name": "Hand Emoji 60",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5249007818819771926",
+        "emoji": "💪",
+        "name": "Hand Emoji 61",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5255907722435501318",
+        "emoji": "🙏",
+        "name": "Hand Emoji 62",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5256246913182735967",
+        "emoji": "📈",
+        "name": "Hand Emoji 63",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5253596497454310931",
+        "emoji": "📞",
+        "name": "Hand Emoji 64",
+        "renderer": "canvas"
+      }
+    ]
+  },
+  {
+    "id": "GoldUtyaEmoji",
+    "name": "Gold Utya | @EmojisTG",
+    "url": "https://t.me/addemoji/GoldUtyaEmoji",
+    "emojis": [
+      {
+        "id": "5431437173192671571",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 01",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429226063899150780",
+        "emoji": "🍿",
+        "name": "Gold Utya | @EmojisTG 02",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429347336595720213",
+        "emoji": "🎙",
+        "name": "Gold Utya | @EmojisTG 03",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429511885382764308",
+        "emoji": "🫵",
+        "name": "Gold Utya | @EmojisTG 04",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429352640880330417",
+        "emoji": "🤳",
+        "name": "Gold Utya | @EmojisTG 05",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429503312628040719",
+        "emoji": "📱",
+        "name": "Gold Utya | @EmojisTG 06",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431701296501508168",
+        "emoji": "🍕",
+        "name": "Gold Utya | @EmojisTG 07",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429242943120623604",
+        "emoji": "📅",
+        "name": "Gold Utya | @EmojisTG 08",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431606532343088171",
+        "emoji": "🧥",
+        "name": "Gold Utya | @EmojisTG 09",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429369021885598432",
+        "emoji": "🧹",
+        "name": "Gold Utya | @EmojisTG 10",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429383392846171121",
+        "emoji": "☎️",
+        "name": "Gold Utya | @EmojisTG 11",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431809229029656511",
+        "emoji": "⚗️",
+        "name": "Gold Utya | @EmojisTG 12",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431805939084706706",
+        "emoji": "🔝",
+        "name": "Gold Utya | @EmojisTG 13",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429127236701668265",
+        "emoji": "🩻",
+        "name": "Gold Utya | @EmojisTG 14",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429561518024836270",
+        "emoji": "🚫",
+        "name": "Gold Utya | @EmojisTG 15",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429387503129875330",
+        "emoji": "🏆",
+        "name": "Gold Utya | @EmojisTG 16",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429468682306733636",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 17",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429509243977877757",
+        "emoji": "🤣",
+        "name": "Gold Utya | @EmojisTG 18",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429240147096913067",
+        "emoji": "🥶",
+        "name": "Gold Utya | @EmojisTG 19",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429280957876160028",
+        "emoji": "😈",
+        "name": "Gold Utya | @EmojisTG 20",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431629501828185344",
+        "emoji": "🔨",
+        "name": "Gold Utya | @EmojisTG 21",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429295556469999475",
+        "emoji": "💁‍♂️",
+        "name": "Gold Utya | @EmojisTG 22",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429332991404952140",
+        "emoji": "📰",
+        "name": "Gold Utya | @EmojisTG 23",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429295161333007624",
+        "emoji": "📢",
+        "name": "Gold Utya | @EmojisTG 24",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431900565804170891",
+        "emoji": "🎤",
+        "name": "Gold Utya | @EmojisTG 25",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429626230297086471",
+        "emoji": "🚽",
+        "name": "Gold Utya | @EmojisTG 26",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429566109344877364",
+        "emoji": "👀",
+        "name": "Gold Utya | @EmojisTG 27",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429139992754538785",
+        "emoji": "👀",
+        "name": "Gold Utya | @EmojisTG 28",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429333609880242337",
+        "emoji": "🏖",
+        "name": "Gold Utya | @EmojisTG 29",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429582159637662048",
+        "emoji": "🎩",
+        "name": "Gold Utya | @EmojisTG 30",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429285132584371296",
+        "emoji": "🛍",
+        "name": "Gold Utya | @EmojisTG 31",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431763925714617848",
+        "emoji": "🚀",
+        "name": "Gold Utya | @EmojisTG 32",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429553658234684476",
+        "emoji": "✈️",
+        "name": "Gold Utya | @EmojisTG 33",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429166982329027501",
+        "emoji": "👻",
+        "name": "Gold Utya | @EmojisTG 34",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431494476646334959",
+        "emoji": "🤷‍♂️",
+        "name": "Gold Utya | @EmojisTG 35",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431496422266519020",
+        "emoji": "👨‍💻",
+        "name": "Gold Utya | @EmojisTG 36",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429479990955624494",
+        "emoji": "💪",
+        "name": "Gold Utya | @EmojisTG 37",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431772249361238545",
+        "emoji": "🎂",
+        "name": "Gold Utya | @EmojisTG 38",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431855653331156095",
+        "emoji": "🔋",
+        "name": "Gold Utya | @EmojisTG 39",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429634996325336968",
+        "emoji": "🔫",
+        "name": "Gold Utya | @EmojisTG 40",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431721087710808040",
+        "emoji": "🎙",
+        "name": "Gold Utya | @EmojisTG 41",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429289182738532715",
+        "emoji": "😐",
+        "name": "Gold Utya | @EmojisTG 42",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429342947139143078",
+        "emoji": "📷",
+        "name": "Gold Utya | @EmojisTG 43",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429650522632113204",
+        "emoji": "🤝",
+        "name": "Gold Utya | @EmojisTG 44",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431761576367505572",
+        "emoji": "🛫",
+        "name": "Gold Utya | @EmojisTG 45",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429582095213153988",
+        "emoji": "🤓",
+        "name": "Gold Utya | @EmojisTG 46",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431513683740085052",
+        "emoji": "🙋",
+        "name": "Gold Utya | @EmojisTG 47",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429223551343281843",
+        "emoji": "👩‍🎨",
+        "name": "Gold Utya | @EmojisTG 48",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429629567486675820",
+        "emoji": "🔥",
+        "name": "Gold Utya | @EmojisTG 49",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429234640948839986",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 50",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429551248758033781",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 51",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431495631992536642",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 52",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429225647287323409",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 53",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429364241586997374",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 54",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429406216302383570",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 55",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429568256828525407",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 56",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429534872047733355",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 57",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429389229706726043",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 58",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431532147804490785",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 59",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429623576007297020",
+        "emoji": "🤔",
+        "name": "Gold Utya | @EmojisTG 60",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429532625779837915",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 61",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429455466692367027",
+        "emoji": "🪄",
+        "name": "Gold Utya | @EmojisTG 62",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429197605445847745",
+        "emoji": "🥳",
+        "name": "Gold Utya | @EmojisTG 63",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431796249638487743",
+        "emoji": "😭",
+        "name": "Gold Utya | @EmojisTG 64",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429175331745450701",
+        "emoji": "🤣",
+        "name": "Gold Utya | @EmojisTG 65",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431523974481724581",
+        "emoji": "🥳",
+        "name": "Gold Utya | @EmojisTG 66",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429642886180259763",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 67",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429568265418460225",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 68",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431665059862432187",
+        "emoji": "🪩",
+        "name": "Gold Utya | @EmojisTG 69",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431756203363419412",
+        "emoji": "🏎",
+        "name": "Gold Utya | @EmojisTG 70",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429325161679573642",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 71",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429609621658553521",
+        "emoji": "😋",
+        "name": "Gold Utya | @EmojisTG 72",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431677188850074833",
+        "emoji": "🏗",
+        "name": "Gold Utya | @EmojisTG 73",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429622089948611860",
+        "emoji": "🥳",
+        "name": "Gold Utya | @EmojisTG 74",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431581716022051520",
+        "emoji": "🎁",
+        "name": "Gold Utya | @EmojisTG 75",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429337436696103843",
+        "emoji": "😭",
+        "name": "Gold Utya | @EmojisTG 76",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429256145850089713",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 77",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429490852927917808",
+        "emoji": "😭",
+        "name": "Gold Utya | @EmojisTG 78",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431553150194565503",
+        "emoji": "🍿",
+        "name": "Gold Utya | @EmojisTG 79",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431592582289312074",
+        "emoji": "📞",
+        "name": "Gold Utya | @EmojisTG 80",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429533952924731514",
+        "emoji": "🗄",
+        "name": "Gold Utya | @EmojisTG 81",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431786976804092900",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 82",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431456805488182403",
+        "emoji": "🎧",
+        "name": "Gold Utya | @EmojisTG 83",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429157241343198116",
+        "emoji": "🤓",
+        "name": "Gold Utya | @EmojisTG 84",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429314879527864603",
+        "emoji": "😴",
+        "name": "Gold Utya | @EmojisTG 85",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431755876945904647",
+        "emoji": "🎮",
+        "name": "Gold Utya | @EmojisTG 86",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429193293298682249",
+        "emoji": "😵‍💫",
+        "name": "Gold Utya | @EmojisTG 87",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429274983576653417",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 88",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429646592737036570",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 89",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429621900970051985",
+        "emoji": "🗄",
+        "name": "Gold Utya | @EmojisTG 90",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429316460075828643",
+        "emoji": "🗺",
+        "name": "Gold Utya | @EmojisTG 91",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429136372097109193",
+        "emoji": "📖",
+        "name": "Gold Utya | @EmojisTG 92",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429365504307383204",
+        "emoji": "📷",
+        "name": "Gold Utya | @EmojisTG 93",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429125845132268334",
+        "emoji": "🛍",
+        "name": "Gold Utya | @EmojisTG 94",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431733263943092458",
+        "emoji": "🥚",
+        "name": "Gold Utya | @EmojisTG 95",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429317443623339836",
+        "emoji": "🚘",
+        "name": "Gold Utya | @EmojisTG 96",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429623829410368368",
+        "emoji": "🫵",
+        "name": "Gold Utya | @EmojisTG 97",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431377387247911917",
+        "emoji": "✍️",
+        "name": "Gold Utya | @EmojisTG 98",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436061341141978450",
+        "emoji": "🔍",
+        "name": "Gold Utya | @EmojisTG 99",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431401220021439185",
+        "emoji": "🤷‍♂️",
+        "name": "Gold Utya | @EmojisTG 100",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429104460490099965",
+        "emoji": "🥳",
+        "name": "Gold Utya | @EmojisTG 101",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429277431708010666",
+        "emoji": "🏃‍♂️",
+        "name": "Gold Utya | @EmojisTG 102",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431885387389747627",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 103",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431690344334901679",
+        "emoji": "😭",
+        "name": "Gold Utya | @EmojisTG 104",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429157572055683772",
+        "emoji": "🍾",
+        "name": "Gold Utya | @EmojisTG 105",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431679877499602469",
+        "emoji": "😉",
+        "name": "Gold Utya | @EmojisTG 106",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429544943746042427",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 107",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429522322153294239",
+        "emoji": "🙃",
+        "name": "Gold Utya | @EmojisTG 108",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429492931692087092",
+        "emoji": "⚽️",
+        "name": "Gold Utya | @EmojisTG 109",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429352623700461826",
+        "emoji": "🙃",
+        "name": "Gold Utya | @EmojisTG 110",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429365852199733139",
+        "emoji": "🎁",
+        "name": "Gold Utya | @EmojisTG 111",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429414290840897810",
+        "emoji": "🎁",
+        "name": "Gold Utya | @EmojisTG 112",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431464347450753853",
+        "emoji": "🥳",
+        "name": "Gold Utya | @EmojisTG 113",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429209012878985311",
+        "emoji": "🤫",
+        "name": "Gold Utya | @EmojisTG 114",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429408415325636104",
+        "emoji": "⏳",
+        "name": "Gold Utya | @EmojisTG 115",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431885395979683794",
+        "emoji": "🤓",
+        "name": "Gold Utya | @EmojisTG 116",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431451582807951891",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 117",
+        "renderer": "svg"
+      },
+      {
+        "id": "5435961693605742180",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 118",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431815564106417657",
+        "emoji": "🔥",
+        "name": "Gold Utya | @EmojisTG 119",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429573505278560485",
+        "emoji": "😂",
+        "name": "Gold Utya | @EmojisTG 120",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429217637173315779",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 121",
+        "renderer": "svg"
+      },
+      {
+        "id": "5436036481871266745",
+        "emoji": "📣",
+        "name": "Gold Utya | @EmojisTG 122",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429650204804533287",
+        "emoji": "😋",
+        "name": "Gold Utya | @EmojisTG 123",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429412091817641211",
+        "emoji": "🗿",
+        "name": "Gold Utya | @EmojisTG 124",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436325876767670913",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 125",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431419817229828599",
+        "emoji": "🥳",
+        "name": "Gold Utya | @EmojisTG 126",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429455260533933243",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 127",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429106552139173716",
+        "emoji": "👌",
+        "name": "Gold Utya | @EmojisTG 128",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431454610759894966",
+        "emoji": "➕",
+        "name": "Gold Utya | @EmojisTG 129",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431562929835098752",
+        "emoji": "🪲",
+        "name": "Gold Utya | @EmojisTG 130",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429218929958473226",
+        "emoji": "🤘",
+        "name": "Gold Utya | @EmojisTG 131",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429558146475513312",
+        "emoji": "🌅",
+        "name": "Gold Utya | @EmojisTG 132",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429196785107092430",
+        "emoji": "🌃",
+        "name": "Gold Utya | @EmojisTG 133",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431365369929418801",
+        "emoji": "❤️",
+        "name": "Gold Utya | @EmojisTG 134",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429406104633231445",
+        "emoji": "❌",
+        "name": "Gold Utya | @EmojisTG 135",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429511915447536335",
+        "emoji": "🆕",
+        "name": "Gold Utya | @EmojisTG 136",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431406094809318479",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 137",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431690855436009504",
+        "emoji": "🔜",
+        "name": "Gold Utya | @EmojisTG 138",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431469862188762458",
+        "emoji": "😱",
+        "name": "Gold Utya | @EmojisTG 139",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431876140325162056",
+        "emoji": "👍",
+        "name": "Gold Utya | @EmojisTG 140",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429385420070734665",
+        "emoji": "🗞",
+        "name": "Gold Utya | @EmojisTG 141",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431609714913853393",
+        "emoji": "✍️",
+        "name": "Gold Utya | @EmojisTG 142",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431876823224961444",
+        "emoji": "✍️",
+        "name": "Gold Utya | @EmojisTG 143",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429445678461897746",
+        "emoji": "🤑",
+        "name": "Gold Utya | @EmojisTG 144",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5429631139444706165",
+        "emoji": "✈️",
+        "name": "Gold Utya | @EmojisTG 145",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436400561953982685",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 146",
+        "renderer": "svg"
+      },
+      {
+        "id": "5436375522294647526",
+        "emoji": "🦸‍♂️",
+        "name": "Gold Utya | @EmojisTG 147",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436013757199303730",
+        "emoji": "☂️",
+        "name": "Gold Utya | @EmojisTG 148",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5434082589579168308",
+        "emoji": "🧾",
+        "name": "Gold Utya | @EmojisTG 149",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436110196394968273",
+        "emoji": "🥰",
+        "name": "Gold Utya | @EmojisTG 150",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436070863084474500",
+        "emoji": "😂",
+        "name": "Gold Utya | @EmojisTG 151",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436193785048483404",
+        "emoji": "🥳",
+        "name": "Gold Utya | @EmojisTG 152",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5435953348484285601",
+        "emoji": "🪓",
+        "name": "Gold Utya | @EmojisTG 153",
+        "renderer": "svg"
+      },
+      {
+        "id": "5436187707669761414",
+        "emoji": "⚗️",
+        "name": "Gold Utya | @EmojisTG 154",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436254958267681276",
+        "emoji": "😱",
+        "name": "Gold Utya | @EmojisTG 155",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436237035369154060",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 156",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436368856505403151",
+        "emoji": "🤮",
+        "name": "Gold Utya | @EmojisTG 157",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5436071043473099492",
+        "emoji": "🦠",
+        "name": "Gold Utya | @EmojisTG 158",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5247156455986973437",
+        "emoji": "✂️",
+        "name": "Gold Utya | @EmojisTG 159",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5431631791045754944",
+        "emoji": "😴",
+        "name": "Gold Utya | @EmojisTG 160",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5434141413451253017",
+        "emoji": "😴",
+        "name": "Gold Utya | @EmojisTG 161",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5289812546457455267",
+        "emoji": "🍸",
+        "name": "Gold Utya | @EmojisTG 162",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5289648878138705681",
+        "emoji": "🔝",
+        "name": "Gold Utya | @EmojisTG 163",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5289481894105205105",
+        "emoji": "☕️",
+        "name": "Gold Utya | @EmojisTG 164",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5289972306355962617",
+        "emoji": "✈️",
+        "name": "Gold Utya | @EmojisTG 165",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5290003595192717564",
+        "emoji": "🎂",
+        "name": "Gold Utya | @EmojisTG 166",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5287269122659339019",
+        "emoji": "🦆",
+        "name": "Gold Utya | @EmojisTG 167",
+        "renderer": "svg"
+      },
+      {
+        "id": "5386375355575586840",
+        "emoji": "⭐️",
+        "name": "Gold Utya | @EmojisTG 168",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5409258455997369862",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 169",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5411377339458145570",
+        "emoji": "🔎",
+        "name": "Gold Utya | @EmojisTG 170",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5408876981297104701",
+        "emoji": "🕺",
+        "name": "Gold Utya | @EmojisTG 171",
+        "renderer": "svg"
+      },
+      {
+        "id": "5431668835138683739",
+        "emoji": "🕺",
+        "name": "Gold Utya | @EmojisTG 172",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5408885893354245503",
+        "emoji": "🤑",
+        "name": "Gold Utya | @EmojisTG 173",
+        "renderer": "svg"
+      },
+      {
+        "id": "5195333655471345561",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 174",
+        "renderer": "svg"
+      },
+      {
+        "id": "5285211734540307937",
+        "emoji": "👋",
+        "name": "Gold Utya | @EmojisTG 175",
+        "renderer": "svg"
+      },
+      {
+        "id": "5325936008850596091",
+        "emoji": "⭐️",
+        "name": "Gold Utya | @EmojisTG 176",
+        "renderer": "svg"
+      },
+      {
+        "id": "5222314567010376670",
+        "emoji": "🎁",
+        "name": "Gold Utya | @EmojisTG 177",
+        "renderer": "svg"
+      },
+      {
+        "id": "5222171093627854580",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 178",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5323361966230623870",
+        "emoji": "🎂",
+        "name": "Gold Utya | @EmojisTG 179",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5221972820757602661",
+        "emoji": "🎂",
+        "name": "Gold Utya | @EmojisTG 180",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5231289163168371216",
+        "emoji": "🔐",
+        "name": "Gold Utya | @EmojisTG 181",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5451650826885951215",
+        "emoji": "🎄",
+        "name": "Gold Utya | @EmojisTG 182",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5449811631695491148",
+        "emoji": "🎄",
+        "name": "Gold Utya | @EmojisTG 183",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5253771538846478736",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 184",
+        "renderer": "svg"
+      },
+      {
+        "id": "5253723130270085344",
+        "emoji": "🔝",
+        "name": "Gold Utya | @EmojisTG 185",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5251288536648285379",
+        "emoji": "☺️",
+        "name": "Gold Utya | @EmojisTG 186",
+        "renderer": "svg"
+      },
+      {
+        "id": "5251240196791362166",
+        "emoji": "🎁",
+        "name": "Gold Utya | @EmojisTG 187",
+        "renderer": "svg"
+      },
+      {
+        "id": "5253983405288222414",
+        "emoji": "🤗",
+        "name": "Gold Utya | @EmojisTG 188",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5253770503759361631",
+        "emoji": "🥰",
+        "name": "Gold Utya | @EmojisTG 189",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5253616739635198019",
+        "emoji": "🥰",
+        "name": "Gold Utya | @EmojisTG 190",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5253963734338008156",
+        "emoji": "🤩",
+        "name": "Gold Utya | @EmojisTG 191",
+        "renderer": "svg"
+      },
+      {
+        "id": "5301254429528320094",
+        "emoji": "😱",
+        "name": "Gold Utya | @EmojisTG 192",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5343781670979925711",
+        "emoji": "⏺️",
+        "name": "Gold Utya | @EmojisTG 193",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429287748219470128",
+        "emoji": "😎",
+        "name": "Gold Utya | @EmojisTG 194",
+        "renderer": "svg"
+      },
+      {
+        "id": "5429423310272230483",
+        "emoji": "👌",
+        "name": "Gold Utya | @EmojisTG 195",
+        "renderer": "svg"
+      },
+      {
+        "id": "5215233467314370160",
+        "emoji": "📔",
+        "name": "Gold Utya | @EmojisTG 196",
+        "renderer": "svg"
+      },
+      {
+        "id": "5255960924195422750",
+        "emoji": "🎂",
+        "name": "Gold Utya | @EmojisTG 197",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5310229519607564320",
+        "emoji": "🧑‍🎨",
+        "name": "Gold Utya | @EmojisTG 198",
+        "renderer": "svg"
+      },
+      {
+        "id": "5402279799861313228",
+        "emoji": "🆕",
+        "name": "Gold Utya | @EmojisTG 199",
+        "renderer": "canvas"
+      },
+      {
+        "id": "5253788830384813559",
+        "emoji": "❤️",
+        "name": "Gold Utya | @EmojisTG 200",
+        "renderer": "canvas"
+      }
+    ]
+  }
+]
