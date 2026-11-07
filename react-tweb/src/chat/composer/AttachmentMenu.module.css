@@ -1,0 +1,8 @@
+.trigger[data-state='open'] {
+  background: var(--hover-color);
+}
+
+.menu {
+  min-width: 180px;
+  pointer-events: auto;
+}

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageComposer } from './MessageComposer';
 import type { Attachment, Message } from '../model';
@@ -27,6 +28,10 @@ class TestResizeObserver {
     resizeCallbacks.set(element, this.callback);
   }
 
+  unobserve(element: Element) {
+    resizeCallbacks.delete(element);
+  }
+
   disconnect() {
     for (const [element, callback] of resizeCallbacks) {
       if (callback === this.callback) {
@@ -41,6 +46,14 @@ beforeEach(() => {
   resizeCallbacks.clear();
   measuredEditorHeight = 33;
   vi.stubGlobal('ResizeObserver', TestResizeObserver);
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function () {
     return new DOMRect(0, 0, 400, measuredEditorHeight);
   });
@@ -85,6 +98,24 @@ async function finishDecoding(name: string) {
 }
 
 describe('image composition', () => {
+  it('opens attachment choices without requesting a file or losing the draft', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+    const chooseFile = vi.spyOn(HTMLInputElement.prototype, 'click');
+    await user.click(screen.getByRole('button', { name: 'Attach' }));
+    expect(await screen.findByRole('menuitem', { name: 'Photo or Video' })).toBeTruthy();
+    expect(chooseFile).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Dismiss attachment menu' }));
+
+    expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('A caption');
+    expect(chooseFile).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Attach' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Photo or Video' }));
+    expect(chooseFile).toHaveBeenCalledOnce();
+  });
+
   it('keeps send disabled when an obsolete image finishes before the newest image', async () => {
     renderComposer();
     pasteImage('older.png');

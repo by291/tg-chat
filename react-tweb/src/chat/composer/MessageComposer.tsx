@@ -1,8 +1,11 @@
-import { ImagePlus, Maximize2, Minimize2, Paperclip, X } from 'lucide-react';
+import { File, Maximize2, Minimize2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
-import { createAttachment } from './attachments';
+import { createAttachment, createDocumentAttachment, createVideoAttachment } from './attachments';
+import { AttachmentMenu, type AttachmentAction } from './AttachmentMenu';
 import { ComposerSendButton } from './ComposerSendButton';
+import { ComposerListDialog } from './ComposerListDialog';
+import type { MessageMedia } from '../messageMedia';
 import { EmojiEditor, type EmojiEditorControls } from './EmojiEditor';
 import type { EmojiText, CustomEmojiEntity } from '../emoji/customEmojiEntities';
 import { EmojiPicker } from './EmojiPicker';
@@ -17,6 +20,7 @@ const EXPAND_BUTTON_MIN_HEIGHT = 72;
 export interface ComposedMessage extends EmojiText {
   attachment?: Attachment;
   sticker?: string;
+  media?: MessageMedia;
 }
 
 interface MessageComposerProps {
@@ -49,15 +53,19 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const editorRef = useRef<EmojiEditorControls>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileModeRef = useRef<'media' | 'document'>('media');
   const isMountedRef = useRef(true);
-  const imageRequestRef = useRef(0);
+  const attachmentRequestRef = useRef(0);
   const [editValue, setEditValue] = useState<EmojiText>({
     text: editingMessage?.text ?? '',
     customEmoji: editingMessage?.customEmoji,
     richText: editingMessage?.richText,
   });
   const [attachment, setAttachment] = useState<Attachment>();
-  const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const [mediaAttachment, setMediaAttachment] = useState<MessageMedia>();
+  const [attachmentName, setAttachmentName] = useState('');
+  const [listDialog, setListDialog] = useState<'poll' | 'checklist'>();
+  const [isLoadingAttachment, setIsLoadingAttachment] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -74,11 +82,11 @@ export function MessageComposer({
     Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
     Boolean(value.richText) ||
-    Boolean(attachment || editingMessage?.attachment || editingMessage?.media);
+    Boolean(attachment || mediaAttachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
   const previousContextRef = useRef(contextMessage);
   const canSubmit = Boolean(editingMessage) || hasContent;
-  const isPreparingAttachment = !editingMessage && isLoadingImage;
+  const isPreparingAttachment = !editingMessage && isLoadingAttachment;
 
   useEffect(() => {
     if (!text && !value.richText) {
@@ -134,10 +142,15 @@ export function MessageComposer({
       return;
     }
 
-    onSubmit({ ...value, attachment: editingMessage ? undefined : attachment });
+    onSubmit({
+      ...value,
+      attachment: editingMessage ? undefined : attachment,
+      media: editingMessage ? undefined : mediaAttachment,
+    });
     setIsExpanded(false);
     if (!editingMessage) {
       setAttachment(undefined);
+      setMediaAttachment(undefined);
     }
     editorRef.current?.focus();
   }
@@ -166,33 +179,64 @@ export function MessageComposer({
 
   function removeAttachment() {
     // Cancelling invalidates a pending decode so it cannot restore the removed preview.
-    imageRequestRef.current += 1;
+    attachmentRequestRef.current += 1;
     setAttachment(undefined);
-    setIsLoadingImage(false);
+    setMediaAttachment(undefined);
+    setIsLoadingAttachment(false);
   }
 
-  async function attachImage(file?: File) {
+  function selectAttachment(action: AttachmentAction) {
+    if (action === 'article') {
+      setIsExpanded(true);
+      // Ark restores trigger focus when the menu closes; place the caret after that handoff.
+      requestAnimationFrame(() => editorRef.current?.focus());
+      return;
+    }
+    if (action === 'poll' || action === 'checklist') {
+      setListDialog(action);
+      return;
+    }
+    const input = fileInputRef.current;
+    if (!input) {
+      return;
+    }
+    fileModeRef.current = action;
+    input.accept = action === 'document' ? '' : 'image/*,video/*';
+    input.click();
+  }
+
+  async function attachFile(file?: File, mode: 'media' | 'document' = 'media') {
     if (!file || editingMessage) {
       return;
     }
 
-    imageRequestRef.current += 1;
-    const requestId = imageRequestRef.current;
-    setIsLoadingImage(true);
+    attachmentRequestRef.current += 1;
+    const requestId = attachmentRequestRef.current;
+    setIsLoadingAttachment(true);
     try {
-      const nextAttachment = await createAttachment(file);
+      let nextImage: Attachment | undefined;
+      let nextMedia: MessageMedia | undefined;
+      if (mode === 'document') {
+        nextMedia = await createDocumentAttachment(file);
+      } else if (file.type.startsWith('video/')) {
+        nextMedia = await createVideoAttachment(file);
+      } else {
+        nextImage = await createAttachment(file);
+      }
       // Only the latest selection owns the preview and loading state.
-      if (isMountedRef.current && requestId === imageRequestRef.current) {
-        setAttachment(nextAttachment);
+      if (isMountedRef.current && requestId === attachmentRequestRef.current) {
+        setAttachment(nextImage);
+        setMediaAttachment(nextMedia);
+        setAttachmentName(file.name);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not open this image.';
-      if (isMountedRef.current && requestId === imageRequestRef.current) {
+      const message = error instanceof Error ? error.message : 'Could not open this attachment.';
+      if (isMountedRef.current && requestId === attachmentRequestRef.current) {
         onNotify(message);
       }
     } finally {
-      if (isMountedRef.current && requestId === imageRequestRef.current) {
-        setIsLoadingImage(false);
+      if (isMountedRef.current && requestId === attachmentRequestRef.current) {
+        setIsLoadingAttachment(false);
       }
     }
   }
@@ -203,7 +247,7 @@ export function MessageComposer({
       data-message-composer
       data-dragging={isDragging}
       data-has-context={Boolean(contextMessage || forwardMessages?.length)}
-      data-has-attachment={Boolean(attachment && !editingMessage)}
+      data-has-attachment={Boolean((attachment || mediaAttachment) && !editingMessage)}
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragging(true);
@@ -212,7 +256,7 @@ export function MessageComposer({
       onDrop={(event) => {
         event.preventDefault();
         setIsDragging(false);
-        void attachImage(event.dataTransfer.files[0]);
+        void attachFile(event.dataTransfer.files[0]);
       }}
     >
       <ComposerContextBar
@@ -222,12 +266,12 @@ export function MessageComposer({
         onJumpToMessage={onJumpToMessage}
         onCancel={requestCancelContext}
       />
-      {attachment && !editingMessage && (
+      {(attachment || mediaAttachment) && !editingMessage && (
         <div className={styles.attachmentPreview}>
-          <img src={attachment.url} alt={attachment.name} />
+          {attachment ? <img src={attachment.url} alt={attachment.name} /> : <File />}
           <span>
-            <strong>Photo</strong>
-            <span>{attachment.name}</span>
+            <strong>{attachment ? 'Photo' : 'Attachment'}</strong>
+            <span>{attachmentName}</span>
           </span>
           <IconButton label="Remove attachment" onClick={removeAttachment}>
             <X />
@@ -235,21 +279,19 @@ export function MessageComposer({
         </div>
       )}
       <div className={styles.editorRow} data-expanded={isExpanded}>
-        <IconButton
-          label="Attach a photo"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={Boolean(editingMessage) || isLoadingImage}
-        >
-          {isDragging ? <ImagePlus /> : <Paperclip />}
-        </IconButton>
+        <AttachmentMenu
+          isDisabled={Boolean(editingMessage) || isLoadingAttachment}
+          isExpanded={isExpanded}
+          onSelect={selectAttachment}
+        />
         <input
           ref={fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
           className={styles.fileInput}
-          aria-label="Choose an image"
+          aria-label="Choose an attachment"
           onChange={(event) => {
-            void attachImage(event.target.files?.[0]);
+            void attachFile(event.target.files?.[0], fileModeRef.current);
             event.target.value = '';
           }}
         />
@@ -260,11 +302,11 @@ export function MessageComposer({
           key={editingMessage?.id ?? 'compose'}
           controlsRef={editorRef}
           value={value}
-          placeholder={isPreparingAttachment ? 'Preparing photo…' : 'Message'}
+          placeholder={isPreparingAttachment ? 'Preparing attachment…' : 'Message'}
           onChange={updateText}
           onSubmit={sendMessage}
           onCancel={cancelComposition}
-          onPasteImage={(file) => void attachImage(file)}
+          onPasteImage={(file) => void attachFile(file)}
           onError={onNotify}
         />
         {canExpand && (
@@ -293,6 +335,17 @@ export function MessageComposer({
           onSend={sendMessage}
         />
       </div>
+      {listDialog && (
+        <ComposerListDialog
+          kind={listDialog}
+          onClose={() => setListDialog(undefined)}
+          onSubmit={(message) => {
+            onSubmit(message);
+            // Sending clears the stored draft; independent polls and lists must restore it.
+            onDraftChange(value);
+          }}
+        />
+      )}
       <DiscardEditDialog
         isOpen={isDiscardOpen}
         onKeepEditing={() => setIsDiscardOpen(false)}

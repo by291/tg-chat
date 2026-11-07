@@ -1,0 +1,48 @@
+.dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.dialog label {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--secondary-color);
+  font-size: 14px;
+}
+
+.dialog input,
+.dialog textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-color);
+  background: transparent;
+  font: inherit;
+}
+
+.dialog textarea {
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.actions button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--accent-color);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

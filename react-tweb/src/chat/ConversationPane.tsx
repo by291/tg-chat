@@ -124,7 +124,14 @@ export function ConversationPane({
       return;
     }
 
-    if (composed.text.trim() || composed.richText || composed.attachment || composed.sticker) {
+    const hasContent = Boolean(
+      composed.text.trim() ||
+      composed.richText ||
+      composed.attachment ||
+      composed.sticker ||
+      composed.media,
+    );
+    if (hasContent) {
       dispatch({
         type: 'send',
         message: {
@@ -138,6 +145,7 @@ export function ConversationPane({
           createdAt: Date.now(),
           attachment: composed.attachment,
           sticker: composed.sticker,
+          media: composed.media,
           replyToId: replyMessage?.id,
           reactions: [],
         },
