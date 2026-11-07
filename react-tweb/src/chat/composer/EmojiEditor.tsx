@@ -30,6 +30,8 @@ const EDITOR_INSTANCE_KEY = crypto.randomUUID();
 
 export interface EmojiEditorControls {
   focus: () => void;
+  /** Resolve the current editable surface after a dialog closes or an editor remounts. */
+  getElement: () => HTMLElement | null;
   insertEmoji: (emoji: string) => void;
   insertCustomEmoji: (emoji: CustomEmoji) => void;
   deleteCharacter: () => void;
@@ -148,7 +150,8 @@ function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: 
       );
     }
     return {
-      focus: () => editor.focus(),
+      focus: () => editor.focus(undefined, { defaultSelection: 'rootEnd' }),
+      getElement: () => editor.getRootElement(),
       insertEmoji: (emoji) => updateSelection((selection) => selection.insertText(emoji)),
       insertCustomEmoji: (emoji) =>
         updateSelection((selection) => {
@@ -191,6 +194,9 @@ export function EmojiEditor(props: EmojiEditorProps) {
               placeholder={<span className={styles.placeholder}>{props.placeholder}</span>}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
+                  // Cancel the composer context without also closing a surrounding chat layer.
+                  event.preventDefault();
+                  event.stopPropagation();
                   props.onCancel();
                 }
               }}

@@ -106,6 +106,12 @@ export function ConversationPane({
 
   function submitMessage(composed: ComposedMessage) {
     if (editingMessage) {
+      const hasRetainedMedia = Boolean(editingMessage.attachment || editingMessage.media);
+      if (!composed.text.trim() && !hasRetainedMedia) {
+        // Cancelling deletion keeps the empty editor open so the user can continue the edit.
+        setPendingDelete(editingMessage);
+        return;
+      }
       dispatch({
         type: 'edit',
         chatId: conversation.id,
@@ -389,7 +395,6 @@ export function ConversationPane({
       >
         <div className={styles.composerSlot} inert={headerActions.isSelecting}>
           <MessageComposer
-            key={editingMessage?.id || 'compose'}
             draft={state.drafts[conversation.id] || ''}
             draftCustomEmoji={state.draftCustomEmoji?.[conversation.id]}
             replyMessage={replyMessage}
@@ -404,6 +409,7 @@ export function ConversationPane({
             }
             onSubmit={submitMessage}
             onCancelContext={clearComposerContext}
+            onJumpToMessage={jumpToMessage}
             onNotify={onNotify}
           />
         </div>
@@ -467,6 +473,11 @@ export function ConversationPane({
       )}
       <DeleteMessageDialog
         isOpen={Boolean(pendingDelete)}
+        finalFocusEl={() => {
+          return (
+            overlays.footerRef.current?.querySelector<HTMLElement>('[contenteditable=true]') ?? null
+          );
+        }}
         onCancel={() => setPendingDelete(undefined)}
         onConfirm={confirmDelete}
       />

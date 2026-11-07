@@ -1,11 +1,13 @@
-import { Forward, Check, ImagePlus, Paperclip, Pencil, Reply, Send, X } from 'lucide-react';
+import { Check, ImagePlus, Paperclip, Send, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createAttachment } from './attachments';
 import { EmojiEditor, type EmojiEditorControls } from './EmojiEditor';
 import type { EmojiText, CustomEmojiEntity } from '../emoji/customEmojiEntities';
 import { EmojiPicker } from './EmojiPicker';
-import { describeMessage } from '../messageFormatting';
+import { ComposerContextBar } from './ComposerContextBar';
+import { DiscardEditDialog } from './DiscardEditDialog';
+import { hasMessageEditChanged } from './messageEditing';
 import type { Attachment, Message } from '../model';
 import styles from './MessageComposer.module.css';
 
@@ -23,6 +25,7 @@ interface MessageComposerProps {
   onDraftChange: (value: EmojiText) => void;
   onSubmit: (message: ComposedMessage) => void;
   onCancelContext: () => void;
+  onJumpToMessage: (messageId: string) => void;
   onNotify: (message: string) => void;
 }
 
@@ -36,6 +39,7 @@ export function MessageComposer({
   onDraftChange,
   onSubmit,
   onCancelContext,
+  onJumpToMessage,
   onNotify,
 }: MessageComposerProps) {
   const editorRef = useRef<EmojiEditorControls>(null);
@@ -49,6 +53,7 @@ export function MessageComposer({
   const [attachment, setAttachment] = useState<Attachment>();
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const value = editingMessage ? editValue : { text: draft, customEmoji: draftCustomEmoji };
   const text = value.text;
   const hasContent =
@@ -56,8 +61,18 @@ export function MessageComposer({
     text.trim().length > 0 ||
     Boolean(attachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
-  const forwardCount = forwardMessages?.length ?? 0;
-  const forwardAuthors = [...new Set(forwardMessages?.map((message) => message.authorName))];
+  const previousContextRef = useRef(contextMessage);
+  const canSubmit = Boolean(editingMessage) || hasContent;
+  const isPreparingAttachment = !editingMessage && isLoadingImage;
+
+  useEffect(() => {
+    // Only the editor remounts when switching modes; the attachment draft and animated bar survive.
+    setIsDiscardOpen(false);
+    setEditValue({
+      text: editingMessage?.text ?? '',
+      customEmoji: editingMessage?.customEmoji,
+    });
+  }, [editingMessage]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -67,7 +82,9 @@ export function MessageComposer({
   }, []);
 
   useEffect(() => {
-    if (!contextMessage && !forwardMessages?.length) {
+    const previousContext = previousContextRef.current;
+    previousContextRef.current = contextMessage;
+    if (!contextMessage && !previousContext && !forwardMessages?.length) {
       return;
     }
 
@@ -86,13 +103,38 @@ export function MessageComposer({
   }
 
   function sendMessage() {
-    if (!hasContent || isLoadingImage) {
+    if (!canSubmit || isPreparingAttachment) {
       return;
     }
 
-    onSubmit({ ...value, attachment });
-    setAttachment(undefined);
+    if (editingMessage && !hasMessageEditChanged({ original: editingMessage, current: value })) {
+      onCancelContext();
+      return;
+    }
+
+    onSubmit({ ...value, attachment: editingMessage ? undefined : attachment });
+    if (!editingMessage) {
+      setAttachment(undefined);
+    }
     editorRef.current?.focus();
+  }
+
+  function requestCancelContext() {
+    const hasUnsavedEdit =
+      editingMessage && hasMessageEditChanged({ original: editingMessage, current: value });
+    if (hasUnsavedEdit) {
+      setIsDiscardOpen(true);
+      return;
+    }
+    onCancelContext();
+  }
+
+  function cancelComposition() {
+    if (contextMessage || forwardMessages?.length) {
+      requestCancelContext();
+      return;
+    }
+    removeAttachment();
   }
 
   function removeAttachment() {
@@ -144,35 +186,14 @@ export function MessageComposer({
         void attachImage(event.dataTransfer.files[0]);
       }}
     >
-      {contextMessage && (
-        <div className={styles.contextBar}>
-          {editingMessage ? <Pencil size={22} /> : <Reply size={24} />}
-          <div>
-            <strong>
-              {editingMessage ? 'Edit message' : `Reply to ${contextMessage.authorName}`}
-            </strong>
-            <span>{describeMessage(contextMessage)}</span>
-          </div>
-          <IconButton label="Cancel reply or edit" onClick={onCancelContext}>
-            <X />
-          </IconButton>
-        </div>
-      )}
-      {!contextMessage && Boolean(forwardMessages?.length) && (
-        <div className={styles.contextBar}>
-          <Forward size={24} />
-          <div>
-            <strong>
-              Forward {forwardCount} {forwardCount === 1 ? 'message' : 'messages'}
-            </strong>
-            <span>{forwardAuthors.join(', ')}</span>
-          </div>
-          <IconButton label="Cancel forwarding" onClick={onCancelContext}>
-            <X />
-          </IconButton>
-        </div>
-      )}
-      {attachment && (
+      <ComposerContextBar
+        replyMessage={replyMessage}
+        editingMessage={editingMessage}
+        forwardMessages={forwardMessages}
+        onJumpToMessage={onJumpToMessage}
+        onCancel={requestCancelContext}
+      />
+      {attachment && !editingMessage && (
         <div className={styles.attachmentPreview}>
           <img src={attachment.url} alt={attachment.name} />
           <span>
@@ -204,15 +225,13 @@ export function MessageComposer({
           }}
         />
         <EmojiEditor
+          key={editingMessage?.id ?? 'compose'}
           controlsRef={editorRef}
           value={value}
-          placeholder={isLoadingImage ? 'Preparing photo…' : 'Message'}
+          placeholder={isPreparingAttachment ? 'Preparing photo…' : 'Message'}
           onChange={updateText}
           onSubmit={sendMessage}
-          onCancel={() => {
-            onCancelContext();
-            removeAttachment();
-          }}
+          onCancel={cancelComposition}
           onPasteImage={(file) => void attachImage(file)}
           onError={onNotify}
         />
@@ -227,12 +246,21 @@ export function MessageComposer({
         <IconButton
           label={editingMessage ? 'Save message' : 'Send message'}
           className={styles.sendButton}
-          disabled={!hasContent || isLoadingImage}
+          disabled={!canSubmit || isPreparingAttachment}
           onClick={sendMessage}
         >
           {editingMessage ? <Check /> : <Send />}
         </IconButton>
       </div>
+      <DiscardEditDialog
+        isOpen={isDiscardOpen}
+        onKeepEditing={() => setIsDiscardOpen(false)}
+        onDiscard={() => {
+          setIsDiscardOpen(false);
+          onCancelContext();
+        }}
+        finalFocusEl={() => editorRef.current?.getElement() ?? null}
+      />
     </div>
   );
 }

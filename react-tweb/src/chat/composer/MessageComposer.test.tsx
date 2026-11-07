@@ -24,6 +24,7 @@ function renderComposer(editingMessage?: Message) {
       onDraftChange={() => {}}
       onSubmit={() => {}}
       onCancelContext={() => {}}
+      onJumpToMessage={() => {}}
       onNotify={() => {}}
     />,
   );
