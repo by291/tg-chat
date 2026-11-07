@@ -52,7 +52,7 @@ export function MessageBody({ message, metadata, onOpenMedia, onInteract }: Mess
     case 'video':
       return <VideoFrame media={media} hasCaption={Boolean(message.text)} />;
     case 'voice':
-      return <VoiceMessage media={media} />;
+      return <VoiceMessage media={media} metadata={metadata} />;
     case 'document':
       return <DocumentCard media={media} metadata={metadata} />;
     case 'link':

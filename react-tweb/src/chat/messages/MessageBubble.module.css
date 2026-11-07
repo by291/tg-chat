@@ -604,6 +604,7 @@
 
 :global(:root[data-theme='dark']) .messageRow[data-own='true'] .bubble {
   --message-control-border: white;
+  --message-icon-color: var(--bubble-background);
 }
 
 .bubble[data-structured='checklist'] {
@@ -633,6 +634,7 @@
   margin-block: 8px;
 }
 
+.bubble[data-structured='voice'] > .author,
 .bubble[data-structured='document'] > .author {
   margin-bottom: -4px;
 }

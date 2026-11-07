@@ -89,7 +89,10 @@ export const MessageBubble = memo(function MessageBubble({
     hasSender && isGroupStart && !isStandalone && !isMediaOnly && !message.forwardedFrom;
   const hasHeader = Boolean(hasAuthor || message.forwardedFrom || message.replyToId);
   const hasCaption = Boolean(message.text);
-  const hasInlineMediaMetadata = !hasCaption && !hasReactions && message.media?.kind === 'document';
+  const hasInlineMediaMetadata =
+    !hasCaption &&
+    !hasReactions &&
+    (message.media?.kind === 'voice' || message.media?.kind === 'document');
   const isLinkPreview = message.media?.kind === 'link';
   const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
   const hasReplyQuote = Boolean(message.replyQuote?.text);
