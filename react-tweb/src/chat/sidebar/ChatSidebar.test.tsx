@@ -8,6 +8,15 @@ import { createInitialState } from '../demo/fixtures';
 import { ChatSidebar } from './ChatSidebar';
 
 beforeEach(() => {
+  // Floating menus observe their anchor after the positioning frame in a real browser.
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   // jsdom does not provide the media query API used by the playback preference.
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
