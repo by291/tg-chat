@@ -139,6 +139,7 @@ export const MessageBubble = memo(function MessageBubble({
         data-has-tail={canHaveTail && isGroupEnd}
         data-has-header={hasHeader}
         data-has-caption={hasCaption}
+        data-structured={message.media?.kind}
       >
         {canHaveTail && isGroupEnd && <MessageTail />}
         {hasAuthor && (

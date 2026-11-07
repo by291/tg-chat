@@ -1,4 +1,4 @@
-import { Check, Plus } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useState } from 'react';
 import {
   MAX_CHECKLIST_TASKS,
@@ -7,9 +7,12 @@ import {
 } from '../messageMedia';
 import type { MessageInteraction } from '../messageInteraction';
 import { CURRENT_USER_ID, type Message } from '../model';
-import styles from './MessageBody.module.css';
+import { MessageCheckbox } from './MessageCheckbox';
+import { ChecklistCelebration } from './ChecklistCelebration';
+import { useStructuredMessageAction } from './StructuredMessageActions';
+import styles from './ChecklistMessage.module.css';
 
-/** Keep checklist completion and additions in persisted message state. */
+/** Render task completion separately from polls, retaining the completing person's identity. */
 export function ChecklistMessage({
   message,
   checklist,
@@ -22,38 +25,75 @@ export function ChecklistMessage({
   const [isAdding, setIsAdding] = useState(false);
   const [newTask, setNewTask] = useState('');
   const isOwner = message.authorId === CURRENT_USER_ID;
-  const canComplete = isOwner || checklist.canOthersComplete;
+  const canComplete = !message.forwardedFrom && (isOwner || checklist.canOthersComplete);
   const canAppend =
-    (isOwner || checklist.canOthersAppend) && checklist.items.length < MAX_CHECKLIST_TASKS;
+    !message.forwardedFrom &&
+    (isOwner || checklist.canOthersAppend) &&
+    checklist.items.length < MAX_CHECKLIST_TASKS;
   const completedCount = checklist.items.filter((item) => item.isCompleted).length;
 
+  useStructuredMessageAction({
+    messageId: message.id,
+    action: 'add-task',
+    onAction: () => {
+      if (canAppend) {
+        setIsAdding(true);
+      }
+    },
+  });
+
   return (
-    <section className={styles.poll} aria-label={checklist.title}>
-      <strong>{checklist.title}</strong>
-      <small>Checklist</small>
-      <div className={styles.pollOptions}>
+    <section className={styles.checklist} aria-label={checklist.title}>
+      <ChecklistCelebration isCompleted={completedCount === checklist.items.length} />
+      <strong className={styles.title}>{checklist.title}</strong>
+      <span className={styles.subtitle}>
+        {checklist.canOthersComplete ? 'Group Checklist' : 'Checklist'}
+      </span>
+      <div className={styles.tasks}>
         {checklist.items.map((item) => (
           <button
             key={item.id}
             type="button"
             role="checkbox"
+            aria-label={item.text}
             aria-checked={item.isCompleted}
+            aria-description={
+              item.isCompleted && item.completedBy
+                ? `Completed by ${item.completedBy.name}`
+                : undefined
+            }
+            aria-readonly={!canComplete}
             disabled={!canComplete}
-            className={styles.checklistTask}
+            className={styles.task}
+            data-completed={item.isCompleted}
+            data-readonly={!canComplete}
             onClick={() => onInteract({ type: 'toggle-task', taskId: item.id })}
           >
-            <span className={styles.pollChoice} data-completed={item.isCompleted}>
-              {item.isCompleted && <Check size={14} />}
+            {canComplete ? (
+              <span className={styles.checkbox}>
+                <MessageCheckbox isChecked={item.isCompleted} />
+                <span
+                  className={styles.avatar}
+                  data-visible={item.isCompleted && Boolean(item.completedBy)}
+                  aria-hidden="true"
+                >
+                  {item.completedBy?.name.slice(0, 1)}
+                </span>
+              </span>
+            ) : (
+              <span className={styles.readonlyIcon} aria-hidden="true">
+                {item.isCompleted ? <Check size={16} /> : <span className={styles.dot} />}
+              </span>
+            )}
+            <span className={styles.taskTitle}>
+              <span className={styles.taskText}>{item.text}</span>
+              {checklist.canOthersComplete && item.isCompleted && item.completedBy && (
+                <span className={styles.completedBy}>{item.completedBy.name}</span>
+              )}
             </span>
-            <span>{item.text}</span>
           </button>
         ))}
       </div>
-      {canAppend && (
-        <button type="button" className={styles.pollAction} onClick={() => setIsAdding(!isAdding)}>
-          <Plus size={18} /> Add Task
-        </button>
-      )}
       {isAdding && canAppend && (
         <form
           className={styles.appendForm}
@@ -63,26 +103,39 @@ export function ChecklistMessage({
             if (!text) {
               return;
             }
-            onInteract({ type: 'add-task', id: crypto.randomUUID(), text });
+            onInteract({
+              type: 'add-task',
+              id: crypto.randomUUID(),
+              text,
+            });
             setNewTask('');
             setIsAdding(false);
           }}
         >
           <input
+            autoFocus
             aria-label="New task"
             placeholder="Task"
             value={newTask}
             maxLength={MAX_CHECKLIST_TEXT_LENGTH}
             onChange={(event) => setNewTask(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setIsAdding(false);
+              }
+            }}
           />
           <button type="submit" disabled={!newTask.trim()}>
             Add
           </button>
+          <button type="button" onClick={() => setIsAdding(false)}>
+            Cancel
+          </button>
         </form>
       )}
-      <small>
-        {completedCount} of {checklist.items.length} completed
-      </small>
+      <span className={styles.completed}>
+        {completedCount} of {checklist.items.length} tasks completed
+      </span>
     </section>
   );
 }

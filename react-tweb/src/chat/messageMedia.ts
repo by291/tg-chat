@@ -88,6 +88,7 @@ export const messageMediaSchema = z.discriminatedUnion('kind', [
           id: z.string(),
           text: z.string(),
           isCompleted: z.boolean(),
+          completedBy: z.object({ id: z.string(), name: z.string() }).optional(),
         }),
       )
       .min(1)

@@ -26,6 +26,8 @@
   --bubble-bottom-right: 15px;
   --bubble-bottom-left: 5px;
   --bubble-background: var(--surface-color);
+  --message-control-border: #8d969c;
+  --message-control-check: white;
   --bubble-status-color: var(--incoming-meta-color);
   position: relative;
   isolation: isolate;
@@ -51,6 +53,8 @@
   --bubble-bottom-right: 5px;
   --bubble-bottom-left: 15px;
   --bubble-background: var(--outgoing-color);
+  --message-control-border: var(--accent-color);
+  --message-control-check: var(--bubble-background);
   --bubble-status-color: var(--outgoing-meta-color);
 }
 
@@ -508,4 +512,26 @@
   .selectionCheckbox {
     transition: none;
   }
+}
+
+:global(:root[data-theme='dark']) .messageRow[data-own='true'] .bubble {
+  --message-control-border: white;
+}
+
+.bubble[data-structured='checklist'] {
+  padding-top: 2px;
+}
+
+.bubble[data-structured='checklist'][data-has-caption='false'] > .messageContent {
+  min-height: 12px;
+  line-height: 12px;
+}
+
+.messageRow[data-own='true'] .bubble[data-structured='checklist'] {
+  --accent-color: var(--outgoing-meta-color);
+  --secondary-color: var(--outgoing-meta-color);
+}
+
+.bubble[data-structured='checklist'] {
+  --message-control-border: #8d969c;
 }

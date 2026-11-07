@@ -277,8 +277,16 @@ describe('local poll voting', () => {
         kind: 'poll' as const,
         question: 'Which layout?',
         options: [
-          { id: 'compact', text: 'Compact', votes: 3 },
-          { id: 'spacious', text: 'Spacious', votes: 2 },
+          {
+            id: 'compact',
+            text: 'Compact',
+            votes: 3,
+          },
+          {
+            id: 'spacious',
+            text: 'Spacious',
+            votes: 2,
+          },
         ],
       },
     };
@@ -318,10 +326,22 @@ describe('custom emoji message identity', () => {
       type: 'set-draft',
       chatId: 'dev',
       text: '  Hi 😂  ',
-      customEmoji: [{ documentId, offset: 5, length: 2 }],
+      customEmoji: [
+        {
+          documentId,
+          offset: 5,
+          length: 2,
+        },
+      ],
     });
     const restored = parseSavedState(JSON.parse(JSON.stringify({ ...draft, version: 2 })));
-    expect(restored?.draftCustomEmoji?.dev).toEqual([{ documentId, offset: 5, length: 2 }]);
+    expect(restored?.draftCustomEmoji?.dev).toEqual([
+      {
+        documentId,
+        offset: 5,
+        length: 2,
+      },
+    ]);
 
     const sent = chatReducer(draft, {
       type: 'send',
@@ -333,7 +353,13 @@ describe('custom emoji message identity', () => {
       },
     });
     expect(sent.messages.at(-1)?.text).toBe('Hi 😂');
-    expect(sent.messages.at(-1)?.customEmoji).toEqual([{ documentId, offset: 3, length: 2 }]);
+    expect(sent.messages.at(-1)?.customEmoji).toEqual([
+      {
+        documentId,
+        offset: 3,
+        length: 2,
+      },
+    ]);
     expect(sent.draftCustomEmoji?.dev).toEqual([]);
 
     const edited = chatReducer(sent, {
@@ -341,10 +367,22 @@ describe('custom emoji message identity', () => {
       chatId: 'dev',
       messageId: 'custom-message',
       text: '  New 😂  ',
-      customEmoji: [{ documentId, offset: 6, length: 2 }],
+      customEmoji: [
+        {
+          documentId,
+          offset: 6,
+          length: 2,
+        },
+      ],
     });
     const source = edited.messages.find((message) => message.id === 'custom-message');
-    expect(source?.customEmoji).toEqual([{ documentId, offset: 4, length: 2 }]);
+    expect(source?.customEmoji).toEqual([
+      {
+        documentId,
+        offset: 4,
+        length: 2,
+      },
+    ]);
     if (!source) {
       throw new Error('Expected the edited message to remain available.');
     }
@@ -369,8 +407,16 @@ describe('structured message interactions', () => {
       kind: 'poll',
       question: 'Pick two',
       options: [
-        { id: 'first', text: 'First', votes: 0 },
-        { id: 'second', text: 'Second', votes: 0 },
+        {
+          id: 'first',
+          text: 'First',
+          votes: 0,
+        },
+        {
+          id: 'second',
+          text: 'Second',
+          votes: 0,
+        },
       ],
       canChooseMultiple: true,
       canRevote: false,
@@ -399,8 +445,16 @@ describe('structured message interactions', () => {
       kind: 'poll',
       question: 'Closed',
       options: [
-        { id: 'first', text: 'First', votes: 0 },
-        { id: 'second', text: 'Second', votes: 0 },
+        {
+          id: 'first',
+          text: 'First',
+          votes: 0,
+        },
+        {
+          id: 'second',
+          text: 'Second',
+          votes: 0,
+        },
       ],
       closesAt: 1,
     };
@@ -419,7 +473,13 @@ describe('structured message interactions', () => {
     state.messages[0].media = {
       kind: 'checklist',
       title: 'Release',
-      items: [{ id: 'ship', text: 'Ship', isCompleted: false }],
+      items: [
+        {
+          id: 'ship',
+          text: 'Ship',
+          isCompleted: false,
+        },
+      ],
       canOthersComplete: false,
       canOthersAppend: true,
     };
@@ -435,8 +495,18 @@ describe('structured message interactions', () => {
     const restored = parseSavedState(completed);
     expect(restored?.messages[0].media).toMatchObject({
       kind: 'checklist',
-      items: [{ id: 'ship', isCompleted: true }],
+      items: [
+        {
+          id: 'ship',
+          isCompleted: true,
+          completedBy: { id: 'you', name: 'You' },
+        },
+      ],
       canOthersAppend: true,
     });
+    const uncompleted = chatReducer(completed, action);
+    const checklist = uncompleted.messages[0].media;
+    expect(checklist?.kind === 'checklist' && checklist.items[0].isCompleted).toBe(false);
+    expect(checklist?.kind === 'checklist' && checklist.items[0].completedBy).toBeUndefined();
   });
 });

@@ -8,6 +8,7 @@ import {
   Download,
   Forward,
   Pencil,
+  Plus,
   Pin,
   PinOff,
   Reply,
@@ -20,6 +21,11 @@ import { CURRENT_USER_ID, type Message, type MessageAction, type MessageCommand 
 import overlays from '../overlays.module.css';
 import { getMessageDownloads } from './messageDownloads';
 import styles from './MessageMenu.module.css';
+import { MAX_CHECKLIST_TASKS } from '../messageMedia';
+import {
+  useStructuredMessageActions,
+  type StructuredMessageAction,
+} from './StructuredMessageActions';
 
 const REACTION_BAR_OFFSET = 48;
 const INCOMING_MENU_OFFSET = 16;
@@ -81,32 +87,71 @@ interface MessageMenuProps {
 }
 
 interface MessageMenuItem {
-  action: MessageAction;
+  action: MessageAction | StructuredMessageAction;
   label: string;
   icon: LucideIcon;
 }
 
 function getMessageItems(message: Message): MessageMenuItem[] {
-  const items: MessageMenuItem[] = [{ action: 'reply', label: 'Reply', icon: Reply }];
+  const items: MessageMenuItem[] = [
+    {
+      action: 'reply',
+      label: 'Reply',
+      icon: Reply,
+    },
+  ];
   const canEdit =
     message.authorId === CURRENT_USER_ID &&
     !message.sticker &&
     message.media?.kind !== 'poll' &&
     message.media?.kind !== 'checklist';
+  const media = message.media;
+  const canAppendTask =
+    media?.kind === 'checklist' &&
+    !message.forwardedFrom &&
+    (message.authorId === CURRENT_USER_ID || media.canOthersAppend) &&
+    media.items.length < MAX_CHECKLIST_TASKS;
+  if (canAppendTask) {
+    items.push({
+      action: 'add-task',
+      label: 'Add Task',
+      icon: Plus,
+    });
+  }
   if (canEdit) {
-    items.push({ action: 'edit', label: 'Edit', icon: Pencil });
+    items.push({
+      action: 'edit',
+      label: 'Edit',
+      icon: Pencil,
+    });
   }
   if (message.text.trim()) {
-    items.push({ action: 'copy', label: 'Copy', icon: Copy });
+    items.push({
+      action: 'copy',
+      label: 'Copy',
+      icon: Copy,
+    });
   }
   items.push({
     action: 'pin',
     label: message.isPinned ? 'Unpin' : 'Pin',
     icon: message.isPinned ? PinOff : Pin,
   });
-  items.push({ action: 'forward', label: 'Forward', icon: Forward });
-  items.push({ action: 'select', label: 'Select', icon: CheckCircle2 });
-  items.push({ action: 'delete', label: 'Delete', icon: Trash2 });
+  items.push({
+    action: 'forward',
+    label: 'Forward',
+    icon: Forward,
+  });
+  items.push({
+    action: 'select',
+    label: 'Select',
+    icon: CheckCircle2,
+  });
+  items.push({
+    action: 'delete',
+    label: 'Delete',
+    icon: Trash2,
+  });
   return items;
 }
 
@@ -116,19 +161,45 @@ function getSelectionItems(options: {
 }): MessageMenuItem[] {
   const isSelected = options.selectedMessages.some((message) => message.id === options.message.id);
   if (!isSelected) {
-    return [{ action: 'select', label: 'Select', icon: CheckCircle2 }];
+    return [
+      {
+        action: 'select',
+        label: 'Select',
+        icon: CheckCircle2,
+      },
+    ];
   }
 
   const items: MessageMenuItem[] = [];
   if (options.selectedMessages.some((message) => message.text.trim())) {
-    items.push({ action: 'copy-selected', label: 'Copy selected', icon: Copy });
+    items.push({
+      action: 'copy-selected',
+      label: 'Copy selected',
+      icon: Copy,
+    });
   }
-  items.push({ action: 'forward-selected', label: 'Forward selected', icon: Forward });
+  items.push({
+    action: 'forward-selected',
+    label: 'Forward selected',
+    icon: Forward,
+  });
   if (options.selectedMessages.some((message) => getMessageDownloads(message).length > 0)) {
-    items.push({ action: 'download-selected', label: 'Download selected', icon: Download });
+    items.push({
+      action: 'download-selected',
+      label: 'Download selected',
+      icon: Download,
+    });
   }
-  items.push({ action: 'clear-selection', label: 'Clear selection', icon: CheckCircle2 });
-  items.push({ action: 'delete-selected', label: 'Delete selected', icon: Trash2 });
+  items.push({
+    action: 'clear-selection',
+    label: 'Clear selection',
+    icon: CheckCircle2,
+  });
+  items.push({
+    action: 'delete-selected',
+    label: 'Delete selected',
+    icon: Trash2,
+  });
   return items;
 }
 
@@ -145,6 +216,7 @@ export function MessageMenu({
   onReact,
 }: MessageMenuProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const structuredActions = useStructuredMessageActions();
   const isSelecting = selectedMessages !== undefined;
   let items: MessageMenuItem[] = [];
   if (message) {
@@ -183,6 +255,10 @@ export function MessageMenu({
       return;
     }
     const item = items.find((entry) => entry.action === value);
+    if (item?.action === 'add-task' || item?.action === 'change-vote') {
+      structuredActions.dispatch({ messageId: message.id, action: item.action });
+      return;
+    }
     if (item) {
       onCommand({ action: item.action, message });
     }

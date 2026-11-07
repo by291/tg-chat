@@ -31,7 +31,11 @@ export function applyMessageInteraction(
     if (media.options.length >= MAX_POLL_OPTIONS) {
       return message;
     }
-    const option = { id: interaction.id, text, votes: 0 };
+    const option = {
+      id: interaction.id,
+      text,
+      votes: 0,
+    };
     return { ...message, media: { ...media, options: [...media.options, option] } };
   }
   if (media?.kind !== 'checklist') {
@@ -39,26 +43,34 @@ export function applyMessageInteraction(
   }
   const isOwner = message.authorId === CURRENT_USER_ID;
   if (interaction.type === 'toggle-task') {
-    if (!isOwner && !media.canOthersComplete) {
+    if (message.forwardedFrom || (!isOwner && !media.canOthersComplete)) {
       return message;
     }
     const items = media.items.map((item) => {
       if (item.id !== interaction.taskId) {
         return item;
       }
-      return { ...item, isCompleted: !item.isCompleted };
+      return {
+        ...item,
+        isCompleted: !item.isCompleted,
+        completedBy: item.isCompleted ? undefined : { id: CURRENT_USER_ID, name: 'You' },
+      };
     });
     return { ...message, media: { ...media, items } };
   }
   if (interaction.type === 'add-task') {
     const text = interaction.text.trim();
-    const canAppend = isOwner || media.canOthersAppend;
+    const canAppend = !message.forwardedFrom && (isOwner || media.canOthersAppend);
     const isValidText = text.length > 0 && text.length <= MAX_CHECKLIST_TEXT_LENGTH;
     const hasDuplicateId = media.items.some((item) => item.id === interaction.id);
     if (!canAppend || !isValidText || hasDuplicateId || media.items.length >= MAX_CHECKLIST_TASKS) {
       return message;
     }
-    const item = { id: interaction.id, text, isCompleted: false };
+    const item = {
+      id: interaction.id,
+      text,
+      isCompleted: false,
+    };
     return { ...message, media: { ...media, items: [...media.items, item] } };
   }
   return message;
