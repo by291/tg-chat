@@ -360,26 +360,6 @@
   font-weight: 400;
 }
 
-.senderAvatar {
-  position: absolute;
-  bottom: var(--message-gap);
-  left: 0;
-  display: grid;
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  border-radius: 50%;
-  color: white;
-  background: linear-gradient(145deg, #d58dad, #ad72b1);
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.senderAvatar[data-visible='false'] {
-  visibility: hidden;
-}
-
 .bubble[data-visual-media='true'] {
   width: min-content;
   padding: 0;
@@ -505,15 +485,6 @@
   transform: translateX(40px);
 }
 
-.senderAvatar {
-  transition: transform 200ms ease;
-  transform-origin: bottom center;
-}
-
-.messageRow[data-selecting='true'] .senderAvatar {
-  transform: translateX(40px) scale(0.76);
-}
-
 .selectionCheckbox {
   position: absolute;
   left: 8px;
@@ -578,7 +549,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bubble,
-  .senderAvatar,
   .selectionCheckbox {
     transition: none;
   }

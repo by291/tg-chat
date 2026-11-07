@@ -1,0 +1,44 @@
+.senderGroup {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  width: 40px;
+  pointer-events: none;
+}
+
+.avatar {
+  /* The group owns both sticky limits; a virtual row must never constrain the avatar. */
+  position: sticky;
+  top: 0;
+  bottom: calc(var(--history-bottom-inset) + 12px);
+  display: grid;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: linear-gradient(145deg, #d58dad, #ad72b1);
+  font-size: 16px;
+  font-weight: 500;
+  transform-origin: bottom center;
+  transition:
+    transform 200ms ease,
+    bottom var(--duration-normal);
+}
+
+.senderGroup[data-selecting='true'] .avatar {
+  transform: translateX(40px) scale(0.76);
+}
+
+.senderGroup[data-preview='true'] .avatar {
+  position: static;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar {
+    transition: none;
+  }
+}

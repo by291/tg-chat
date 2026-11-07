@@ -18,6 +18,8 @@ import { useHistoryWindow } from './useHistoryWindow';
 import { useVirtualHistory } from './useVirtualHistory';
 import { StickyDateHeaders } from './StickyDateHeaders';
 import { createHistoryDateGroups } from './historyDates';
+import { createHistorySenderGroups } from './historySenderGroups';
+import { StickySenderAvatars } from './StickySenderAvatars';
 import { SearchDateDialog } from '../search/SearchDateDialog';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import type { OutgoingMessageMount } from '../messages/outgoingMessageTransition';
@@ -120,6 +122,14 @@ function VirtualMessageHistory({
     renderedItems: virtualItems,
     bottomAlignment,
   });
+  const senderGroups = shouldShowSender
+    ? createHistorySenderGroups({
+        rows,
+        measurements: scroll.virtualizer.measurementsCache,
+        renderedItems: virtualItems,
+        bottomAlignment,
+      })
+    : [];
   const isJumpVisible = (scroll.canJumpToLatest || unreadCount > 0) && !searchQuery;
   const unreadNoun = unreadCount === 1 ? 'message' : 'messages';
   const jumpLabel =
@@ -208,6 +218,11 @@ function VirtualMessageHistory({
               topInset={overlayInsets?.top ?? 0}
               isPreview={Boolean(isPreview)}
               onOpenDate={openDatePicker}
+            />
+            <StickySenderAvatars
+              groups={senderGroups}
+              isSelecting={selectedIds !== undefined}
+              isPreview={Boolean(isPreview)}
             />
             {virtualItems.map((item) => {
               const row = rows[item.index];

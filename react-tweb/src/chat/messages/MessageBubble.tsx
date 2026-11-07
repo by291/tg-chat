@@ -131,11 +131,6 @@ export const MessageBubble = memo(function MessageBubble({
       >
         {isSelected && <Check size={16} />}
       </button>
-      {hasSender && (
-        <span className={styles.senderAvatar} data-visible={isGroupEnd} aria-hidden="true">
-          {message.authorName.slice(0, 1)}
-        </span>
-      )}
       <div
         className={styles.bubble}
         data-message-content
