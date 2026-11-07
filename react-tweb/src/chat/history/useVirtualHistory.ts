@@ -114,7 +114,10 @@ export function useVirtualHistory({
   if (shouldReveal && isInitializedRef.current && !shouldReduceMotion) {
     // Ref measurements run before layout effects. Reserve scroll ownership before they can
     // apply estimate corrections, otherwise the first painted frame starts from a jump.
-    historyScroll.prepare();
+    const isPhotoReveal =
+      lastRow?.kind === 'message' &&
+      Boolean(lastRow.message.attachment || lastRow.message.media?.kind === 'album');
+    historyScroll.prepare({ isPhotoReveal });
   }
 
   const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({

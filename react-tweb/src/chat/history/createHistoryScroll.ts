@@ -4,6 +4,11 @@ import { elementScroll, type VirtualizerOptions } from '@tanstack/react-virtual'
 const DURATION_MS = 300;
 const MAX_ANIMATED_DISTANCE = 1500;
 const POSITION_TOLERANCE = 0.5;
+const MIN_PHOTO_DURATION = 250;
+const MAX_PHOTO_DURATION = 600;
+const SHORT_SCROLL_DISTANCE = 500;
+const SHORT_SCROLL_POWER = 3.5;
+const LONG_SCROLL_POWER = 5;
 // prettier-ignore
 const VERTICAL_CURVE = [
   0.1992,
@@ -25,6 +30,7 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
   let targetOffset = 0;
   let revealOffset = 0;
   let isAnimating = false;
+  let isPhotoReveal = false;
 
   function setRevealOffset(offset: number) {
     revealOffset = offset;
@@ -65,6 +71,8 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
     let startedAt: number | undefined;
     let previousProgress = 0;
     let currentOffset = viewport.scrollTop;
+    let duration = DURATION_MS;
+    let easeProgress = easeVertical;
 
     function animateFrame(timestamp: number) {
       if (!viewport || !isAnimating) {
@@ -73,6 +81,17 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
       if (startedAt === undefined) {
         startedAt = timestamp;
         const distance = targetOffset - viewport.scrollTop;
+        if (isPhotoReveal) {
+          const travel = Math.min(
+            MAX_ANIMATED_DISTANCE,
+            Math.abs(distance) + Math.abs(revealOffset),
+          );
+          duration =
+            MIN_PHOTO_DURATION +
+            (travel / MAX_ANIMATED_DISTANCE) * (MAX_PHOTO_DURATION - MIN_PHOTO_DURATION);
+          const power = travel < SHORT_SCROLL_DISTANCE ? SHORT_SCROLL_POWER : LONG_SCROLL_POWER;
+          easeProgress = (progress) => 1 - (1 - progress) ** power;
+        }
         if (Math.abs(distance) > MAX_ANIMATED_DISTANCE) {
           const nearbyOffset = targetOffset - Math.sign(distance) * MAX_ANIMATED_DISTANCE;
           currentOffset = nearbyOffset;
@@ -80,8 +99,8 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
         }
       }
 
-      const progress = Math.min((timestamp - startedAt) / DURATION_MS, 1);
-      const easedProgress = easeVertical(progress);
+      const progress = Math.min((timestamp - startedAt) / duration, 1);
+      const easedProgress = easeProgress(progress);
       const remainingDistance = targetOffset - currentOffset;
       const hasArrived = Math.abs(remainingDistance) + Math.abs(revealOffset) < POSITION_TOLERANCE;
       if (progress === 1 || hasArrived) {
@@ -114,8 +133,9 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
     scrollTo,
     cancel,
     isAnimating: () => isAnimating,
-    prepare: () => {
+    prepare: (options: { isPhotoReveal?: boolean } = {}) => {
       isAnimating = true;
+      isPhotoReveal = options.isPhotoReveal ?? false;
     },
     reveal: (offset: number) => setRevealOffset(revealOffset + offset),
   };

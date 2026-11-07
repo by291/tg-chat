@@ -218,6 +218,43 @@ describe('new message reveal', () => {
 });
 
 describe('reveal coordination', () => {
+  it('preserves the list position while a photo replaces the attachment preview', async () => {
+    const view = render(<HistoryScreen overlayInsets={REPLY_OVERLAY_INSETS} />);
+    await settleInitialFrame();
+    const viewport = screen.getByLabelText('Message history');
+    const startingOffset = viewport.scrollTop;
+    const messages = createHistoryMessages().slice(0, HISTORY_MESSAGE_COUNT);
+    const photoMessage = {
+      ...messages[messages.length - 1],
+      id: 'new-photo',
+      authorId: CURRENT_USER_ID,
+      text: '',
+      attachment: {
+        url: '/photo.png',
+        name: 'photo.png',
+        width: 300,
+        height: 900,
+      },
+    };
+    view.rerender(
+      <HistoryScreen
+        historyRows={createHistoryRows([...messages, photoMessage])}
+        overlayInsets={COMPOSER_OVERLAY_INSETS}
+      />,
+    );
+    const animatedRows = screen.getByTestId('animated-rows');
+    const revealOffset =
+      Number.parseFloat(animatedRows.style.transform.slice('translateY('.length)) || 0;
+    expect(viewport.scrollTop - revealOffset).toBeCloseTo(startingOffset, 1);
+    await advanceAnimation(ANIMATION_SAMPLE_DELAY_MS);
+    const targetOffset = viewport.scrollHeight - viewport.clientHeight;
+    const remainingDistance = Math.abs(viewport.scrollTop - targetOffset);
+    expect(remainingDistance).toBeGreaterThan(0);
+    expect(remainingDistance).toBeLessThan(Math.abs(startingOffset - targetOffset));
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+    expect(viewport.scrollTop).toBeCloseTo(viewport.scrollHeight - viewport.clientHeight, 0);
+  });
+
   it('reveals incoming messages while already following the latest history', async () => {
     const view = render(<HistoryScreen />);
     await settleInitialFrame();
