@@ -58,6 +58,7 @@ export function MessageBody({ message, onOpenMedia, onInteract }: MessageBodyPro
     case 'poll':
       return (
         <PollMessage
+          messageId={message.id}
           poll={media}
           onInteract={(interaction) => onInteract(message.id, interaction)}
         />

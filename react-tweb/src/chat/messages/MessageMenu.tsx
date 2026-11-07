@@ -9,6 +9,7 @@ import {
   Forward,
   Pencil,
   Plus,
+  RotateCcw,
   Pin,
   PinOff,
   Reply,
@@ -22,6 +23,7 @@ import overlays from '../overlays.module.css';
 import { getMessageDownloads } from './messageDownloads';
 import styles from './MessageMenu.module.css';
 import { MAX_CHECKLIST_TASKS } from '../messageMedia';
+import { getSelectedPollOptions } from '../state/pollVoting';
 import {
   useStructuredMessageActions,
   type StructuredMessageAction,
@@ -116,6 +118,18 @@ function getMessageItems(message: Message): MessageMenuItem[] {
       action: 'add-task',
       label: 'Add Task',
       icon: Plus,
+    });
+  }
+  const canChangeVote =
+    media?.kind === 'poll' &&
+    media.canRevote !== false &&
+    (!media.closesAt || media.closesAt > Date.now()) &&
+    getSelectedPollOptions(media).length > 0;
+  if (canChangeVote) {
+    items.push({
+      action: 'change-vote',
+      label: 'Change vote',
+      icon: RotateCcw,
     });
   }
   if (canEdit) {

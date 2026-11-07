@@ -1,0 +1,275 @@
+.poll {
+  width: 260px;
+  max-width: 100%;
+  margin-top: 0;
+  padding-bottom: 16px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 10px 4px 8px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 21px;
+  white-space: pre-wrap;
+}
+
+.subtitle {
+  color: var(--secondary-color);
+  font-size: 14px;
+  line-height: 1.3125;
+}
+
+.description {
+  margin: 0;
+  padding: 8px 8px 4px;
+  white-space: pre-wrap;
+  text-wrap: balance;
+}
+
+.options {
+  margin-top: 0;
+}
+
+.option {
+  --result-color: var(--accent-color);
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 45px;
+  padding: 12px 12px 12px 10px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+:global(:root[data-touch-supported='false']) .option:not(:disabled):hover,
+:global(:root[data-touch-supported='false']) .action:hover {
+  background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+}
+
+:global([data-own='false']) .option[data-tone='correct'] {
+  --result-color: #359a61;
+}
+
+:global([data-own='false']) .option[data-tone='wrong'] {
+  --result-color: #df3f40;
+}
+
+.choiceContainer {
+  position: relative;
+  flex: 0 0 24px;
+  height: 24px;
+  margin-right: 24px;
+}
+
+.choice {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: opacity 150ms;
+}
+
+.option:not([data-stage='choice']) .choice {
+  opacity: 0;
+}
+
+.percentage {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translate(8px, -50%);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  animation: fade-in 150ms ease;
+}
+
+.optionLabel {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+}
+
+.optionText {
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.voterCount {
+  color: var(--secondary-color);
+  font-size: 12px;
+}
+
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 15%);
+  transform: translateY(13px);
+  animation: fade-in 150ms ease;
+}
+
+:global(:root[data-theme='dark']) .progress {
+  background: rgb(255 255 255 / 15%);
+}
+
+.progressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(5px + var(--progress, 0) * (100% - 5px));
+  border-radius: inherit;
+  background: var(--result-color);
+}
+
+.chosenMark {
+  --choice-size: 14px;
+  --choice-scale: 1.25;
+  --choice-fill: var(--result-color);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  transform: translate(-30px, 18px);
+  animation: fade-in 150ms ease;
+}
+
+.chosenDot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--result-color);
+  transform: translate(-41px, 15px);
+}
+
+.path {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  color: var(--accent-color);
+  transform: translate(-33px, 9px);
+}
+
+.path path {
+  animation: travel 400ms ease-in forwards;
+}
+
+.footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 4px;
+  padding: 4px 8px;
+  min-height: 0;
+}
+
+.footerText,
+.action {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 16px;
+  color: var(--secondary-color);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.3125;
+  text-align: center;
+}
+
+.action {
+  color: var(--accent-color);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.addOption {
+  color: var(--secondary-color);
+}
+
+.addOption .choiceContainer {
+  display: grid;
+  place-items: center;
+}
+
+.appendForm {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.appendForm input {
+  width: 0;
+  min-width: 0;
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.explanation {
+  margin: 12px 8px 2px;
+  white-space: pre-wrap;
+}
+
+@keyframes travel {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -92.8;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .poll {
+    width: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poll * {
+    animation: none;
+    transition: none;
+  }
+}

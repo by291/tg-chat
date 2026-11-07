@@ -1,19 +1,24 @@
-import { Check, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH, type PollMedia } from '../messageMedia';
 import type { MessageInteraction } from '../messageInteraction';
 import { getSelectedPollOptions } from '../state/pollVoting';
-import styles from './MessageBody.module.css';
+import { Ripple } from '../../components/Ripple';
+import { PollOption } from './PollOption';
+import { getPollPercentages } from './pollResults';
+import { useStructuredMessageAction } from './StructuredMessageActions';
+import styles from './PollMessage.module.css';
 
-const PERCENTAGE_SCALE = 100;
 const MAX_TIMEOUT = 2_147_483_647;
 
 /** Render a local poll with explicit submission, quiz results, and revoting rules. */
 export function PollMessage({
   poll,
+  messageId,
   onInteract,
 }: {
   poll: PollMedia;
+  messageId?: string;
   onInteract: (interaction: MessageInteraction) => void;
 }) {
   const selectedIds = getSelectedPollOptions(poll);
@@ -25,14 +30,32 @@ export function PollMessage({
   const isClosed = poll.closesAt !== undefined && poll.closesAt <= now;
   const hasVoted = selectedIds.length > 0;
   const canVote = !isClosed && (!hasVoted || isEditingVote);
-  const shouldShowResults = (hasVoted || isClosed) && (!poll.shouldHideResults || isClosed);
+  const shouldShowResults =
+    (!isEditingVote || isClosed) && (hasVoted || isClosed) && (!poll.shouldHideResults || isClosed);
   const totalVotes =
     poll.voterCount ?? poll.options.reduce((total, option) => total + option.votes, 0);
-  const votesLabel = totalVotes === 1 ? '1 vote' : `${totalVotes} votes`;
   const isQuiz = Boolean(poll.correctOptionIds?.length);
+  const memberLabel = totalVotes === 1 ? '1 member' : `${totalVotes} members`;
+  const votesLabel = `${memberLabel} ${isQuiz ? 'answered' : 'voted'}`;
+  const resultLabel = totalVotes ? votesLabel : 'No votes';
+  const footerLabel = (hasVoted && !isEditingVote) || isClosed ? resultLabel : 'Select an option';
+  const percentages = getPollPercentages(poll);
   const typeLabel = isQuiz ? 'Quiz' : 'Poll';
-  const pollLabel = poll.shouldShowVoters ? typeLabel : `Anonymous ${typeLabel.toLowerCase()}`;
+  const pollLabel = poll.shouldShowVoters ? typeLabel : `Anonymous ${typeLabel}`;
 
+  useStructuredMessageAction({
+    messageId,
+    action: 'change-vote',
+    onAction: () => {
+      if (!hasVoted || isClosed || poll.canRevote === false) {
+        return;
+      }
+      setPendingIds(selectedIds);
+      setIsEditingVote(true);
+    },
+  });
+
+  // prettier-ignore
   useEffect(() => {
     if (!poll.closesAt || isClosed) {
       return;
@@ -40,7 +63,11 @@ export function PollMessage({
     const remaining = Math.min(MAX_TIMEOUT, Math.max(0, poll.closesAt - Date.now()));
     const timer = setTimeout(() => setNow(Date.now()), remaining);
     return () => clearTimeout(timer);
-  }, [poll.closesAt, isClosed, now]);
+  }, [
+    poll.closesAt,
+    isClosed,
+    now
+  ]);
 
   function chooseOption(id: string) {
     if (!canVote) {
@@ -61,89 +88,56 @@ export function PollMessage({
     if (!text) {
       return;
     }
-    onInteract({ type: 'add-option', id: crypto.randomUUID(), text });
+    onInteract({
+      type: 'add-option',
+      id: crypto.randomUUID(),
+      text,
+    });
     setNewOption('');
     setIsAddingOption(false);
   }
 
   return (
     <section className={styles.poll} aria-label={poll.question}>
-      <strong>{poll.question}</strong>
-      <small>
-        {pollLabel}
-        {isClosed && ' · Closed'}
-      </small>
-      {poll.description && <p className={styles.pollDescription}>{poll.description}</p>}
-      <div className={styles.pollOptions}>
-        {poll.options.map((option) => {
-          const id = option.id;
-          const percentage = totalVotes
-            ? Math.round((option.votes / totalVotes) * PERCENTAGE_SCALE)
-            : 0;
+      {poll.description && <p className={styles.description}>{poll.description}</p>}
+      <header className={styles.header}>
+        <strong className={styles.title}>{poll.question}</strong>
+        <span className={styles.subtitle}>{isClosed ? 'Final Results' : pollLabel}</span>
+      </header>
+      <div className={styles.options}>
+        {poll.options.map((option, index) => {
           const displayedIds = canVote && poll.canChooseMultiple ? pendingIds : selectedIds;
-          const isSelected = displayedIds.includes(id);
-          const isCorrect = shouldShowResults && poll.correctOptionIds?.includes(id);
           return (
-            <button
-              type="button"
-              key={id}
-              aria-pressed={isSelected}
-              disabled={!canVote}
-              data-correct={isCorrect}
-              onClick={() => chooseOption(id)}
-            >
-              <span className={styles.pollChoice} data-multiple={poll.canChooseMultiple}>
-                {(isSelected || isCorrect) && <Check size={14} />}
-              </span>
-              <span className={styles.pollOptionText}>
-                <span>{option.text}</span>
-                {poll.shouldShowVoters && shouldShowResults && selectedIds.includes(id) && (
-                  <small> · You</small>
-                )}
-                {shouldShowResults && (
-                  <span className={styles.pollBar} style={{ width: `${percentage}%` }} />
-                )}
-              </span>
-              {shouldShowResults && <strong>{percentage}%</strong>}
-            </button>
+            <PollOption
+              key={option.id}
+              text={option.text}
+              percentage={percentages[index]}
+              votes={option.votes}
+              canVote={canVote}
+              hasResults={shouldShowResults}
+              isSelected={displayedIds.includes(option.id)}
+              isMultiple={Boolean(poll.canChooseMultiple)}
+              isQuiz={isQuiz}
+              isCorrect={Boolean(poll.correctOptionIds?.includes(option.id))}
+              onChoose={() => chooseOption(option.id)}
+            />
           );
         })}
       </div>
-      {canVote && poll.canChooseMultiple && (
+      {canVote && poll.canAddOptions && !isQuiz && poll.options.length < MAX_POLL_OPTIONS && (
         <button
           type="button"
-          className={styles.pollAction}
-          disabled={!pendingIds.length}
-          onClick={() => {
-            onInteract({ type: 'vote', optionIds: pendingIds });
-            setIsEditingVote(false);
-          }}
-        >
-          Vote
-        </button>
-      )}
-      {hasVoted && !isClosed && poll.canRevote !== false && !isEditingVote && (
-        <button
-          type="button"
-          className={styles.pollAction}
-          onClick={() => {
-            setPendingIds(selectedIds);
-            setIsEditingVote(true);
-          }}
-        >
-          Change vote
-        </button>
-      )}
-      {!isClosed && poll.canAddOptions && poll.options.length < MAX_POLL_OPTIONS && (
-        <button
-          type="button"
-          className={styles.pollAction}
+          className={`${styles.option} ${styles.addOption}`}
           onClick={() => setIsAddingOption((current) => !current)}
         >
-          <Plus size={18} /> Add an Option
+          <span className={styles.choiceContainer} aria-hidden="true">
+            <Plus size={24} />
+          </span>
+          <span className={styles.optionLabel}>Add an Option</span>
+          <Ripple />
         </button>
       )}
-      {isAddingOption && !isClosed && (
+      {isAddingOption && canVote && !isQuiz && (
         <form
           className={styles.appendForm}
           onSubmit={(event) => {
@@ -158,18 +152,35 @@ export function PollMessage({
             maxLength={MAX_POLL_OPTION_LENGTH}
             onChange={(event) => setNewOption(event.target.value)}
           />
-          <button type="submit" disabled={!newOption.trim()}>
+          <button type="submit" className={styles.action} disabled={!newOption.trim()}>
             Add
           </button>
         </form>
       )}
       {shouldShowResults && isQuiz && poll.explanation && (
-        <p className={styles.pollDescription}>{poll.explanation}</p>
+        <p className={styles.explanation}>{poll.explanation}</p>
       )}
-      {poll.shouldShowVoters && hasVoted && shouldShowResults && <small>You voted</small>}
-      <small>
-        {poll.shouldHideResults && !isClosed ? 'Results hidden until the poll closes' : votesLabel}
-      </small>
+      <div className={styles.footer}>
+        {canVote && poll.canChooseMultiple && pendingIds.length > 0 ? (
+          <button
+            type="button"
+            className={styles.action}
+            onClick={() => {
+              onInteract({ type: 'vote', optionIds: pendingIds });
+              setIsEditingVote(false);
+            }}
+          >
+            Vote
+            <Ripple />
+          </button>
+        ) : (
+          <span className={styles.footerText}>
+            {poll.shouldHideResults && !isClosed
+              ? 'Results hidden until the poll closes'
+              : footerLabel}
+          </span>
+        )}
+      </div>
     </section>
   );
 }

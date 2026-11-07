@@ -514,6 +514,25 @@
   }
 }
 
+.bubble[data-structured='poll'] {
+  padding: 0;
+}
+
+.bubble[data-structured='poll'][data-has-caption='false'] > .messageContent {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  min-height: 12px;
+  line-height: 12px;
+}
+
+.bubble[data-structured='poll'] > .author,
+.bubble[data-structured='poll'] > .forwarded,
+.bubble[data-structured='poll'] > .replyPreview,
+.bubble[data-structured='poll'] > .reactions {
+  margin: 4px 8px;
+}
+
 :global(:root[data-theme='dark']) .messageRow[data-own='true'] .bubble {
   --message-control-border: white;
 }
@@ -527,6 +546,7 @@
   line-height: 12px;
 }
 
+.messageRow[data-own='true'] .bubble[data-structured='poll'],
 .messageRow[data-own='true'] .bubble[data-structured='checklist'] {
   --accent-color: var(--outgoing-meta-color);
   --secondary-color: var(--outgoing-meta-color);
