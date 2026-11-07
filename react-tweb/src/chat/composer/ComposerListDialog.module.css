@@ -1,48 +1,667 @@
+.positioner {
+  padding: 16px;
+}
+
 .dialog {
-  width: min(420px, calc(100vw - 32px));
+  width: min(420px, 100%);
+  max-height: min(800px, calc(100dvh - 32px));
+  overflow: hidden;
+  border-radius: 40px;
+  background: var(--panel-color);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 20%);
 }
 
-.dialog label {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
-  color: var(--secondary-color);
+.dialog[data-kind='checklist'] {
+  width: min(368px, 100%);
+}
+
+.dialog[data-kind='checklist'] .setting {
+  padding-inline: 16px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+
+.header {
+  display: flex;
+  flex: 0 0 56px;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+}
+
+.header h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.header > button:first-child {
+  width: 40px;
+  height: 40px;
+}
+
+.create {
+  position: relative;
+  height: 36px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 16px;
+  color: white;
+  background: var(--accent-color);
   font-size: 14px;
+  font-weight: 500;
+  line-height: 36px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 150ms ease;
 }
 
-.dialog input,
-.dialog textarea {
+.create:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.scrollBody {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 16px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+:global(:root[data-touch-supported='false']) .scrollBody:hover {
+  scrollbar-color: rgb(0 0 0 / 20%) transparent;
+}
+
+.section {
+  padding: 8px;
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 2px 3px rgb(0 0 0 / 2%);
+}
+
+.section + .section,
+.hint + .section {
+  margin-top: 16px;
+}
+
+.section h3 {
+  margin: 12px 16px 10px;
+  color: var(--accent-color);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.floatingField + .floatingField {
+  margin-top: 16px;
+}
+
+.entry input::placeholder {
+  color: var(--secondary-color);
+}
+
+.checklistField {
+  --checklist-border-color: color-mix(in srgb, var(--secondary-color) 25%, var(--surface-color));
+  position: relative;
+  border-radius: 16px;
+}
+
+.checklistInput {
+  display: block;
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-color);
+  height: 48px;
+  padding: 12px 15px;
+  border: 1px solid var(--checklist-border-color);
+  border-radius: inherit;
+  outline: none;
+  color: inherit;
+  background: var(--surface-color);
+  font: inherit;
+  font-size: 16px;
+  line-height: 21px;
+}
+
+.checklistField::after {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent-color);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  content: '';
+}
+
+.checklistField:has(input:focus)::after {
+  opacity: 1;
+}
+
+.checklistInput:focus,
+:global(:root[data-touch-supported='false']) .checklistInput:hover {
+  border-color: var(--accent-color);
+}
+
+:global(:root[data-touch-supported='false']) .checklistInput:hover:not(:focus) {
+  transition: border-color 200ms ease;
+}
+
+.checklistPlaceholder {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  max-width: calc(100% - 64px);
+  overflow: hidden;
+  color: var(--secondary-color);
+  line-height: 21px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translate(16px, -50%);
+  pointer-events: none;
+  transition:
+    opacity 150ms ease-out 10ms,
+    transform 150ms ease-out 10ms;
+}
+
+.checklistPlaceholder[data-empty='true'] {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+.checklistEntries .checklistField {
+  border-radius: 0;
+}
+
+.checklistEntries .checklistInput {
+  padding-right: 47px;
+  border-bottom-color: transparent;
+}
+
+.checklistEntries .checklistField:first-child {
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.checklistEntries .checklistField:not(:has(+ .checklistField)) {
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.checklistEntries .checklistField:not(:has(+ .checklistField)) .checklistInput,
+:global(:root[data-touch-supported='false']) .checklistEntries .checklistInput:hover {
+  border-bottom-color: var(--checklist-border-color);
+}
+
+.checklistField .checklistRemove {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+}
+
+.floatingField {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  padding: 0 8px 0 16px;
+  border-radius: 16px;
+  background: var(--surface-color);
+  cursor: text;
+}
+
+.floatingInput {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  min-height: 54px;
+  padding: 16px 0;
+  border: 0;
+  outline: none;
+  color: inherit;
   background: transparent;
   font: inherit;
+  font-size: 16px;
+  line-height: 22px;
+  resize: none;
+  field-sizing: content;
 }
 
-.dialog textarea {
-  resize: vertical;
+.floatingField > button {
+  align-self: flex-start;
+  margin: 7px 0 0 4px;
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
+.floatingLabel {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 16px;
+  max-width: calc(100% - 64px);
+  padding: 0;
+  overflow: hidden;
+  color: var(--secondary-color);
+  font-size: 16px;
+  line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition:
+    top 200ms ease,
+    left 200ms ease,
+    font-size 200ms ease,
+    padding 200ms ease,
+    color 200ms ease,
+    background-color 200ms ease,
+    font-weight 50ms ease 100ms;
 }
 
-.actions button {
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 10px;
+.floatingField:focus-within .floatingLabel,
+.floatingField:has([data-open='true']) .floatingLabel,
+.floatingField[data-filled='true'] .floatingLabel {
+  top: 0;
+  left: 12px;
+  padding: 0 4px;
+  background: var(--surface-color);
+  font-size: 12.8px;
+}
+
+.floatingField:focus-within .floatingLabel,
+.floatingField:has([data-open='true']) .floatingLabel {
   color: var(--accent-color);
+  font-weight: 700;
+}
+
+:global(:root[data-touch-supported='false']) .floatingField:hover .floatingLabel {
+  color: var(--accent-color);
+}
+
+.entries {
+  position: relative;
+}
+
+.entryRow {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.entry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  min-height: 54px;
+  border: 0;
+  border-radius: 16px;
+}
+
+.entry::before,
+.floatingField::before {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--secondary-color) 25%, var(--surface-color));
+  border-radius: inherit;
+  pointer-events: none;
+  transition: border-color 200ms ease;
+  content: '';
+}
+
+:global(:root[data-touch-supported='false'])
+  .entries:not([data-dragging='true'])
+  .entry:not([data-invalid='true']):hover::before,
+:global(:root[data-touch-supported='false']) .floatingField:hover::before {
+  border-color: var(--accent-color);
+}
+
+.entry::after,
+.floatingField::after {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent-color);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  content: '';
+}
+
+.entry:focus-within::after,
+.entry:has([data-open='true'])::after,
+.floatingField:focus-within::after,
+.floatingField:has([data-open='true'])::after {
+  opacity: 1;
+}
+
+.entry[data-invalid='true']::before,
+.entry[data-invalid='true']::after {
+  border-color: #e44d61;
+  opacity: 1;
+}
+
+.entry > input {
+  width: 0;
+  min-width: 0;
+  flex: 1;
+  padding: 15px;
+  border: 0;
+  outline: none;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.reorder {
+  position: relative;
+  display: grid;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 40px;
+  margin-left: 8px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  color: var(--secondary-color);
+  background: transparent;
+  cursor: grab;
+}
+
+.reorder:disabled {
+  cursor: inherit;
+  pointer-events: none;
+}
+
+.optionGlyph,
+.answerSymbol {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.answerSlot {
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  padding-inline: 6px 2px;
+}
+
+.correctAnswer {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.correctAnswer input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+:global(:root[data-touch-supported='false']) .correctAnswer:hover {
+  background: var(--hover-color);
+}
+
+.correctAnswer:has(input:focus-visible) {
+  outline: 2px solid var(--accent-color);
+}
+
+.answerGlyph {
+  position: relative;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 2px solid #8d969c;
+  border-radius: 5px;
+  color: white;
+  pointer-events: none;
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease;
+}
+
+.answerGlyph[data-checked='true'] {
+  border-color: var(--accent-color);
+}
+
+.answerGlyph[data-type='checkbox'][data-checked='true'] {
+  background: var(--accent-color);
+}
+
+.answerGlyph svg {
+  transform: scale(0);
+  transition: transform 150ms ease;
+}
+
+.answerGlyph[data-checked='true'] svg {
+  transform: scale(1);
+}
+
+.answerGlyph[data-type='radio'] {
+  border-radius: 50%;
+}
+
+.answerGlyph[data-type='radio']::after {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  transform: scale(0);
+  transition: transform 200ms ease;
+  content: '';
+}
+
+.answerGlyph[data-type='radio'][data-checked='true']::after {
+  transform: scale(1);
+}
+
+.addButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 48px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  color: inherit;
   background: transparent;
   font: inherit;
   cursor: pointer;
 }
 
-.actions button:disabled {
+.addButton svg {
+  color: var(--secondary-color);
+}
+
+.hint {
+  margin: 8px 24px 0;
+  color: var(--secondary-color);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.hint span {
+  display: block;
+}
+
+.setting {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 54px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: opacity 200ms ease;
+}
+
+.setting[data-disabled] {
   opacity: 0.5;
   cursor: default;
+}
+
+.settingIcon {
+  display: grid;
+  flex: 0 0 30px;
+  margin-right: 16px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  color: white;
+}
+
+.settingText {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.settingDescription {
+  display: block;
+  margin-top: 4px;
+  color: var(--secondary-color);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.switchTrack {
+  --switch-inactive-color: #c4c9cc;
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 42px;
+  height: 24px;
+  border: 2px solid var(--switch-inactive-color);
+  border-radius: 20px;
+  background: transparent;
+  transition:
+    background 100ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.switchThumb {
+  position: absolute;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--switch-inactive-color);
+  transform: translateX(2px) scale(0.75);
+  transition:
+    transform 100ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:global(:root[data-theme='dark']) .switchTrack {
+  --switch-inactive-color: #707579;
+}
+
+.switchTrack[data-state='checked'] {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+}
+
+.switchThumb[data-state='checked'] {
+  background: white;
+  transform: translateX(20px) scale(1);
+}
+
+:global(:root[data-touch-supported='false']) .setting:not([data-disabled]):hover,
+:global(:root[data-touch-supported='false']) .addButton:hover {
+  background: var(--hover-color);
+}
+
+.reveal {
+  overflow: hidden;
+}
+
+.reveal > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.explanationField {
+  /* Keep Telegram's section gap inside the reveal so it collapses with the explanation. */
+  margin-top: 16px;
+}
+
+.duration {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 54px;
+  padding: 8px 16px;
+}
+
+.duration select {
+  min-width: 0;
+  border: 0;
+  color: var(--accent-color);
+  background: var(--surface-color);
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checklistField::after,
+  .checklistPlaceholder,
+  .floatingLabel,
+  .floatingField::before,
+  .floatingField::after,
+  .entry::before,
+  .entry::after,
+  .setting,
+  .switchTrack,
+  .switchThumb,
+  .answerGlyph,
+  .answerGlyph svg,
+  .answerGlyph::after {
+    transition: none;
+  }
+
+  :global(:root[data-touch-supported='false']) .checklistInput:hover:not(:focus) {
+    transition: none;
+  }
+
+  .checklistPlaceholder {
+    transform: translate(0, -50%);
+  }
+}
+
+.entries[data-kind='poll'] .entry > input {
+  padding: 16px 8px;
+}
+
+.entries[data-kind='poll'] .entry:has([data-open='true']) {
+  z-index: 1;
 }
