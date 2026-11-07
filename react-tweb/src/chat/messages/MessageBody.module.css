@@ -1,23 +1,16 @@
-.photoFrame,
-.videoFrame {
+.photoFrame {
   position: relative;
   display: block;
   max-width: 100%;
   overflow: hidden;
   padding: 0;
-  border: 1px solid var(--bubble-background);
+  border: 1px solid transparent;
   border-radius: inherit;
-  background: var(--input-color);
-}
-
-.photoFrame {
-  border-color: transparent;
   background: transparent;
   cursor: zoom-in;
 }
 
 .photoFrame img,
-.videoFrame video,
 .album img {
   display: block;
   width: 100%;
@@ -39,11 +32,6 @@
   /* A stripped thumbnail fills the frame; cover would crop away its vertical color changes. */
   object-fit: fill;
   opacity: 0.8;
-}
-
-.videoFrame[data-round='true'] {
-  border: 0;
-  border-radius: 50%;
 }
 
 .album {

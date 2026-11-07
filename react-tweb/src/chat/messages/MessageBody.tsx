@@ -50,7 +50,14 @@ export function MessageBody({ message, metadata, onOpenMedia, onInteract }: Mess
     case 'album':
       return <AlbumFrame message={message} photos={media.photos} onOpenMedia={onOpenMedia} />;
     case 'video':
-      return <VideoFrame media={media} hasCaption={Boolean(message.text)} />;
+      return (
+        <VideoFrame
+          media={media}
+          messageId={message.id}
+          hasCaption={Boolean(message.text || message.replyToId)}
+          onOpen={() => onOpenMedia(message)}
+        />
+      );
     case 'voice':
       return <VoiceMessage media={media} metadata={metadata} />;
     case 'document':

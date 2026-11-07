@@ -643,3 +643,11 @@
   min-height: 12px;
   line-height: 12px;
 }
+
+.bubble[data-structured='video'] {
+  width: min-content;
+}
+
+.bubble[data-structured='video'][data-standalone='true'] .mediaContent {
+  border-radius: 50%;
+}
