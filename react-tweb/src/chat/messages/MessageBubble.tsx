@@ -1,6 +1,5 @@
 import { Check } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
 import { MessageBody, MessageText } from './MessageBody';
 import { MessageMetadata } from './MessageMetadata';
 import { MessageTail } from './MessageTail';
@@ -8,11 +7,11 @@ import { useDeferredMediaSource } from './deferredMedia';
 import { describeMessage } from '../messageFormatting';
 import { CURRENT_USER_ID, type Message } from '../model';
 import type { MessageInteraction } from '../messageInteraction';
+import type { OutgoingMessageMount } from './outgoingMessageTransition';
 import styles from './MessageBubble.module.css';
 
-const MESSAGE_ENTRY_DURATION = 0.2;
-
 interface MessageBubbleProps {
+  onMount?: (options: OutgoingMessageMount) => (() => void) | undefined;
   message: Message;
   isPreview?: boolean;
   isSelecting?: boolean;
@@ -22,8 +21,6 @@ interface MessageBubbleProps {
   isGroupStart: boolean;
   isGroupEnd: boolean;
   isHighlighted: boolean;
-  shouldAnimate: boolean;
-  onAppear: (messageId: string) => void;
   onInteract: (messageId: string, interaction: MessageInteraction) => void;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMedia: (message: Message) => void;
@@ -51,6 +48,7 @@ function ReplyThumbnail({ source }: { source: string }) {
 /** Render one message with sender grouping, media, reactions, and accessible context actions. */
 export const MessageBubble = memo(function MessageBubble({
   message,
+  onMount,
   isPreview = false,
   isSelecting = false,
   isSelected = false,
@@ -59,16 +57,21 @@ export const MessageBubble = memo(function MessageBubble({
   isGroupStart,
   isGroupEnd,
   isHighlighted,
-  shouldAnimate,
-  onAppear,
   onInteract,
   onReact,
   onOpenMedia,
   onJumpToMessage,
 }: MessageBubbleProps) {
-  const shouldReduceMotion = useReducedMotion();
+  const rowRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const element = rowRef.current;
+    if (element) {
+      // The conversation owns the flight. Strict Mode replays row effects, and disposing here
+      // would reveal the real bubble before the first animation frame.
+      onMount?.({ messageId: message.id, element });
+    }
+  }, [message.id, onMount]);
   const isOwn = message.authorId === CURRENT_USER_ID;
-  const shouldAnimateEntry = useRef(shouldAnimate);
   const isRoundVideo = message.media?.kind === 'video' && message.media.isRound;
   const isStandalone = Boolean(message.sticker || isRoundVideo);
   const hasVisualMedia = Boolean(
@@ -86,10 +89,6 @@ export const MessageBubble = memo(function MessageBubble({
   const messageIdPrefix = idPrefix ?? (isPreview ? 'preview-message' : 'message');
   const elementId = `${messageIdPrefix}-${message.id}`;
 
-  useEffect(() => {
-    onAppear(message.id);
-  }, [message.id, onAppear]);
-
   if (message.isService) {
     return (
       <div id={elementId} className={styles.serviceRow}>
@@ -99,7 +98,8 @@ export const MessageBubble = memo(function MessageBubble({
   }
 
   return (
-    <motion.article
+    <article
+      ref={rowRef}
       id={elementId}
       className={styles.messageRow}
       data-selecting={isSelecting}
@@ -108,13 +108,6 @@ export const MessageBubble = memo(function MessageBubble({
       data-group-start={isGroupStart}
       data-group-end={isGroupEnd}
       data-highlighted={isHighlighted}
-      initial={
-        shouldReduceMotion || !shouldAnimateEntry.current
-          ? false
-          : { opacity: 0, y: 16, scale: 0.96 }
-      }
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: shouldReduceMotion ? 0 : MESSAGE_ENTRY_DURATION }}
     >
       <button
         className={styles.selectionCheckbox}
@@ -169,7 +162,7 @@ export const MessageBubble = memo(function MessageBubble({
           </button>
         )}
         {isLinkPreview && (
-          <div className={styles.messageContent}>
+          <div className={styles.messageContent} data-message-text>
             <MessageText message={message} />
           </div>
         )}
@@ -177,7 +170,7 @@ export const MessageBubble = memo(function MessageBubble({
           <MessageBody message={message} onOpenMedia={onOpenMedia} onInteract={onInteract} />
           {hasOverlayTime && <MessageMetadata message={message} />}
         </div>
-        <div className={styles.messageContent}>
+        <div className={styles.messageContent} data-message-text>
           {!isLinkPreview && <MessageText message={message} />}
           {!hasOverlayTime && !hasReactions && <MessageMetadata message={message} />}
         </div>
@@ -196,6 +189,6 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
       </div>
-    </motion.article>
+    </article>
   );
 });

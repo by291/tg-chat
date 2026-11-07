@@ -44,7 +44,10 @@ pnpm format:check
 - Persistent placeholder and overlapping microphone/send/edit icon transitions.
 - Full-screen photo gallery with keyboard navigation and download.
 - IndexedDB persistence for messages, text drafts, theme, and attached image data.
-- Grouped bubble corners, entry animations, panel transitions, and reduced-motion support.
+- Grouped bubble corners, panel transitions, and reduced-motion support.
+- Text sends morph from the captured composer into the measured message bubble over 300ms.
+  Background geometry and text move separately; the real bubble appears when the flight lands.
+  Receiving messages and sending attachments use history scrolling without a text-flight copy.
 - Measured virtual history with local older-message paging, stable reading anchors, and ID-based jumps.
 - A Message lab conversation with 1,000 archived messages and a media showcase.
 - Albums, regular and circular videos, voice playback, files, link previews, contacts, and local polls.
@@ -91,7 +94,7 @@ together. See the [directory layout](./docs/source-guide.md#directory-layout) fo
 | Ark UI                          | Menu, popover, dialog, tabs, keyboard and focus behavior             |
 | CSS Modules                     | Component-scoped visual styles                                       |
 | TanStack Virtual                | Dynamic row measurements, end anchoring, and bounded DOM             |
-| Motion                          | Message entry animation and reduced-motion preference                |
+| Motion                          | Bézier easing, control transitions, and reduced-motion preference    |
 | Lucide                          | Consistent interface icons                                           |
 | idb-keyval                      | IndexedDB access                                                     |
 | Zod                             | Validation before restoring saved state                              |

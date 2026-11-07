@@ -1,0 +1,33 @@
+.flight {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  contain: layout style;
+}
+
+.background {
+  position: absolute;
+  inset: 0;
+}
+
+.content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.tail {
+  position: absolute;
+  z-index: -1;
+  right: -8.4px;
+  bottom: 0;
+  width: 11px;
+  height: 20px;
+}

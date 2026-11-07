@@ -1,12 +1,4 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-  type MouseEvent,
-} from 'react';
+import { memo, useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
@@ -27,6 +19,7 @@ import { StickyDateHeaders } from './StickyDateHeaders';
 import { createHistoryDateGroups } from './historyDates';
 import { SearchDateDialog } from '../search/SearchDateDialog';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
+import type { OutgoingMessageMount } from '../messages/outgoingMessageTransition';
 import styles from './MessageTimeline.module.css';
 
 const HIGHLIGHT_DURATION = 1800;
@@ -37,6 +30,7 @@ export interface MessageNavigation {
 }
 
 interface MessageTimelineProps {
+  onMessageMount?: (options: OutgoingMessageMount) => (() => void) | undefined;
   messages: Message[];
   overlayInsets?: ChatOverlayInsets;
   isPreview?: boolean;
@@ -62,6 +56,7 @@ interface VirtualMessageHistoryProps extends MessageTimelineProps {
 
 function VirtualMessageHistory({
   messages,
+  onMessageMount,
   overlayInsets,
   messageById,
   searchQuery,
@@ -81,8 +76,6 @@ function VirtualMessageHistory({
   onJumpToMessage,
 }: VirtualMessageHistoryProps) {
   const allRows = useMemo(() => createHistoryRows(messages), [messages]);
-  // A lazy initializer avoids rebuilding the full ID set on every virtual-range update.
-  const [appearedIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [highlightedId, setHighlightedId] = useState('');
   const [calendarRequest, setCalendarRequest] = useState({ timestamp: Date.now(), id: 0 });
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -140,13 +133,6 @@ function VirtualMessageHistory({
     const timeout = window.setTimeout(() => setHighlightedId(''), HIGHLIGHT_DURATION);
     return () => window.clearTimeout(timeout);
   }, [navigation]);
-
-  const markMessageAppeared = useCallback(
-    (messageId: string) => {
-      appearedIds.add(messageId);
-    },
-    [appearedIds],
-  );
 
   function openDatePicker(timestamp: number) {
     setCalendarRequest((previous) => ({ timestamp, id: previous.id + 1 }));
@@ -212,7 +198,7 @@ function VirtualMessageHistory({
           className={styles.messages}
           style={{ height: totalHeight + bottomAlignment }}
         >
-          <div ref={scroll.animatedRowsRef} className={styles.animatedRows}>
+          <div ref={scroll.animatedRowsRef} className={styles.animatedRows} data-history-rows>
             <StickyDateHeaders
               groups={dateGroups}
               viewportRef={scroll.viewportRef}
@@ -245,6 +231,7 @@ function VirtualMessageHistory({
                     ) : (
                       <MessageBubble
                         message={row.message}
+                        onMount={isPreview ? undefined : onMessageMount}
                         isSelecting={selectedIds !== undefined}
                         isSelected={selectedIds?.includes(row.message.id)}
                         isPreview={isPreview}
@@ -253,8 +240,6 @@ function VirtualMessageHistory({
                         isGroupStart={row.isGroupStart}
                         isGroupEnd={row.isGroupEnd}
                         isHighlighted={row.key === highlightedId}
-                        shouldAnimate={!appearedIds.has(row.key)}
-                        onAppear={markMessageAppeared}
                         onReact={onReact}
                         onInteract={onInteract}
                         onOpenMedia={onOpenMedia}

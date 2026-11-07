@@ -6,12 +6,10 @@
   gap: 6px;
   /* Padding keeps the inter-message gap inside the measured virtual row. */
   padding: 0 4px var(--message-gap);
-  transform-origin: bottom left;
 }
 
 .messageRow[data-own='true'] {
   flex-direction: row-reverse;
-  transform-origin: bottom right;
 }
 
 .messageRow[data-group-end='true'] {

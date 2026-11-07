@@ -13,11 +13,16 @@ import { ComposerContextBar } from './ComposerContextBar';
 import { DiscardEditDialog } from './DiscardEditDialog';
 import { hasMessageEditChanged } from './messageEditing';
 import type { Attachment, Message } from '../model';
+import {
+  captureOutgoingMessage,
+  type OutgoingMessageOrigin,
+} from '../messages/outgoingMessageTransition';
 import styles from './MessageComposer.module.css';
 
 const EXPAND_BUTTON_MIN_HEIGHT = 72;
 
 export interface ComposedMessage extends EmojiText {
+  sendOrigin?: OutgoingMessageOrigin;
   attachment?: Attachment;
   sticker?: string;
   media?: MessageMedia;
@@ -52,6 +57,7 @@ export function MessageComposer({
   onNotify,
 }: MessageComposerProps) {
   const editorRef = useRef<EmojiEditorControls>(null);
+  const editorRowRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileModeRef = useRef<'media' | 'document'>('media');
   const isMountedRef = useRef(true);
@@ -142,8 +148,13 @@ export function MessageComposer({
       return;
     }
 
+    const editor = editorRef.current?.getElement();
+    const field = editorRowRef.current;
+    const canAnimateText = !editingMessage && !attachment && !mediaAttachment && editor && field;
+    const sendOrigin = canAnimateText ? captureOutgoingMessage({ field, editor }) : undefined;
     onSubmit({
       ...value,
+      sendOrigin,
       attachment: editingMessage ? undefined : attachment,
       media: editingMessage ? undefined : mediaAttachment,
     });
@@ -278,7 +289,7 @@ export function MessageComposer({
           </IconButton>
         </div>
       )}
-      <div className={styles.editorRow} data-expanded={isExpanded}>
+      <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
         <AttachmentMenu
           isDisabled={Boolean(editingMessage) || isLoadingAttachment}
           isExpanded={isExpanded}

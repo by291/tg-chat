@@ -18,6 +18,7 @@ import { MessageTimeline, type MessageNavigation } from './history/MessageTimeli
 import { describeMessage } from './messageFormatting';
 import type { ChatAction, ChatState, Conversation, Message, MessageCommand } from './model';
 import type { MessageInteraction } from './messageInteraction';
+import { createOutgoingMessageTransitions } from './messages/outgoingMessageTransition';
 import styles from './ConversationPane.module.css';
 
 interface ConversationPaneProps {
@@ -47,6 +48,10 @@ export function ConversationPane({
   onNotify,
 }: ConversationPaneProps) {
   const overlays = useChatOverlayInsets();
+  const [outgoingMessages] = useState(() =>
+    createOutgoingMessageTransitions({ getContainer: () => overlays.containerRef.current }),
+  );
+  useEffect(() => () => outgoingMessages.dispose(), [outgoingMessages]);
   const [replyMessage, setReplyMessage] = useState<Message>();
   const [editingMessage, setEditingMessage] = useState<Message>();
   const [pendingDelete, setPendingDelete] = useState<Message>();
@@ -133,10 +138,14 @@ export function ConversationPane({
       composed.media,
     );
     if (hasContent) {
+      const messageId = crypto.randomUUID();
+      if (composed.sendOrigin) {
+        outgoingMessages.prepare({ messageId, origin: composed.sendOrigin });
+      }
       dispatch({
         type: 'send',
         message: {
-          id: crypto.randomUUID(),
+          id: messageId,
           chatId: conversation.id,
           authorId: 'you',
           authorName: 'You',
@@ -343,6 +352,7 @@ export function ConversationPane({
     return (
       <MessageTimeline
         messages={options.messages}
+        onMessageMount={options.isPinnedView ? undefined : outgoingMessages.mount}
         overlayInsets={overlays.insets}
         searchQuery=""
         unreadCount={options.isPinnedView ? 0 : unreadCount}
