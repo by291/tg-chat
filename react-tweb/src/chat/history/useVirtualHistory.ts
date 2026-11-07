@@ -16,7 +16,7 @@ const FOLLOW_BOTTOM_DISTANCE = 80;
 const MIN_HISTORY_PREFETCH_DISTANCE = 360;
 const SHOW_JUMP_DISTANCE = 160;
 const READ_BOTTOM_DISTANCE = 1;
-const HISTORY_TOP_PADDING = 40;
+const HISTORY_TOP_PADDING = 8;
 const HISTORY_BOTTOM_PADDING = 12;
 const NO_OVERLAYS: ChatOverlayInsets = { top: 0, bottom: 0 };
 
@@ -102,7 +102,8 @@ export function useVirtualHistory({
       return entry?.borderBoxSize[0]?.blockSize ?? element.getBoundingClientRect().height;
     },
     overscan: OVERSCAN_ROWS,
-    paddingStart: HISTORY_TOP_PADDING + overlayInsets.top,
+    // This inset belongs to the history once, rather than being repeated above every date.
+    paddingStart: overlayInsets.top + HISTORY_TOP_PADDING,
     paddingEnd: HISTORY_BOTTOM_PADDING + overlayInsets.bottom,
     scrollPaddingStart: overlayInsets.top,
     scrollPaddingEnd: overlayInsets.bottom,

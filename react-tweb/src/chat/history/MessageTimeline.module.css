@@ -111,35 +111,20 @@
   }
 }
 
-.historyStart {
-  position: absolute;
-  top: calc(var(--history-top-inset) + 8px);
-  width: 100%;
-  text-align: center;
-  font-size: 12px;
-}
-
-.historyStart button,
-.historyStart span,
 .dateSeparator {
   display: inline-block;
-  padding: 5px 10px;
+  padding: 4.5px 10px;
   border: 0;
-  border-radius: 20px;
+  border-radius: 14px;
   color: white;
-  background: var(--service-color);
-  font-size: 12px;
+  background: var(--message-highlighting-color);
+  font-size: 15px;
   font-weight: 500;
+  line-height: 20px;
 }
 
-.historyStart button {
-  cursor: pointer;
-}
-
-.dateRow {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0 12px;
+.dateSpace {
+  height: 36px;
 }
 
 .jumpButton {
@@ -258,4 +243,46 @@
   margin: 8px 0 0;
   color: var(--secondary-color);
   font-size: 13px;
+}
+
+.dateSeparator {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Each group's measured bounds constrain its own header, just like tweb's date sections. */
+.dateGroup {
+  position: absolute;
+  left: 0;
+  z-index: 2;
+  width: 100%;
+  pointer-events: none;
+}
+
+.dateHeader {
+  position: sticky;
+  top: calc(var(--history-top-inset) + 3px);
+  padding-bottom: 5px;
+  margin-bottom: 2px;
+  text-align: center;
+  opacity: 1;
+  transition: opacity 300ms ease;
+}
+
+.dateHeader[data-hidden='true'] {
+  opacity: 0;
+}
+
+.dateHeader:not([data-hidden='true']) .dateSeparator {
+  pointer-events: auto;
+}
+
+.timelineArea[data-preview='true'] .dateHeader {
+  position: static;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dateHeader {
+    transition: none;
+  }
 }

@@ -1,6 +1,7 @@
 import { getMediaGeometry } from '../media/mediaGeometry';
 import { findSticker, STICKER_MESSAGE_SIZE } from '../stickers/stickerCatalog';
 import type { HistoryRow } from './historyRows';
+import { HISTORY_DATE_ROW_HEIGHT } from './historyDates';
 
 const DEFAULT_VIEWPORT_WIDTH = 696;
 const MAX_BUBBLE_WIDTH = 480;
@@ -8,7 +9,7 @@ const BUBBLE_WIDTH_RATIO = 0.84;
 const HORIZONTAL_GUTTER = 40;
 const TEXT_LINE_HEIGHT = 21;
 const AVERAGE_GLYPH_WIDTH = 8;
-const DATE_ROW_HEIGHT = 42;
+const SERVICE_ROW_HEIGHT = 42;
 const BASE_MESSAGE_HEIGHT = 28;
 const MESSAGE_GAP = 2;
 const GROUP_END_GAP = 6;
@@ -37,12 +38,12 @@ function estimateTextHeight(text: string, availableWidth: number) {
 /** Estimate each row from the same metadata used by its first painted media frame. */
 export function estimateHistoryRow(row: HistoryRow, viewportWidth = DEFAULT_VIEWPORT_WIDTH) {
   if (row.kind === 'date') {
-    return DATE_ROW_HEIGHT;
+    return HISTORY_DATE_ROW_HEIGHT;
   }
 
   const message = row.message;
   if (message.isService) {
-    return DATE_ROW_HEIGHT;
+    return SERVICE_ROW_HEIGHT;
   }
 
   const bubbleWidth = Math.min(MAX_BUBBLE_WIDTH, viewportWidth * BUBBLE_WIDTH_RATIO);

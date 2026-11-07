@@ -6,6 +6,7 @@ export type HistoryRow =
       kind: 'date';
       key: string;
       label: string;
+      timestamp: number;
     }
   | {
       kind: 'message';
@@ -28,6 +29,7 @@ export function createHistoryRows(messages: Message[]): HistoryRow[] {
         kind: 'date',
         key: `date-${message.id}`,
         label: formatMessageDate(message.createdAt),
+        timestamp: message.createdAt,
       });
       previousDate = dateKey;
     }

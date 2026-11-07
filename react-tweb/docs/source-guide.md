@@ -145,6 +145,22 @@ post-commit scroll that also survives React Strict Mode's effect remount.
 Official references: [chat guide](https://tanstack.com/virtual/latest/docs/chat) and
 [virtualizer API](https://tanstack.com/virtual/latest/docs/api/virtualizer).
 
+### Date header ownership
+
+`historyDates.ts` derives measured day bounds from the virtualizer and keeps every day represented
+in the rendered row range. A day uses its calendar date as its key, including a paged window that
+begins halfway through that day. Loading earlier messages must not remount the visible header.
+
+`StickyDateHeaders.tsx` renders one header inside each measured day container. Native CSS sticky
+positioning performs the handoff: the old header is constrained by its day container while the next
+header approaches. Both remain mounted during that overlap. There is no separate floating copy,
+manual position animation, or timer that replaces one label with another.
+
+The private visibility hook stores only the active day and whether scrolling is active. Scroll
+coordinates are read to resolve that day, not saved as per-frame React position state. The idle
+timeout changes visibility; CSS owns the 300 ms opacity transition and its reversal. Changing the
+virtual window updates geometry without restarting the idle timeout.
+
 ## A bubble shell with distinct content
 
 See [the bubble style audit](./bubble-style-audit.md) for source-backed dimensions, verification,

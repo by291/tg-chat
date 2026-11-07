@@ -35,6 +35,7 @@ const WEEKDAY_LABELS = [
 
 interface SearchDateDialogProps {
   isOpen: boolean;
+  initialDate?: number;
   onClose: () => void;
   onSelect: (timestamp: number) => void;
 }
@@ -63,8 +64,8 @@ interface CalendarScrollerProps {
   onConfirm: () => void;
 }
 
-function getToday() {
-  const today = new Date();
+function getCalendarDate(timestamp = Date.now()) {
+  const today = new Date(timestamp);
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
@@ -182,7 +183,7 @@ const MonthGrid = memo(function MonthGrid({
 });
 
 function CalendarContent({ value, onValueChange, onClose, onConfirm }: CalendarContentProps) {
-  const [maximumDate] = useState(getToday);
+  const [maximumDate] = useState(getCalendarDate);
   const months = useMemo(() => createCalendarMonths(maximumDate), [maximumDate]);
 
   // Share one state machine across months; virtual mounts should only create their DOM.
@@ -320,8 +321,13 @@ function CalendarScroller({
 }
 
 /** Keep the header and confirmation fixed while a bounded viewport scrolls through months. */
-export function SearchDateDialog({ isOpen, onClose, onSelect }: SearchDateDialogProps) {
-  const [value, setValue] = useState<DateValue[]>(() => [getToday()]);
+export function SearchDateDialog({
+  isOpen,
+  initialDate,
+  onClose,
+  onSelect,
+}: SearchDateDialogProps) {
+  const [value, setValue] = useState<DateValue[]>(() => [getCalendarDate(initialDate)]);
 
   function jumpToDate() {
     const selected = value[0];

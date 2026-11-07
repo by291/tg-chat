@@ -22,6 +22,9 @@ import { describeMessage } from '../messageFormatting';
 import type { Message, MessageCommand } from '../model';
 import { useHistoryWindow } from './useHistoryWindow';
 import { useVirtualHistory } from './useVirtualHistory';
+import { StickyDateHeaders } from './StickyDateHeaders';
+import { createHistoryDateGroups } from './historyDates';
+import { SearchDateDialog } from '../search/SearchDateDialog';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import styles from './MessageTimeline.module.css';
 
@@ -80,6 +83,8 @@ function VirtualMessageHistory({
   // A lazy initializer avoids rebuilding the full ID set on every virtual-range update.
   const [appearedIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [highlightedId, setHighlightedId] = useState('');
+  const [calendarRequest, setCalendarRequest] = useState({ timestamp: Date.now(), id: 0 });
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const history = useHistoryWindow(allRows);
   const { rows, hasOlder, loadOlder } = history;
   const scroll = useVirtualHistory({
@@ -112,6 +117,12 @@ function VirtualMessageHistory({
   const totalHeight = scroll.virtualizer.getTotalSize();
   const viewportHeight = scroll.virtualizer.scrollRect?.height || 0;
   const bottomAlignment = Math.max(0, viewportHeight - totalHeight);
+  const dateGroups = createHistoryDateGroups({
+    rows,
+    measurements: scroll.virtualizer.measurementsCache,
+    renderedItems: virtualItems,
+    bottomAlignment,
+  });
   const isJumpVisible = (scroll.canJumpToLatest || unreadCount > 0) && !searchQuery;
   const unreadNoun = unreadCount === 1 ? 'message' : 'messages';
   const jumpLabel =
@@ -135,6 +146,11 @@ function VirtualMessageHistory({
     },
     [appearedIds],
   );
+
+  function openDatePicker(timestamp: number) {
+    setCalendarRequest((previous) => ({ timestamp, id: previous.id + 1 }));
+    setIsCalendarOpen(true);
+  }
 
   function replyToRow(event: MouseEvent<HTMLDivElement>) {
     if (isPreview || selectedIds !== undefined || !(event.target instanceof Element)) {
@@ -196,13 +212,13 @@ function VirtualMessageHistory({
           style={{ height: totalHeight + bottomAlignment }}
         >
           <div ref={scroll.animatedRowsRef} className={styles.animatedRows}>
-            <div className={styles.historyStart}>
-              {hasOlder ? (
-                <button onClick={loadOlder}>Load earlier messages</button>
-              ) : (
-                <span>{searchQuery ? 'Search results' : 'Beginning of conversation'}</span>
-              )}
-            </div>
+            <StickyDateHeaders
+              groups={dateGroups}
+              viewportRef={scroll.viewportRef}
+              topInset={overlayInsets?.top ?? 0}
+              isPreview={Boolean(isPreview)}
+              onOpenDate={openDatePicker}
+            />
             {virtualItems.map((item) => {
               const row = rows[item.index];
               const isMessageRow = row.kind === 'message' && !row.message.isService;
@@ -224,9 +240,7 @@ function VirtualMessageHistory({
                 >
                   <div className={styles.rowContent}>
                     {row.kind === 'date' ? (
-                      <div className={styles.dateRow}>
-                        <span className={styles.dateSeparator}>{row.label}</span>
-                      </div>
+                      <div className={styles.dateSpace} aria-hidden="true" />
                     ) : (
                       <MessageBubble
                         message={row.message}
@@ -261,6 +275,21 @@ function VirtualMessageHistory({
           </div>
         </div>
       </div>
+      {!isPreview && (
+        <SearchDateDialog
+          key={calendarRequest.id}
+          isOpen={isCalendarOpen}
+          initialDate={calendarRequest.timestamp}
+          onClose={() => setIsCalendarOpen(false)}
+          onSelect={(timestamp) => {
+            const message =
+              messages.find((entry) => entry.createdAt >= timestamp) ?? messages.at(-1);
+            if (message) {
+              onJumpToMessage(message.id);
+            }
+          }}
+        />
+      )}
       {!isPreview && (
         <MessageMenu
           contentId={menu.contentId}
