@@ -8,6 +8,7 @@ import type { HistoryRow } from './historyRows';
 import { CURRENT_USER_ID } from '../model';
 import type { MessageNavigation } from './MessageTimeline';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
+import { animateHistoryInset } from './animateHistoryInset';
 
 const OVERSCAN_ROWS = 8;
 const WIDTH_SETTLE_DELAY_MS = 100;
@@ -47,6 +48,8 @@ export function useVirtualHistory({
 }: VirtualHistoryOptions) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const animatedRowsRef = useRef<HTMLDivElement>(null);
+  const insetAnimationRef = useRef<Animation | undefined>(undefined);
   const previousInsetsRef = useRef(overlayInsets);
   const isInitializedRef = useRef(false);
   const hasUserInteractedRef = useRef(false);
@@ -131,10 +134,25 @@ export function useVirtualHistory({
       bottomChange;
     if (previousDistance <= FOLLOW_BOTTOM_DISTANCE) {
       virtualizer.scrollToEnd({ behavior: 'auto' });
+      const animatedRows = animatedRowsRef.current;
+      if (animatedRows && bottomChange !== 0) {
+        // Commit padding and scroll once, then animate only pixels; per-frame React updates
+        // would repeatedly update the virtual range and render the message components.
+        insetAnimationRef.current = animateHistoryInset({
+          element: animatedRows,
+          offset: bottomChange,
+          duration: shouldReduceMotion ? 0 : (overlayInsets.transitionDuration ?? 0),
+          previousAnimation: insetAnimationRef.current,
+        });
+      }
       return;
     }
     virtualizer.scrollToOffset(viewport.scrollTop + topChange, { behavior: 'auto' });
-  }, [overlayInsets, virtualizer]);
+  }, [overlayInsets, virtualizer, shouldReduceMotion]);
+
+  useEffect(() => {
+    return () => insetAnimationRef.current?.cancel();
+  }, []);
 
   function rememberReadingPosition() {
     const viewport = viewportRef.current;
@@ -161,6 +179,8 @@ export function useVirtualHistory({
   });
 
   function cancelNavigation() {
+    insetAnimationRef.current?.cancel();
+    insetAnimationRef.current = undefined;
     cancelResizeRestoreRef.current?.();
     cancelResizeRestoreRef.current = undefined;
     cancelNavigationRef.current?.();
@@ -440,6 +460,7 @@ export function useVirtualHistory({
   return {
     viewportRef,
     contentRef,
+    animatedRowsRef,
     virtualizer,
     canJumpToLatest: virtualizer.getDistanceFromEnd() > SHOW_JUMP_DISTANCE,
     updateScrollPosition: scheduleScrollWork,

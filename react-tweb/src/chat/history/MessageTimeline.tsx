@@ -195,68 +195,70 @@ function VirtualMessageHistory({
           className={styles.messages}
           style={{ height: totalHeight + bottomAlignment }}
         >
-          <div className={styles.historyStart}>
-            {hasOlder ? (
-              <button onClick={loadOlder}>Load earlier messages</button>
-            ) : (
-              <span>{searchQuery ? 'Search results' : 'Beginning of conversation'}</span>
+          <div ref={scroll.animatedRowsRef} className={styles.animatedRows}>
+            <div className={styles.historyStart}>
+              {hasOlder ? (
+                <button onClick={loadOlder}>Load earlier messages</button>
+              ) : (
+                <span>{searchQuery ? 'Search results' : 'Beginning of conversation'}</span>
+              )}
+            </div>
+            {virtualItems.map((item) => {
+              const row = rows[item.index];
+              const isMessageRow = row.kind === 'message' && !row.message.isService;
+              return (
+                <div
+                  key={row.key}
+                  ref={scroll.virtualizer.measureElement}
+                  data-index={item.index}
+                  data-row-key={row.key}
+                  data-message-id={isMessageRow ? row.key : undefined}
+                  role={isMessageRow ? 'group' : undefined}
+                  aria-label={isMessageRow ? `Message: ${describeMessage(row.message)}` : undefined}
+                  tabIndex={isMessageRow && !isPreview ? 0 : undefined}
+                  data-menu-open={menu.isOpen && menu.target?.messageId === row.key}
+                  data-selected={selectedIds?.includes(row.key)}
+                  className={styles.virtualRow}
+                  inert={isPreview}
+                  style={{ transform: `translateY(${item.start + bottomAlignment}px)` }}
+                >
+                  <div className={styles.rowContent}>
+                    {row.kind === 'date' ? (
+                      <div className={styles.dateRow}>
+                        <span className={styles.dateSeparator}>{row.label}</span>
+                      </div>
+                    ) : (
+                      <MessageBubble
+                        message={row.message}
+                        isSelecting={selectedIds !== undefined}
+                        isSelected={selectedIds?.includes(row.message.id)}
+                        isPreview={isPreview}
+                        idPrefix={messageIdPrefix}
+                        replyMessage={messageById.get(row.message.replyToId || '')}
+                        isGroupStart={row.isGroupStart}
+                        isGroupEnd={row.isGroupEnd}
+                        isHighlighted={row.key === highlightedId}
+                        shouldAnimate={!appearedIds.has(row.key)}
+                        onAppear={markMessageAppeared}
+                        onReact={onReact}
+                        onVote={onVote}
+                        onOpenMedia={onOpenMedia}
+                        onJumpToMessage={onJumpToMessage}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {messages.length === 0 && (
+              <div className={styles.emptyState}>
+                <strong>{searchQuery ? 'No messages found' : 'A fresh conversation'}</strong>
+                <p>
+                  {searchQuery ? 'Try another word or phrase.' : 'Send a message to get started.'}
+                </p>
+              </div>
             )}
           </div>
-          {virtualItems.map((item) => {
-            const row = rows[item.index];
-            const isMessageRow = row.kind === 'message' && !row.message.isService;
-            return (
-              <div
-                key={row.key}
-                ref={scroll.virtualizer.measureElement}
-                data-index={item.index}
-                data-row-key={row.key}
-                data-message-id={isMessageRow ? row.key : undefined}
-                role={isMessageRow ? 'group' : undefined}
-                aria-label={isMessageRow ? `Message: ${describeMessage(row.message)}` : undefined}
-                tabIndex={isMessageRow && !isPreview ? 0 : undefined}
-                data-menu-open={menu.isOpen && menu.target?.messageId === row.key}
-                data-selected={selectedIds?.includes(row.key)}
-                className={styles.virtualRow}
-                inert={isPreview}
-                style={{ transform: `translateY(${item.start + bottomAlignment}px)` }}
-              >
-                <div className={styles.rowContent}>
-                  {row.kind === 'date' ? (
-                    <div className={styles.dateRow}>
-                      <span className={styles.dateSeparator}>{row.label}</span>
-                    </div>
-                  ) : (
-                    <MessageBubble
-                      message={row.message}
-                      isSelecting={selectedIds !== undefined}
-                      isSelected={selectedIds?.includes(row.message.id)}
-                      isPreview={isPreview}
-                      idPrefix={messageIdPrefix}
-                      replyMessage={messageById.get(row.message.replyToId || '')}
-                      isGroupStart={row.isGroupStart}
-                      isGroupEnd={row.isGroupEnd}
-                      isHighlighted={row.key === highlightedId}
-                      shouldAnimate={!appearedIds.has(row.key)}
-                      onAppear={markMessageAppeared}
-                      onReact={onReact}
-                      onVote={onVote}
-                      onOpenMedia={onOpenMedia}
-                      onJumpToMessage={onJumpToMessage}
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {messages.length === 0 && (
-            <div className={styles.emptyState}>
-              <strong>{searchQuery ? 'No messages found' : 'A fresh conversation'}</strong>
-              <p>
-                {searchQuery ? 'Try another word or phrase.' : 'Send a message to get started.'}
-              </p>
-            </div>
-          )}
         </div>
       </div>
       {!isPreview && (

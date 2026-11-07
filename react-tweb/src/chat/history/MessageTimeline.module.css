@@ -74,6 +74,14 @@
   width: 100cqw;
 }
 
+.animatedRows {
+  /* A zero-height layer keeps its visual translation out of the scroll canvas measurements. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
 .rowContent {
   width: var(--chat-content-width, 100%);
   margin: 0 auto;
