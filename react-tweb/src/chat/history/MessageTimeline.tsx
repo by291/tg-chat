@@ -4,6 +4,7 @@ import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
 import { DeferredMessageMedia } from '../messages/deferredMedia';
 import { MessageMenu } from '../messages/MessageMenu';
+import { StructuredMessageActionsProvider } from '../messages/StructuredMessageActions';
 import {
   useMessageSelectionGesture,
   type MessageSelectionChange,
@@ -350,13 +351,14 @@ export const MessageTimeline = memo(function MessageTimeline(props: MessageTimel
         } as CSSProperties
       }
     >
-      <VirtualMessageHistory
-        key={normalizedQuery}
-        {...props}
-        messages={visibleMessages}
-        messageById={messageById}
-        searchQuery={normalizedQuery}
-      />
+      <StructuredMessageActionsProvider key={normalizedQuery}>
+        <VirtualMessageHistory
+          {...props}
+          messages={visibleMessages}
+          messageById={messageById}
+          searchQuery={normalizedQuery}
+        />
+      </StructuredMessageActionsProvider>
     </div>
   );
 });
