@@ -27,7 +27,7 @@ interface EmojiBrowserProps {
   recentEmoji: string[];
   tones: Record<string, number>;
   onSelect: (emoji: Emoji) => void;
-  onSelectCustomEmoji: (emoji: CustomEmoji) => void;
+  onSelectCustomEmoji?: (emoji: CustomEmoji) => void;
   onToneChange: (id: string, tone: number) => void;
 }
 
@@ -157,8 +157,9 @@ export function EmojiBrowser({
         query,
         selectedGroup,
         matches,
+        shouldIncludeCustomEmoji: Boolean(onSelectCustomEmoji),
       }),
-    [sections, sessionRecents, query, selectedGroup, matches],
+    [sections, sessionRecents, query, selectedGroup, matches, onSelectCustomEmoji],
   );
   const hasResults = combinedSections.some((section) => section.items.length > 0);
   const isCustomSection = CUSTOM_EMOJI_PACKS.some((pack) => pack.id === activeSection);
@@ -180,18 +181,19 @@ export function EmojiBrowser({
         >
           <Smile size={24} />
         </button>
-        {CUSTOM_EMOJI_PACKS.map((pack) => (
-          <button
-            key={pack.id}
-            aria-label={pack.name}
-            aria-pressed={activeSection === pack.id}
-            onClick={() => gridRef.current?.scrollToSection(pack.id)}
-          >
-            <span className={styles.emojiPackIcon}>
-              <StickerArtwork sticker={pack.emojis[0]} />
-            </span>
-          </button>
-        ))}
+        {onSelectCustomEmoji &&
+          CUSTOM_EMOJI_PACKS.map((pack) => (
+            <button
+              key={pack.id}
+              aria-label={pack.name}
+              aria-pressed={activeSection === pack.id}
+              onClick={() => gridRef.current?.scrollToSection(pack.id)}
+            >
+              <span className={styles.emojiPackIcon}>
+                <StickerArtwork sticker={pack.emojis[0]} />
+              </span>
+            </button>
+          ))}
       </div>
       <PickerSearch
         label="Search Emoji"
@@ -215,6 +217,9 @@ export function EmojiBrowser({
             onSectionChange={isFiltering ? undefined : setActiveSection}
             renderItem={(item) => {
               if (item.kind === 'custom') {
+                if (!onSelectCustomEmoji) {
+                  return null;
+                }
                 return (
                   <CustomEmojiCell
                     key={item.emoji.id}

@@ -23,6 +23,7 @@ interface CustomSectionOptions {
   query: string;
   selectedGroup?: EmojiSearchGroup;
   matches: Emoji[];
+  shouldIncludeCustomEmoji?: boolean;
 }
 
 /** Merge local Telegram packs with Unicode results without conflating their identities. */
@@ -33,6 +34,9 @@ export function createCustomEmojiSections(
     ...section,
     items: section.items.map((emoji) => ({ kind: 'unicode', emoji })),
   }));
+  if (options.shouldIncludeCustomEmoji === false) {
+    return sections;
+  }
   const recent = sections.find((section) => section.id === 'recent');
   if (recent) {
     const nativeById = new Map(recent.items.map((item) => [item.emoji.id, item]));

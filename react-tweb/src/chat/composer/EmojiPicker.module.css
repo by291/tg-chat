@@ -15,6 +15,13 @@
   outline: none;
 }
 
+/* Standalone palettes keep their height and move away from the viewport edge. */
+.panel[data-variant='field'] {
+  height: min(420px, calc(100dvh - 16px));
+  max-height: calc(100dvh - 16px);
+  transform-origin: 144px 74px;
+}
+
 .panel[data-state='open'] {
   animation: picker-enter 200ms var(--menu-easing);
 }
@@ -558,4 +565,28 @@
 
 :global([data-theme='dark']) .categoryIcon {
   filter: brightness(0) invert(1);
+}
+
+.fieldTrigger {
+  margin-right: 8px;
+  opacity: 0;
+  transition: opacity 200ms ease-in-out;
+}
+
+button.fieldTrigger svg {
+  width: 24px;
+  height: 24px;
+}
+
+:global(:root[data-touch-supported='true']) .fieldTrigger,
+.fieldTrigger[data-open='true'],
+*:focus-within > .fieldTrigger,
+:global(:root[data-touch-supported='false']) .fieldTrigger:hover {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fieldTrigger {
+    transition: none;
+  }
 }
