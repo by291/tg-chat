@@ -1,5 +1,5 @@
 const OPEN_DURATION = 200;
-const SLIDE_DURATION = 350;
+export const SLIDE_DURATION = 350;
 const CLIPPING_ANCESTOR_LIMIT = 2;
 const FRAME_BORDER_TOLERANCE = 1;
 
@@ -12,6 +12,25 @@ interface PhotoTransitionOptions {
 }
 
 let clickedPhotoSource: { messageId: string; element: HTMLElement } | undefined;
+
+function readRestingMediaBounds(image: HTMLElement) {
+  const layer = image.closest<HTMLElement>('[data-viewer-transform]');
+  if (!layer) {
+    return image.getBoundingClientRect();
+  }
+  // Closing animates the outer zoom/rotation back independently. The thumbnail path belongs
+  // to its untransformed layout, otherwise the outer scale would be applied twice.
+  const transform = layer.style.transform;
+  const transition = layer.style.transition;
+  layer.style.transition = 'none';
+  layer.style.transform = 'none';
+  const bounds = image.getBoundingClientRect();
+  layer.style.transform = transform;
+  // Closing must capture the restored presentation, not a transition started by measurement.
+  layer.getBoundingClientRect();
+  layer.style.transition = transition;
+  return bounds;
+}
 
 /** Record the clicked copy because mouse clicks do not focus buttons in every browser. */
 export function rememberPhotoSource(messageId: string, element: HTMLElement) {
@@ -93,7 +112,7 @@ export function animateViewerPhoto({
   if (shouldReduceMotion || !image.animate) {
     return undefined;
   }
-  const destination = image.getBoundingClientRect();
+  const destination = readRestingMediaBounds(image);
   const sourceImage = source?.querySelector<HTMLElement>('video, img:not([aria-hidden])');
   const origin = sourceImage?.getBoundingClientRect();
   if (!origin || !destination.width || !destination.height) {
@@ -131,19 +150,25 @@ export function animateViewerPhoto({
 export function animateGallerySlide({
   image,
   direction,
+  isEntering = true,
 }: {
   image: HTMLElement;
   direction: number;
+  isEntering?: boolean;
 }) {
-  return image.animate?.(
-    [
-      { transform: `translateX(${direction * window.innerWidth}px)` },
-      { transform: 'translateX(0)' },
-    ],
-    {
-      duration: SLIDE_DURATION,
-      easing: 'ease',
-      fill: 'both',
-    },
-  );
+  const bounds = image.getBoundingClientRect();
+  const movesFromRight = direction > 0;
+  const rightOffset = window.innerWidth - bounds.left;
+  const leftOffset = -bounds.right;
+  const incomingOffset = movesFromRight ? rightOffset : leftOffset;
+  const outgoingOffset = movesFromRight ? leftOffset : rightOffset;
+  const centered = { transform: 'translateX(0)' };
+  const outside = {
+    transform: `translateX(${isEntering ? incomingOffset : outgoingOffset}px)`,
+  };
+  return image.animate?.(isEntering ? [outside, centered] : [centered, outside], {
+    duration: SLIDE_DURATION,
+    easing: 'ease',
+    fill: 'both',
+  });
 }
