@@ -1,4 +1,12 @@
 @font-face {
+  font-family: 'Roboto Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('/assets/fonts/roboto-mono-latin.woff2') format('woff2');
+}
+
+@font-face {
   font-family: Roboto;
   font-style: normal;
   font-weight: 400;
@@ -27,6 +35,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 
+  --font-monospace: 'Roboto Mono', monospace;
   --text-color: #191919;
   --message-text-color: #000;
   --incoming-meta-color: #707579;

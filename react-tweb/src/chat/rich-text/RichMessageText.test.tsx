@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RichMessageText } from './RichMessageText';
 
@@ -17,10 +17,56 @@ describe('rich message content', () => {
       value: { writeText },
     });
     render(<RichMessageText richText="<pre>const first = 1;<br>const second = 2;</pre>" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
 
     expect(writeText).toHaveBeenCalledWith('const first = 1;\nconst second = 2;');
-    expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+    expect(await screen.findByRole('status')).toHaveProperty(
+      'textContent',
+      'Code copied to clipboard',
+    );
+  });
+
+  it('toggles wrapping without changing the copied source', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const source = 'const markup = "<button>";\n  console.log(markup);';
+    render(
+      <RichMessageText
+        richText={
+          '<pre data-code-language="js">' +
+          'const markup = &quot;&lt;button&gt;&quot;;\n  console.log(markup);</pre>'
+        }
+      />,
+    );
+    const toggle = screen.getByRole('button', { name: 'Wrap lines' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
+    expect(writeText).toHaveBeenCalledWith(source);
+    expect(await screen.findByRole('status')).toHaveProperty(
+      'textContent',
+      'Code copied to clipboard',
+    );
+  });
+
+  it('allows retrying when clipboard permission is denied', async () => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('Clipboard unavailable'));
+    writeText.mockResolvedValueOnce(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    render(<RichMessageText richText="<pre>print(42)</pre>" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
+    expect(await screen.findByRole('status')).toHaveProperty('textContent', 'Could not copy code');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toBe('Code copied to clipboard'),
+    );
   });
 
   it('expands and collapses a saved collapsible quote without losing its text', () => {

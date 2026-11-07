@@ -1,4 +1,5 @@
 import { CustomEmojiText } from '../emoji/CustomEmojiText';
+import { MessageCode } from '../rich-text/MessageCode';
 import { MessageQuote } from '../rich-text/MessageQuote';
 import { RichMessageText } from '../rich-text/RichMessageText';
 import { AlbumFrame, PhotoFrame, VideoFrame } from './MessageMediaFrames';
@@ -86,11 +87,7 @@ export function MessageText({ message }: { message: Message }) {
     return null;
   }
   if (message.textStyle === 'code') {
-    return (
-      <pre className={styles.code}>
-        <code>{message.text}</code>
-      </pre>
-    );
+    return <MessageCode source={message.text} />;
   }
   if (message.textStyle === 'quote') {
     return (

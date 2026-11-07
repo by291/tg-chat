@@ -91,7 +91,7 @@
   text-decoration: underline;
 }
 
-.content code {
+.content :not(pre) > code {
   font-family: var(--font-monospace, monospace);
   font-size: 0.875em;
 }
@@ -188,8 +188,7 @@
   border-bottom: 1px dotted currentColor;
 }
 
-.tableScroll,
-.codeBlock pre {
+.tableScroll {
   max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -242,51 +241,6 @@
 .tableScroll th {
   background: var(--rich-message-shade);
   font-weight: 600;
-}
-
-.codeBlock {
-  margin: 0.6666rem 0;
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--rich-message-shade);
-}
-
-.codeHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 6px 10px;
-  background: var(--rich-message-shade);
-  font-size: 12px;
-}
-
-.codeHeader button {
-  padding: 3px 6px;
-  border: 0;
-  border-radius: 4px;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-:global(:where(:root[data-touch-supported='false'])) .codeHeader button:hover {
-  background: var(--rich-message-shade);
-}
-
-.codeBlock pre {
-  margin: 0;
-  padding: 8px 10px;
-  white-space: pre;
-  overflow-wrap: normal;
-  font-size: 14px;
-  line-height: 19px;
-}
-
-.codeBlock code {
-  padding: 0;
-  background: transparent;
-  font-size: inherit;
 }
 
 .checkItem {

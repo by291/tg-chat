@@ -83,19 +83,6 @@
   font-size: 16px;
 }
 
-.code {
-  max-width: 100%;
-  margin: 4px 0;
-  overflow: auto;
-  /* Long code scrolls horizontally; vertical wheel gestures still belong to the history. */
-  overscroll-behavior-x: contain;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--reply-color);
-  font-size: 13px;
-  line-height: 20px;
-}
-
 .documentCard,
 .contactCard {
   display: flex;

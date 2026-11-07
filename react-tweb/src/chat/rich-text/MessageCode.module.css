@@ -1,0 +1,148 @@
+.code {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  margin: 4px 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--message-peer-color, var(--accent-color)) 10%, transparent);
+  font-size: 14px;
+}
+
+.code::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  width: 3px;
+  background: var(--message-peer-color, var(--accent-color));
+  content: '';
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 1px 1px 1px 10px;
+  color: var(--message-peer-color, var(--accent-color));
+  font-family: var(--font-family, Roboto, sans-serif);
+  font-weight: 500;
+  line-height: 1;
+  user-select: none;
+}
+
+.name,
+.control {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.name + .control {
+  margin-inline-start: 14px;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .control:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.content {
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  color: var(--message-text-color);
+  font-family: var(--font-monospace, monospace);
+  font-size: 14px;
+  line-height: 19px;
+  text-align: left;
+  tab-size: 4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.content code {
+  padding: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+}
+
+.code[data-wrap='false'] .content {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.content :global(.token.comment),
+.content :global(.token.prolog),
+.content :global(.token.doctype),
+.content :global(.token.cdata),
+.content :global(.token.punctuation),
+.content :global(.token.string),
+.content :global(.token.attr-name) {
+  color: var(--secondary-color);
+}
+
+.content :global(.token.keyword),
+.content :global(.token.atrule),
+.content :global(.token.attr-value) {
+  color: var(--message-peer-color, var(--accent-color));
+}
+
+.content :global(.token.boolean),
+.content :global(.token.number),
+.content :global(.token.property),
+.content :global(.token.tag),
+.content :global(.token.operator),
+.content :global(.token.function),
+.content :global(.token.class-name) {
+  color: var(--danger-color, #df3f40);
+}
+
+:global(:root[data-theme='dark']) .code {
+  background: rgb(0 0 0 / 80%);
+}
+
+:global(:root[data-theme='dark']) .content :global(.token.string) {
+  color: var(--message-peer-color, var(--accent-color));
+}
+
+:global(:root[data-theme='dark']) .content :global(.token.keyword),
+:global(:root[data-theme='dark']) .content :global(.token.atrule),
+:global(:root[data-theme='dark']) .content :global(.token.attr-value) {
+  color: var(--danger-color, #df3f40);
+}
+
+:global(:root[data-theme='dark']) .content :global(.token.function),
+:global(:root[data-theme='dark']) .content :global(.token.class-name) {
+  color: var(--message-text-color);
+}
+
+:global(:root[data-theme='dark']) .content :global(.token.comment),
+:global(:root[data-theme='dark']) .content :global(.token.prolog),
+:global(:root[data-theme='dark']) .content :global(.token.doctype),
+:global(:root[data-theme='dark']) .content :global(.token.cdata) {
+  opacity: 0.5;
+}

@@ -6,6 +6,7 @@ import parse, {
   type HTMLReactParserOptions,
 } from 'html-react-parser';
 import { useMemo, useState, type ReactNode } from 'react';
+import { MessageCode } from './MessageCode';
 import { MessageQuote } from './MessageQuote';
 import { CustomEmojiText } from '../emoji/CustomEmojiText';
 import { sanitizeRichText } from './richText';
@@ -85,38 +86,6 @@ function Formula({ source, isBlock }: { source: string; isBlock: boolean }) {
   );
 }
 
-function CodeBlock({ element, children }: { element: Element; children: ReactNode }) {
-  const [copyState, setCopyState] = useState('Copy');
-  const language = element.attribs['data-code-language'];
-
-  async function copyCode() {
-    try {
-      await navigator.clipboard.writeText(getElementText(element));
-      setCopyState('Copied');
-    } catch {
-      setCopyState('Copy failed');
-    }
-  }
-
-  return (
-    <div className={styles.codeBlock}>
-      <div className={styles.codeHeader}>
-        <span>{language ?? 'Code'}</span>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            void copyCode();
-          }}
-        >
-          {copyState}
-        </button>
-      </div>
-      <pre>{children}</pre>
-    </div>
-  );
-}
-
 function renderRichElement(node: DOMNode) {
   if (!(node instanceof Element)) {
     return;
@@ -168,7 +137,9 @@ function renderRichElement(node: DOMNode) {
         </div>
       );
     case 'pre':
-      return <CodeBlock element={node}>{renderChildren(node)}</CodeBlock>;
+      return (
+        <MessageCode source={getElementText(node)} language={node.attribs['data-code-language']} />
+      );
     case 'blockquote':
       return (
         <MessageQuote isCollapsible={node.attribs['data-collapsed'] === 'true'}>
