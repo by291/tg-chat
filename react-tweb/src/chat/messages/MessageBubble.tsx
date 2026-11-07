@@ -85,7 +85,8 @@ export const MessageBubble = memo(function MessageBubble({
   const hasReactions = message.reactions.length > 0;
   const canHaveTail = !isStandalone;
   const hasSender = !isOwn && shouldShowSender;
-  const hasAuthor = hasSender && isGroupStart && !isStandalone && !isMediaOnly;
+  const hasAuthor =
+    hasSender && isGroupStart && !isStandalone && !isMediaOnly && !message.forwardedFrom;
   const hasHeader = Boolean(hasAuthor || message.forwardedFrom || message.replyToId);
   const hasCaption = Boolean(message.text);
   const isLinkPreview = message.media?.kind === 'link';
@@ -152,8 +153,8 @@ export const MessageBubble = memo(function MessageBubble({
         )}
         {message.forwardedFrom && (
           <div className={styles.forwarded}>
-            <span>Forwarded message</span>
-            <strong>From {message.forwardedFrom}</strong>
+            <span>Forwarded from</span>
+            <span>{message.forwardedFrom}</span>
           </div>
         )}
         {message.replyToId && (

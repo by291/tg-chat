@@ -1,0 +1,68 @@
+.preview {
+  --preview-color: var(--message-primary-color, var(--accent-color));
+  --ripple-color: color-mix(in srgb, var(--preview-color) 20%, transparent);
+  --ripple-duration: 0.4s;
+  --ripple-start-scale: 0.4;
+  position: relative;
+  display: block;
+  width: 435px;
+  max-width: 100%;
+  margin: 4px 0;
+  overflow: hidden;
+  padding: 4px 6px 4px 9px;
+  border-radius: 4px;
+  color: inherit;
+  background: color-mix(in srgb, var(--preview-color) 10%, transparent);
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.preview::before {
+  position: absolute;
+  z-index: 1;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--preview-color);
+  content: '';
+  pointer-events: none;
+}
+
+.preview:dir(rtl) {
+  padding-inline: 9px 6px;
+}
+
+.site,
+.title,
+.description {
+  display: block;
+}
+
+.site,
+.title {
+  font-weight: 500;
+}
+
+.site {
+  color: var(--preview-color);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 3px 0;
+  border-radius: 4px;
+}
+
+.preview:focus-visible {
+  outline: 2px solid var(--preview-color);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .preview:hover {
+    background: color-mix(in srgb, var(--preview-color) 20%, transparent);
+  }
+}

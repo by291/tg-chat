@@ -30,6 +30,7 @@
   --message-control-check: white;
   --bubble-status-color: var(--incoming-meta-color);
   --message-peer-color: var(--accent-color);
+  --message-primary-color: var(--accent-color);
   position: relative;
   isolation: isolate;
   max-width: min(calc(100% - 36px), 480px);
@@ -58,6 +59,7 @@
   --message-control-check: var(--bubble-background);
   --bubble-status-color: var(--outgoing-meta-color);
   --message-peer-color: var(--outgoing-meta-color);
+  --message-primary-color: var(--outgoing-meta-color);
 }
 
 .bubble[data-group-start='true'] {
@@ -461,14 +463,10 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin: 0 0 4px;
-  color: var(--accent-color);
+  margin: 0;
+  color: var(--message-primary-color);
   font-size: 14px;
   line-height: 18px;
-}
-
-.forwarded strong {
-  font-weight: 500;
 }
 
 .serviceRow {
@@ -623,4 +621,9 @@
 
 .bubble[data-structured='checklist'] {
   --message-control-border: #8d969c;
+}
+
+.bubble[data-structured='link'] > .messageContent:last-child {
+  min-height: 12px;
+  line-height: 12px;
 }

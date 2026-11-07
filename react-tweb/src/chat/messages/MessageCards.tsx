@@ -1,5 +1,4 @@
 import { Download, FileText } from 'lucide-react';
-import { useDeferredMediaSource } from './deferredMedia';
 import type { MessageMedia } from '../messageMedia';
 import styles from './MessageBody.module.css';
 
@@ -26,24 +25,4 @@ export function DocumentCard({ media }: { media: Extract<MessageMedia, { kind: '
   );
 }
 
-/** Show a link preview as a semantic link with its own media geometry. */
-export function LinkPreview({ media }: { media: Extract<MessageMedia, { kind: 'link' }> }) {
-  const imageSource = useDeferredMediaSource(media.image?.url);
-  return (
-    <a className={styles.linkPreview} href={media.url} target="_blank" rel="noreferrer">
-      <strong className={styles.linkSite}>{media.site}</strong>
-      <strong>{media.title}</strong>
-      <span>{media.description}</span>
-      {media.image && (
-        <img
-          src={imageSource}
-          alt={media.image.name}
-          width={media.image.width}
-          height={media.image.height}
-          loading="lazy"
-          decoding="async"
-        />
-      )}
-    </a>
-  );
-}
+export { LinkPreview } from './LinkPreview';
