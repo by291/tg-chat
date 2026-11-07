@@ -3,11 +3,23 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
 import { chatReducer } from '../state/reducer';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
 import { ChatSidebar } from './ChatSidebar';
 
-afterEach(cleanup);
+beforeEach(() => {
+  // jsdom does not provide the media query API used by the playback preference.
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function SidebarTestScreen() {
   const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
