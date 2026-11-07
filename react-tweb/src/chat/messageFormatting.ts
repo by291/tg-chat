@@ -4,7 +4,7 @@ import { MESSAGE_GROUP_INTERVAL, type Message } from './model';
 const timeFormatter = new Intl.DateTimeFormat('en', {
   hour: '2-digit',
   minute: '2-digit',
-  hour12: false,
+  hour12: true,
 });
 
 const dateFormatter = new Intl.DateTimeFormat('en', {

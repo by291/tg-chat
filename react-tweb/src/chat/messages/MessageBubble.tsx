@@ -13,6 +13,7 @@ import styles from './MessageBubble.module.css';
 interface MessageBubbleProps {
   onMount?: (options: OutgoingMessageMount) => (() => void) | undefined;
   message: Message;
+  shouldShowSender?: boolean;
   isPreview?: boolean;
   isSelecting?: boolean;
   isSelected?: boolean;
@@ -48,6 +49,7 @@ function ReplyThumbnail({ source }: { source: string }) {
 /** Render one message with sender grouping, media, reactions, and accessible context actions. */
 export const MessageBubble = memo(function MessageBubble({
   message,
+  shouldShowSender = false,
   onMount,
   isPreview = false,
   isSelecting = false,
@@ -81,7 +83,8 @@ export const MessageBubble = memo(function MessageBubble({
   const hasOverlayTime = isMediaOnly && !isStandalone;
   const hasReactions = message.reactions.length > 0;
   const canHaveTail = !isStandalone && !isMediaOnly;
-  const hasAuthor = !isOwn && isGroupStart && !isStandalone && !isMediaOnly;
+  const hasSender = !isOwn && shouldShowSender;
+  const hasAuthor = hasSender && isGroupStart && !isStandalone && !isMediaOnly;
   const hasHeader = Boolean(hasAuthor || message.forwardedFrom || message.replyToId);
   const hasCaption = Boolean(message.text);
   const isLinkPreview = message.media?.kind === 'link';
@@ -105,6 +108,7 @@ export const MessageBubble = memo(function MessageBubble({
       data-selecting={isSelecting}
       data-selected={isSelected}
       data-own={isOwn}
+      data-has-sender={hasSender}
       data-group-start={isGroupStart}
       data-group-end={isGroupEnd}
       data-highlighted={isHighlighted}
@@ -119,7 +123,7 @@ export const MessageBubble = memo(function MessageBubble({
       >
         {isSelected && <Check size={16} />}
       </button>
-      {!isOwn && (
+      {hasSender && (
         <span className={styles.senderAvatar} data-visible={isGroupEnd} aria-hidden="true">
           {message.authorName.slice(0, 1)}
         </span>

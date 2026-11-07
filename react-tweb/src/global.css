@@ -28,6 +28,8 @@
   -webkit-font-smoothing: antialiased;
 
   --text-color: #191919;
+  --message-text-color: #000;
+  --incoming-meta-color: #707579;
   --secondary-color: #8b8f91;
   --surface-color: #fff;
   --panel-color: #f5f5f6;
@@ -60,6 +62,8 @@
   color-scheme: dark;
 
   --text-color: #f4f3f6;
+  --message-text-color: #fff;
+  --incoming-meta-color: #aaa;
   --secondary-color: #a3a3b2;
   --surface-color: #242433;
   --panel-color: #20202d;

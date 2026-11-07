@@ -87,7 +87,6 @@
 .rowContent {
   width: var(--chat-content-width, 100%);
   margin: 0 auto;
-  padding: 0 7px;
 }
 
 /* The highlight and pointer target share the same bounds; neither extends the scrollable width. */

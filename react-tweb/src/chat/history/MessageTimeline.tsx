@@ -32,6 +32,7 @@ export interface MessageNavigation {
 interface MessageTimelineProps {
   onMessageMount?: (options: OutgoingMessageMount) => (() => void) | undefined;
   messages: Message[];
+  shouldShowSender?: boolean;
   overlayInsets?: ChatOverlayInsets;
   isPreview?: boolean;
   messageIdPrefix?: string;
@@ -56,6 +57,7 @@ interface VirtualMessageHistoryProps extends MessageTimelineProps {
 
 function VirtualMessageHistory({
   messages,
+  shouldShowSender,
   onMessageMount,
   overlayInsets,
   messageById,
@@ -231,6 +233,7 @@ function VirtualMessageHistory({
                     ) : (
                       <MessageBubble
                         message={row.message}
+                        shouldShowSender={shouldShowSender}
                         onMount={isPreview ? undefined : onMessageMount}
                         isSelecting={selectedIds !== undefined}
                         isSelected={selectedIds?.includes(row.message.id)}

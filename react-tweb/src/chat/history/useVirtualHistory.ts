@@ -130,7 +130,8 @@ export function useVirtualHistory({
     overscan: OVERSCAN_ROWS,
     // This inset belongs to the history once, rather than being repeated above every date.
     paddingStart: overlayInsets.top + HISTORY_TOP_PADDING,
-    paddingEnd: HISTORY_BOTTOM_PADDING + overlayInsets.bottom,
+    // The floating composer inset already reserves its space; the last group supplies the gap.
+    paddingEnd: overlayInsets.bottom > 0 ? overlayInsets.bottom : HISTORY_BOTTOM_PADDING,
     scrollPaddingStart: overlayInsets.top,
     scrollPaddingEnd: overlayInsets.bottom,
     scrollToFn: historyScroll.scrollTo,

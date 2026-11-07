@@ -5,7 +5,7 @@
   align-items: flex-end;
   gap: 6px;
   /* Padding keeps the inter-message gap inside the measured virtual row. */
-  padding: 0 4px var(--message-gap);
+  padding: 0 0 var(--message-gap);
 }
 
 .messageRow[data-own='true'] {
@@ -16,8 +16,8 @@
   --message-gap: 6px;
 }
 
-.messageRow:not([data-own='true']) {
-  padding-left: 50px;
+.messageRow[data-has-sender='true'] {
+  padding-left: 46px;
 }
 
 .bubble {
@@ -26,11 +26,12 @@
   --bubble-bottom-right: 15px;
   --bubble-bottom-left: 5px;
   --bubble-background: var(--surface-color);
-  --bubble-status-color: var(--secondary-color);
+  --bubble-status-color: var(--incoming-meta-color);
   position: relative;
   isolation: isolate;
   max-width: min(calc(100% - 36px), 480px);
   min-width: 56px;
+  color: var(--message-text-color);
   padding: 4px 8px 5px;
   border-radius: var(--bubble-top-left) var(--bubble-top-right) var(--bubble-bottom-right)
     var(--bubble-bottom-left);
@@ -90,7 +91,7 @@
 }
 
 .messageRow[data-own='true'] .tail {
-  right: -8.4px;
+  right: -8px;
   left: auto;
   transform: translateY(1px) scaleX(-1);
 }
@@ -129,10 +130,10 @@
   display: inline-flex;
   float: right;
   align-items: center;
-  gap: 3px;
+  gap: 0;
   height: 12px;
   margin-left: 3px;
-  color: var(--secondary-color);
+  color: var(--incoming-meta-color);
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
@@ -144,7 +145,7 @@
 .metadataInner {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 0;
   height: inherit;
 }
 
@@ -157,6 +158,28 @@
 
 .messageRow[data-own='true'] .metadata {
   color: var(--outgoing-meta-color);
+}
+
+.messageRow[data-own='true'] .metadataInner {
+  margin-right: -2px;
+}
+
+.messageRow:not([data-own='true']) .metadata {
+  margin-left: 5px;
+}
+
+.metadataEdited {
+  margin-right: 3px;
+}
+
+.metadataPinned {
+  margin-right: 2px;
+}
+
+.sendingStatus {
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
 }
 
 .replyPreview {
@@ -263,7 +286,7 @@
 .senderAvatar {
   position: absolute;
   bottom: var(--message-gap);
-  left: 4px;
+  left: 0;
   display: grid;
   flex-shrink: 0;
   width: 40px;

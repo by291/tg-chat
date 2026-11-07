@@ -352,6 +352,7 @@ export function ConversationPane({
     return (
       <MessageTimeline
         messages={options.messages}
+        shouldShowSender={conversation.kind === 'group'}
         onMessageMount={options.isPinnedView ? undefined : outgoingMessages.mount}
         overlayInsets={overlays.insets}
         searchQuery=""

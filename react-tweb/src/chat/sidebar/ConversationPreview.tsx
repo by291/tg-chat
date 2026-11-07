@@ -90,6 +90,7 @@ export function ConversationPreview({
               <MessageTimeline
                 key={conversation.id}
                 messages={messages}
+                shouldShowSender={conversation.kind === 'group'}
                 searchQuery=""
                 isPreview
                 onCommand={ignorePreviewCommand}
