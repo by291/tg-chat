@@ -1,10 +1,12 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, CheckCircle2, Search, Send, X } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
 import { Ripple } from '../../components/Ripple';
+import { EmojiEditor, type EmojiEditorControls } from '../composer/EmojiEditor';
+import type { EmojiText, CustomEmojiEntity } from '../emoji/customEmojiEntities';
 import { EmojiPicker } from '../composer/EmojiPicker';
 import { getConversationList } from '../sidebar/conversationList';
 import type { ChatState, Conversation } from '../model';
@@ -14,6 +16,7 @@ import styles from './ForwardMessageDialog.module.css';
 export interface ForwardRecipients {
   recipients: Conversation[];
   caption: string;
+  customEmoji?: CustomEmojiEntity[];
 }
 
 interface ForwardMessageDialogProps {
@@ -31,7 +34,9 @@ export function ForwardMessageDialog({
   onSend,
 }: ForwardMessageDialogProps) {
   const [query, setQuery] = useState('');
-  const [caption, setCaption] = useState('');
+  const [caption, setCaption] = useState<EmojiText>({ text: '' });
+  const [editorError, setEditorError] = useState('');
+  const editorRef = useRef<EmojiEditorControls>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [recipientIds, setRecipientIds] = useState<string[]>([]);
   const conversations = getConversationList(state).sort((first, second) => {
@@ -59,13 +64,9 @@ export function ForwardMessageDialog({
     setQuery('');
   }
 
-  function appendEmoji(emoji: string) {
-    setCaption((current) => current + emoji);
-  }
-
   function sendToRecipients() {
     if (hasRecipients) {
-      onSend({ recipients, caption: caption.trim() });
+      onSend({ recipients, caption: caption.text, customEmoji: caption.customEmoji });
     }
   }
 
@@ -161,19 +162,23 @@ export function ForwardMessageDialog({
               ))}
               {matchingConversations.length === 0 && <p>No conversations found</p>}
             </div>
+            {editorError && <p role="alert">{editorError}</p>}
             <footer className={styles.footer} inert={!isSelecting} aria-hidden={!isSelecting}>
               <div className={styles.caption}>
-                <EmojiPicker onSelectEmoji={appendEmoji} />
-                <input
-                  aria-label="Forward caption"
+                <EmojiPicker
+                  onSelectEmoji={(emoji) => editorRef.current?.insertEmoji(emoji)}
+                  onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
+                />
+                <EmojiEditor
+                  controlsRef={editorRef}
+                  label="Forward caption"
                   placeholder="Add a caption..."
                   value={caption}
-                  onChange={(event) => setCaption(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                      sendToRecipients();
-                    }
-                  }}
+                  onChange={setCaption}
+                  onSubmit={sendToRecipients}
+                  onCancel={onClose}
+                  onPasteImage={() => setEditorError('Add photos in the conversation composer.')}
+                  onError={setEditorError}
                 />
               </div>
               <IconButton

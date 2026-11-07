@@ -1,28 +1,26 @@
 import { Forward, Check, ImagePlus, Paperclip, Pencil, Reply, Send, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createAttachment } from './attachments';
-import { shouldSubmitMessage } from './composerKeyboard';
+import { EmojiEditor, type EmojiEditorControls } from './EmojiEditor';
+import type { EmojiText, CustomEmojiEntity } from '../emoji/customEmojiEntities';
 import { EmojiPicker } from './EmojiPicker';
-import { deleteCharacter } from './deleteCharacter';
 import { describeMessage } from '../messageFormatting';
 import type { Attachment, Message } from '../model';
 import styles from './MessageComposer.module.css';
 
-const MAX_EDITOR_HEIGHT = 160;
-
-export interface ComposedMessage {
-  text: string;
+export interface ComposedMessage extends EmojiText {
   attachment?: Attachment;
   sticker?: string;
 }
 
 interface MessageComposerProps {
   draft: string;
+  draftCustomEmoji?: CustomEmojiEntity[];
   replyMessage?: Message;
   editingMessage?: Message;
   forwardMessages?: Message[];
-  onDraftChange: (text: string) => void;
+  onDraftChange: (value: EmojiText) => void;
   onSubmit: (message: ComposedMessage) => void;
   onCancelContext: () => void;
   onNotify: (message: string) => void;
@@ -31,6 +29,7 @@ interface MessageComposerProps {
 /** Own the editable draft, attachment preview, and keyboard submission boundary. */
 export function MessageComposer({
   draft,
+  draftCustomEmoji,
   replyMessage,
   editingMessage,
   forwardMessages,
@@ -39,15 +38,19 @@ export function MessageComposer({
   onCancelContext,
   onNotify,
 }: MessageComposerProps) {
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<EmojiEditorControls>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMountedRef = useRef(true);
   const imageRequestRef = useRef(0);
-  const [editText, setEditText] = useState(editingMessage?.text ?? '');
+  const [editValue, setEditValue] = useState<EmojiText>({
+    text: editingMessage?.text ?? '',
+    customEmoji: editingMessage?.customEmoji,
+  });
   const [attachment, setAttachment] = useState<Attachment>();
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const text = editingMessage ? editText : draft;
+  const value = editingMessage ? editValue : { text: draft, customEmoji: draftCustomEmoji };
+  const text = value.text;
   const hasContent =
     Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
@@ -63,16 +66,6 @@ export function MessageComposer({
     };
   }, []);
 
-  useLayoutEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) {
-      return;
-    }
-
-    editor.style.height = '0px';
-    editor.style.height = `${Math.min(editor.scrollHeight, MAX_EDITOR_HEIGHT)}px`;
-  }, [text]);
-
   useEffect(() => {
     if (!contextMessage && !forwardMessages?.length) {
       return;
@@ -83,9 +76,9 @@ export function MessageComposer({
     return () => cancelAnimationFrame(frame);
   }, [contextMessage, forwardMessages]);
 
-  function updateText(value: string) {
+  function updateText(value: EmojiText) {
     if (editingMessage) {
-      setEditText(value);
+      setEditValue(value);
       return;
     }
 
@@ -97,7 +90,7 @@ export function MessageComposer({
       return;
     }
 
-    onSubmit({ text, attachment });
+    onSubmit({ ...value, attachment });
     setAttachment(undefined);
     editorRef.current?.focus();
   }
@@ -107,48 +100,6 @@ export function MessageComposer({
     imageRequestRef.current += 1;
     setAttachment(undefined);
     setIsLoadingImage(false);
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    const shouldSubmit = shouldSubmitMessage({
-      key: event.key,
-      shiftKey: event.shiftKey,
-      isComposing: event.nativeEvent.isComposing,
-      keyCode: event.nativeEvent.keyCode,
-    });
-
-    if (shouldSubmit) {
-      event.preventDefault();
-      sendMessage();
-    }
-
-    if (event.key === 'Escape') {
-      onCancelContext();
-      removeAttachment();
-    }
-  }
-
-  function insertEmoji(emoji: string) {
-    const editor = editorRef.current;
-    const start = editor?.selectionStart ?? text.length;
-    const end = editor?.selectionEnd ?? text.length;
-    updateText(text.slice(0, start) + emoji + text.slice(end));
-
-    requestAnimationFrame(() => {
-      // Search keeps focus while repeated insertions still advance the editor's saved caret.
-      editor?.setSelectionRange(start + emoji.length, start + emoji.length);
-    });
-  }
-
-  function deleteLastCharacter() {
-    const editor = editorRef.current;
-    const result = deleteCharacter({
-      text,
-      selectionStart: editor?.selectionStart ?? text.length,
-      selectionEnd: editor?.selectionEnd ?? text.length,
-    });
-    updateText(result.text);
-    requestAnimationFrame(() => editor?.setSelectionRange(result.caret, result.caret));
   }
 
   async function attachImage(file?: File) {
@@ -252,25 +203,23 @@ export function MessageComposer({
             event.target.value = '';
           }}
         />
-        <textarea
-          ref={editorRef}
-          value={text}
-          rows={1}
+        <EmojiEditor
+          controlsRef={editorRef}
+          value={value}
           placeholder={isLoadingImage ? 'Preparing photo…' : 'Message'}
-          aria-label="Message"
-          onChange={(event) => updateText(event.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={(event) => {
-            const file = event.clipboardData.files[0];
-            if (file) {
-              event.preventDefault();
-              void attachImage(file);
-            }
+          onChange={updateText}
+          onSubmit={sendMessage}
+          onCancel={() => {
+            onCancelContext();
+            removeAttachment();
           }}
+          onPasteImage={(file) => void attachImage(file)}
+          onError={onNotify}
         />
         <EmojiPicker
-          onSelectEmoji={insertEmoji}
-          onDeleteCharacter={deleteLastCharacter}
+          onSelectEmoji={(emoji) => editorRef.current?.insertEmoji(emoji)}
+          onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
+          onDeleteCharacter={() => editorRef.current?.deleteCharacter()}
           onSelectSticker={
             editingMessage ? undefined : (sticker) => onSubmit({ text: '', sticker })
           }

@@ -1,31 +1,16 @@
-import {
-  Heart,
-  ThumbsUp,
-  ThumbsDown,
-  PartyPopper,
-  Laugh,
-  CircleAlert,
-  Frown,
-  Angry,
-  Meh,
-  CircleHelp,
-  Smile,
-  type LucideIcon,
-} from 'lucide-react';
+import categoryIcons from '../../emoji/searchCategoryIcons.json';
 
 export interface EmojiSearchGroup {
   id: string;
   label: string;
-  icon: LucideIcon;
   emoticons: string[];
 }
 
-// Unicode groups observed in Telegram K; custom server emoji are outside the local catalog.
+// Unicode fallbacks match both native emoji and Telegram custom emoji in each emotion group.
 export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'love',
     label: 'Love',
-    icon: Heart,
     // prettier-ignore
     emoticons: [
       '❤',
@@ -71,7 +56,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'approval',
     label: 'Approval',
-    icon: ThumbsUp,
     // prettier-ignore
     emoticons: [
       '👍',
@@ -89,7 +73,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'disapproval',
     label: 'Disapproval',
-    icon: ThumbsDown,
     // prettier-ignore
     emoticons: [
       '👎',
@@ -105,7 +88,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'cheers',
     label: 'Cheers',
-    icon: PartyPopper,
     // prettier-ignore
     emoticons: [
       '🎉',
@@ -124,7 +106,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'laughter',
     label: 'Laughter',
-    icon: Laugh,
     // prettier-ignore
     emoticons: [
       '😄',
@@ -143,7 +124,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'astonishment',
     label: 'Astonishment',
-    icon: CircleAlert,
     // prettier-ignore
     emoticons: [
       '😨',
@@ -163,7 +143,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'sadness',
     label: 'Sadness',
-    icon: Frown,
     // prettier-ignore
     emoticons: [
       '😔',
@@ -189,7 +168,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'anger',
     label: 'Anger',
-    icon: Angry,
     // prettier-ignore
     emoticons: [
       '😡',
@@ -204,7 +182,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'neutral',
     label: 'Neutral',
-    icon: Meh,
     // prettier-ignore
     emoticons: [
       '😐',
@@ -221,7 +198,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'doubt',
     label: 'Doubt',
-    icon: CircleHelp,
     // prettier-ignore
     emoticons: [
       '🤔',
@@ -238,7 +214,6 @@ export const EMOJI_SEARCH_GROUPS: EmojiSearchGroup[] = [
   {
     id: 'silly',
     label: 'Silly',
-    icon: Smile,
     // prettier-ignore
     emoticons: [
       '🤪',
@@ -260,4 +235,15 @@ export function normalizeGroupEmoji(emoji: string) {
 export function matchesEmojiGroup(emoji: string, group: EmojiSearchGroup) {
   const normalizedEmoji = normalizeGroupEmoji(emoji);
   return group.emoticons.some((emoticon) => normalizedEmoji.includes(emoticon));
+}
+
+/** Resolve the exact animated category icon observed in Telegram's emoji search. */
+export function getSearchCategoryIcon(group: EmojiSearchGroup) {
+  const icon = categoryIcons.find((entry) => entry.category === group.id);
+  if (!icon) {
+    return undefined;
+  }
+  const path = `/assets/emoji/SearchCategories/${icon.id}`;
+  const renderer: 'canvas' | 'svg' = icon.renderer === 'svg' ? 'svg' : 'canvas';
+  return { name: group.label, source: `${path}.tgs`, preview: `${path}.webp`, renderer };
 }

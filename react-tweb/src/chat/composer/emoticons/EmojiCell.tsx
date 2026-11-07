@@ -57,6 +57,10 @@ export function EmojiCell({ emoji, tone, onSelect, onToneChange }: EmojiCellProp
             }
           }}
           onPointerDown={(event) => {
+            // Emoji insertion keeps search focus; blank space and filters may still blur it.
+            if (event.pointerType === 'mouse') {
+              event.preventDefault();
+            }
             didHoldRef.current = false;
             if (event.button !== 0 || !hasTones) {
               return;

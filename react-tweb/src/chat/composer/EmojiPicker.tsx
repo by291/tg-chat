@@ -7,6 +7,7 @@ import { IconButton } from '../../components/IconButton';
 import { EmojiBrowser } from './emoticons/EmojiBrowser';
 import { StickerBrowser } from './emoticons/StickerBrowser';
 import { usePickerPreferences } from './emoticons/pickerPreferences';
+import type { CustomEmoji } from '../emoji/customEmojiCatalog';
 import type { Sticker } from '../stickers/stickerCatalog';
 import styles from './EmojiPicker.module.css';
 
@@ -15,6 +16,7 @@ const HOVER_CLOSE_DELAY = 200;
 
 interface EmojiPickerProps {
   onSelectEmoji: (emoji: string) => void;
+  onSelectCustomEmoji: (emoji: CustomEmoji) => void;
   onSelectSticker?: (sticker: string) => void;
   onDeleteCharacter?: () => void;
 }
@@ -22,6 +24,7 @@ interface EmojiPickerProps {
 /** Anchor a Telegram-style palette while keeping drafts and selection owned by the editor. */
 export function EmojiPicker({
   onSelectEmoji,
+  onSelectCustomEmoji,
   onSelectSticker,
   onDeleteCharacter,
 }: EmojiPickerProps) {
@@ -154,6 +157,10 @@ export function EmojiPicker({
                   onSelect={(emoji) => {
                     const tone = preferences.tones[emoji.id] ?? 0;
                     onSelectEmoji((emoji.skins[tone] ?? emoji.skins[0]).native);
+                    rememberEmoji(emoji.id);
+                  }}
+                  onSelectCustomEmoji={(emoji) => {
+                    onSelectCustomEmoji(emoji);
                     rememberEmoji(emoji.id);
                   }}
                   onToneChange={setTone}

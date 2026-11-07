@@ -1,6 +1,11 @@
 import { ArrowLeft, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { EMOJI_SEARCH_GROUPS, type EmojiSearchGroup } from './emojiSearchGroups';
+import { StickerArtwork } from '../../stickers/StickerArtwork';
+import {
+  EMOJI_SEARCH_GROUPS,
+  getSearchCategoryIcon,
+  type EmojiSearchGroup,
+} from './emojiSearchGroups';
 import { useFilterScroll } from './useFilterScroll';
 import styles from '../EmojiPicker.module.css';
 
@@ -158,7 +163,7 @@ export function PickerSearch({
           </span>
           <div className={styles.searchCategories} role="group" aria-label="Emotion filters">
             {EMOJI_SEARCH_GROUPS.map((group) => {
-              const GroupIcon = group.icon;
+              const icon = getSearchCategoryIcon(group);
               return (
                 <button
                   key={group.id}
@@ -166,7 +171,9 @@ export function PickerSearch({
                   aria-pressed={selectedGroup?.id === group.id}
                   onClick={(event) => selectGroup(group, event.currentTarget)}
                 >
-                  <GroupIcon size={24} strokeWidth={1.5} />
+                  <span className={styles.categoryIcon}>
+                    {icon && <StickerArtwork sticker={icon} />}
+                  </span>
                 </button>
               );
             })}

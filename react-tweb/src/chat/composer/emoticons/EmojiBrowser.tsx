@@ -7,6 +7,10 @@ import {
   loadEmojiCatalog,
   searchEmoji,
 } from './emojiCatalog';
+import { CUSTOM_EMOJI_PACKS, type CustomEmoji } from '../../emoji/customEmojiCatalog';
+import { StickerArtwork } from '../../stickers/StickerArtwork';
+import { CustomEmojiCell } from './CustomEmojiCell';
+import { createCustomEmojiSections } from './customEmojiSections';
 import { EmojiCell } from './EmojiCell';
 import { PickerGrid, type PickerGridControls } from './PickerGrid';
 import { PickerSearch } from './PickerSearch';
@@ -23,11 +27,18 @@ interface EmojiBrowserProps {
   recentEmoji: string[];
   tones: Record<string, number>;
   onSelect: (emoji: Emoji) => void;
+  onSelectCustomEmoji: (emoji: CustomEmoji) => void;
   onToneChange: (id: string, tone: number) => void;
 }
 
 /** Browse categorized Unicode emoji with lazy data, indexed search, and virtual rows. */
-export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: EmojiBrowserProps) {
+export function EmojiBrowser({
+  recentEmoji,
+  tones,
+  onSelect,
+  onSelectCustomEmoji,
+  onToneChange,
+}: EmojiBrowserProps) {
   const [catalog, setCatalog] = useState<EmojiMartData>();
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -138,6 +149,20 @@ export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: Emo
     ];
   }, [catalog, matches, query, selectedGroup, sessionRecents]);
 
+  const combinedSections = useMemo(
+    () =>
+      createCustomEmojiSections({
+        sections,
+        recentIds: sessionRecents,
+        query,
+        selectedGroup,
+        matches,
+      }),
+    [sections, sessionRecents, query, selectedGroup, matches],
+  );
+  const hasResults = combinedSections.some((section) => section.items.length > 0);
+  const isCustomSection = CUSTOM_EMOJI_PACKS.some((pack) => pack.id === activeSection);
+
   return (
     <div className={styles.browser} data-searching={isSearching}>
       <div className={styles.packBar} aria-label="Emoji categories">
@@ -150,11 +175,23 @@ export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: Emo
         </button>
         <button
           aria-label="All Emoji"
-          aria-pressed={activeSection !== 'recent'}
+          aria-pressed={activeSection !== 'recent' && !isCustomSection}
           onClick={() => gridRef.current?.scrollToSection('people')}
         >
           <Smile size={24} />
         </button>
+        {CUSTOM_EMOJI_PACKS.map((pack) => (
+          <button
+            key={pack.id}
+            aria-label={pack.name}
+            aria-pressed={activeSection === pack.id}
+            onClick={() => gridRef.current?.scrollToSection(pack.id)}
+          >
+            <span className={styles.emojiPackIcon}>
+              <StickerArtwork sticker={pack.emojis[0]} />
+            </span>
+          </button>
+        ))}
       </div>
       <PickerSearch
         label="Search Emoji"
@@ -166,24 +203,36 @@ export function EmojiBrowser({ recentEmoji, tones, onSelect, onToneChange }: Emo
       />
       <PickerResults viewKey={selectedGroup?.id ?? (query.trim() ? 'search' : 'categories')}>
         {!catalog && <p className={styles.empty}>{error || 'Loading emoji…'}</p>}
-        {catalog && query.trim() && matches.length === 0 ? (
+        {catalog && isFiltering && !hasResults && (
           <p className={styles.empty}>{isLoadingSearch ? 'Searching…' : 'No emoji found'}</p>
-        ) : (
+        )}
+        {catalog && (!isFiltering || hasResults) && (
           <PickerGrid
-            sections={sections}
+            sections={combinedSections}
             columns={EMOJI_COLUMNS}
             rowHeight={EMOJI_ROW_HEIGHT}
             controlsRef={isFiltering ? undefined : gridRef}
             onSectionChange={isFiltering ? undefined : setActiveSection}
-            renderItem={(emoji) => (
-              <EmojiCell
-                key={emoji.id}
-                emoji={emoji}
-                tone={tones[emoji.id] ?? 0}
-                onSelect={onSelect}
-                onToneChange={onToneChange}
-              />
-            )}
+            renderItem={(item) => {
+              if (item.kind === 'custom') {
+                return (
+                  <CustomEmojiCell
+                    key={item.emoji.id}
+                    emoji={item.emoji}
+                    onSelect={onSelectCustomEmoji}
+                  />
+                );
+              }
+              return (
+                <EmojiCell
+                  key={item.emoji.id}
+                  emoji={item.emoji}
+                  tone={tones[item.emoji.id] ?? 0}
+                  onSelect={onSelect}
+                  onToneChange={onToneChange}
+                />
+              );
+            }}
           />
         )}
       </PickerResults>

@@ -111,6 +111,7 @@ export function ConversationPane({
         chatId: conversation.id,
         messageId: editingMessage.id,
         text: composed.text,
+        customEmoji: composed.customEmoji,
       });
       clearComposerContext();
       return;
@@ -125,6 +126,7 @@ export function ConversationPane({
           authorId: 'you',
           authorName: 'You',
           text: composed.text,
+          customEmoji: composed.customEmoji,
           createdAt: Date.now(),
           attachment: composed.attachment,
           sticker: composed.sticker,
@@ -240,7 +242,7 @@ export function ConversationPane({
     headerActions.clearSelection();
   }
 
-  function sendToRecipients({ recipients, caption }: ForwardRecipients) {
+  function sendToRecipients({ recipients, caption, customEmoji }: ForwardRecipients) {
     if (!pendingForward) {
       return;
     }
@@ -249,6 +251,7 @@ export function ConversationPane({
         messages: pendingForward,
         chatId: recipient.id,
         caption,
+        customEmoji,
         dispatch,
       });
     }
@@ -388,10 +391,17 @@ export function ConversationPane({
           <MessageComposer
             key={editingMessage?.id || 'compose'}
             draft={state.drafts[conversation.id] || ''}
+            draftCustomEmoji={state.draftCustomEmoji?.[conversation.id]}
             replyMessage={replyMessage}
             editingMessage={editingMessage}
             forwardMessages={forwardMessages}
-            onDraftChange={(text) => dispatch({ type: 'set-draft', chatId: conversation.id, text })}
+            onDraftChange={(value) =>
+              dispatch({
+                type: 'set-draft',
+                chatId: conversation.id,
+                ...value,
+              })
+            }
             onSubmit={submitMessage}
             onCancelContext={clearComposerContext}
             onNotify={onNotify}

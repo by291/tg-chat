@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer, useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -14,6 +14,12 @@ beforeAll(() => {
     disconnect() {}
   }
 
+  vi.stubGlobal('ClipboardEvent', Event);
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
   vi.stubGlobal('ResizeObserver', TestResizeObserver);
   vi.stubGlobal('IntersectionObserver', TestResizeObserver);
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
@@ -26,7 +32,34 @@ beforeAll(() => {
       return this.getAttribute('aria-label') === 'Message history' ? 800 : 80;
     },
   });
-  Element.prototype.scrollTo = () => {};
+  // jsdom has no layout engine, but Lexical measures the caret when restoring focus.
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+  const emptyRectangles: DOMRect[] = [];
+  Range.prototype.getClientRects = () => ({
+    length: 0,
+    item: () => null,
+    [Symbol.iterator]: () => emptyRectangles.values(),
+  });
+  Element.prototype.getBoundingClientRect = function () {
+    return new DOMRect(0, 0, this.clientWidth, this.clientHeight);
+  };
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+    configurable: true,
+    get() {
+      const content = this.firstElementChild;
+      if (!(content instanceof HTMLElement)) {
+        return 0;
+      }
+      return Number.parseFloat(content.style.height || '0');
+    },
+  });
+  Element.prototype.scrollTo = function (options?: ScrollToOptions | number) {
+    if (!options || typeof options === 'number') {
+      return;
+    }
+    this.scrollTop = Math.max(0, options.top ?? 0);
+    queueMicrotask(() => this.dispatchEvent(new Event('scroll')));
+  };
   Element.prototype.scrollIntoView = () => {};
 });
 
@@ -71,9 +104,10 @@ describe('conversation interaction', () => {
     await user.keyboard('{Enter}');
 
     const editor = screen.getByRole('textbox', { name: 'Message' });
-    await waitFor(() => expect((editor as HTMLTextAreaElement).value).toBe(originalText));
-    await user.clear(editor);
-    await user.type(editor, 'The edited message');
+    await waitFor(() => expect(editor.textContent).toBe(originalText));
+    await user.click(editor);
+    await user.keyboard('{Control>}a{/Control}');
+    await user.paste('The edited message');
     await user.click(screen.getByRole('button', { name: 'Save message' }));
 
     expect(screen.getByText('The edited message')).toBeTruthy();
@@ -108,11 +142,16 @@ describe('search reply navigation', () => {
       'Scroll up to explore',
     );
 
-    const reply = screen.getByRole('button', {
+    const sourceMessage = await screen.findByRole('group', {
+      name: /^Message: Scroll up to explore/,
+    });
+    const reply = within(sourceMessage).getByRole('button', {
       name: /^Alex\s*Archive note 12: a small detail worth keeping\.$/,
     });
     expect((reply as HTMLButtonElement).disabled).toBe(false);
     await user.click(reply);
-    expect(screen.queryByRole('textbox', { name: 'Search in this conversation' })).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByRole('textbox', { name: 'Search in this conversation' })).toBeNull();
+    });
   });
 });

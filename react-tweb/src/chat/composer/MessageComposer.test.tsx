@@ -90,9 +90,9 @@ describe('image composition', () => {
         height: 100,
       },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), {
-      target: { value: '' },
-    });
+    const editor = screen.getByRole('textbox', { name: 'Message' });
+    editor.textContent = '';
+    fireEvent.input(editor, { inputType: 'deleteContentBackward' });
 
     const saveButton = screen.getByRole('button', { name: 'Save message' }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
