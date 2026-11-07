@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
-import { createEditor, $getRoot, $getSelection, $isRangeSelection } from 'lexical';
+import {
+  createEditor,
+  $createParagraphNode,
+  $createTextNode,
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+} from 'lexical';
 import { describe, expect, it } from 'vitest';
 import { CUSTOM_EMOJI } from '../emoji/customEmojiCatalog';
-import { CustomEmojiNode } from './CustomEmojiNode';
+import { CustomEmojiNode, $createCustomEmojiNode } from './CustomEmojiNode';
 import { $readEmojiEditor, $replaceEmojiEditor } from './emojiEditorState';
 
 const exampleEmoji = CUSTOM_EMOJI[0];
@@ -30,6 +37,36 @@ describe('custom emoji editing', () => {
     editor.update(() => $replaceEmojiEditor(value), { discrete: true });
 
     expect(editor.getEditorState().read($readEmojiEditor)).toEqual(value);
+  });
+
+  it('exports adjacent paragraphs as single lines while preserving intentional blank lines', () => {
+    const editor = createEmojiEditor();
+    editor.update(
+      () => {
+        const first = $createParagraphNode().append($createTextNode('First line'));
+        const second = $createParagraphNode().append($createTextNode('Second line'));
+        const empty = $createParagraphNode();
+        const final = $createParagraphNode().append(
+          $createCustomEmojiNode({ documentId: exampleEmoji.id, text: exampleEmoji.emoji }),
+        );
+        $getRoot().append(first, second, empty, final);
+      },
+      { discrete: true },
+    );
+
+    const prefix = 'First line\nSecond line\n\n';
+    const value = editor.read($readEmojiEditor);
+    expect(value.text).toBe(`${prefix}${exampleEmoji.emoji}`);
+    expect(value.customEmoji).toEqual([
+      {
+        documentId: exampleEmoji.id,
+        offset: prefix.length,
+        length: exampleEmoji.emoji.length,
+      },
+    ]);
+    const restored = createEmojiEditor();
+    restored.update(() => $replaceEmojiEditor(value), { discrete: true });
+    expect(restored.read($readEmojiEditor)).toEqual(value);
   });
 
   it('deletes the entire custom emoji without leaving a partial Unicode sequence', () => {

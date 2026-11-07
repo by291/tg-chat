@@ -123,13 +123,23 @@ function hasRichFormatting(node: LexicalNode): boolean {
 /** Read offsets from the editor tree, including line breaks and atomic emoji fallbacks. */
 export function $readEmojiEditor(): EditorText {
   const root = $getRoot();
-  const value: EditorText = { text: root.getTextContent(), customEmoji: [] };
-  collectCustomEmoji({
-    node: root,
-    offset: 0,
-    entities: value.customEmoji,
-  });
-  if (hasRichFormatting(root)) {
+  const isRichText = hasRichFormatting(root);
+  const blocks = isRichText ? [root] : root.getChildren();
+  const value: EditorText = { text: '', customEmoji: [] };
+  for (const [index, block] of blocks.entries()) {
+    // Lexical separates paragraphs with two newlines; chat paragraphs occupy one visual line.
+    // Keep complex rich blocks in Lexical's representation so list/table emoji offsets stay valid.
+    if (index > 0) {
+      value.text += '\n';
+    }
+    collectCustomEmoji({
+      node: block,
+      offset: value.text.length,
+      entities: value.customEmoji,
+    });
+    value.text += block.getTextContent();
+  }
+  if (isRichText) {
     value.richText = $exportRichEditorHtml();
   }
   return value;
