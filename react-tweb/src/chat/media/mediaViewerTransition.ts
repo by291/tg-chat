@@ -4,7 +4,7 @@ const CLIPPING_ANCESTOR_LIMIT = 2;
 const FRAME_BORDER_TOLERANCE = 1;
 
 interface PhotoTransitionOptions {
-  image: HTMLImageElement;
+  image: HTMLElement;
   source: HTMLElement | null;
   isOpening: boolean;
   shouldReduceMotion: boolean;
@@ -94,7 +94,7 @@ export function animateViewerPhoto({
     return undefined;
   }
   const destination = image.getBoundingClientRect();
-  const sourceImage = source?.querySelector<HTMLImageElement>('img:not([aria-hidden])');
+  const sourceImage = source?.querySelector<HTMLElement>('video, img:not([aria-hidden])');
   const origin = sourceImage?.getBoundingClientRect();
   if (!origin || !destination.width || !destination.height) {
     return image.animate(
@@ -132,7 +132,7 @@ export function animateGallerySlide({
   image,
   direction,
 }: {
-  image: HTMLImageElement;
+  image: HTMLElement;
   direction: number;
 }) {
   return image.animate?.(

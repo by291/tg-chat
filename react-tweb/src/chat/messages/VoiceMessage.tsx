@@ -1,4 +1,4 @@
-import { useVisiblePlayback } from './useVisiblePlayback';
+import { pauseOtherMedia, useVisiblePlayback } from './useVisiblePlayback';
 import { Pause, Play } from 'lucide-react';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import type { MessageMedia } from '../messageMedia';
@@ -112,6 +112,7 @@ export function VoiceMessage({
       return;
     }
 
+    pauseOtherMedia(audio);
     try {
       await audio.play();
       setError('');

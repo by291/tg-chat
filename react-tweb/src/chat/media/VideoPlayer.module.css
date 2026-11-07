@@ -1,0 +1,210 @@
+.player {
+  position: relative;
+  container: video-player / inline-size;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  color: white;
+  background: black;
+}
+
+.player[data-controls-visible='false'] {
+  cursor: none;
+}
+
+.player[data-controls-visible='false'] .video {
+  cursor: none;
+}
+
+.player:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+.player:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.controls {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 28px 20px 12px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 75%));
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.controls[data-visible='false'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seek {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin: 0 0 8px;
+  border-radius: 4px;
+  appearance: none;
+  background: linear-gradient(
+    to right,
+    white var(--progress),
+    rgb(255 255 255 / 35%) var(--progress)
+  );
+  cursor: pointer;
+}
+
+.seek::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  appearance: none;
+  background: white;
+}
+
+.seek::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.buttons button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.buttons button:hover {
+  background: rgb(255 255 255 / 15%);
+}
+
+.buttons button:focus-visible,
+.controls input:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
+}
+
+.buttons svg {
+  width: 24px;
+  height: 24px;
+}
+
+.time {
+  flex: 1;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.volume {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.volume input {
+  width: 70px;
+  accent-color: white;
+  cursor: pointer;
+}
+
+.error {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  left: 16px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 70%);
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .controls {
+    padding: 24px 12px 8px;
+  }
+
+  .volume input {
+    width: 44px;
+  }
+}
+
+/* Portrait media can be narrow even when the browser viewport is wide. */
+@container video-player (max-width: 360px) {
+  .controls {
+    padding: 24px 12px 8px;
+  }
+
+  .buttons {
+    gap: 4px;
+  }
+
+  .buttons button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .time {
+    font-size: 12px;
+  }
+
+  .volume input {
+    display: none;
+  }
+}
+
+@container video-player (max-width: 260px) {
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .buttons > button {
+    grid-row: 2;
+    justify-self: center;
+  }
+
+  .time {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  .volume {
+    grid-row: 2;
+    justify-self: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls {
+    transition: none;
+  }
+}

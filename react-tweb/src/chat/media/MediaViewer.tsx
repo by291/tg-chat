@@ -1,4 +1,4 @@
-import { getPhotoMessages } from './photoGallery';
+import { getGalleryMessages } from './photoGallery';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
@@ -6,6 +6,7 @@ import { IconButton } from '../../components/IconButton';
 import { Avatar } from '../../components/Avatar';
 import { useClosingDialogValue } from '../sidebar/useClosingDialogValue';
 import { ViewerPhoto } from './ViewerPhoto';
+import { ViewerVideo } from './ViewerVideo';
 import { formatMessageDate, formatMessageTime } from '../messageFormatting';
 import type { Message } from '../model';
 import styles from './MediaViewer.module.css';
@@ -17,10 +18,12 @@ interface MediaViewerProps {
   onNavigate: (message: Message) => void;
 }
 
-/** Present shared images in a keyboard-accessible full-screen gallery. */
+/** Present shared photos and videos in a keyboard-accessible full-screen gallery. */
 export function MediaViewer({ message, messages, onClose, onNavigate }: MediaViewerProps) {
   const displayedMessage = useClosingDialogValue(message);
-  const mediaMessages = getPhotoMessages(messages);
+  const mediaMessages = getGalleryMessages(messages);
+  const video = displayedMessage?.media?.kind === 'video' ? displayedMessage.media : undefined;
+  const mediaLabel = video ? 'video' : 'image';
   const activeIndex = mediaMessages.findIndex((entry) => {
     return entry.id === displayedMessage?.id;
   });
@@ -71,14 +74,14 @@ export function MediaViewer({ message, messages, onClose, onNavigate }: MediaVie
                 </Dialog.Description>
               </div>
               <a
-                href={displayedMessage?.attachment?.url}
-                download={displayedMessage?.attachment?.name}
-                aria-label="Download image"
+                href={video?.url ?? displayedMessage?.attachment?.url}
+                download={video ? 'video.mp4' : displayedMessage?.attachment?.name}
+                aria-label={`Download ${mediaLabel}`}
               >
                 <Download size={23} />
               </a>
               <Dialog.CloseTrigger asChild>
-                <IconButton label="Close image">
+                <IconButton label={`Close ${mediaLabel}`}>
                   <X />
                 </IconButton>
               </Dialog.CloseTrigger>
@@ -90,9 +93,16 @@ export function MediaViewer({ message, messages, onClose, onNavigate }: MediaVie
                 activeIndex={activeIndex}
               />
             )}
+            {displayedMessage && video && (
+              <ViewerVideo
+                message={displayedMessage}
+                isOpen={Boolean(message)}
+                activeIndex={activeIndex}
+              />
+            )}
             <div className={styles.navigation}>
               <IconButton
-                label="Previous image"
+                label={video ? 'Previous media' : 'Previous image'}
                 className={styles.previous}
                 disabled={!previousMessage}
                 onClick={() => previousMessage && onNavigate(previousMessage)}
@@ -100,7 +110,7 @@ export function MediaViewer({ message, messages, onClose, onNavigate }: MediaVie
                 <ChevronLeft />
               </IconButton>
               <IconButton
-                label="Next image"
+                label={video ? 'Next media' : 'Next image'}
                 className={styles.next}
                 disabled={!nextMessage}
                 onClick={() => nextMessage && onNavigate(nextMessage)}

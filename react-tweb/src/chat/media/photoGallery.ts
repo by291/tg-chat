@@ -7,7 +7,11 @@ export function createAlbumPhoto(
   attachment: PhotoAttachment,
   index: number,
 ): Message {
-  return { ...message, id: `${message.id}:photo:${index}`, attachment };
+  return {
+    ...message,
+    id: `${message.id}:photo:${index}`,
+    attachment,
+  };
 }
 
 /** Flatten album photos into the same navigation sequence as standalone photos. */
@@ -25,4 +29,14 @@ export function getPhotoMessages(messages: Message[]): Message[] {
     }
   }
   return photos;
+}
+
+/** Keep photos and ordinary videos in history order while round videos play in place. */
+export function getGalleryMessages(messages: Message[]): Message[] {
+  return messages.flatMap((message) => {
+    if (message.media?.kind === 'video' && !message.media.isRound) {
+      return [message];
+    }
+    return getPhotoMessages([message]);
+  });
 }
