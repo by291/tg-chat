@@ -9,6 +9,9 @@
 - Included asset: `public/assets/telegram-pattern.svg`, copied without modification
 - Included geometry: the `message-tail-filled` SVG path from tweb's `index.html`, used in
   `src/chat/messages/MessageTail.tsx`
+- Adapted album layout: `src/components/groupedLayout.ts`, used in
+  `src/chat/media/albumLayout.ts`; upstream credits the Telegram Desktop grouped layout
+  implementation at https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 - License: GNU General Public License, version 3
 
 The full license text is included in `LICENSE`. Conversation data, account credentials, private
