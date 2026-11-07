@@ -33,3 +33,54 @@
   font-size: 15px;
   line-height: 24px;
 }
+
+.container[data-composer='true'] {
+  overflow: hidden;
+  /* The input retains its natural height while this shell animates between measured heights. */
+  transition: height 0ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.container[data-composer='true'] .editor {
+  min-height: 33px;
+  max-height: 440px;
+  padding: 6px 3px;
+  font-size: 16px;
+  line-height: 21px;
+  scrollbar-width: none;
+}
+
+.container[data-composer='true'] .placeholder {
+  inset: 6px 3px;
+  font-size: 16px;
+  line-height: 21px;
+}
+
+.container[data-expanded='true'] .editor {
+  height: 100%;
+  max-height: none;
+  padding-block: 52px;
+  scroll-padding-block: 52px;
+  mask-image: linear-gradient(transparent, black 56px, black calc(100% - 56px), transparent);
+}
+
+.container[data-expanded='true'] .placeholder {
+  top: 52px;
+}
+
+@media (max-height: 480px) {
+  .container[data-composer='true']:not([data-expanded='true']) .editor {
+    max-height: max(36px, calc(100dvh - 192px));
+  }
+}
+
+@media (max-width: 760px) {
+  .container[data-composer='true']:not([data-expanded='true']) .editor {
+    max-height: 160px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .container[data-composer='true'] {
+    transition: none;
+  }
+}

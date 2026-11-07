@@ -1,4 +1,4 @@
-import { Check, ImagePlus, Paperclip, Send, X } from 'lucide-react';
+import { Check, ImagePlus, Maximize2, Minimize2, Paperclip, Send, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createAttachment } from './attachments';
@@ -10,6 +10,8 @@ import { DiscardEditDialog } from './DiscardEditDialog';
 import { hasMessageEditChanged } from './messageEditing';
 import type { Attachment, Message } from '../model';
 import styles from './MessageComposer.module.css';
+
+const EXPAND_BUTTON_MIN_HEIGHT = 72;
 
 export interface ComposedMessage extends EmojiText {
   attachment?: Attachment;
@@ -54,6 +56,9 @@ export function MessageComposer({
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [editorHeight, setEditorHeight] = useState(0);
+  const canExpand = editorHeight >= EXPAND_BUTTON_MIN_HEIGHT || isExpanded;
   const value = editingMessage ? editValue : { text: draft, customEmoji: draftCustomEmoji };
   const text = value.text;
   const hasContent =
@@ -64,6 +69,12 @@ export function MessageComposer({
   const previousContextRef = useRef(contextMessage);
   const canSubmit = Boolean(editingMessage) || hasContent;
   const isPreparingAttachment = !editingMessage && isLoadingImage;
+
+  useEffect(() => {
+    if (!text) {
+      setIsExpanded(false);
+    }
+  }, [text]);
 
   useEffect(() => {
     // Only the editor remounts when switching modes; the attachment draft and animated bar survive.
@@ -113,6 +124,7 @@ export function MessageComposer({
     }
 
     onSubmit({ ...value, attachment: editingMessage ? undefined : attachment });
+    setIsExpanded(false);
     if (!editingMessage) {
       setAttachment(undefined);
     }
@@ -130,6 +142,10 @@ export function MessageComposer({
   }
 
   function cancelComposition() {
+    if (isExpanded) {
+      setIsExpanded(false);
+      return;
+    }
     if (contextMessage || forwardMessages?.length) {
       requestCancelContext();
       return;
@@ -175,6 +191,8 @@ export function MessageComposer({
       className={styles.composer}
       data-message-composer
       data-dragging={isDragging}
+      data-has-context={Boolean(contextMessage || forwardMessages?.length)}
+      data-has-attachment={Boolean(attachment && !editingMessage)}
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragging(true);
@@ -205,7 +223,7 @@ export function MessageComposer({
           </IconButton>
         </div>
       )}
-      <div className={styles.editorRow}>
+      <div className={styles.editorRow} data-expanded={isExpanded}>
         <IconButton
           label="Attach a photo"
           onClick={() => fileInputRef.current?.click()}
@@ -225,6 +243,9 @@ export function MessageComposer({
           }}
         />
         <EmojiEditor
+          isComposer
+          isExpanded={isExpanded}
+          onHeightChange={setEditorHeight}
           key={editingMessage?.id ?? 'compose'}
           controlsRef={editorRef}
           value={value}
@@ -235,6 +256,17 @@ export function MessageComposer({
           onPasteImage={(file) => void attachImage(file)}
           onError={onNotify}
         />
+        {canExpand && (
+          <IconButton
+            label={isExpanded ? 'Collapse message editor' : 'Expand message editor'}
+            className={styles.expandButton}
+            aria-expanded={isExpanded}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => setIsExpanded((previous) => !previous)}
+          >
+            {isExpanded ? <Minimize2 /> : <Maximize2 />}
+          </IconButton>
+        )}
         <EmojiPicker
           onSelectEmoji={(emoji) => editorRef.current?.insertEmoji(emoji)}
           onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}

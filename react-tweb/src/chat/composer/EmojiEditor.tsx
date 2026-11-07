@@ -22,6 +22,7 @@ import type { EmojiText } from '../emoji/customEmojiEntities';
 import { CustomEmojiNode, $createCustomEmojiNode } from './CustomEmojiNode';
 import { $readEmojiEditor, $replaceEmojiEditor } from './emojiEditorState';
 import { shouldSubmitMessage } from './composerKeyboard';
+import { useEditorHeight } from './useEditorHeight';
 import styles from './EmojiEditor.module.css';
 
 // Lexical registers node classes by identity. A hot module update needs a new editor;
@@ -38,6 +39,9 @@ export interface EmojiEditorControls {
 }
 
 interface EmojiEditorProps {
+  isComposer?: boolean;
+  isExpanded?: boolean;
+  onHeightChange?: (height: number) => void;
   value: EmojiText;
   label?: string;
   controlsRef: Ref<EmojiEditorControls>;
@@ -169,6 +173,49 @@ function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: 
   return null;
 }
 
+function EditorSurface(props: EmojiEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
+  useEditorHeight({
+    containerRef,
+    inputRef,
+    isEnabled: props.isComposer ?? false,
+    isExpanded: props.isExpanded ?? false,
+    onHeightChange: props.onHeightChange,
+  });
+
+  return (
+    <div
+      ref={containerRef}
+      className={styles.container}
+      data-composer={props.isComposer}
+      data-expanded={props.isExpanded}
+    >
+      <PlainTextPlugin
+        contentEditable={
+          <ContentEditable
+            ref={inputRef}
+            className={styles.editor}
+            aria-label={props.label ?? 'Message'}
+            aria-multiline="true"
+            aria-placeholder={props.placeholder}
+            placeholder={<span className={styles.placeholder}>{props.placeholder}</span>}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                // Cancel the composer context without also closing a surrounding chat layer.
+                event.preventDefault();
+                event.stopPropagation();
+                props.onCancel();
+              }
+            }}
+          />
+        }
+        ErrorBoundary={LexicalErrorBoundary}
+      />
+    </div>
+  );
+}
+
 /** Provide inline animated emoji with library-owned composition, selection, deletion and undo. */
 export function EmojiEditor(props: EmojiEditorProps) {
   return (
@@ -184,27 +231,8 @@ export function EmojiEditor(props: EmojiEditorProps) {
         },
       }}
     >
-      <div className={styles.container}>
-        <PlainTextPlugin
-          contentEditable={
-            <ContentEditable
-              className={styles.editor}
-              aria-label={props.label ?? 'Message'}
-              aria-placeholder={props.placeholder}
-              placeholder={<span className={styles.placeholder}>{props.placeholder}</span>}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  // Cancel the composer context without also closing a surrounding chat layer.
-                  event.preventDefault();
-                  event.stopPropagation();
-                  props.onCancel();
-                }
-              }}
-            />
-          }
-          ErrorBoundary={LexicalErrorBoundary}
-        />
-      </div>
+      {/* Keep measurement observers in the same lifecycle as the editable DOM during hot updates. */}
+      <EditorSurface {...props} />
       <HistoryPlugin />
       <EditorBridge {...props} />
     </LexicalComposer>

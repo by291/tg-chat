@@ -1,4 +1,6 @@
 .composer {
+  --context-height: 0px;
+  --attachment-height: 0px;
   position: relative;
   z-index: 6;
   flex-shrink: 0;
@@ -8,16 +10,43 @@
   transition: box-shadow var(--duration-normal);
 }
 
+.composer[data-has-context='true'] {
+  --context-height: 48px;
+}
+
+.composer[data-has-attachment='true'] {
+  --attachment-height: 76px;
+}
+
 .composer[data-dragging='true'] {
   box-shadow: 0 0 0 3px var(--accent-color);
 }
 
 .editorRow {
+  --expanded-editor-height: max(
+    40px,
+    calc(
+      100dvh - var(--chat-edge-inset, 16px) - 48px - 10px - var(--chat-bottom-inset, 16px) - 8px -
+        var(--context-height) - var(--attachment-height)
+    )
+  );
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 2px;
   min-height: 48px;
   padding: 4px;
+}
+
+.expandButton {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.editorRow[data-expanded='true'] > button,
+.editorRow[data-expanded='true'] > :last-child {
+  z-index: 1;
 }
 
 .sendButton {

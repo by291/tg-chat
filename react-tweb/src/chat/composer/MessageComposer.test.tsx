@@ -13,8 +13,44 @@ vi.mock('./attachments', () => ({
     }),
 }));
 
-beforeEach(() => imageDecoders.clear());
-afterEach(cleanup);
+const resizeCallbacks = new Map<Element, () => void>();
+let measuredEditorHeight = 33;
+
+class TestResizeObserver {
+  private callback: () => void;
+
+  constructor(callback: (entries: ResizeObserverEntry[]) => void) {
+    this.callback = () => callback([]);
+  }
+
+  observe(element: Element) {
+    resizeCallbacks.set(element, this.callback);
+  }
+
+  disconnect() {
+    for (const [element, callback] of resizeCallbacks) {
+      if (callback === this.callback) {
+        resizeCallbacks.delete(element);
+      }
+    }
+  }
+}
+
+beforeEach(() => {
+  imageDecoders.clear();
+  resizeCallbacks.clear();
+  measuredEditorHeight = 33;
+  vi.stubGlobal('ResizeObserver', TestResizeObserver);
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function () {
+    return new DOMRect(0, 0, 400, measuredEditorHeight);
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function renderComposer(editingMessage?: Message) {
   return render(
@@ -97,5 +133,33 @@ describe('image composition', () => {
 
     const saveButton = screen.getByRole('button', { name: 'Save message' }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
+  });
+});
+
+describe('multiline composition', () => {
+  it('keeps the draft and editor mounted when expanding and collapsing with Escape', () => {
+    renderComposer();
+    const editor = screen.getByRole('textbox', { name: 'Message' });
+    expect(screen.queryByRole('button', { name: 'Expand message editor' })).toBeNull();
+
+    act(() => {
+      measuredEditorHeight = 96;
+      resizeCallbacks.get(editor)?.();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Expand message editor' }));
+    expect(screen.getByRole('button', { name: 'Collapse message editor' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBe(editor);
+    expect(editor.textContent).toBe('A caption');
+
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Expand message editor' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBe(editor);
+    expect(editor.textContent).toBe('A caption');
+
+    act(() => {
+      measuredEditorHeight = 33;
+      resizeCallbacks.get(editor)?.();
+    });
+    expect(screen.queryByRole('button', { name: 'Expand message editor' })).toBeNull();
   });
 });
