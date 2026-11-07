@@ -6,6 +6,13 @@ export const conversations: Conversation[] = [
     id: 'dev',
     kind: 'group',
     title: 'dev',
+    about: 'A small space for ideas, experiments, and things worth sharing.',
+    // prettier-ignore
+    memberIds: [
+      'you',
+      'alex',
+      'mia',
+    ],
     subtitle: '3 members',
     initials: 'D',
     color: 'blue',

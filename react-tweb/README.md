@@ -27,6 +27,7 @@ pnpm format:check
 - Responsive desktop and mobile navigation, plus a dark appearance.
 - An unselected entry screen, explicit `?chat=` navigation, and circular light/dark transitions.
 - A floating creation menu with contact selection and locally persisted groups and channels.
+- Compact profile actions, editable local information and members, and animated shared-content tabs.
 - Conversation filtering and message search within the current conversation.
 - Text messages, Shift+Enter newlines, and IME-safe Enter submission.
 - Selection formatting, links, spoilers, dates, and expanded rich-text composition.
@@ -64,7 +65,7 @@ voice messages, remote GIF search, network presence, rich-text entities, and Tel
 are not implemented. Sticker packs use locally bundled original TGS animations and generated
 WebP previews.
 The group information and mute control demonstrate local UI state; there is no notification service.
-New groups and channels remain on this device. Group calls display an explanation
+New groups, channels, and profile edits remain on this device. Group calls display an explanation
 instead of starting a network call. Reloading restores content and appearance without reopening the
 previously selected conversation; an explicit `?chat=` link still opens its destination.
 

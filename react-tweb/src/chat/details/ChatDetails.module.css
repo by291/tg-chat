@@ -1,70 +1,99 @@
 .details {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overflow: hidden;
   border-radius: 24px;
   background: var(--panel-color);
+  box-shadow: var(--surface-shadow);
 }
 
 .header {
+  z-index: 2;
   display: flex;
+  flex: 0 0 56px;
   align-items: center;
-  gap: 12px;
+  gap: 20px;
   padding: 8px 12px;
+  background: var(--panel-color);
 }
 
 .header h2 {
+  flex: 1;
   margin: 0;
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.scrollContent {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
 }
 
 .profile {
-  padding: 18px 20px 20px;
+  padding: 18px 16px 26px;
   text-align: center;
 }
 
 .profile h1 {
-  margin: 18px 0 4px;
-  font-size: 21px;
-  font-weight: 600;
+  margin: 24px 0 4px;
+  overflow-wrap: anywhere;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
 }
 
 .profile p {
   margin: 0;
   color: var(--secondary-color);
   font-size: 14px;
+  line-height: 20px;
 }
 
-.notificationButton {
+.actions {
   display: flex;
-  align-self: center;
+  gap: 8px;
+  margin: 0 16px 28px;
+}
+
+.actions button {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  width: calc(100% - 32px);
-  padding: 15px;
+  gap: 4px;
+  height: 58px;
+  padding: 6px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--surface-color);
+  font-size: 12px;
   cursor: pointer;
 }
 
-:global(:where(:root[data-touch-supported='false'])) .notificationButton:is(:hover, :active) {
-  background: var(--hover-filled-color);
+.actions svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.8;
 }
 
 .about {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 20px 16px 16px;
-  padding: 18px;
-  border-radius: 20px;
+  gap: 24px;
+  margin: 0 16px 16px;
+  padding: 16px 20px;
+  border-radius: 24px;
   background: var(--surface-color);
+  box-shadow: 0 2px 3px rgb(0 0 0 / 3%);
 }
 
 .about > svg {
@@ -73,70 +102,113 @@
 }
 
 .about p {
-  margin: 0 0 6px;
-  font-size: 14px;
-  line-height: 20px;
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  line-height: 22px;
 }
 
 .about span {
   color: var(--secondary-color);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .tabs {
-  padding: 0 16px 24px;
+  padding: 0 16px 90px;
 }
 
 .tabList {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
-  justify-content: space-around;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
   padding: 4px;
+  overflow-x: auto;
   border-radius: 24px;
   background: var(--surface-color);
+  box-shadow: 0 2px 3px rgb(0 0 0 / 3%);
+  scrollbar-width: none;
+  isolation: isolate;
 }
 
 .tabList button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 12px 16px;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 16px;
   border: 0;
   border-radius: 24px;
   color: var(--secondary-color);
   background: transparent;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  transition: color 200ms var(--menu-easing);
 }
 
 .tabList button[data-selected] {
   color: var(--accent-color);
-  background: var(--reply-color);
-}
-
-:global(:where(:root[data-touch-supported='false']))
-  .tabList
-  button:not([data-selected]):is(:hover, :active) {
-  background: var(--hover-color);
 }
 
 .indicator {
-  display: none;
+  z-index: 0;
+  top: 4px;
+  left: var(--left);
+  width: var(--width);
+  height: 40px;
+  border-radius: 24px;
+  background: var(--reply-color);
+  transition:
+    left 200ms var(--menu-easing),
+    width 200ms var(--menu-easing);
+}
+
+.tabStage {
+  display: grid;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.tabContent {
+  grid-area: 1 / 1;
+  min-width: 0;
+  align-self: start;
+}
+
+.tabContent[data-state='open'] {
+  animation: tab-forward 300ms var(--menu-easing);
+}
+
+.tabContent[data-state='open'][data-direction='backward'] {
+  animation-name: tab-backward;
+}
+
+.tabContent[data-state='closed'] {
+  pointer-events: none;
+  animation: tab-backward 300ms var(--menu-easing) reverse;
+}
+
+.tabContent[data-state='closed'][data-direction='backward'] {
+  animation-name: tab-forward;
 }
 
 .members {
-  margin-top: 12px;
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 0 16px;
+  border-radius: 24px;
   background: var(--surface-color);
+  box-shadow: 0 2px 3px rgb(0 0 0 / 3%);
 }
 
 .member {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
+  gap: 16px;
+  min-height: 72px;
+  padding: 12px 4px;
 }
 
 .member > span:nth-child(2) {
@@ -144,55 +216,148 @@
   flex: 1;
   flex-direction: column;
   gap: 4px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .member strong {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .member span span {
   color: var(--secondary-color);
-  font-size: 12px;
-}
-
-.member span .online {
-  color: var(--accent-color);
+  font-size: 14px;
 }
 
 .member small {
   align-self: flex-start;
-  margin-top: 4px;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border-radius: 12px;
   color: var(--accent-color);
-  font-size: 11px;
+  background: var(--reply-color);
+  font-size: 12px;
 }
 
 .gallery {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin-top: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 16px;
 }
 
-.gallery button {
+.gallery button,
+.gallery video {
+  width: 100%;
   overflow: hidden;
   padding: 0;
   aspect-ratio: 1;
   border: 0;
-  border-radius: 8px;
   background: var(--input-color);
+  object-fit: cover;
   cursor: pointer;
 }
 
 .gallery img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.sharedList {
+  display: grid;
+  gap: 16px;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  color: var(--text-color);
+  background: var(--surface-color);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.file svg {
+  flex-shrink: 0;
+  color: var(--accent-color);
+}
+
 .empty {
-  margin-top: 28px;
+  margin: 28px 0;
   text-align: center;
   color: var(--secondary-color);
   font-size: 14px;
+}
+
+.addMembers {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2;
+  width: 54px;
+  height: 54px;
+  color: white;
+  background: var(--accent-color);
+  box-shadow: var(--surface-shadow);
+}
+
+.profileForm,
+.profileForm label {
+  display: grid;
+  gap: 12px;
+}
+
+.profileForm {
+  margin-top: 24px;
+}
+
+.profileForm input:not([type='checkbox']),
+.profileForm textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-color);
+}
+
+.profileForm .contactChoice {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .actions button:hover,
+:global(:where(:root[data-touch-supported='false'])) .tabList button:hover {
+  background: var(--hover-color);
+}
+
+:global(:where(:root[data-touch-supported='false'])) .addMembers:hover {
+  background: var(--accent-hover);
+}
+
+@keyframes tab-forward {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tab-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }

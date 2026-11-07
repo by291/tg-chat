@@ -137,6 +137,9 @@ export function ChatApp() {
             key={conversation.id}
             conversation={conversation}
             messages={messages}
+            state={state}
+            dispatch={dispatch}
+            isOpen={hasDetails}
             isMuted={activeEntry?.isMuted ?? false}
             onToggleMute={() =>
               dispatch({
