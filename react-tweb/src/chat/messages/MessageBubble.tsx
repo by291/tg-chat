@@ -3,6 +3,7 @@ import { memo, useLayoutEffect, useRef } from 'react';
 import { Ripple } from '../../components/Ripple';
 import { MessageBody, MessageText } from './MessageBody';
 import { MessageMetadata } from './MessageMetadata';
+import { MessageReaction } from './MessageReaction';
 import { MessageTail } from './MessageTail';
 import { useDeferredMediaSource } from './deferredMedia';
 import { describeMessage } from '../messageFormatting';
@@ -200,13 +201,7 @@ export const MessageBubble = memo(function MessageBubble({
         {hasReactions && (
           <div className={styles.reactions} aria-label="Reactions">
             {message.reactions.map((emoji) => (
-              <button
-                key={emoji}
-                aria-label={`Remove ${emoji} reaction`}
-                onClick={() => onReact(message.id, emoji)}
-              >
-                {emoji} <span>1</span>
-              </button>
+              <MessageReaction key={emoji} emoji={emoji} messageId={message.id} onReact={onReact} />
             ))}
             {!hasOverlayTime && <MessageMetadata message={message} />}
           </div>

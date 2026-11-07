@@ -65,8 +65,11 @@ beforeAll(() => {
     if (!options || typeof options === 'number') {
       return;
     }
-    this.scrollTop = Math.max(0, options.top ?? 0);
-    queueMicrotask(() => this.dispatchEvent(new Event('scroll')));
+    const nextScrollTop = Math.max(0, options.top ?? 0);
+    if (nextScrollTop !== this.scrollTop) {
+      this.scrollTop = nextScrollTop;
+      queueMicrotask(() => this.dispatchEvent(new Event('scroll')));
+    }
   };
   Element.prototype.scrollIntoView = () => {};
 });
@@ -126,6 +129,15 @@ async function replaceComposerText(options: {
   } else {
     await options.user.keyboard('{Backspace}');
   }
+}
+
+async function waitForInitialHistoryPosition() {
+  const history = screen.getByLabelText('Message history');
+  // Real interaction follows the first paint; jsdom can type before its initial scroll frame.
+  await waitFor(() => {
+    const bottomOffset = Math.max(0, history.scrollHeight - history.clientHeight);
+    expect(history.scrollTop).toBe(bottomOffset);
+  });
 }
 
 describe('conversation interaction', () => {
@@ -353,6 +365,7 @@ describe('conversation interaction', () => {
   it('lets a keyboard user select a quick reaction from the message menu', async () => {
     const user = userEvent.setup();
     render(<ConversationTestScreen />);
+    await waitForInitialHistoryPosition();
     await user.click(screen.getByRole('group', { name: 'Message: This feels familiar ✨' }));
     await user.keyboard('{Shift>}{F10}{/Shift}');
     await waitFor(() => expect(document.activeElement?.getAttribute('role')).toBe('menu'));
@@ -365,6 +378,70 @@ describe('conversation interaction', () => {
     await user.keyboard('{Enter}');
 
     expect(await screen.findByRole('button', { name: 'Remove ❤️ reaction' })).toBeTruthy();
+  });
+
+  it('finds and applies an emoji outside the quick reaction list', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen />);
+    await waitForInitialHistoryPosition();
+    await user.click(screen.getByRole('group', { name: 'Message: This feels familiar ✨' }));
+    await user.keyboard('{Shift>}{F10}{/Shift}');
+    await user.click(await screen.findByRole('menuitem', { name: 'More reactions' }));
+
+    const picker = await screen.findByRole('dialog', { name: 'Choose reaction' });
+    await waitFor(() => {
+      expect(screen.queryByRole('menu', { name: 'Message actions' })).toBeNull();
+    });
+    await user.type(within(picker).getByRole('textbox', { name: 'Search reactions' }), 'turtle');
+    await user.click(await within(picker).findByRole('button', { name: 'React 🐢' }));
+
+    expect(await screen.findByRole('button', { name: 'Remove 🐢 reaction' })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Choose reaction' })).toBeNull();
+    });
+  });
+
+  it('selects a supported custom emoji as its own reaction', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen />);
+    await waitForInitialHistoryPosition();
+    await user.click(screen.getByRole('group', { name: 'Message: This feels familiar ✨' }));
+    await user.keyboard('{Shift>}{F10}{/Shift}');
+    await user.click(await screen.findByRole('menuitem', { name: 'More reactions' }));
+
+    const picker = await screen.findByRole('dialog', { name: 'Choose reaction' });
+    await user.type(
+      within(picker).getByRole('textbox', { name: 'Search reactions' }),
+      'Face Emoji 01',
+    );
+    await user.click(within(picker).getByRole('button', { name: 'Face Emoji' }));
+    await user.click(await within(picker).findByRole('button', { name: 'React Face Emoji 01' }));
+
+    const reaction = await screen.findByRole('button', { name: 'Remove Face Emoji 01 reaction' });
+    expect(reaction.querySelector('img')?.src).toContain('5249007745805328497.webp');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Choose reaction' })).toBeNull();
+    });
+    await user.click(reaction);
+    expect(screen.queryByRole('button', { name: 'Remove Face Emoji 01 reaction' })).toBeNull();
+  });
+
+  it('dismisses an expanded reaction picker without reopening the message menu', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen />);
+    await waitForInitialHistoryPosition();
+    const messageRow = screen.getByRole('group', { name: 'Message: This feels familiar ✨' });
+    await user.click(messageRow);
+    await user.keyboard('{Shift>}{F10}{/Shift}');
+    await user.click(await screen.findByRole('menuitem', { name: 'More reactions' }));
+    const picker = await screen.findByRole('dialog', { name: 'Choose reaction' });
+    await user.click(within(picker).getByRole('textbox', { name: 'Search reactions' }));
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Choose reaction' })).toBeNull();
+      expect(screen.queryByRole('menu', { name: 'Message actions' })).toBeNull();
+    });
   });
 });
 

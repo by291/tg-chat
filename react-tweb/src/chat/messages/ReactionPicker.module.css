@@ -1,0 +1,135 @@
+.panel {
+  width: min(382px, calc(100vw - 16px));
+  height: min(420px, calc(100dvh - 16px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  color: var(--text-color);
+  background: var(--surface-color);
+  box-shadow: 0 5px 10px 5px rgb(16 35 47 / 14%);
+  transform-origin: 144px 74px;
+  outline: none;
+  pointer-events: auto;
+}
+
+.panel[data-state='open'] {
+  animation: picker-enter 200ms var(--menu-easing);
+}
+
+.panel[data-state='closed'] {
+  animation: picker-exit 200ms var(--menu-easing);
+  pointer-events: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  flex: 0 0 49px;
+  gap: 4px;
+  padding: 0 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.header button {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  height: 36px;
+  padding: 4px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--secondary-color);
+  background: transparent;
+  cursor: pointer;
+}
+
+.header button[aria-pressed='true'] {
+  color: var(--text-color);
+  background: var(--hover-color);
+}
+
+.packIcon {
+  width: 28px;
+  height: 28px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  flex: 0 0 38px;
+  gap: 8px;
+  margin: 0 8px 4px;
+  padding: 0 14px;
+  border-radius: 22px;
+  color: var(--secondary-color);
+  background: var(--input-color);
+}
+
+.search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+}
+
+.choice {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.choice:hover,
+.choice[aria-pressed='true'] {
+  background: var(--hover-color);
+}
+
+.emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: 12px 8px;
+  color: var(--secondary-color);
+  text-align: center;
+  font-size: 14px;
+}
+
+@keyframes picker-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes picker-exit {
+  to {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel[data-state] {
+    animation: none;
+  }
+}

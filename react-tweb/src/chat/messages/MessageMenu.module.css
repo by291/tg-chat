@@ -1,14 +1,10 @@
 .menu {
-  --message-menu-offset: 16px;
-  width: 292px;
+  --message-menu-offset: 56px;
+  width: 290px;
   max-width: calc(100vw - 16px);
   outline: none;
   pointer-events: auto;
   transform-origin: var(--transform-origin);
-}
-
-.menu[data-own='true'] {
-  --message-menu-offset: 56px;
 }
 
 .items,
@@ -18,8 +14,24 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
 }
 
+.menu[data-vertical-clamped='true'] .items {
+  transform-origin: left center;
+}
+
+.menu[data-horizontal-clamped='true'] .items {
+  transform-origin: center top;
+}
+
+.menu[data-horizontal-clamped='true'][data-vertical-clamped='true'] .items {
+  transform-origin: center;
+}
+
+.menu[data-horizontal-clamped='true'] .reactionBar {
+  transform-origin: center bottom;
+}
+
 .items {
-  width: 196px;
+  width: 194px;
   margin-top: 8px;
   margin-left: var(--message-menu-offset);
   padding: 4px;
@@ -93,14 +105,6 @@
   transform: translateY(-3px) scale(1.2);
 }
 
-.menu[data-own='true'] .items {
-  transform-origin: top right;
-}
-
-.menu[data-own='true'] .reactionBar {
-  transform-origin: bottom right;
-}
-
 .menu[data-state='open'] .items {
   animation: menu-enter 200ms var(--menu-easing);
 }
@@ -111,7 +115,13 @@
 
 .menu[data-state='closed'] {
   pointer-events: none;
-  animation: menu-exit 200ms var(--menu-easing);
+  /* Ark retains the shared controller until both independently anchored surfaces finish. */
+  animation: retain-menu 200ms;
+}
+
+.menu[data-state='closed'] .items,
+.menu[data-state='closed'] .reactionBar {
+  animation: menu-exit 200ms var(--menu-easing) forwards;
 }
 
 @keyframes menu-enter {
@@ -121,18 +131,18 @@
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale3d(1, 1, 1);
   }
 }
 
 @keyframes reaction-enter {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.8);
+    transform: scale(0.8);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale3d(1, 1, 1);
   }
 }
 
@@ -140,6 +150,15 @@
   to {
     opacity: 0;
     transform: scale(0.8);
+  }
+}
+
+@keyframes retain-menu {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
   }
 }
 

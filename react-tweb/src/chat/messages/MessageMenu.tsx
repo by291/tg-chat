@@ -1,9 +1,8 @@
 import { Menu } from '@ark-ui/react/menu';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
-  ChevronUp,
   Copy,
   Download,
   Forward,
@@ -16,6 +15,8 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
+import { ReactionPicker } from './ReactionPicker';
+import { QUICK_REACTIONS } from './reactionChoices';
 import { Ripple } from '../../components/Ripple';
 import { MenuDismissLayer } from '../MenuDismissLayer';
 import { CURRENT_USER_ID, type Message, type MessageAction, type MessageCommand } from '../model';
@@ -30,44 +31,8 @@ import {
 } from './StructuredMessageActions';
 
 const REACTION_BAR_OFFSET = 48;
-const INCOMING_MENU_OFFSET = 16;
-const OUTGOING_MENU_OFFSET = 56;
-
-// prettier-ignore
-const QUICK_REACTIONS = [
-  '❤️',
-  '👍',
-  '👎',
-  '🔥',
-  '🥰',
-  '👏',
-  '😁',
-];
-
-// prettier-ignore
-const MORE_REACTIONS = [
-  '🤔',
-  '🤯',
-  '😱',
-  '🤬',
-  '😢',
-  '🎉',
-  '🤩',
-  '🤮',
-  '💩',
-  '🙏',
-  '👌',
-  '🕊️',
-  '🤡',
-  '🥱',
-  '🥴',
-  '😍',
-  '🐳',
-  '💯',
-  '⚡',
-  '🏆',
-  '💔',
-];
+const REACTION_MENU_OFFSET = 56;
+const POSITION_TOLERANCE = 1;
 
 export interface MessageMenuTarget {
   messageId: string;
@@ -229,7 +194,11 @@ export function MessageMenu({
   onCommand,
   onReact,
 }: MessageMenuProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [pickerBounds, setPickerBounds] = useState<DOMRect>();
+  const reactionBarRef = useRef<HTMLDivElement>(null);
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const isExpanded = Boolean(pickerBounds);
   const structuredActions = useStructuredMessageActions();
   const isSelecting = selectedMessages !== undefined;
   let items: MessageMenuItem[] = [];
@@ -238,9 +207,6 @@ export function MessageMenu({
       ? getSelectionItems({ message, selectedMessages })
       : getMessageItems(message);
   }
-  const reactions = isExpanded ? [...QUICK_REACTIONS, ...MORE_REACTIONS] : QUICK_REACTIONS;
-  const menuOffset =
-    message?.authorId === CURRENT_USER_ID ? OUTGOING_MENU_OFFSET : INCOMING_MENU_OFFSET;
   const menuKey = target
     ? `${target.messageId}:${target.point.x}:${target.point.y}`
     : 'message-menu';
@@ -252,22 +218,34 @@ export function MessageMenu({
     }
   }
 
+  function selectReaction(options: { emoji: string; source?: HTMLElement | null }) {
+    if (!message || !target) {
+      return;
+    }
+    restoreRowFocus();
+    onClose();
+    onReact(message.id, options.emoji);
+  }
+
   function selectAction({ value }: { value: string }) {
     if (!message) {
       return;
     }
     if (value === 'more-reactions') {
-      setIsExpanded((current) => !current);
+      setPickerBounds(reactionBarRef.current?.getBoundingClientRect());
+      return;
+    }
+    const reactionPrefix = 'react-';
+    if (value.startsWith(reactionPrefix)) {
+      const emoji = value.slice(reactionPrefix.length);
+      const source = reactionBarRef.current?.querySelector<HTMLElement>(
+        `[data-reaction-emoji="${emoji}"]`,
+      );
+      selectReaction({ emoji, source });
       return;
     }
     restoreRowFocus();
     onClose();
-
-    const reactionPrefix = 'react-';
-    if (value.startsWith(reactionPrefix)) {
-      onReact(message.id, value.slice(reactionPrefix.length));
-      return;
-    }
     const item = items.find((entry) => entry.action === value);
     if (item?.action === 'add-task' || item?.action === 'change-vote') {
       structuredActions.dispatch({ messageId: message.id, action: item.action });
@@ -279,94 +257,134 @@ export function MessageMenu({
   }
 
   return (
-    <Menu.Root
-      key={menuKey}
-      ids={{ content: contentId }}
-      open={isOpen && Boolean(message)}
-      positioning={{
-        placement: 'bottom-start',
-        gutter: 0,
-        slide: true,
-        overflowPadding: 8,
-        getAnchorRect: () => {
-          if (!target) {
-            return null;
+    <>
+      <Menu.Root
+        key={menuKey}
+        ids={{ content: contentId }}
+        open={isOpen && !isExpanded && Boolean(message)}
+        positioning={{
+          placement: 'bottom-start',
+          gutter: 0,
+          flip: false,
+          slide: true,
+          overlap: true,
+          overflowPadding: 8,
+          updatePosition: async ({ updatePosition }) => {
+            // Ark only reports completed placement through this positioning override.
+            await updatePosition();
+            const menu = menuRef.current;
+            const itemsElement = itemsRef.current;
+            if (!menu || !itemsElement || !target) {
+              return;
+            }
+            const bounds = menu.getBoundingClientRect();
+            const top = bounds.top + itemsElement.offsetTop;
+            const left = bounds.left + itemsElement.offsetLeft;
+            // TG shifts edge menus into view and changes their pivot instead of flipping them.
+            menu.dataset.verticalClamped = String(top < target.point.y - POSITION_TOLERANCE);
+            menu.dataset.horizontalClamped = String(left < target.point.x - POSITION_TOLERANCE);
+          },
+          getAnchorRect: () => {
+            if (!target) {
+              return null;
+            }
+            // Position the combined bounds so both the separate capsule and menu avoid screen edges.
+            return {
+              x: target.point.x - (isSelecting ? 0 : REACTION_MENU_OFFSET),
+              y: target.point.y - (isSelecting ? 0 : REACTION_BAR_OFFSET),
+              width: 0,
+              height: 0,
+            };
+          },
+        }}
+        onOpenChange={(details) => {
+          if (!details.open && !isExpanded) {
+            onClose();
           }
-          // Position the combined bounds so both the separate capsule and menu avoid screen edges.
-          return {
-            x: target.point.x - (isSelecting ? 0 : menuOffset),
-            y: target.point.y - (isSelecting ? 0 : REACTION_BAR_OFFSET),
-            width: 0,
-            height: 0,
-          };
-        },
-      }}
-      onOpenChange={(details) => {
-        if (!details.open) {
-          onClose();
-        }
-      }}
-      onPointerDownOutside={(event) => event.preventDefault()}
-      onEscapeKeyDown={restoreRowFocus}
-      onExitComplete={() => {
-        if (!isOpen) {
-          setIsExpanded(false);
-          onExitComplete(target);
-        }
-      }}
-      onSelect={selectAction}
-      lazyMount
-      unmountOnExit
-    >
-      <MenuDismissLayer isOpen={isOpen} label="Dismiss message menu" onDismiss={onClose}>
-        <Menu.Positioner>
-          <Menu.Content
-            className={styles.menu}
-            aria-label="Message actions"
-            data-own={message?.authorId === CURRENT_USER_ID}
-            data-selecting={isSelecting}
-          >
-            {!isSelecting && (
-              <div className={styles.reactionBar} data-expanded={isExpanded}>
-                {reactions.map((emoji) => (
+        }}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={restoreRowFocus}
+        onExitComplete={() => {
+          if (!isOpen && !isExpanded) {
+            onExitComplete(target);
+          }
+        }}
+        onSelect={selectAction}
+        lazyMount
+        unmountOnExit
+      >
+        <MenuDismissLayer
+          isOpen={isOpen && !isExpanded}
+          label="Dismiss message menu"
+          onDismiss={onClose}
+        >
+          <Menu.Positioner>
+            <Menu.Content
+              ref={menuRef}
+              className={styles.menu}
+              aria-label="Message actions"
+              data-own={message?.authorId === CURRENT_USER_ID}
+              data-selecting={isSelecting}
+            >
+              {!isSelecting && (
+                <div ref={reactionBarRef} className={styles.reactionBar}>
+                  {QUICK_REACTIONS.map((emoji) => (
+                    <Menu.Item
+                      key={emoji}
+                      value={`react-${emoji}`}
+                      valueText={`React ${emoji}`}
+                      className={styles.reaction}
+                      data-selected={message?.reactions.includes(emoji)}
+                      aria-label={`React ${emoji}`}
+                    >
+                      <span data-reaction-emoji={emoji}>{emoji}</span>
+                    </Menu.Item>
+                  ))}
                   <Menu.Item
-                    key={emoji}
-                    value={`react-${emoji}`}
-                    valueText={`React ${emoji}`}
+                    value="more-reactions"
                     className={styles.reaction}
-                    data-selected={message?.reactions.includes(emoji)}
-                    aria-label={`React ${emoji}`}
+                    closeOnSelect={false}
+                    aria-label="More reactions"
                   >
-                    <span>{emoji}</span>
+                    <ChevronDown />
+                  </Menu.Item>
+                </div>
+              )}
+              <div ref={itemsRef} className={styles.items}>
+                {items.map((item) => (
+                  <Menu.Item
+                    key={item.action}
+                    value={item.action}
+                    className={overlays.menuItem}
+                    data-danger={item.action === 'delete' || item.action === 'delete-selected'}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                    <Ripple />
                   </Menu.Item>
                 ))}
-                <Menu.Item
-                  value="more-reactions"
-                  className={styles.reaction}
-                  closeOnSelect={false}
-                  aria-label={isExpanded ? 'Fewer reactions' : 'More reactions'}
-                >
-                  {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                </Menu.Item>
               </div>
-            )}
-            <div className={styles.items}>
-              {items.map((item) => (
-                <Menu.Item
-                  key={item.action}
-                  value={item.action}
-                  className={overlays.menuItem}
-                  data-danger={item.action === 'delete' || item.action === 'delete-selected'}
-                >
-                  <item.icon />
-                  <span>{item.label}</span>
-                  <Ripple />
-                </Menu.Item>
-              ))}
-            </div>
-          </Menu.Content>
-        </Menu.Positioner>
-      </MenuDismissLayer>
-    </Menu.Root>
+            </Menu.Content>
+          </Menu.Positioner>
+        </MenuDismissLayer>
+      </Menu.Root>
+      {pickerBounds && (
+        <ReactionPicker
+          anchor={pickerBounds}
+          replacedMenuId={contentId}
+          isOpen={isOpen}
+          selected={message?.reactions ?? []}
+          onSelect={selectReaction}
+          onClose={() => {
+            restoreRowFocus();
+            onClose();
+          }}
+          onExitComplete={() => {
+            setPickerBounds(undefined);
+            onExitComplete(target);
+          }}
+        />
+      )}
+    </>
   );
 }

@@ -29,6 +29,7 @@ interface PickerGridProps<Item> {
   renderItem: (item: Item) => ReactNode;
   controlsRef?: Ref<PickerGridControls>;
   onSectionChange?: (id: string) => void;
+  initialSectionId?: string;
 }
 
 function createRows<Item>(sections: PickerSection<Item>[], columns: number) {
@@ -51,6 +52,24 @@ function createRows<Item>(sections: PickerSection<Item>[], columns: number) {
   return rows;
 }
 
+function getSectionOffset<Item>(options: {
+  rows: PickerRow<Item>[];
+  sectionId?: string;
+  rowHeight: number;
+}) {
+  if (!options.sectionId) {
+    return 0;
+  }
+  let offset = 0;
+  for (const row of options.rows) {
+    if (row.sectionId === options.sectionId) {
+      return offset;
+    }
+    offset += row.title ? SECTION_TITLE_HEIGHT : options.rowHeight;
+  }
+  return 0;
+}
+
 /** Virtualize whole grid rows so category navigation never mounts the full emoji catalog. */
 export function PickerGrid<Item>({
   sections,
@@ -59,6 +78,7 @@ export function PickerGrid<Item>({
   renderItem,
   controlsRef,
   onSectionChange,
+  initialSectionId,
 }: PickerGridProps<Item>) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const rows = useMemo(() => createRows(sections, columns), [sections, columns]);
@@ -67,6 +87,8 @@ export function PickerGrid<Item>({
     getScrollElement: () => viewportRef.current,
     estimateSize: (index) => (rows[index].title ? SECTION_TITLE_HEIGHT : rowHeight),
     getItemKey: (index) => rows[index].key,
+    // A replacement grid must begin at its requested category, before native scrolling starts.
+    initialOffset: () => getSectionOffset({ rows, sectionId: initialSectionId, rowHeight }),
     overscan: OVERSCAN_ROWS,
     onChange: (instance) => {
       const offset = instance.scrollOffset ?? 0;

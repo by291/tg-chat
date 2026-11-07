@@ -322,36 +322,63 @@
 }
 
 .reactions {
+  --reaction-spacing: 6px;
   position: relative;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
+  margin-top: -2px;
 }
 
-.reactions > .metadata {
-  align-self: flex-end;
-  margin-left: auto;
+.reactions > .reactionPosition {
+  margin-top: var(--reaction-spacing);
+  margin-inline-end: var(--reaction-spacing);
+}
+
+.reactions > .reactionPosition:last-child,
+.reactions > .reactionPosition:has(+ .metadata) {
+  margin-inline-end: 0;
+}
+
+.messageRow .reactions > .metadata {
+  /* The timestamp occupies its own width, including when it wraps without another reaction. */
+  order: 1;
+  margin-top: 2px;
+  margin-left: 3px;
 }
 
 .reactions button {
   display: flex;
   align-items: center;
-  gap: 5px;
   min-height: 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 30px;
   color: var(--accent-color);
   background: var(--reply-color);
   font-size: 22px;
   cursor: pointer;
 }
 
-.reactions span {
+.reactionPosition {
+  /* Layout translation belongs outside the button so its entry scale cannot shorten the motion. */
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.reactionEmoji {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.reactionCount {
+  margin-inline: 6px 1px;
   font-size: 15px;
   font-weight: 500;
+  line-height: 18px;
 }
 
 .reactions .metadata,
@@ -378,9 +405,12 @@
   margin: 8px;
 }
 
-.bubble[data-visual-media='true'] > .forwarded,
-.bubble[data-visual-media='true'] > .reactions {
+.bubble[data-visual-media='true'] > .forwarded {
   margin: 4px 8px 8px;
+}
+
+.bubble[data-visual-media='true'] > .reactions {
+  margin: -2px 8px 8px;
 }
 
 .mediaContent {
@@ -568,9 +598,12 @@
 
 .bubble[data-structured='poll'] > .author,
 .bubble[data-structured='poll'] > .forwarded,
-.bubble[data-structured='poll'] > .replyPreview,
-.bubble[data-structured='poll'] > .reactions {
+.bubble[data-structured='poll'] > .replyPreview {
   margin: 4px 8px;
+}
+
+.bubble[data-structured='poll'] > .reactions {
+  margin: -2px 8px 4px;
 }
 
 :global(:root[data-theme='dark']) .messageRow[data-own='true'] .bubble {
