@@ -132,8 +132,8 @@
   right: calc((100% - var(--chat-content-width, 100%)) / 2);
   bottom: calc(var(--history-bottom-inset) + 8px);
   z-index: 4;
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   color: var(--text-color);
   background: var(--surface-color);
   box-shadow: 0 1px 8px 1px rgb(0 0 0 / 12%);
@@ -201,11 +201,6 @@
 }
 
 @media (max-width: 600px) {
-  .jumpButton {
-    width: 46px;
-    height: 46px;
-  }
-
   .unreadBadge {
     top: -12px;
     right: 3px;
