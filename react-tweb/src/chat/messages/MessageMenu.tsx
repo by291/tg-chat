@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { ReactionPicker } from './ReactionPicker';
 import { QUICK_REACTIONS } from './reactionChoices';
+import { holdReactionFlight } from './reactionFlight';
+import { prepareReactionLayout } from './reactionLayoutTransition';
 import { Ripple } from '../../components/Ripple';
 import { MenuDismissLayer } from '../MenuDismissLayer';
 import { CURRENT_USER_ID, type Message, type MessageAction, type MessageCommand } from '../model';
@@ -222,8 +224,17 @@ export function MessageMenu({
     if (!message || !target) {
       return;
     }
+    if (options.source && !message.reactions.includes(options.emoji)) {
+      holdReactionFlight({
+        source: options.source,
+        targetRow: target.row.querySelector('article') ?? target.row,
+        emoji: options.emoji,
+        messageId: message.id,
+      });
+    }
     restoreRowFocus();
     onClose();
+    prepareReactionLayout({ row: target.row });
     onReact(message.id, options.emoji);
   }
 

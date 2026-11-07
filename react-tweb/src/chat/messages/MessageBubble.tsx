@@ -4,6 +4,7 @@ import { Ripple } from '../../components/Ripple';
 import { MessageBody, MessageText } from './MessageBody';
 import { MessageMetadata } from './MessageMetadata';
 import { MessageReaction } from './MessageReaction';
+import { finishReactionLayout } from './reactionLayoutTransition';
 import { MessageTail } from './MessageTail';
 import { useDeferredMediaSource } from './deferredMedia';
 import { describeMessage } from '../messageFormatting';
@@ -67,6 +68,12 @@ export const MessageBubble = memo(function MessageBubble({
   onJumpToMessage,
 }: MessageBubbleProps) {
   const rowRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (row) {
+      finishReactionLayout({ row });
+    }
+  }, [message.reactions]);
   useLayoutEffect(() => {
     const element = rowRef.current;
     if (element) {

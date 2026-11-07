@@ -1,4 +1,12 @@
-import { memo, useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
+import {
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from 'react';
 import { IconButton } from '../../components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
@@ -20,6 +28,7 @@ import { StickyDateHeaders } from './StickyDateHeaders';
 import { createHistoryDateGroups } from './historyDates';
 import { createHistorySenderGroups } from './historySenderGroups';
 import { StickySenderAvatars } from './StickySenderAvatars';
+import { registerReactionLayoutHistory } from '../messages/reactionLayoutTransition';
 import { SearchDateDialog } from '../search/SearchDateDialog';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import type { OutgoingMessageMount } from '../messages/outgoingMessageTransition';
@@ -94,6 +103,25 @@ function VirtualMessageHistory({
     navigation,
     onReachLatest,
   });
+  useLayoutEffect(() => {
+    const viewport = scroll.viewportRef.current;
+    if (!viewport) {
+      return;
+    }
+    return registerReactionLayoutHistory({
+      viewport,
+      measureRow: (row) => {
+        if (!(row instanceof HTMLDivElement)) {
+          return;
+        }
+        const index = scroll.virtualizer.indexFromElement(row);
+        // measureElement defers reads during user scrolling. A local reaction needs its final
+        // size now, before presentation snapshots, while TanStack still owns the actual layout.
+        scroll.virtualizer.resizeItem(index, row.getBoundingClientRect().height);
+      },
+      scrollToEnd: () => scroll.virtualizer.scrollToEnd({ behavior: 'auto' }),
+    });
+  }, [scroll.viewportRef, scroll.virtualizer, registerReactionLayoutHistory]);
   const menu = useMessageMenu({
     viewportRef: scroll.viewportRef,
     isDisabled: isPreview,
@@ -243,7 +271,7 @@ function VirtualMessageHistory({
                   inert={isPreview}
                   style={{ transform: `translateY(${item.start + bottomAlignment}px)` }}
                 >
-                  <div className={styles.rowContent}>
+                  <div className={styles.rowContent} data-message-row-content>
                     {row.kind === 'date' ? (
                       <div className={styles.dateSpace} aria-hidden="true" />
                     ) : (
