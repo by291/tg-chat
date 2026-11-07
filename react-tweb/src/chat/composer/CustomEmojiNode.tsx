@@ -3,9 +3,12 @@ import {
   $applyNodeReplacement,
   type NodeKey,
   type SerializedLexicalNode,
+  type DOMConversionMap,
+  type DOMExportOutput,
 } from 'lexical';
 import type { ReactElement } from 'react';
 import { CustomEmojiText } from '../emoji/CustomEmojiText';
+import { findCustomEmoji } from '../emoji/customEmojiCatalog';
 
 interface SerializedCustomEmoji extends SerializedLexicalNode {
   documentId: string;
@@ -52,6 +55,32 @@ export class CustomEmojiNode extends DecoratorNode<ReactElement> {
     };
   }
 
+  /** Restore supported custom emoji from copied or persisted semantic HTML. */
+  static importDOM(): DOMConversionMap {
+    return {
+      span: (element) => {
+        const documentId = element.getAttribute('data-custom-emoji');
+        if (!documentId || !findCustomEmoji(documentId)) {
+          return null;
+        }
+        return {
+          priority: 4,
+          conversion: () => ({
+            node: $createCustomEmojiNode({ documentId, text: element.textContent ?? '' }),
+          }),
+        };
+      },
+    };
+  }
+
+  /** Keep the emoji reference and readable fallback when copying or saving rich content. */
+  exportDOM(): DOMExportOutput {
+    const element = document.createElement('span');
+    element.setAttribute('data-custom-emoji', this.getDocumentId());
+    element.textContent = this.getTextContent();
+    return { element };
+  }
+
   /** Mount an inline noneditable host for the React animation. */
   createDOM() {
     const element = document.createElement('span');
@@ -85,7 +114,13 @@ export class CustomEmojiNode extends DecoratorNode<ReactElement> {
     return (
       <CustomEmojiText
         text={this.__text}
-        customEmoji={[{ documentId: this.__documentId, offset: 0, length: this.__text.length }]}
+        customEmoji={[
+          {
+            documentId: this.__documentId,
+            offset: 0,
+            length: this.__text.length,
+          },
+        ]}
       />
     );
   }

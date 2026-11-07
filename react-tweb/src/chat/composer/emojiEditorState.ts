@@ -3,12 +3,33 @@ import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
+  $getEditor,
+  $insertNodes,
   $isElementNode,
+  $isTextNode,
   type LexicalNode,
 } from 'lexical';
-import { splitEmojiText, type EmojiText } from '../emoji/customEmojiEntities';
+import { $generateNodesFromDOM } from '@lexical/html';
+import {
+  splitEmojiText,
+  type EmojiText,
+  type CustomEmojiEntity,
+} from '../emoji/customEmojiEntities';
 import { findCustomEmoji } from '../emoji/customEmojiCatalog';
 import { CustomEmojiNode, $createCustomEmojiNode } from './CustomEmojiNode';
+import { $exportRichEditorHtml, parseRichEditorHtml } from './richEditorHtml';
+
+// prettier-ignore
+const PLAIN_NODE_TYPES = new Set([
+  'root',
+  'paragraph',
+  'linebreak',
+  'custom-emoji',
+]);
+
+interface EditorText extends EmojiText {
+  customEmoji: CustomEmojiEntity[];
+}
 
 function createTextNodes(text: string) {
   const nodes: LexicalNode[] = [];
@@ -28,6 +49,15 @@ function createTextNodes(text: string) {
 export function $replaceEmojiEditor(value: EmojiText) {
   const root = $getRoot();
   root.clear();
+  if (value.richText) {
+    const document = parseRichEditorHtml(value.richText);
+    const nodes = $generateNodesFromDOM($getEditor(), document);
+    if (nodes.length > 0) {
+      root.select();
+      $insertNodes(nodes);
+      return;
+    }
+  }
   const paragraph = $createParagraphNode();
   for (const part of splitEmojiText(value)) {
     const emoji = part.documentId ? findCustomEmoji(part.documentId) : undefined;
@@ -40,32 +70,67 @@ export function $replaceEmojiEditor(value: EmojiText) {
   root.append(paragraph);
 }
 
-function appendNodeText(node: LexicalNode, value: Required<EmojiText>) {
-  if ($isElementNode(node)) {
-    for (const child of node.getChildren()) {
-      appendNodeText(child, value);
-    }
-    return;
-  }
-  const text = node.getTextContent();
+function collectCustomEmoji(options: {
+  node: LexicalNode;
+  offset: number;
+  entities: CustomEmojiEntity[];
+}) {
+  const { node, offset, entities } = options;
   if (node instanceof CustomEmojiNode) {
-    value.customEmoji.push({
+    entities.push({
       documentId: node.getDocumentId(),
-      offset: value.text.length,
-      length: text.length,
+      offset,
+      length: node.getTextContent().length,
     });
   }
-  value.text += text;
+  if (!$isElementNode(node)) {
+    return;
+  }
+
+  // Lists and tables own their text separators. Locate children within that representation
+  // instead of inventing a second set of newline/tab rules and corrupting emoji offsets.
+  const text = node.getTextContent();
+  let cursor = 0;
+  for (const child of node.getChildren()) {
+    const childText = child.getTextContent();
+    const childOffset = text.indexOf(childText, cursor);
+    if (childOffset < 0) {
+      continue;
+    }
+    collectCustomEmoji({
+      node: child,
+      offset: offset + childOffset,
+      entities,
+    });
+    cursor = childOffset + childText.length;
+  }
+}
+
+function hasRichFormatting(node: LexicalNode): boolean {
+  if ($isTextNode(node)) {
+    return node.getFormat() !== 0;
+  }
+  const isPlainNode = PLAIN_NODE_TYPES.has(node.getType());
+  if (!isPlainNode) {
+    return true;
+  }
+  if ($isElementNode(node)) {
+    return node.getChildren().some(hasRichFormatting);
+  }
+  return false;
 }
 
 /** Read offsets from the editor tree, including line breaks and atomic emoji fallbacks. */
-export function $readEmojiEditor(): Required<EmojiText> {
-  const value: Required<EmojiText> = { text: '', customEmoji: [] };
-  for (const [index, paragraph] of $getRoot().getChildren().entries()) {
-    if (index > 0) {
-      value.text += '\n';
-    }
-    appendNodeText(paragraph, value);
+export function $readEmojiEditor(): EditorText {
+  const root = $getRoot();
+  const value: EditorText = { text: root.getTextContent(), customEmoji: [] };
+  collectCustomEmoji({
+    node: root,
+    offset: 0,
+    entities: value.customEmoji,
+  });
+  if (hasRichFormatting(root)) {
+    value.richText = $exportRichEditorHtml();
   }
   return value;
 }

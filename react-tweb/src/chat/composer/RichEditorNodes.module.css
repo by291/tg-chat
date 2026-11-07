@@ -1,0 +1,28 @@
+.spoiler {
+  border-radius: 3px;
+  background: rgb(120 120 120 / 25%);
+}
+
+.details {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent-color, #3390ec);
+  border-radius: 4px;
+  background: rgb(51 144 236 / 7%);
+}
+
+.details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.math {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.date {
+  color: var(--accent-color, #3390ec);
+  border-radius: 3px;
+  background: rgb(51 144 236 / 9%);
+}
