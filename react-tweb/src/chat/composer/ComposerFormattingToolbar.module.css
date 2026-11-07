@@ -1,0 +1,237 @@
+.button {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .button:hover,
+.button[aria-pressed='true'] {
+  background: rgb(128 128 128 / 18%);
+}
+
+.button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.button:focus-visible,
+.language:focus-visible,
+.menu button:focus-visible {
+  outline: 2px solid var(--accent-color, #3390ec);
+  outline-offset: -2px;
+}
+
+.floating {
+  position: fixed;
+  z-index: 1500;
+  display: flex;
+  width: max-content;
+  height: 48px;
+  align-items: center;
+  padding: 0;
+  overflow-x: auto;
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 0 20px rgb(0 0 0 / 15%);
+  color: var(--text-color);
+  scrollbar-width: none;
+  animation: formatting-enter var(--duration-normal) var(--ease-out);
+}
+
+.floating .button {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+  margin-inline: 4px;
+  border-radius: 50%;
+}
+
+.floating .button[aria-pressed='true'] {
+  background: var(--accent-color);
+  color: white;
+}
+
+.separator {
+  width: 1px;
+  height: 25px;
+  flex: 0 0 1px;
+  margin: 0 1.5px;
+  background: var(--border-color);
+}
+
+.history,
+.bottom {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  height: 44px;
+  align-items: center;
+  gap: 3px;
+  color: var(--secondary-color, #707579);
+}
+
+.history {
+  top: 2px;
+  left: 0;
+}
+
+.bottom {
+  right: 0;
+  bottom: 2px;
+  left: 0;
+}
+
+.language {
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent-color, #3390ec);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.menu {
+  z-index: 1600;
+  min-width: 190px;
+  max-height: min(440px, 70dvh);
+  overflow: auto;
+  padding: 6px;
+}
+
+.menu button {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-color, #111);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .menu button:hover {
+  background: rgb(128 128 128 / 12%);
+}
+
+.menu button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.backdrop {
+  position: fixed;
+  z-index: 1700;
+  inset: 0;
+  background: rgb(0 0 0 / 35%);
+}
+
+.dialogPositioner {
+  position: fixed;
+  z-index: 1701;
+  display: flex;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.dialog {
+  width: min(420px, 100%);
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--surface-color, white);
+  box-shadow: 0 6px 30px rgb(0 0 0 / 20%);
+  color: var(--text-color, #111);
+}
+
+.dialogTitle {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+
+.dialogDescription {
+  margin: 0 0 20px;
+  color: var(--secondary-color, #707579);
+  font-size: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 14px;
+}
+
+.field input {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgb(128 128 128 / 40%);
+  border-radius: 9px;
+  outline-color: var(--accent-color, #3390ec);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.preview {
+  max-height: 180px;
+  margin-top: 16px;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 8px;
+  background: rgb(128 128 128 / 7%);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.dialogActions button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent-color, #3390ec);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .dialogActions button:hover {
+  background: rgb(51 144 236 / 9%);
+}
+
+@keyframes formatting-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

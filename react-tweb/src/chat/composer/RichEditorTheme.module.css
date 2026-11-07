@@ -1,0 +1,157 @@
+.bold {
+  font-weight: 700;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.underline {
+  text-decoration: underline;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+}
+
+.underlineStrikethrough {
+  text-decoration: underline line-through;
+}
+
+.inlineCode,
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--reply-color);
+}
+
+.inlineCode {
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.code {
+  display: block;
+  padding: 12px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  tab-size: 2;
+}
+
+.highlight {
+  background: #fff29d;
+  color: #191919;
+}
+
+.subscript,
+.superscript {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+.subscript {
+  vertical-align: sub;
+}
+
+.superscript {
+  vertical-align: super;
+}
+
+.quote {
+  margin: 4px 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent-color);
+  border-radius: 4px;
+  background: var(--reply-color);
+}
+
+.link {
+  color: var(--accent-color);
+  text-decoration: underline;
+}
+
+.unorderedList,
+.orderedList {
+  margin: 4px 0;
+  padding-left: 24px;
+}
+
+.unorderedList {
+  list-style: disc;
+}
+
+.orderedList {
+  list-style: decimal;
+}
+
+.listItem {
+  padding: 2px 0;
+}
+
+.nestedItem {
+  list-style: none;
+}
+
+.checkedItem,
+.uncheckedItem {
+  position: relative;
+  list-style: none;
+}
+
+.checkedItem::before,
+.uncheckedItem::before {
+  position: absolute;
+  top: 4px;
+  left: -22px;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--accent-color);
+  border-radius: 4px;
+  content: '';
+  cursor: pointer;
+}
+
+.checkedItem::before {
+  background: var(--accent-color);
+}
+
+.checkedItem::after {
+  position: absolute;
+  top: 6px;
+  left: -17px;
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(45deg);
+  content: '';
+  pointer-events: none;
+}
+
+.tableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.tableCell {
+  min-width: 72px;
+  padding: 8px;
+  border: 1px solid var(--secondary-color);
+  vertical-align: top;
+  text-align: left;
+}
+
+.tableCellHeader {
+  font-weight: 500;
+  background: var(--hover-color);
+}
+
+.tableCellSelected {
+  background: var(--reply-color);
+}
