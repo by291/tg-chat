@@ -67,5 +67,28 @@ Preview renderer: https://github.com/laggykiller/rlottie-python.
 Neither tool is a runtime dependency of the React application.
 
 Emoji Mart and `@emoji-mart/data` provide Unicode emoji metadata and search under the MIT
-license. Lottie Web provides animation playback under the MIT license. Emoji glyphs are drawn
-by the operating system; no proprietary emoji artwork is bundled.
+license. Lottie Web provides animation playback under the MIT license. Standard Unicode emoji glyphs are drawn
+by the operating system. The separately bundled custom emoji artwork is listed below.
+
+## Public Telegram custom emoji
+
+Downloaded from the Telegram Bot API on November 7, 2026:
+
+- Face Emoji: https://t.me/addemoji/FaceEmoji (56 custom emoji)
+- Hand Emoji: https://t.me/addemoji/HandEmoji (64 custom emoji)
+- Gold Utya | @EmojisTG: https://t.me/addemoji/GoldUtyaEmoji (200 custom emoji)
+
+The 11 monochrome search category animations were resolved from the document IDs rendered
+by Telegram K's emoji search. Category API reference: https://core.telegram.org/api/emoji-categories.
+They are tinted locally while preserving their animated alpha, matching the repaintable asset usage.
+
+Original TGS files and locally rendered 100 × 100 WebP previews are stored under
+`public/assets/emoji/`. `SOURCES.json` records SHA-256 checksums. The catalog retains Telegram
+custom emoji document IDs, original pack order and Unicode fallback metadata. Credentials,
+private account data and API response caches are not bundled.
+
+Artwork belongs to its respective creators. Public availability does not relicense the artwork
+under this project's GPL license; no separate artwork license is asserted.
+
+Lexical and `@lexical/react` provide the inline emoji editor under the MIT license:
+https://github.com/facebook/lexical.

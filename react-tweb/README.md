@@ -129,7 +129,28 @@ original TGS files from the public Telegram packs on November 7, 2026. All 118 f
 metadata. WebP covers are first frames rendered locally at 100 × 100 pixels. Source links and
 SHA-256 checksums are recorded in `public/assets/stickers/SOURCES.json`.
 
-Online pack discovery, premium custom emoji, GIF search, scheduled sending, and Telegram's
+Online pack discovery, Telegram Premium entitlement checks, GIF search, scheduled sending, and Telegram's
 worker-based animation renderer are not connected in this local demo. No bot token, API cache,
 or Telegram login session is required at runtime or included in the project. The previous AVIF
 exports and UI-animation sample packs have been removed; no legacy sticker catalog is retained.
+
+### Local custom emoji
+
+The Emoji tab includes Face Emoji (56), Hand Emoji (64), and Gold Utya (200). These are
+original Telegram TGS documents, not Unicode font substitutions. The search field also uses
+Telegram's 11 original animated emotion category icons. `public/assets/emoji/SOURCES.json`
+records public source links, retrieval date, and checksums for animations and generated previews.
+
+- `src/chat/emoji/` owns document lookup, UTF-16 entity ranges, and inline message rendering.
+- `EmojiEditor` uses Lexical for atomic emoji nodes, selection, composition, deletion and undo.
+  The domain model remains plain text plus `customEmoji` ranges; it does not persist editor JSON.
+  Draft ranges are saved independently for each chat alongside the existing draft strings.
+- Sending and editing trim text and shift emoji ranges together. Forwarding preserves document
+  IDs, and reload restores both sent messages and unsent custom emoji. Unicode fallback text
+  remains available to search, previews and plain-text clipboard operations.
+- Packs share the existing virtual grid, search filters, recents and visibility-aware TGS player.
+  Only visible rows decode animations. Emoji use the same window-focus, reduced-motion and
+  looping policy as stickers; they do not introduce additional animation timers.
+
+These packs are bundled for the local study. Runtime code does not call Telegram or require a
+bot token, account login, or subscription. Artwork attribution is in `THIRD_PARTY_NOTICES.md`.
