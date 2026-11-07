@@ -1,10 +1,37 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { get } from 'idb-keyval';
 import { createInitialState } from '../demo/fixtures';
-import { parseSavedState } from './storage';
+import { loadChatState, parseSavedState } from './storage';
+
+vi.mock('idb-keyval', () => ({ get: vi.fn(), set: vi.fn() }));
 
 describe('saved conversations', () => {
+  it('restores content without reopening the previous session selection', async () => {
+    const state = createInitialState();
+    state.activeChatId = 'dev';
+    state.drafts.dev = 'Keep this draft';
+    vi.mocked(get).mockResolvedValue(state);
+
+    const restored = await loadChatState();
+
+    expect(restored?.activeChatId).toBe('');
+    expect(restored?.drafts.dev).toBe('Keep this draft');
+    expect(restored?.messages).toEqual(state.messages);
+  });
+
+  it('retains messages and drafts when no conversation is selected', () => {
+    const state = createInitialState();
+    state.activeChatId = '';
+    state.drafts.dev = 'Keep this draft';
+
+    const restored = parseSavedState(state);
+
+    expect(restored?.drafts.dev).toBe('Keep this draft');
+    expect(restored?.messages).toEqual(state.messages);
+  });
+
   it('sanitizes restored message content and drafts without dropping their formatting', () => {
     const state = createInitialState();
     const unsafeRichText =

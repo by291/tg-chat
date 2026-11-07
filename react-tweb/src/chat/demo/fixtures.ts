@@ -205,8 +205,13 @@ function createOtherMessages(): Message[] {
 export function createInitialState(): ChatState {
   return {
     version: 2,
-    activeChatId: DEFAULT_CHAT_ID,
-    messages: [...devMessages, ...createOtherMessages(), ...createHistoryMessages()],
+    activeChatId: '',
+    // prettier-ignore
+    messages: [
+      ...devMessages,
+      ...createOtherMessages(),
+      ...createHistoryMessages(),
+    ],
     drafts: {},
     isDark: false,
   };

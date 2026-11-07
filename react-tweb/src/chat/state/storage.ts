@@ -16,7 +16,7 @@ export function parseSavedState(value: unknown): ChatState | undefined {
     return conversation.id === result.data.activeChatId;
   });
 
-  if (!hasConversation) {
+  if (result.data.activeChatId && !hasConversation) {
     return undefined;
   }
 
@@ -34,7 +34,9 @@ export function parseSavedState(value: unknown): ChatState | undefined {
 /** Restore the local conversation state from IndexedDB. */
 export async function loadChatState(): Promise<ChatState | undefined> {
   const savedState: unknown = await get(STORAGE_KEY);
-  return parseSavedState(savedState);
+  const state = parseSavedState(savedState);
+  // Selection belongs to this navigation session, not the persisted conversation content.
+  return state ? { ...state, activeChatId: '' } : undefined;
 }
 
 /** Persist a complete snapshot, including image data, in one IndexedDB write. */

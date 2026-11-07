@@ -19,25 +19,34 @@ export function ChatApp() {
   const conversationEntries = useConversationList(state);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
-  const [isMobileChatOpen, setIsMobileChatOpen] = useState(true);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [mediaMessage, setMediaMessage] = useState<Message>();
   const [forwardDrafts, setForwardDrafts] = useState<Record<string, Message[]>>({});
   const [notice, setNotice] = useState('');
   const [requestedChatId] = useState(() => new URL(window.location.href).searchParams.get('chat'));
   const isConversationDeleted =
     state.conversationPreferences?.[state.activeChatId]?.isDeleted ?? false;
-  const hasDetails = isDetailsOpen && !isConversationDeleted;
-  const conversation =
-    conversations.find((entry) => entry.id === state.activeChatId) || conversations[0];
-  const activeEntry = conversationEntries.find((entry) => entry.id === conversation.id);
-  const messages = state.messages.filter((message) => message.chatId === conversation.id);
+  const conversation = conversationEntries.find((entry) => entry.id === state.activeChatId);
+  const hasConversation = Boolean(conversation) && !isConversationDeleted;
+  const hasDetails = isDetailsOpen && hasConversation;
+  const activeEntry = conversationEntries.find((entry) => entry.id === conversation?.id);
+  const messages = state.messages.filter((message) => message.chatId === conversation?.id);
 
-  useEffect(() => {
-    const isKnownConversation = conversations.some((entry) => entry.id === requestedChatId);
-    if (isReady && requestedChatId && isKnownConversation) {
-      dispatch({ type: 'select-chat', chatId: requestedChatId });
-    }
-  }, [isReady, requestedChatId, dispatch]);
+  useEffect(
+    () => {
+      const isKnownConversation = conversations.some((entry) => entry.id === requestedChatId);
+      if (isReady && requestedChatId && isKnownConversation) {
+        dispatch({ type: 'select-chat', chatId: requestedChatId });
+        setIsMobileChatOpen(true);
+      }
+    },
+    // prettier-ignore
+    [
+    isReady,
+    requestedChatId,
+    dispatch,
+  ],
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.isDark ? 'dark' : 'light';
@@ -65,12 +74,15 @@ export function ChatApp() {
   }
 
   const clearForwardDraft = useCallback(() => {
+    if (!conversation) {
+      return;
+    }
     setForwardDrafts((current) => {
       const next = { ...current };
       delete next[conversation.id];
       return next;
     });
-  }, [conversation.id]);
+  }, [conversation?.id]);
 
   if (!isReady) {
     return (
@@ -84,7 +96,7 @@ export function ChatApp() {
     <div
       className={styles.app}
       data-details-open={hasDetails}
-      data-mobile-chat-open={isMobileChatOpen}
+      data-mobile-chat-open={isMobileChatOpen && hasConversation}
     >
       <div className={styles.sidebarSlot}>
         <ChatSidebar
@@ -95,7 +107,7 @@ export function ChatApp() {
         />
       </div>
       <div className={styles.conversationSlot}>
-        {!isConversationDeleted && (
+        {hasConversation && conversation && (
           <ConversationPane
             key={conversation.id}
             conversation={conversation}
@@ -113,15 +125,14 @@ export function ChatApp() {
             onNotify={setNotice}
           />
         )}
-        {isConversationDeleted && (
+        {!hasConversation && (
           <div className={styles.emptyConversation}>
-            <p>Select a conversation to start messaging</p>
-            <button onClick={() => setIsMobileChatOpen(false)}>Back to chats</button>
+            <p>Select a chat to start messaging</p>
           </div>
         )}
       </div>
       <div className={styles.detailsSlot} inert={!hasDetails} aria-hidden={!hasDetails}>
-        {hasOpenedDetails && (
+        {hasOpenedDetails && conversation && (
           <ChatDetails
             key={conversation.id}
             conversation={conversation}

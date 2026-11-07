@@ -81,20 +81,18 @@
 
 .emptyConversation {
   align-self: center;
-  padding: 20px;
-  border-radius: 20px;
-  color: var(--text-color);
+  padding: 6px 12px;
+  border-radius: 16px;
+  color: white;
   text-align: center;
-  background: var(--surface-color);
+  background: var(--service-color);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
-.emptyConversation button {
-  padding: 8px 16px;
-  border: 0;
-  border-radius: 12px;
-  color: var(--accent-color);
-  background: var(--hover-color);
-  cursor: pointer;
+.emptyConversation p {
+  margin: 0;
 }
 
 .toast,
