@@ -147,6 +147,22 @@ textarea::placeholder {
   background: rgb(184 90 208 / 25%);
 }
 
+:root[data-theme-transition]::view-transition-old(root),
+:root[data-theme-transition]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+:root[data-theme-transition='reveal']::view-transition-new(root),
+:root[data-theme-transition='conceal']::view-transition-old(root) {
+  z-index: 1;
+}
+
+:root[data-theme-transition='reveal']::view-transition-old(root),
+:root[data-theme-transition='conceal']::view-transition-new(root) {
+  z-index: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

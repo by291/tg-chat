@@ -8,6 +8,7 @@ import type { Message } from '../chat/model';
 import { useConversationList } from '../chat/sidebar/conversationList';
 import { useChatState } from '../chat/state/useChatState';
 import { useInputModality } from './useInputModality';
+import { useThemeTransition } from './useThemeTransition';
 import styles from './ChatApp.module.css';
 
 const NOTICE_DURATION = 4000;
@@ -31,6 +32,7 @@ export function ChatApp() {
   const hasDetails = isDetailsOpen && hasConversation;
   const activeEntry = conversationEntries.find((entry) => entry.id === conversation?.id);
   const messages = state.messages.filter((message) => message.chatId === conversation?.id);
+  const toggleTheme = useThemeTransition({ isDark: state.isDark, dispatch });
 
   useEffect(
     () => {
@@ -47,10 +49,6 @@ export function ChatApp() {
     dispatch,
   ],
   );
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = state.isDark ? 'dark' : 'light';
-  }, [state.isDark]);
 
   useEffect(() => {
     if (!notice) {
@@ -103,7 +101,7 @@ export function ChatApp() {
           state={state}
           dispatch={dispatch}
           onSelectChat={selectConversation}
-          onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
+          onToggleTheme={toggleTheme}
         />
       </div>
       <div className={styles.conversationSlot}>

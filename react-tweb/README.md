@@ -25,7 +25,7 @@ pnpm format:check
 
 - Floating conversation list, centered toolbar and composer, pastel patterned wallpaper.
 - Responsive desktop and mobile navigation, plus a dark appearance.
-- An unselected entry screen and explicit `?chat=` navigation.
+- An unselected entry screen, explicit `?chat=` navigation, and circular light/dark transitions.
 - Conversation filtering and message search within the current conversation.
 - Text messages, Shift+Enter newlines, and IME-safe Enter submission.
 - Selection formatting, links, spoilers, dates, and expanded rich-text composition.

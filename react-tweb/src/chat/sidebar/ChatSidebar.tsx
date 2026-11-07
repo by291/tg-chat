@@ -1,3 +1,4 @@
+import type { ThemeOrigin } from '../../app/useThemeTransition';
 import { Archive, ArrowLeft, MoreVertical, Pencil, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState, type Dispatch } from 'react';
 import { Avatar } from '../../components/Avatar';
@@ -33,7 +34,7 @@ interface ChatSidebarProps {
   state: ChatState;
   dispatch: Dispatch<ChatAction>;
   onSelectChat: (chatId: string) => void;
-  onToggleTheme: () => void;
+  onToggleTheme: (origin?: ThemeOrigin) => void;
 }
 
 /** Display local conversations and switch to search without losing list position. */

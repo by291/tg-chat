@@ -1,6 +1,7 @@
 import { Menu } from '@ark-ui/react/menu';
 import { Archive, Bookmark, Moon, Sticker } from 'lucide-react';
-import { useState, type Ref } from 'react';
+import { useRef, useState, type Ref } from 'react';
+import type { ThemeOrigin } from '../../app/useThemeTransition';
 import { IconButton } from '../../components/IconButton';
 import { Ripple } from '../../components/Ripple';
 import { MenuDismissLayer } from '../MenuDismissLayer';
@@ -13,7 +14,7 @@ interface SidebarMenuProps {
   menuButtonRef: Ref<HTMLButtonElement>;
   onCloseSearch: () => void;
   onSelectChat: (chatId: string) => void;
-  onToggleTheme: () => void;
+  onToggleTheme: (origin?: ThemeOrigin) => void;
   onOpenArchive: () => void;
   onOpenStickerSettings: () => void;
   archiveUnreadCount: number;
@@ -32,6 +33,7 @@ export function SidebarMenu({
   archiveUnreadCount,
 }: SidebarMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const themeIconRef = useRef<SVGSVGElement>(null);
   const navigationIcon = (
     <span className={styles.menuIcon} data-back={isSearching} aria-hidden="true" />
   );
@@ -81,8 +83,18 @@ export function SidebarMenu({
                 )}
                 <Ripple />
               </Menu.Item>
-              <Menu.Item value="theme" className={overlays.menuItem} onSelect={onToggleTheme}>
-                <Moon /> {isDark ? 'Light mode' : 'Dark mode'}
+              <Menu.Item
+                value="theme"
+                className={overlays.menuItem}
+                onSelect={() => {
+                  const bounds = themeIconRef.current?.getBoundingClientRect();
+                  const origin = bounds
+                    ? { left: bounds.left + bounds.width / 2, top: bounds.top + bounds.height / 2 }
+                    : undefined;
+                  onToggleTheme(origin);
+                }}
+              >
+                <Moon ref={themeIconRef} /> {isDark ? 'Light mode' : 'Dark mode'}
                 <Ripple />
               </Menu.Item>
               <Menu.Item
