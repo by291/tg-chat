@@ -34,6 +34,8 @@ pnpm format:check
 - Editing, deleting with confirmation, pinning, copying text, and toggling reactions.
 - Keyboard-accessible menus, a categorized emoji picker, and local animated sticker packs.
 - Attachment menu for photos, videos, documents, expanded articles, polls, and checklists.
+- Structured poll/checklist dialogs with editable rows, validation, settings, and preserved drafts.
+- Local multiple-answer voting, quizzes, deadlines, revoting, and persistent checklist completion.
 - Photo paste and drop into the composer; attachment preview and captions.
 - Clickable date capsules, transient sticky dates, and calendar navigation through virtual history.
 - Persistent placeholder and overlapping microphone/send/edit icon transitions.
@@ -65,6 +67,10 @@ The history uses TanStack Virtual to bound mounted rows. Older pages currently c
 in-memory conversation; this is not remote history pagination. Persistence still writes complete
 snapshots, so the bounded DOM does not imply bounded application storage. Text drafts persist; unsent image previews remain transient and are cleared when
 switching conversations. Browser storage errors are reported in the interface.
+
+Polls and checklists use this device as the only participant. Permissions are stored and enforced
+locally; no Telegram server or Premium subscription is involved. Poll descriptions and explanations
+currently support plain text; embedded poll media and the custom end-date picker are not implemented.
 
 ## Dependencies and ownership
 
