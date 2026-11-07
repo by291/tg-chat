@@ -33,7 +33,10 @@ pnpm format:check
 - Reply previews, double-click to reply, and navigation to the original message.
 - Editing, deleting with confirmation, pinning, copying text, and toggling reactions.
 - Keyboard-accessible menus, a categorized emoji picker, and local animated sticker packs.
-- Photo upload, paste, and drop into the composer; attachment preview and captions.
+- Attachment menu for photos, videos, documents, expanded articles, polls, and checklists.
+- Photo paste and drop into the composer; attachment preview and captions.
+- Clickable date capsules, transient sticky dates, and calendar navigation through virtual history.
+- Persistent placeholder and overlapping microphone/send/edit icon transitions.
 - Full-screen photo gallery with keyboard navigation and download.
 - IndexedDB persistence for messages, text drafts, theme, and attached image data.
 - Grouped bubble corners, entry animations, panel transitions, and reduced-motion support.
@@ -43,7 +46,9 @@ pnpm format:check
 - Forward labels, service messages, code blocks, quotes, and media-overlay timestamps.
 
 Right-click a message or use its more button to open its actions. On touch screens, the more
-button remains visible. Images are limited to 8 MB each and are never uploaded to a server.
+button remains visible. Attachments are limited to 8 MB each and are never uploaded to a server.
+The microphone represents the empty composer state; recording remains unavailable. Poll and
+checklist creation use simplified local forms, and music search requires a remote provider.
 
 ## Deliberate boundaries
 
