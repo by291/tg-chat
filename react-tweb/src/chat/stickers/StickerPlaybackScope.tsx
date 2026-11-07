@@ -1,5 +1,5 @@
 import { createContext, useContext, useLayoutEffect, type ReactNode } from 'react';
-import { reserveStickerPlayback, type StickerPlaybackGroup } from './stickerPlayback';
+import { reserveAnimationPlayback, type StickerPlaybackGroup } from './stickerPlayback';
 
 const PlaybackGroupContext = createContext<StickerPlaybackGroup>('default');
 
@@ -19,7 +19,7 @@ export function StickerPlaybackScope({
     if (!isActive) {
       return;
     }
-    return reserveStickerPlayback(group);
+    return reserveAnimationPlayback(group);
   }, [group, isActive]);
 
   return <PlaybackGroupContext.Provider value={group}>{children}</PlaybackGroupContext.Provider>;

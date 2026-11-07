@@ -113,7 +113,11 @@ export function StickerArtwork({
       }
     }
 
-    const observer = new IntersectionObserver(([entry]) => {
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries.at(-1);
+      if (!entry) {
+        return;
+      }
       isVisible = entry.isIntersecting;
       if (isVisible) {
         void initializeAnimation();

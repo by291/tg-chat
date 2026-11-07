@@ -156,6 +156,7 @@ function RoundVideo({ media }: Pick<VideoFrameProps, 'media'>) {
       >
         <video
           ref={videoRef}
+          data-round-video
           src={displayedSource}
           poster={poster}
           width={media.width}

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { IconButton } from '../../components/IconButton';
 import { useClosingDialogValue } from '../sidebar/useClosingDialogValue';
 import type { Message } from '../model';
+import { reserveAnimationPlayback } from '../stickers/stickerPlayback';
 import { getGalleryMessages } from './photoGallery';
 import { ViewerGallery } from './ViewerGallery';
 import { ViewerToolbar } from './ViewerToolbar';
@@ -34,6 +35,12 @@ interface ViewerContentProps extends Omit<MediaViewerProps, 'message'> {
 function getMediaBox() {
   const reserve = window.innerWidth <= MOBILE_WIDTH ? 0 : DESKTOP_MEDIA_RESERVE;
   return { width: window.innerWidth, height: window.innerHeight - reserve };
+}
+
+function ViewerPlaybackReservation() {
+  // Ark unmounts content children after exit; the retained viewer shell stays mounted.
+  useLayoutEffect(() => reserveAnimationPlayback('viewer'), []);
+  return null;
 }
 
 function ViewerContent({
@@ -167,6 +174,7 @@ function ViewerContent({
         }
       }}
     >
+      <ViewerPlaybackReservation />
       <div
         ref={transform.containerRef}
         className={styles.transformLayer}

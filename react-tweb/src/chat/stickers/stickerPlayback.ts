@@ -1,16 +1,17 @@
 const STORAGE_KEY = 'react-tweb.sticker-playback.v1';
 
 export type StickerPlaybackGroup = 'default' | 'pack' | 'preview';
+type AnimationPlaybackGroup = StickerPlaybackGroup | 'viewer';
 
 interface PlaybackState {
   isWindowActive: boolean;
   isReducedMotion: boolean;
   shouldLoop: boolean;
-  exclusiveGroup: StickerPlaybackGroup | undefined;
+  exclusiveGroup: AnimationPlaybackGroup | undefined;
 }
 
 const listeners = new Set<() => void>();
-const exclusiveGroups = new Map<symbol, StickerPlaybackGroup>();
+const exclusiveGroups = new Map<symbol, AnimationPlaybackGroup>();
 let removeEnvironmentListeners: (() => void) | undefined;
 let playbackState: PlaybackState = {
   isWindowActive: document.hasFocus() && !document.hidden,
@@ -68,6 +69,11 @@ function observeEnvironment() {
 
 function synchronizeExclusiveGroup() {
   const groups = Array.from(exclusiveGroups.values());
+  // The full-screen viewer hides every chat and sticker overlay beneath it.
+  if (groups.includes('viewer')) {
+    updatePlaybackState({ exclusiveGroup: 'viewer' });
+    return;
+  }
   // A held preview takes priority over its pack; closing it restores the still-open pack.
   if (groups.includes('preview')) {
     updatePlaybackState({ exclusiveGroup: 'preview' });
@@ -109,7 +115,7 @@ export function setStickerLoopPreference({ shouldLoop }: { shouldLoop: boolean }
 }
 
 /** Reserve playback for an overlay until its own cleanup releases the reservation. */
-export function reserveStickerPlayback(group: Exclude<StickerPlaybackGroup, 'default'>) {
+export function reserveAnimationPlayback(group: Exclude<AnimationPlaybackGroup, 'default'>) {
   const reservation = Symbol(group);
   exclusiveGroups.set(reservation, group);
   synchronizeExclusiveGroup();

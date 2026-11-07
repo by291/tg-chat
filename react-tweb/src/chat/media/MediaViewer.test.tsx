@@ -3,11 +3,27 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
+import type { Message } from '../model';
+import { VideoFrame } from '../messages/VideoMessage';
 import { getGalleryMessages } from './photoGallery';
 import { MediaViewer } from './MediaViewer';
 
 const album = createInitialState().messages.find((message) => message.media?.kind === 'album')!;
 const photos = getGalleryMessages([album]);
+
+const videoMessage: Message = {
+  ...photos[0],
+  id: 'background-video',
+  attachment: undefined,
+  media: {
+    kind: 'video',
+    url: '/background.mp4',
+    poster: '/poster.jpg',
+    width: 640,
+    height: 360,
+    duration: 30,
+  },
+};
 
 beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({
@@ -27,6 +43,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -42,6 +59,86 @@ function GalleryScreen({ onClose = () => {} }: { onClose?: () => void }) {
       onNotify={() => {}}
     />
   );
+}
+
+function BackgroundVideoScreen({
+  message,
+  isRound = false,
+}: {
+  message?: Message;
+  isRound?: boolean;
+}) {
+  if (videoMessage.media?.kind !== 'video') {
+    throw new Error('The playback fixture requires a video.');
+  }
+  return (
+    <>
+      <VideoFrame media={{ ...videoMessage.media, isRound }} hasCaption={false} />
+      <MediaViewer
+        message={message}
+        messages={[...photos, videoMessage]}
+        onNavigate={() => {}}
+        onClose={() => {}}
+        onCommand={() => {}}
+        onNotify={() => {}}
+      />
+    </>
+  );
+}
+
+function configureVideoPlayback() {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      private callback: IntersectionObserverCallback;
+
+      constructor(callback: IntersectionObserverCallback) {
+        this.callback = callback;
+      }
+
+      observe(target: Element) {
+        this.callback(
+          [{ target, isIntersecting: true } as IntersectionObserverEntry],
+          this as unknown as IntersectionObserver,
+        );
+      }
+
+      disconnect() {}
+    },
+  );
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (
+    this: HTMLMediaElement,
+  ) {
+    Object.defineProperty(this, 'paused', { configurable: true, value: false });
+    this.dispatchEvent(new Event('play'));
+    return Promise.resolve();
+  });
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(function (
+    this: HTMLMediaElement,
+  ) {
+    Object.defineProperty(this, 'paused', { configurable: true, value: true });
+    this.dispatchEvent(new Event('pause'));
+  });
+}
+
+function dispatchViewerAnimation({
+  dialog,
+  type,
+  name,
+}: {
+  dialog: HTMLElement;
+  type: string;
+  name: string;
+}) {
+  const animationEvent = new Event(type, { bubbles: true });
+  Object.defineProperty(animationEvent, 'animationName', { value: name });
+  fireEvent(dialog, animationEvent);
 }
 
 it('keeps navigation available after clicking the selected album photo', async () => {
@@ -155,4 +252,73 @@ it('closes immediately on a desktop photo click without waiting for a double cli
   await waitFor(() => expect((zoom as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByAltText(photos[0].attachment!.name), { detail: 1 });
   expect(onClose).toHaveBeenCalledOnce();
+});
+
+it('pauses unrelated chat videos until the photo viewer finishes its exit animation', async () => {
+  configureVideoPlayback();
+  vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
+  const animationStyles = document.createElement('style');
+  animationStyles.textContent = `
+    [data-scope='dialog'][data-part='content'][data-state='open'] {
+      animation-name: viewer-enter;
+      animation-duration: 200ms;
+    }
+    [data-scope='dialog'][data-part='content'][data-state='closed'] {
+      animation-name: viewer-exit;
+      animation-duration: 200ms;
+    }
+  `;
+  document.head.append(animationStyles);
+  try {
+    const { container, rerender } = render(<BackgroundVideoScreen />);
+    const backgroundVideo = container.querySelector('video')!;
+    await waitFor(() => expect(backgroundVideo.paused).toBe(false));
+
+    rerender(<BackgroundVideoScreen message={photos[0]} />);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(backgroundVideo.paused).toBe(true));
+    dispatchViewerAnimation({ dialog, type: 'animationstart', name: 'viewer-enter' });
+    act(() => vi.runOnlyPendingTimers());
+
+    rerender(<BackgroundVideoScreen />);
+    await waitFor(() => expect(dialog.dataset.state).toBe('closed'));
+    act(() => vi.runOnlyPendingTimers());
+    expect(dialog.isConnected).toBe(true);
+    expect(backgroundVideo.paused).toBe(true);
+
+    dispatchViewerAnimation({ dialog, type: 'animationend', name: 'viewer-exit' });
+    await waitFor(() => expect(dialog.isConnected).toBe(false));
+    expect(backgroundVideo.paused).toBe(false);
+  } finally {
+    animationStyles.remove();
+    vi.useRealTimers();
+  }
+});
+
+it('keeps the viewer video playing while unrelated chat previews are paused', async () => {
+  configureVideoPlayback();
+  const { container } = render(<BackgroundVideoScreen message={videoMessage} />);
+  const backgroundVideo = container.querySelector('video')!;
+  const dialog = await screen.findByRole('dialog');
+  const viewerVideo = dialog.querySelector('video')!;
+
+  await waitFor(() => expect(viewerVideo.paused).toBe(false));
+  expect(backgroundVideo.paused).toBe(true);
+});
+
+it('pauses round playback behind the viewer and requires manual resume after close', async () => {
+  configureVideoPlayback();
+  const { container, rerender } = render(<BackgroundVideoScreen isRound />);
+  const roundVideo = container.querySelector('video')!;
+  fireEvent.click(screen.getByRole('button', { name: 'Play video message' }));
+  await waitFor(() => expect(roundVideo.muted).toBe(false));
+  expect(roundVideo.paused).toBe(false);
+
+  rerender(<BackgroundVideoScreen message={photos[0]} isRound />);
+  await screen.findByRole('dialog');
+  expect(roundVideo.paused).toBe(true);
+
+  rerender(<BackgroundVideoScreen isRound />);
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(roundVideo.paused).toBe(true);
 });
