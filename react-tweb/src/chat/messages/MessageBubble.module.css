@@ -308,7 +308,7 @@
 }
 
 .bubble[data-visual-media='true'] .messageContent {
-  margin: 4px 8px 5px;
+  margin: 2px 8px 5px;
 }
 
 .bubble[data-visual-media='true'] > .author {
@@ -340,6 +340,11 @@
   border-bottom-right-radius: 0;
 }
 
+.bubble[data-media-only='true'][data-group-end='true'] .mediaContent {
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
+}
+
 .mediaContent > .metadata {
   position: absolute;
   right: 3px;
@@ -348,8 +353,7 @@
   margin: 0;
   padding: 0 5px;
   height: 18px;
-  border-radius: 10px;
-  color: white;
+  border-radius: 12px;
   background: rgb(0 0 0 / 35%);
   visibility: visible;
 }
@@ -362,6 +366,8 @@
 .mediaContent > .metadata .metadataInner,
 .bubble[data-standalone='true'] .metadataInner {
   position: static;
+  color: white;
+  margin-right: 0;
 }
 
 .bubble[data-standalone='true'] .messageContent {

@@ -1,8 +1,9 @@
 import { createAlbumPhoto } from '../media/photoGallery';
+import { PhotoBackdrop } from './PhotoBackdrop';
 import { useRef } from 'react';
 import { useDeferredMediaSource } from './deferredMedia';
 import { useVisiblePlayback } from './useVisiblePlayback';
-import { getMediaGeometry } from '../media/mediaGeometry';
+import { getMediaGeometry, getPhotoGeometry } from '../media/mediaGeometry';
 import type { MessageMedia, PhotoAttachment } from '../messageMedia';
 import type { Message } from '../model';
 import styles from './MessageBody.module.css';
@@ -18,15 +19,22 @@ interface PhotoFrameProps {
 /** Reserve the photo frame independently of the image loading lifecycle. */
 export function PhotoFrame({ photo, hasCaption, onOpen }: PhotoFrameProps) {
   const source = useDeferredMediaSource(photo.url);
-  const frame = getMediaGeometry({ ...photo, hasCaption });
+  const frame = getPhotoGeometry({ ...photo, hasCaption });
+  const borderWidth = 2;
+  const imageWidth = (frame.imageWidth / (frame.width - borderWidth)) * 100;
+
   return (
     <button
       className={styles.photoFrame}
+      data-fitted={frame.isFitted}
       style={{ width: frame.width, aspectRatio: `${frame.width} / ${frame.height}` }}
       onClick={onOpen}
       aria-label={`Open image: ${photo.name}`}
     >
+      {frame.isFitted && <PhotoBackdrop source={source} />}
       <img
+        className={styles.photoImage}
+        style={frame.isFitted ? { width: `${imageWidth}%` } : undefined}
         src={source}
         alt={photo.name}
         width={photo.width}

@@ -11,6 +11,8 @@
 }
 
 .photoFrame {
+  border-color: transparent;
+  background: transparent;
   cursor: zoom-in;
 }
 
@@ -21,6 +23,22 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.photoFrame .photoImage {
+  position: relative;
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+.photoFrame .photoBackdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* A stripped thumbnail fills the frame; cover would crop away its vertical color changes. */
+  object-fit: fill;
+  opacity: 0.8;
 }
 
 .videoFrame[data-round='true'] {
