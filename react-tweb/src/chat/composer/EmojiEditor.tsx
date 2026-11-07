@@ -24,6 +24,10 @@ import { $readEmojiEditor, $replaceEmojiEditor } from './emojiEditorState';
 import { shouldSubmitMessage } from './composerKeyboard';
 import styles from './EmojiEditor.module.css';
 
+// Lexical registers node classes by identity. A hot module update needs a new editor;
+// ordinary renders keep this key, and the parent-owned draft survives the remount.
+const EDITOR_INSTANCE_KEY = crypto.randomUUID();
+
 export interface EmojiEditorControls {
   focus: () => void;
   insertEmoji: (emoji: string) => void;
@@ -166,6 +170,7 @@ function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: 
 export function EmojiEditor(props: EmojiEditorProps) {
   return (
     <LexicalComposer
+      key={EDITOR_INSTANCE_KEY}
       initialConfig={{
         namespace: 'message-composer',
         nodes: [CustomEmojiNode],
