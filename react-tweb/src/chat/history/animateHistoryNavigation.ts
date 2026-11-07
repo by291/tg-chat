@@ -13,6 +13,7 @@ interface HistoryTargetOptions {
   virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
   messageId: string;
   targetIndex: number;
+  alignment?: 'center' | 'end';
 }
 
 interface HistoryNavigationOptions extends HistoryTargetOptions {
@@ -30,6 +31,7 @@ function findTarget({
   virtualizer,
   messageId,
   targetIndex,
+  alignment = 'center',
 }: HistoryTargetOptions): NavigationTarget | undefined {
   // Refresh estimates before reading the cache; newly mounted media can move the destination.
   virtualizer.getTotalSize();
@@ -39,12 +41,16 @@ function findTarget({
     return undefined;
   }
 
+  const maximumOffset = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+  if (alignment === 'end') {
+    return { index: item.index, offset: maximumOffset };
+  }
+
   const topInset = virtualizer.options.scrollPaddingStart;
   const bottomInset = virtualizer.options.scrollPaddingEnd;
   const visibleHeight = Math.max(0, viewport.clientHeight - topInset - bottomInset);
   const centerOffset = Math.max(0, (visibleHeight - item.size) / 2);
   const desiredOffset = item.start - topInset - centerOffset;
-  const maximumOffset = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
   return {
     index: item.index,
     offset: Math.max(0, Math.min(desiredOffset, maximumOffset)),
@@ -84,15 +90,18 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
   let startedAt: number | undefined;
   let duration = MIN_DURATION_MS;
   let easingPower = SHORT_EASING_POWER;
-  let previousEasedProgress = 0;
+  let startingOffset = viewport.scrollTop;
+  let currentOffset = startingOffset;
+  let plannedOffset = startingOffset;
 
   function finish(target?: NavigationTarget) {
+    // Release exclusive ownership before the virtualizer performs the final reconciliation.
+    onComplete();
     if (target) {
       // Let the virtualizer reconcile the measured landing instead of maintaining a second anchor.
       // The target is centered in the unobscured area, not under the floating header or composer.
       virtualizer.scrollToOffset(target.offset, { behavior: 'auto' });
     }
-    onComplete();
   }
 
   function animateFrame(timestamp: number) {
@@ -105,12 +114,15 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
       return;
     }
 
-    if (startedAt === undefined) {
+    const hasTargetChanged =
+      startedAt !== undefined && Math.abs(target.offset - plannedOffset) > POSITION_TOLERANCE;
+    if (startedAt === undefined || hasTargetChanged) {
+      // A changed layout gets its own remaining journey; it cannot inherit an expired deadline
+      // and turn the final frame into an instant jump to a newly measured destination.
       startedAt = timestamp;
-      const distance = Math.min(
-        Math.abs(target.offset - viewport.scrollTop),
-        MAX_ANIMATED_DISTANCE,
-      );
+      startingOffset = currentOffset;
+      plannedOffset = target.offset;
+      const distance = Math.min(Math.abs(plannedOffset - startingOffset), MAX_ANIMATED_DISTANCE);
       duration =
         MIN_DURATION_MS + (distance / MAX_ANIMATED_DISTANCE) * (MAX_DURATION_MS - MIN_DURATION_MS);
       easingPower = distance < SHORT_DISTANCE ? SHORT_EASING_POWER : LONG_EASING_POWER;
@@ -127,16 +139,10 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
       finish(target);
       return;
     }
-    const remainingProgress = 1 - previousEasedProgress;
-    const stepProgress = (easedProgress - previousEasedProgress) / remainingProgress;
-    const remainingDistance = target.offset - viewport.scrollTop;
-    const nextOffset = viewport.scrollTop + remainingDistance * stepProgress;
-
-    // Rebase on the current measured position each frame so late row sizing does not restart
-    // motion.
-    // Intermediate frames are scroll positions, not new virtualizer navigation commands.
-    viewport.scrollTop = nextOffset;
-    previousEasedProgress = easedProgress;
+    // Sample one trajectory from elapsed time. Reading pixel-rounded scrollTop back into the
+    // next frame would distort its low-speed tail, especially on high-refresh-rate displays.
+    currentOffset = startingOffset + (plannedOffset - startingOffset) * easedProgress;
+    viewport.scrollTop = currentOffset;
     frame = requestAnimationFrame(animateFrame);
   }
 
@@ -160,14 +166,30 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
       // Mount the destination's neighborhood before animating, rather than traversing thousands of
       // rows.
       const nearbyOffset = target.offset - Math.sign(distance) * MAX_ANIMATED_DISTANCE;
-      virtualizer.scrollToOffset(nearbyOffset, { behavior: 'auto' });
+      viewport.scrollTop = nearbyOffset;
     }
+    currentOffset = viewport.scrollTop;
     frame = requestAnimationFrame(animateFrame);
+  }
+
+  function measureDestination() {
+    if (isCancelled) {
+      return;
+    }
+    // The virtualizer skips ref measurements during an active wheel gesture. Read the mounted
+    // corridor explicitly, then let its canvas commit before computing a navigation trajectory.
+    const mountedRows = viewport.querySelectorAll<HTMLDivElement>('[data-index]');
+    for (const row of mountedRows) {
+      const index = virtualizer.indexFromElement(row);
+      virtualizer.resizeItem(index, row.getBoundingClientRect().height);
+    }
+    virtualizer.getTotalSize();
+    frame = requestAnimationFrame(prepare);
   }
 
   // Prepending history and its scroll-anchor correction must commit before reading the start
   // position.
-  frame = requestAnimationFrame(prepare);
+  frame = requestAnimationFrame(measureDestination);
   return () => {
     isCancelled = true;
     cancelAnimationFrame(frame);
