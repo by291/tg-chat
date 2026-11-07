@@ -81,38 +81,41 @@ function HistoryScreen({ navigation, historyRows = rows, overlayInsets }: Histor
   const totalHeight = scroll.virtualizer.getTotalSize();
   const bottomAlignment = Math.max(0, VIEWPORT_HEIGHT - totalHeight);
   return (
-    <div
-      ref={scroll.viewportRef}
-      aria-label="Message history"
-      onScroll={scroll.updateScrollPosition}
-      onWheel={scroll.cancelAutomaticScroll}
-    >
+    <>
+      <button onClick={scroll.jumpToLatest}>Latest</button>
       <div
-        ref={(element) => {
-          scroll.contentRef.current = element;
-          const viewport = element?.parentElement;
-          if (viewport) {
-            // Browsers clamp the scroll offset as soon as a shorter canvas commits.
-            const maximumOffset = Math.max(0, totalHeight + bottomAlignment - VIEWPORT_HEIGHT);
-            viewport.scrollTop = Math.min(viewport.scrollTop, maximumOffset);
-          }
-        }}
-        style={{ height: totalHeight + bottomAlignment }}
+        ref={scroll.viewportRef}
+        aria-label="Message history"
+        onScroll={scroll.updateScrollPosition}
+        onWheel={scroll.cancelAutomaticScroll}
       >
-        <div ref={scroll.animatedRowsRef} data-testid="animated-rows">
-          {scroll.virtualizer.getVirtualItems().map((item) => (
-            <div
-              key={item.key}
-              data-index={item.index}
-              ref={scroll.virtualizer.measureElement}
-              style={{ position: 'absolute', top: item.start + bottomAlignment }}
-            >
-              {String(item.key)}
-            </div>
-          ))}
+        <div
+          ref={(element) => {
+            scroll.contentRef.current = element;
+            const viewport = element?.parentElement;
+            if (viewport) {
+              // Browsers clamp the scroll offset as soon as a shorter canvas commits.
+              const maximumOffset = Math.max(0, totalHeight + bottomAlignment - VIEWPORT_HEIGHT);
+              viewport.scrollTop = Math.min(viewport.scrollTop, maximumOffset);
+            }
+          }}
+          style={{ height: totalHeight + bottomAlignment }}
+        >
+          <div ref={scroll.animatedRowsRef} data-testid="animated-rows">
+            {scroll.virtualizer.getVirtualItems().map((item) => (
+              <div
+                key={item.key}
+                data-index={item.index}
+                ref={scroll.virtualizer.measureElement}
+                style={{ position: 'absolute', top: item.start + bottomAlignment }}
+              >
+                {String(item.key)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -163,6 +166,68 @@ describe('initial virtual positioning', () => {
     await settleInitialFrame();
     await waitFor(() => expect(screen.getByText('lab-history-100')).toBeTruthy());
     expect(screen.queryByText('lab-history-1')).toBeNull();
+  });
+});
+
+describe('latest message navigation', () => {
+  it('mounts the destination before moving and keeps send compensation out of navigation', async () => {
+    render(<HistoryScreen />);
+    await settleInitialFrame();
+    const viewport = screen.getByLabelText('Message history');
+    fireEvent.wheel(viewport);
+    act(() => {
+      viewport.scrollTo({ top: 0 });
+    });
+    await settleInitialFrame();
+    expect(screen.queryByText('lab-history-100')).toBeNull();
+    const startingOffset = viewport.scrollTop;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Latest' }));
+    expect(screen.getByText('lab-history-100')).toBeTruthy();
+    expect(viewport.scrollTop).toBe(startingOffset);
+    expect(screen.getByTestId('animated-rows').style.transform).toBe('');
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBeCloseTo(viewport.scrollHeight - viewport.clientHeight, 0);
+    });
+  });
+
+  it('does not resume a cancelled bottom navigation after the next layout update', async () => {
+    const view = render(<HistoryScreen />);
+    await settleInitialFrame();
+    const viewport = screen.getByLabelText('Message history');
+    fireEvent.wheel(viewport);
+    act(() => {
+      viewport.scrollTo({ top: viewport.scrollTop - READING_SCROLL_DISTANCE });
+    });
+    await settleInitialFrame();
+    fireEvent.click(screen.getByRole('button', { name: 'Latest' }));
+    await advanceAnimation(ANIMATION_SAMPLE_DELAY_MS);
+
+    fireEvent.wheel(viewport);
+    const readingOffset = viewport.scrollTop - INTERRUPTION_SCROLL_DISTANCE;
+    act(() => {
+      viewport.scrollTo({ top: readingOffset });
+    });
+    view.rerender(<HistoryScreen />);
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+    expect(viewport.scrollTop).toBeCloseTo(readingOffset, 0);
+  });
+
+  it('does not resurrect Latest when a subsequent message navigation is cleared', async () => {
+    const view = render(<HistoryScreen />);
+    await settleInitialFrame();
+    fireEvent.click(screen.getByRole('button', { name: 'Latest' }));
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+    view.rerender(<HistoryScreen navigation={{ messageId: 'lab-history-12', requestId: 1 }} />);
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+
+    view.rerender(<HistoryScreen />);
+    const viewport = screen.getByLabelText('Message history');
+    // Clearing a message request uses the existing initial-positioning path, with no old
+    // Latest request allowed to reserve another navigation corridor after it.
+    await settleInitialFrame();
+    expect(viewport.scrollTop).toBeCloseTo(viewport.scrollHeight - viewport.clientHeight, 0);
   });
 });
 

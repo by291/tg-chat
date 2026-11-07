@@ -31,11 +31,16 @@ interface VirtualHistoryOptions {
 }
 
 interface NavigationWindow {
-  requestId: number;
+  requestId: string;
   start: number;
   end: number;
   rows: HistoryRow[];
   retainedIndexes: number[];
+}
+
+interface LatestNavigationRequest {
+  requestId: number;
+  messageRequestId?: number;
 }
 
 /** Give the virtualizer sole ownership of history measurements and scroll correction. */
@@ -50,8 +55,12 @@ export function useVirtualHistory({
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const animatedRowsRef = useRef<HTMLDivElement>(null);
+  const cancelNavigationRef = useRef<(() => void) | undefined>(undefined);
   const [historyScroll] = useState(() =>
-    createHistoryScroll({ getAnimatedRows: () => animatedRowsRef.current }),
+    createHistoryScroll({
+      getAnimatedRows: () => animatedRowsRef.current,
+      isNavigationActive: () => Boolean(cancelNavigationRef.current),
+    }),
   );
   const previousBottomAlignmentRef = useRef(0);
   const insetAnimationRef = useRef<Animation | undefined>(undefined);
@@ -60,8 +69,8 @@ export function useVirtualHistory({
   const hasUserInteractedRef = useRef(false);
   const previousContentWidthRef = useRef(0);
   const readingAnchorRef = useRef<ReadingAnchor | undefined>(undefined);
-  const lastNavigationRef = useRef<number | undefined>(undefined);
-  const cancelNavigationRef = useRef<(() => void) | undefined>(undefined);
+  const lastNavigationRef = useRef<string | undefined>(undefined);
+  const latestRequestIdRef = useRef(0);
   const cancelResizeRestoreRef = useRef<(() => void) | undefined>(undefined);
   const isResizingRef = useRef(false);
   const scrollFrameRef = useRef(0);
@@ -70,6 +79,24 @@ export function useVirtualHistory({
   const previousLastKeyRef = useRef(rows.at(-1)?.key);
   const requestedHistoryStartRef = useRef<string | undefined>(undefined);
   const [navigationWindow, setNavigationWindow] = useState<NavigationWindow>();
+  const [latestNavigation, setLatestNavigation] = useState<LatestNavigationRequest>();
+  const isLatestNavigation = Boolean(
+    latestNavigation && latestNavigation.messageRequestId === navigation?.requestId,
+  );
+  let navigationKey: string | undefined;
+  if (isLatestNavigation) {
+    navigationKey = `latest:${latestNavigation?.requestId}`;
+  } else if (navigation) {
+    navigationKey = `message:${navigation.requestId}`;
+  }
+
+  useLayoutEffect(() => {
+    // A newer message navigation permanently supersedes the manual Latest request. Clearing
+    // that message request later must not resurrect an already consumed bottom navigation.
+    if (latestNavigation && latestNavigation.messageRequestId !== navigation?.requestId) {
+      setLatestNavigation(undefined);
+    }
+  }, [latestNavigation, navigation?.requestId]);
   const shouldReduceMotion = useReducedMotion();
   const getItemKey = useCallback((index: number) => rows[index].key, [rows]);
   const estimateSize = useCallback(
@@ -117,7 +144,7 @@ export function useVirtualHistory({
     const isPhotoReveal =
       lastRow?.kind === 'message' &&
       Boolean(lastRow.message.attachment || lastRow.message.media?.kind === 'album');
-    historyScroll.prepare({ isPhotoReveal });
+    historyScroll.prepare({ kind: isPhotoReveal ? 'photo-reveal' : 'text-reveal' });
   }
 
   const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
@@ -283,7 +310,7 @@ export function useVirtualHistory({
   });
 
   useLayoutEffect(() => {
-    if (!navigation) {
+    if (!navigationKey) {
       if (lastNavigationRef.current !== undefined) {
         cancelNavigation();
         lastNavigationRef.current = undefined;
@@ -292,34 +319,39 @@ export function useVirtualHistory({
       return;
     }
     // A reaction/edit may replace the rows while moving. Re-resolve the index only on that change.
-    const isSameRequest = lastNavigationRef.current === navigation.requestId;
+    const isSameRequest = lastNavigationRef.current === navigationKey;
     const hasSameRows = activeNavigationRowsRef.current === rows;
     if (isSameRequest && (!cancelNavigationRef.current || hasSameRows)) {
       return;
     }
     const shouldPrepareWindow =
-      navigationWindow?.requestId !== navigation.requestId || navigationWindow.rows !== rows;
+      navigationWindow?.requestId !== navigationKey || navigationWindow.rows !== rows;
     if (shouldPrepareWindow) {
       cancelNavigation();
       lastNavigationRef.current = undefined;
     }
-    const targetIndex = rows.findIndex((row) => row.key === navigation.messageId);
+    const targetIndex = isLatestNavigation
+      ? rows.length - 1
+      : rows.findIndex((row) => row.key === navigation?.messageId);
     const viewport = viewportRef.current;
     if (targetIndex < 0 || !viewport) {
       return;
     }
+    const messageId = rows[targetIndex].key;
+    const alignment = isLatestNavigation ? 'end' : 'center';
 
     if (shouldPrepareWindow) {
       const nextWindow = getHistoryNavigationWindow({
         viewport,
         virtualizer,
-        messageId: navigation.messageId,
+        messageId,
         targetIndex,
+        alignment,
       });
       if (nextWindow) {
         setNavigationWindow({
           ...nextWindow,
-          requestId: navigation.requestId,
+          requestId: navigationKey,
           rows,
           retainedIndexes: virtualizer.getVirtualItems().map((item) => item.index),
         });
@@ -333,8 +365,9 @@ export function useVirtualHistory({
     cancelNavigationRef.current = animateHistoryNavigation({
       viewport,
       virtualizer,
-      messageId: navigation.messageId,
+      messageId,
       targetIndex,
+      alignment,
       shouldReduceMotion: Boolean(shouldReduceMotion),
       onComplete: () => {
         cancelNavigationRef.current = undefined;
@@ -342,8 +375,16 @@ export function useVirtualHistory({
         scheduleScrollWork();
       },
     });
-    lastNavigationRef.current = navigation.requestId;
-  }, [navigation, rows, virtualizer, shouldReduceMotion, navigationWindow]);
+    lastNavigationRef.current = navigationKey;
+  }, [
+    navigationKey,
+    navigation,
+    isLatestNavigation,
+    rows,
+    virtualizer,
+    shouldReduceMotion,
+    navigationWindow,
+  ]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -500,15 +541,19 @@ export function useVirtualHistory({
 
   function jumpToLatest() {
     cancelNavigation();
-    lastNavigationRef.current = navigation?.requestId;
+    virtualizer.cancelScroll();
     setNavigationWindow(undefined);
-    virtualizer.scrollToEnd({ behavior: shouldReduceMotion ? 'auto' : 'smooth' });
+    latestRequestIdRef.current += 1;
+    setLatestNavigation({
+      requestId: latestRequestIdRef.current,
+      messageRequestId: navigation?.requestId,
+    });
   }
 
   function cancelAutomaticScroll() {
     hasUserInteractedRef.current = true;
     cancelNavigation();
-    lastNavigationRef.current = navigation?.requestId;
+    lastNavigationRef.current = navigationKey;
     setNavigationWindow(undefined);
     virtualizer.cancelScroll();
   }

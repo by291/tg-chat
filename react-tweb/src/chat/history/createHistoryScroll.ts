@@ -18,19 +18,25 @@ const VERTICAL_CURVE = [
 ] as const;
 const easeVertical = cubicBezier(...VERTICAL_CURVE);
 
+type ScrollAnimationKind = 'text-reveal' | 'photo-reveal';
+
 type HistoryScrollFunction = VirtualizerOptions<HTMLDivElement, HTMLDivElement>['scrollToFn'];
 
 interface HistoryScrollOptions {
   getAnimatedRows: () => HTMLDivElement | null;
+  isNavigationActive?: () => boolean;
 }
 
-/** Give virtualizer scroll requests Web K's reveal curve, including short bottom-aligned chats. */
-export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
+/** Apply message reveals and pass idle measurements through without competing with navigation. */
+export function createHistoryScroll({
+  getAnimatedRows,
+  isNavigationActive = () => false,
+}: HistoryScrollOptions) {
   let frame = 0;
   let targetOffset = 0;
   let revealOffset = 0;
   let isAnimating = false;
-  let isPhotoReveal = false;
+  let animationKind: ScrollAnimationKind = 'text-reveal';
 
   function setRevealOffset(offset: number) {
     revealOffset = offset;
@@ -44,12 +50,17 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
     cancelAnimationFrame(frame);
     frame = 0;
     isAnimating = false;
+    animationKind = 'text-reveal';
     setRevealOffset(0);
   }
 
   const scrollTo: HistoryScrollFunction = (offset, options, virtualizer) => {
     const viewport = virtualizer.scrollElement;
     if (!viewport) {
+      return;
+    }
+    // Navigation reads fresh geometry itself. Reconciliation must not become another writer.
+    if (isNavigationActive()) {
       return;
     }
     targetOffset = offset + (options.adjustments ?? 0);
@@ -81,7 +92,7 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
       if (startedAt === undefined) {
         startedAt = timestamp;
         const distance = targetOffset - viewport.scrollTop;
-        if (isPhotoReveal) {
+        if (animationKind !== 'text-reveal') {
           const travel = Math.min(
             MAX_ANIMATED_DISTANCE,
             Math.abs(distance) + Math.abs(revealOffset),
@@ -133,9 +144,9 @@ export function createHistoryScroll({ getAnimatedRows }: HistoryScrollOptions) {
     scrollTo,
     cancel,
     isAnimating: () => isAnimating,
-    prepare: (options: { isPhotoReveal?: boolean } = {}) => {
+    prepare: ({ kind }: { kind: ScrollAnimationKind }) => {
       isAnimating = true;
-      isPhotoReveal = options.isPhotoReveal ?? false;
+      animationKind = kind;
     },
     reveal: (offset: number) => setRevealOffset(revealOffset + offset),
   };
