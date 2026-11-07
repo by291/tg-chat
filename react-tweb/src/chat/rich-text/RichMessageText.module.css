@@ -1,0 +1,341 @@
+.content {
+  --rich-message-shade: color-mix(
+    in srgb,
+    var(--bubble-status-color) 10%,
+    var(--bubble-background)
+  );
+  --rich-table-border: color-mix(in srgb, var(--bubble-status-color) 32%, var(--bubble-background));
+  /* Keep the final text line in the bubble's formatting context so its time can float beside it. */
+  display: contents;
+  overflow-wrap: anywhere;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.content p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.content > p:last-child {
+  display: inline;
+}
+
+.content ul,
+.content ol {
+  margin: 0;
+  padding: 6px 8px 6px 15px;
+}
+
+.content li {
+  min-height: 1lh;
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+}
+
+.content li:last-child {
+  margin-bottom: 0;
+}
+
+.content li::marker {
+  font-weight: 600;
+}
+
+.content ul[data-list-type='check'],
+.content ul:has(> .checkItem) {
+  padding-left: 0;
+}
+
+.content h1,
+.content h2,
+.content h3,
+.content h4,
+.content h5,
+.content h6 {
+  margin: 0;
+  padding: 12px 0 8px;
+  font-weight: 600;
+  line-height: round(nearest, 1.3125em, 1px);
+}
+
+.content h1 {
+  font-size: 1.1875em;
+}
+
+.content h2 {
+  font-size: 1.125em;
+}
+
+.content h3 {
+  font-size: 1.0625em;
+}
+
+.content h4 {
+  font-size: 1em;
+}
+
+.content h5 {
+  font-size: 0.9375em;
+}
+
+.content h6 {
+  font-size: 0.875em;
+}
+
+.content a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .content a:hover {
+  text-decoration: underline;
+}
+
+.content blockquote {
+  margin: 8px 0;
+  padding: 3px 18px 3px 9px;
+  border-left: 3px solid var(--accent-color);
+  border-radius: 4px;
+  background: var(--reply-color);
+  font-size: 0.875em;
+  line-height: round(nearest, 1.3125em, 1px);
+}
+
+.content code {
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.875em;
+}
+
+.content mark {
+  padding: 0 0.1666em;
+  border-radius: 0.1666em;
+  color: inherit;
+  background: color-mix(in srgb, var(--secondary-color) 20%, transparent);
+}
+
+.content hr {
+  width: calc(100% / 3);
+  margin: 8px auto;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.content details {
+  margin: 0;
+}
+
+.content summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.content summary::-webkit-details-marker {
+  display: none;
+}
+
+.content summary::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin: 0 8px 4px 4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 200ms ease-in-out;
+}
+
+.content details[open] > summary::before {
+  transform: rotate(225deg);
+}
+
+.content details > p {
+  padding: 0 8px 12px;
+}
+
+.spoiler {
+  border-radius: 3px;
+  background: var(--secondary-color);
+  cursor: pointer;
+}
+
+.spoiler[data-revealed='false'] > span {
+  visibility: hidden;
+}
+
+.spoiler[data-revealed='true'] {
+  background: var(--reply-color);
+}
+
+.spoiler:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.formula[data-display='block'] {
+  display: block;
+  margin: 0.6666rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  direction: ltr;
+  font-size: 1.5em;
+}
+
+.formula[data-display='block'] :global(.katex-display) {
+  margin: 0;
+}
+
+.formula[data-display='block'] :global(.katex) {
+  font-size: 1em;
+}
+
+.date {
+  color: var(--accent-color);
+  border-bottom: 1px dotted currentColor;
+}
+
+.tableScroll,
+.codeBlock pre {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.tableScroll {
+  padding: 8px 0;
+}
+
+.tableScroll::before {
+  /* Tables request the available bubble width; the bubble still owns its responsive limit. */
+  content: '';
+  display: block;
+  width: 100vw;
+  max-width: 100%;
+  height: 0;
+}
+
+.tableScroll table {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--rich-table-border);
+  border-radius: 10px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875em;
+  line-height: round(nearest, 1.3125em, 1px);
+}
+
+.tableScroll td,
+.tableScroll th {
+  min-width: 64px;
+  height: 36px;
+  padding: 10px 12px;
+  border: 0;
+  border-right: 1px solid var(--rich-table-border);
+  border-bottom: 1px solid var(--rich-table-border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.tableScroll tr > :last-child {
+  border-right: 0;
+}
+
+.tableScroll tr:last-child > :is(td, th) {
+  border-bottom: 0;
+}
+
+.tableScroll th {
+  background: var(--rich-message-shade);
+  font-weight: 600;
+}
+
+.codeBlock {
+  margin: 0.6666rem 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--rich-message-shade);
+}
+
+.codeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 10px;
+  background: var(--rich-message-shade);
+  font-size: 12px;
+}
+
+.codeHeader button {
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .codeHeader button:hover {
+  background: var(--rich-message-shade);
+}
+
+.codeBlock pre {
+  margin: 0;
+  padding: 8px 10px;
+  white-space: pre;
+  overflow-wrap: normal;
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.codeBlock code {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.checkItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.4em;
+  list-style: none;
+}
+
+.checkMark {
+  position: relative;
+  width: 1.125em;
+  height: 1.125em;
+  margin-top: 0.1em;
+  border: 2px solid #8d969c;
+  border-radius: 5px;
+  user-select: none;
+}
+
+.checkMark[aria-checked='true'] {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+}
+
+.checkMark[aria-checked='true']::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content summary::before {
+    transition: none;
+  }
+}

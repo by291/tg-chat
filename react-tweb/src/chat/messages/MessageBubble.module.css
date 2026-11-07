@@ -28,6 +28,7 @@
   --bubble-bottom-right: 15px;
   --bubble-bottom-left: 5px;
   --bubble-background: var(--surface-color);
+  --bubble-status-color: var(--secondary-color);
   position: relative;
   isolation: isolate;
   max-width: min(calc(100% - 36px), 480px);
@@ -51,6 +52,7 @@
   --bubble-bottom-right: 5px;
   --bubble-bottom-left: 15px;
   --bubble-background: var(--outgoing-color);
+  --bubble-status-color: var(--outgoing-meta-color);
 }
 
 .bubble[data-group-start='true'] {

@@ -1,4 +1,5 @@
 import { CustomEmojiText } from '../emoji/CustomEmojiText';
+import { RichMessageText } from '../rich-text/RichMessageText';
 import { AlbumFrame, PhotoFrame, VideoFrame } from './MessageMediaFrames';
 import { ContactCard, DocumentCard, LinkPreview } from './MessageCards';
 import { PollMessage } from './PollMessage';
@@ -58,8 +59,11 @@ export function MessageBody({ message, onOpenMedia, onVote }: MessageBodyProps) 
   }
 }
 
-/** Preserve text, code, and quote semantics without interpreting user content as HTML. */
+/** Render safe rich content while preserving legacy text, code, and quote messages. */
 export function MessageText({ message }: { message: Message }) {
+  if (message.richText) {
+    return <RichMessageText richText={message.richText} />;
+  }
   if (!message.text) {
     return null;
   }
