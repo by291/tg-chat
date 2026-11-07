@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer, useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -15,6 +15,7 @@ beforeAll(() => {
   }
 
   vi.stubGlobal('ClipboardEvent', Event);
+  vi.stubGlobal('DragEvent', class extends Event {});
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener: () => {},
@@ -111,6 +112,61 @@ async function replaceComposerText(options: {
 }
 
 describe('conversation interaction', () => {
+  it('keeps accepting input after applying a link to the controlled draft', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen />);
+    await replaceComposerText({ user, text: 'A link' });
+    await user.keyboard('{Control>}a{/Control}{Control>}k{/Control}');
+    await user.type(await screen.findByRole('textbox', { name: 'URL' }), 'https://telegram.org');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    const editor = screen.getByRole('textbox', { name: 'Message' });
+    await waitFor(() => expect(document.activeElement).toBe(editor));
+    // jsdom does not implement the browser's ArrowRight selection-collapse default action.
+    await act(async () => {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      fireEvent(document, new Event('selectionchange'));
+    });
+    await user.paste(' continued');
+    expect(editor.textContent).toBe('A link continued');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    const message = await screen.findByRole('group', { name: 'Message: A link continued' });
+    expect(within(message).getByRole('link').textContent).toBe('A link');
+    expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('');
+  });
+
+  it('clears a formatted draft after sending and restores its formatting when editing', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen />);
+    await replaceComposerText({ user, text: 'A formatted message' });
+    await user.keyboard('{Control>}a{/Control}{Control>}b{/Control}');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    const message = await screen.findByRole('group', { name: 'Message: A formatted message' });
+    expect(message.querySelector('strong')?.textContent).toBe('A formatted message');
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('');
+    });
+
+    await openMessageAction({ user, text: 'A formatted message', action: 'Edit' });
+    const editor = screen.getByRole('textbox', { name: 'Message' });
+    expect(editor.querySelector('strong')?.textContent).toBe('A formatted message');
+    await user.click(editor);
+    await user.keyboard('{Control>}a{/Control}{Control>}i{/Control}');
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(await screen.findByRole('textbox', { name: 'URL' }), 'https://telegram.org');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    await user.click(screen.getByRole('button', { name: 'Save message' }));
+    expect(message.querySelector('em, i')?.textContent).toBe('A formatted message');
+    expect(within(message).getByRole('link').getAttribute('href')).toBe('https://telegram.org');
+    expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('');
+  });
+
   it('exits an unchanged edit without a confirmation or an edited marker', async () => {
     const user = userEvent.setup();
     render(<ConversationTestScreen />);

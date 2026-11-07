@@ -107,7 +107,7 @@ export function ConversationPane({
   function submitMessage(composed: ComposedMessage) {
     if (editingMessage) {
       const hasRetainedMedia = Boolean(editingMessage.attachment || editingMessage.media);
-      if (!composed.text.trim() && !hasRetainedMedia) {
+      if (!composed.text.trim() && !composed.richText && !hasRetainedMedia) {
         // Cancelling deletion keeps the empty editor open so the user can continue the edit.
         setPendingDelete(editingMessage);
         return;
@@ -118,12 +118,13 @@ export function ConversationPane({
         messageId: editingMessage.id,
         text: composed.text,
         customEmoji: composed.customEmoji,
+        richText: composed.richText,
       });
       clearComposerContext();
       return;
     }
 
-    if (composed.text.trim() || composed.attachment || composed.sticker) {
+    if (composed.text.trim() || composed.richText || composed.attachment || composed.sticker) {
       dispatch({
         type: 'send',
         message: {
@@ -133,6 +134,7 @@ export function ConversationPane({
           authorName: 'You',
           text: composed.text,
           customEmoji: composed.customEmoji,
+          richText: composed.richText,
           createdAt: Date.now(),
           attachment: composed.attachment,
           sticker: composed.sticker,
@@ -248,7 +250,7 @@ export function ConversationPane({
     headerActions.clearSelection();
   }
 
-  function sendToRecipients({ recipients, caption, customEmoji }: ForwardRecipients) {
+  function sendToRecipients({ recipients, caption, customEmoji, richText }: ForwardRecipients) {
     if (!pendingForward) {
       return;
     }
@@ -258,6 +260,7 @@ export function ConversationPane({
         chatId: recipient.id,
         caption,
         customEmoji,
+        richText,
         dispatch,
       });
     }
@@ -397,6 +400,7 @@ export function ConversationPane({
           <MessageComposer
             draft={state.drafts[conversation.id] || ''}
             draftCustomEmoji={state.draftCustomEmoji?.[conversation.id]}
+            draftRichText={state.draftRichText?.[conversation.id]}
             replyMessage={replyMessage}
             editingMessage={editingMessage}
             forwardMessages={forwardMessages}

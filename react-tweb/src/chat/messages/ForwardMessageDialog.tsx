@@ -17,6 +17,7 @@ export interface ForwardRecipients {
   recipients: Conversation[];
   caption: string;
   customEmoji?: CustomEmojiEntity[];
+  richText?: string;
 }
 
 interface ForwardMessageDialogProps {
@@ -66,7 +67,12 @@ export function ForwardMessageDialog({
 
   function sendToRecipients() {
     if (hasRecipients) {
-      onSend({ recipients, caption: caption.text, customEmoji: caption.customEmoji });
+      onSend({
+        recipients,
+        caption: caption.text,
+        customEmoji: caption.customEmoji,
+        richText: caption.richText,
+      });
     }
   }
 

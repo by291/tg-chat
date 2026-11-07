@@ -7,6 +7,9 @@ export function hasMessageEditChanged(options: { original: EmojiText; current: E
   if (original.text !== current.text) {
     return true;
   }
+  if ((original.richText ?? '') !== (current.richText ?? '')) {
+    return true;
+  }
 
   const originalEntities = original.customEmoji ?? [];
   const currentEntities = current.customEmoji ?? [];

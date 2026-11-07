@@ -21,6 +21,7 @@ export interface ComposedMessage extends EmojiText {
 interface MessageComposerProps {
   draft: string;
   draftCustomEmoji?: CustomEmojiEntity[];
+  draftRichText?: string;
   replyMessage?: Message;
   editingMessage?: Message;
   forwardMessages?: Message[];
@@ -35,6 +36,7 @@ interface MessageComposerProps {
 export function MessageComposer({
   draft,
   draftCustomEmoji,
+  draftRichText,
   replyMessage,
   editingMessage,
   forwardMessages,
@@ -51,6 +53,7 @@ export function MessageComposer({
   const [editValue, setEditValue] = useState<EmojiText>({
     text: editingMessage?.text ?? '',
     customEmoji: editingMessage?.customEmoji,
+    richText: editingMessage?.richText,
   });
   const [attachment, setAttachment] = useState<Attachment>();
   const [isLoadingImage, setIsLoadingImage] = useState(false);
@@ -59,11 +62,17 @@ export function MessageComposer({
   const [isExpanded, setIsExpanded] = useState(false);
   const [editorHeight, setEditorHeight] = useState(0);
   const canExpand = editorHeight >= EXPAND_BUTTON_MIN_HEIGHT || isExpanded;
-  const value = editingMessage ? editValue : { text: draft, customEmoji: draftCustomEmoji };
+  const draftValue: EmojiText = {
+    text: draft,
+    customEmoji: draftCustomEmoji,
+    richText: draftRichText,
+  };
+  const value = editingMessage ? editValue : draftValue;
   const text = value.text;
   const hasContent =
     Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
+    Boolean(value.richText) ||
     Boolean(attachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
   const previousContextRef = useRef(contextMessage);
@@ -71,10 +80,10 @@ export function MessageComposer({
   const isPreparingAttachment = !editingMessage && isLoadingImage;
 
   useEffect(() => {
-    if (!text) {
+    if (!text && !value.richText) {
       setIsExpanded(false);
     }
-  }, [text]);
+  }, [text, value.richText]);
 
   useEffect(() => {
     // Only the editor remounts when switching modes; the attachment draft and animated bar survive.
@@ -82,6 +91,7 @@ export function MessageComposer({
     setEditValue({
       text: editingMessage?.text ?? '',
       customEmoji: editingMessage?.customEmoji,
+      richText: editingMessage?.richText,
     });
   }, [editingMessage]);
 

@@ -3,31 +3,42 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
-import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { $generateNodesFromDOM } from '@lexical/html';
+import { $isListItemNode } from '@lexical/list';
+import { $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 import {
   $getRoot,
   $getSelection,
   $isRangeSelection,
   $setSelection,
+  $insertNodes,
   CLEAR_HISTORY_COMMAND,
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
+  INSERT_PARAGRAPH_COMMAND,
   PASTE_COMMAND,
   SKIP_DOM_SELECTION_TAG,
   type RangeSelection,
 } from 'lexical';
-import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
 import type { CustomEmoji } from '../emoji/customEmojiCatalog';
 import type { EmojiText } from '../emoji/customEmojiEntities';
 import { CustomEmojiNode, $createCustomEmojiNode } from './CustomEmojiNode';
 import { $readEmojiEditor, $replaceEmojiEditor } from './emojiEditorState';
 import { shouldSubmitMessage } from './composerKeyboard';
 import { useEditorHeight } from './useEditorHeight';
+import { RICH_EDITOR_NODES } from './richEditorNodes';
+import { RICH_EDITOR_THEME } from './richEditorTheme';
+import { RichEditorPlugins } from './RichEditorPlugins';
+import { ComposerFormattingToolbar } from './ComposerFormattingToolbar';
+import { parseRichEditorHtml } from './richEditorHtml';
 import styles from './EmojiEditor.module.css';
 
 // Lexical registers node classes by identity. A hot module update needs a new editor;
 // ordinary renders keep this key, and the parent-owned draft survives the remount.
 const EDITOR_INSTANCE_KEY = crypto.randomUUID();
+const EXTERNAL_VALUE_TAG = 'external-composer-value';
 
 export interface EmojiEditorControls {
   focus: () => void;
@@ -53,42 +64,78 @@ interface EmojiEditorProps {
   onError: (message: string) => void;
 }
 
+function isSameEditorValue(current: EmojiText, incoming: EmojiText) {
+  if (current.text !== incoming.text || (current.richText ?? '') !== (incoming.richText ?? '')) {
+    return false;
+  }
+  const currentEmoji = current.customEmoji ?? [];
+  const incomingEmoji = incoming.customEmoji ?? [];
+  if (currentEmoji.length !== incomingEmoji.length) {
+    return false;
+  }
+  return currentEmoji.every((entity, index) => {
+    const candidate = incomingEmoji[index];
+    return (
+      entity.documentId === candidate.documentId &&
+      entity.offset === candidate.offset &&
+      entity.length === candidate.length
+    );
+  });
+}
+
 function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: EmojiEditorProps) {
   const [editor] = useLexicalComposerContext();
   const savedSelectionRef = useRef<RangeSelection | null>(null);
-  const callbacksRef = useRef({ onChange, onSubmit, onPasteImage });
-  callbacksRef.current = { onChange, onSubmit, onPasteImage };
+  const publishedValueRef = useRef(value);
+  const callbacksRef = useRef({
+    onChange,
+    onSubmit,
+    onPasteImage,
+  });
+  callbacksRef.current = {
+    onChange,
+    onSubmit,
+    onPasteImage,
+  };
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves }) => {
-      editorState.read(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          savedSelectionRef.current = selection.clone();
-        }
-        if (dirtyElements.size || dirtyLeaves.size) {
-          callbacksRef.current.onChange($readEmojiEditor());
-        }
-      });
+    return editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves, tags }) => {
+      editorState.read(
+        () => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            savedSelectionRef.current = selection.clone();
+          }
+          const hasContentChanges = dirtyElements.size > 0 || dirtyLeaves.size > 0;
+          if (hasContentChanges && !tags.has(EXTERNAL_VALUE_TAG)) {
+            const nextValue = $readEmojiEditor();
+            // Node transforms can mark an unchanged document dirty; only persist real edits.
+            if (!isSameEditorValue(publishedValueRef.current, nextValue)) {
+              publishedValueRef.current = nextValue;
+              callbacksRef.current.onChange(nextValue);
+            }
+          }
+        },
+        { editor },
+      );
     });
   }, [editor]);
 
-  useEffect(() => {
-    const current = editor.getEditorState().read($readEmojiEditor);
-    const isSame =
-      current.text === value.text &&
-      JSON.stringify(current.customEmoji) === JSON.stringify(value.customEmoji ?? []);
-    if (isSame) {
+  useLayoutEffect(() => {
+    const current = editor.getEditorState().read($readEmojiEditor, { editor });
+    if (isSameEditorValue(current, value)) {
       return;
     }
     // Only external changes replace the tree; ordinary typing preserves selection and undo.
     savedSelectionRef.current = null;
+    publishedValueRef.current = value;
     editor.update(
       () => {
         $replaceEmojiEditor(value);
         $setSelection(null);
       },
-      { tag: SKIP_DOM_SELECTION_TAG },
+      // Apply external clears before a pending focus update can publish the old draft again.
+      { tag: [SKIP_DOM_SELECTION_TAG, EXTERNAL_VALUE_TAG], discrete: true },
     );
     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
   }, [editor, value]);
@@ -97,11 +144,27 @@ function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: 
     return editor.registerCommand(
       KEY_ENTER_COMMAND,
       (event) => {
+        if (event?.shiftKey && !editor.isComposing() && !event.isComposing) {
+          const selection = $getSelection();
+          const parents = $isRangeSelection(selection)
+            ? selection.anchor.getNode().getParents()
+            : [];
+          const isStructuredBlock = parents.some((parent) => {
+            return $isListItemNode(parent) || $isHeadingNode(parent) || $isQuoteNode(parent);
+          });
+          if (isStructuredBlock) {
+            event.preventDefault();
+            editor.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
+            return true;
+          }
+        }
         if (
           !event ||
           !shouldSubmitMessage({
             key: event.key,
             shiftKey: event.shiftKey,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
             isComposing: editor.isComposing() || event.isComposing,
             keyCode: event.keyCode,
           })
@@ -120,12 +183,21 @@ function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: 
     return editor.registerCommand(
       PASTE_COMMAND,
       (event) => {
-        const file = 'clipboardData' in event ? event.clipboardData?.files[0] : undefined;
-        if (!file) {
+        const clipboard = 'clipboardData' in event ? event.clipboardData : undefined;
+        const file = clipboard?.files[0];
+        if (file) {
+          event.preventDefault();
+          callbacksRef.current.onPasteImage(file);
+          return true;
+        }
+        const html = clipboard?.getData('text/html');
+        if (!html) {
           return false;
         }
+        // The same allowlist protects pasted markup, stored drafts, and displayed messages.
         event.preventDefault();
-        callbacksRef.current.onPasteImage(file);
+        const document = parseRichEditorHtml(html);
+        $insertNodes($generateNodesFromDOM(editor, document));
         return true;
       },
       COMMAND_PRIORITY_HIGH,
@@ -191,7 +263,7 @@ function EditorSurface(props: EmojiEditorProps) {
       data-composer={props.isComposer}
       data-expanded={props.isExpanded}
     >
-      <PlainTextPlugin
+      <RichTextPlugin
         contentEditable={
           <ContentEditable
             ref={inputRef}
@@ -212,6 +284,7 @@ function EditorSurface(props: EmojiEditorProps) {
         }
         ErrorBoundary={LexicalErrorBoundary}
       />
+      <ComposerFormattingToolbar isExpanded={props.isExpanded ?? false} onError={props.onError} />
     </div>
   );
 }
@@ -223,7 +296,8 @@ export function EmojiEditor(props: EmojiEditorProps) {
       key={EDITOR_INSTANCE_KEY}
       initialConfig={{
         namespace: 'message-composer',
-        nodes: [CustomEmojiNode],
+        nodes: [CustomEmojiNode, ...RICH_EDITOR_NODES],
+        theme: RICH_EDITOR_THEME,
         editorState: () => $replaceEmojiEditor(props.value),
         onError: (error) => {
           console.error('Message editor failed.', error);
@@ -234,6 +308,7 @@ export function EmojiEditor(props: EmojiEditorProps) {
       {/* Keep measurement observers in the same lifecycle as the editable DOM during hot updates. */}
       <EditorSurface {...props} />
       <HistoryPlugin />
+      <RichEditorPlugins />
       <EditorBridge {...props} />
     </LexicalComposer>
   );
