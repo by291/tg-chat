@@ -5,6 +5,11 @@ import { ConversationPane } from '../chat/ConversationPane';
 import { ContactActionsProvider } from '../chat/messages/ContactActions';
 import { getConversations } from '../chat/state/conversations';
 import { MediaViewer } from '../chat/media/MediaViewer';
+import { getGalleryMessages } from '../chat/media/photoGallery';
+import {
+  resolveMediaViewerCommand,
+  type MediaViewerCommand,
+} from '../chat/media/mediaViewerCommands';
 import type { Message } from '../chat/model';
 import { useConversationList } from '../chat/sidebar/conversationList';
 import { useChatState } from '../chat/state/useChatState';
@@ -23,6 +28,8 @@ export function ChatApp() {
   const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [mediaMessage, setMediaMessage] = useState<Message>();
+  const [requestedMediaCommand, setRequestedMediaCommand] = useState<MediaViewerCommand>();
+  const [mediaReturnMessage, setMediaReturnMessage] = useState<Message>();
   const [forwardDrafts, setForwardDrafts] = useState<Record<string, Message[]>>({});
   const [notice, setNotice] = useState('');
   const [requestedChatId] = useState(() => new URL(window.location.href).searchParams.get('chat'));
@@ -67,6 +74,38 @@ export function ChatApp() {
     setIsMobileChatOpen(true);
     setIsDetailsOpen(false);
     setMediaMessage(undefined);
+    setRequestedMediaCommand(undefined);
+    setMediaReturnMessage(undefined);
+  }
+
+  function runMediaViewerCommand(command: MediaViewerCommand) {
+    const resolvedCommand = resolveMediaViewerCommand({ command, messages: state.messages });
+    if (!resolvedCommand) {
+      setMediaMessage(undefined);
+      setNotice('This message is no longer available.');
+      return;
+    }
+
+    selectConversation(resolvedCommand.message.chatId);
+    setRequestedMediaCommand(resolvedCommand);
+    const canReturnToViewer = command.action === 'forward' || command.action === 'delete';
+    if (canReturnToViewer) {
+      setMediaReturnMessage(command.message);
+    }
+  }
+
+  function finishMediaViewerCommand(options: { shouldRestoreViewer: boolean }) {
+    setRequestedMediaCommand(undefined);
+    setMediaReturnMessage(undefined);
+    if (!options.shouldRestoreViewer || !mediaReturnMessage) {
+      return;
+    }
+
+    // Cancellation returns to the selected album tile, not the parent's first photo.
+    const currentMessage = getGalleryMessages(state.messages).find((message) => {
+      return message.id === mediaReturnMessage.id && message.chatId === mediaReturnMessage.chatId;
+    });
+    setMediaMessage(currentMessage);
   }
 
   function prepareForward(options: { chatId: string; messages: Message[] }) {
@@ -119,6 +158,8 @@ export function ChatApp() {
               conversation={conversation}
               state={state}
               forwardMessages={forwardDrafts[conversation.id]}
+              requestedMediaCommand={requestedMediaCommand}
+              onFinishMediaCommand={finishMediaViewerCommand}
               onPrepareForward={prepareForward}
               onClearForward={clearForwardDraft}
               dispatch={dispatch}
@@ -164,6 +205,8 @@ export function ChatApp() {
           messages={messages}
           onClose={() => setMediaMessage(undefined)}
           onNavigate={setMediaMessage}
+          onCommand={runMediaViewerCommand}
+          onNotify={setNotice}
         />
         {storageError && (
           <div className={styles.storageError} role="alert">

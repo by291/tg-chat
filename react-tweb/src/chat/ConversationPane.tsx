@@ -15,6 +15,8 @@ import { DeleteMessageDialog } from './DeleteMessageDialog';
 import { PinnedMessageBar } from './PinnedMessageBar';
 import { MessageComposer, type ComposedMessage } from './composer/MessageComposer';
 import { MessageTimeline, type MessageNavigation } from './history/MessageTimeline';
+import type { MediaViewerCommand } from './media/mediaViewerCommands';
+import { useMediaViewerCommand } from './media/useMediaViewerCommand';
 import { describeMessage } from './messageFormatting';
 import type { ChatAction, ChatState, Conversation, Message, MessageCommand } from './model';
 import type { MessageInteraction } from './messageInteraction';
@@ -26,6 +28,8 @@ interface ConversationPaneProps {
   state: ChatState;
   dispatch: Dispatch<ChatAction>;
   forwardMessages?: Message[];
+  requestedMediaCommand?: MediaViewerCommand;
+  onFinishMediaCommand?: (options: { shouldRestoreViewer: boolean }) => void;
   onPrepareForward: (options: { chatId: string; messages: Message[] }) => void;
   onClearForward: () => void;
   onOpenDetails: () => void;
@@ -40,6 +44,8 @@ export function ConversationPane({
   state,
   dispatch,
   forwardMessages,
+  requestedMediaCommand,
+  onFinishMediaCommand,
   onPrepareForward,
   onClearForward,
   onOpenDetails,
@@ -282,6 +288,7 @@ export function ConversationPane({
         dispatch,
       });
     }
+    finishMediaDialog({ action: 'forward', shouldRestoreViewer: false });
     setPendingForward(undefined);
     headerActions.clearSelection();
     onNotify('Messages forwarded');
@@ -317,6 +324,12 @@ export function ConversationPane({
     setNavigation({ messageId, requestId: Date.now() });
   }, []);
 
+  useMediaViewerCommand({
+    command: requestedMediaCommand,
+    onMessageCommand: applyMessageCommand,
+    onJumpToMessage: jumpToMessage,
+  });
+
   function openPinnedMessages() {
     setIsSearchOpen(false);
     setIsPinnedView(true);
@@ -345,6 +358,31 @@ export function ConversationPane({
       clearComposerContext();
     }
 
+    finishMediaDialog({ action: 'delete', shouldRestoreViewer: false });
+    setPendingDelete(undefined);
+  }
+
+  function finishMediaDialog(options: {
+    action: 'forward' | 'delete';
+    shouldRestoreViewer: boolean;
+  }) {
+    if (requestedMediaCommand?.action !== options.action) {
+      return;
+    }
+    const pendingMessage = options.action === 'delete' ? pendingDelete : pendingForward?.[0];
+    if (pendingMessage !== requestedMediaCommand.message) {
+      return;
+    }
+    onFinishMediaCommand?.({ shouldRestoreViewer: options.shouldRestoreViewer });
+  }
+
+  function cancelForward() {
+    finishMediaDialog({ action: 'forward', shouldRestoreViewer: true });
+    setPendingForward(undefined);
+  }
+
+  function cancelDelete() {
+    finishMediaDialog({ action: 'delete', shouldRestoreViewer: true });
     setPendingDelete(undefined);
   }
 
@@ -490,7 +528,7 @@ export function ConversationPane({
       {pendingForward && (
         <ForwardMessageDialog
           state={state}
-          onClose={() => setPendingForward(undefined)}
+          onClose={cancelForward}
           onChooseRecipient={chooseForwardRecipient}
           onSend={sendToRecipients}
         />
@@ -502,7 +540,7 @@ export function ConversationPane({
             overlays.footerRef.current?.querySelector<HTMLElement>('[contenteditable=true]') ?? null
           );
         }}
-        onCancel={() => setPendingDelete(undefined)}
+        onCancel={cancelDelete}
         onConfirm={confirmDelete}
       />
     </main>

@@ -26,24 +26,52 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  gap: 12px;
   height: 56px;
   padding: 0 12px 0 20px;
 }
 
-.toolbar > div {
-  flex: 1;
+.toolbar .author {
+  display: flex;
+  gap: 12px;
+  width: auto;
+  min-width: 0;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: white;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.author > span {
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+/* Ordinary desktop photo actions already have toolbar buttons, matching tweb. */
+.toolbar .mobileAction {
+  display: none;
 }
 
 .toolbar h2,
-.toolbar p {
+.toolbar [data-part='description'] {
   margin: 0;
   font-size: 16px;
   font-weight: 500;
   line-height: 21px;
 }
 
-.toolbar p {
+.toolbar [data-part='description'] {
   color: rgb(255 255 255 / 60%);
   font-size: 14px;
   font-weight: 400;
@@ -57,6 +85,28 @@
   height: 40px;
   border-radius: 50%;
   color: rgb(255 255 255 / 70%);
+}
+
+.toolbar svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.75;
+}
+
+.toolbar :is(a, button):hover {
+  color: white;
+  background: rgb(255 255 255 / 8%);
+}
+
+.transformLayer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  transition: transform 200ms ease;
+}
+
+.photoPositioner[data-slide-phase='leaving'] {
+  pointer-events: none;
 }
 
 .photoPositioner {
@@ -83,24 +133,149 @@
 
 .navigation button {
   position: absolute;
-  top: calc(50% - 24px);
+  top: 60px;
   z-index: 2;
-  width: 48px;
-  height: 48px;
+  width: 112px;
+  height: calc(100% - 60px);
+  padding: 0;
+  border: 0;
   color: white;
-  background: rgb(0 0 0 / 40%);
+  background: none;
+  cursor: pointer;
 }
 
-.navigation button:disabled {
+.navigation button[data-available='false'] {
   visibility: hidden;
 }
 
+.navigation svg {
+  position: absolute;
+  top: calc(50% - 30px);
+  width: 48px;
+  height: 48px;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 200ms ease;
+}
+
+.navigation button:is(:hover, :focus-visible) svg {
+  opacity: 1;
+}
+
 .previous {
-  left: 16px;
+  left: 0;
 }
 
 .next {
-  right: 16px;
+  right: 0;
+}
+
+.previous svg {
+  left: 32px;
+}
+
+.next svg {
+  right: 32px;
+}
+
+.zoomControls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  width: 274px;
+  height: 54px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 40%);
+  transform: translateX(-50%);
+  transition: opacity 200ms ease;
+}
+
+.zoomControls[data-visible='false'] {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.zoomControls input {
+  width: 100%;
+  min-width: 0;
+  accent-color: white;
+}
+
+.zoomControls button {
+  flex-shrink: 0;
+  color: white;
+}
+
+.menuPositioner {
+  z-index: 90;
+}
+
+.menu {
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 12px;
+  color: white;
+  background: rgb(35 35 35 / 95%);
+  box-shadow: 0 4px 24px rgb(0 0 0 / 25%);
+}
+
+.menu [role='menuitem'] {
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.menu [data-highlighted] {
+  background: rgb(255 255 255 / 12%);
+}
+
+.albumThumbs {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  display: flex;
+  gap: 6px;
+  max-width: calc(100% - 32px);
+  overflow-x: auto;
+  transform: translateX(-50%);
+}
+
+.albumThumbs button {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.albumThumbs button[aria-current='true'] {
+  border-color: white;
+  opacity: 1;
+}
+
+.albumThumbs img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.viewer[data-has-album='true'] .caption {
+  bottom: 78px;
+}
+
+.viewer[data-zooming='true'] :is(.caption, .albumThumbs),
+.viewer[data-chrome-hidden='true'] :is(.toolbar, .caption, .albumThumbs) {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .caption {
@@ -124,7 +299,7 @@
 .viewer[data-state='open'] > .toolbar,
 .viewer[data-state='open'] > .navigation,
 .viewer[data-state='open'] > .caption {
-  animation: fade-in 200ms ease both;
+  animation: fade-in 200ms ease backwards;
 }
 
 .backdrop[data-state='closed'],
@@ -175,6 +350,36 @@
   .photoPositioner {
     top: 50%;
   }
+
+  .navigation,
+  .toolbar .desktopAction {
+    display: none;
+  }
+
+  .toolbar .mobileAction {
+    display: grid;
+  }
+
+  .toolbar {
+    gap: 4px;
+    padding: 0 8px;
+    background: rgb(0 0 0 / 40%);
+  }
+
+  .author > [aria-hidden] {
+    display: none;
+  }
+
+  .toolbar [data-part='description'] {
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .actions {
+    gap: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -184,5 +389,11 @@
   .viewer > .navigation,
   .viewer > .caption {
     animation-duration: 0s !important;
+  }
+
+  .transformLayer,
+  .navigation svg,
+  .zoomControls {
+    transition: none;
   }
 }

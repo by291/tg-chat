@@ -6,6 +6,13 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ConversationPane } from './ConversationPane';
 import { conversations, createInitialState } from './demo/fixtures';
 import { chatReducer } from './state/reducer';
+import type { MediaViewerCommand } from './media/mediaViewerCommands';
+
+interface ConversationTestScreenProps {
+  chatId?: string;
+  mediaAction?: MediaViewerCommand['action'];
+  onFinishMediaCommand?: (options: { shouldRestoreViewer: boolean }) => void;
+}
 
 beforeAll(() => {
   class TestResizeObserver {
@@ -66,9 +73,17 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function ConversationTestScreen({ chatId = 'dev' }: { chatId?: string }) {
+function ConversationTestScreen({
+  chatId = 'dev',
+  mediaAction,
+  onFinishMediaCommand,
+}: ConversationTestScreenProps) {
   const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
   const [notice, setNotice] = useState('');
+  const [requestedMediaCommand] = useState<MediaViewerCommand | undefined>(() => {
+    const message = state.messages.find((entry) => entry.chatId === chatId && entry.attachment);
+    return mediaAction && message ? { action: mediaAction, message } : undefined;
+  });
 
   return (
     <>
@@ -76,6 +91,8 @@ function ConversationTestScreen({ chatId = 'dev' }: { chatId?: string }) {
         conversation={conversations.find((conversation) => conversation.id === chatId)!}
         state={state}
         dispatch={dispatch}
+        requestedMediaCommand={requestedMediaCommand}
+        onFinishMediaCommand={onFinishMediaCommand}
         onPrepareForward={() => {}}
         onClearForward={() => {}}
         onOpenDetails={() => {}}
@@ -112,6 +129,48 @@ async function replaceComposerText(options: {
 }
 
 describe('conversation interaction', () => {
+  it('returns to the viewer when its deletion confirmation is cancelled', async () => {
+    const user = userEvent.setup();
+    const onFinishMediaCommand = vi.fn();
+    render(
+      <ConversationTestScreen mediaAction="delete" onFinishMediaCommand={onFinishMediaCommand} />,
+    );
+
+    const confirmation = await screen.findByRole('alertdialog', { name: 'Delete message?' });
+    await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+
+    expect(onFinishMediaCommand).toHaveBeenCalledWith({ shouldRestoreViewer: true });
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.getByRole('img', { name: 'Quiet hills.svg' })).toBeTruthy();
+  });
+
+  it('removes the confirmed image without restoring a viewer for the deleted message', async () => {
+    const user = userEvent.setup();
+    const onFinishMediaCommand = vi.fn();
+    render(
+      <ConversationTestScreen mediaAction="delete" onFinishMediaCommand={onFinishMediaCommand} />,
+    );
+
+    const confirmation = await screen.findByRole('alertdialog', { name: 'Delete message?' });
+    await user.click(within(confirmation).getByRole('button', { name: 'Delete' }));
+
+    expect(onFinishMediaCommand).toHaveBeenCalledWith({ shouldRestoreViewer: false });
+    await waitFor(() => expect(screen.queryByRole('img', { name: 'Quiet hills.svg' })).toBeNull());
+  });
+
+  it('returns to the viewer when its forward recipient picker is closed', async () => {
+    const user = userEvent.setup();
+    const onFinishMediaCommand = vi.fn();
+    render(
+      <ConversationTestScreen mediaAction="forward" onFinishMediaCommand={onFinishMediaCommand} />,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Close forwarding' }));
+
+    expect(onFinishMediaCommand).toHaveBeenCalledWith({ shouldRestoreViewer: true });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Share with' })).toBeNull());
+  });
+
   it('keeps accepting input after applying a link to the controlled draft', async () => {
     const user = userEvent.setup();
     render(<ConversationTestScreen />);

@@ -111,6 +111,10 @@
   transform: translateX(-50%);
 }
 
+.toast {
+  z-index: 100;
+}
+
 .storageError {
   top: 76px;
   bottom: auto;
