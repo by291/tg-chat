@@ -31,6 +31,7 @@
   --bubble-status-color: var(--incoming-meta-color);
   --message-peer-color: var(--accent-color);
   --message-primary-color: var(--accent-color);
+  --message-secondary-color: var(--secondary-color);
   position: relative;
   isolation: isolate;
   max-width: min(calc(100% - 36px), 480px);
@@ -60,6 +61,7 @@
   --bubble-status-color: var(--outgoing-meta-color);
   --message-peer-color: var(--outgoing-meta-color);
   --message-primary-color: var(--outgoing-meta-color);
+  --message-secondary-color: var(--outgoing-meta-color);
 }
 
 .bubble[data-group-start='true'] {
@@ -621,6 +623,18 @@
 
 .bubble[data-structured='checklist'] {
   --message-control-border: #8d969c;
+}
+
+.bubble[data-structured='document'] {
+  max-width: min(calc(100% - 36px), 325px);
+}
+
+.bubble[data-structured='document'][data-has-caption='false'] > .mediaContent {
+  margin-block: 8px;
+}
+
+.bubble[data-structured='document'] > .author {
+  margin-bottom: -4px;
 }
 
 .bubble[data-structured='link'] > .messageContent:last-child {

@@ -89,6 +89,7 @@ export const MessageBubble = memo(function MessageBubble({
     hasSender && isGroupStart && !isStandalone && !isMediaOnly && !message.forwardedFrom;
   const hasHeader = Boolean(hasAuthor || message.forwardedFrom || message.replyToId);
   const hasCaption = Boolean(message.text);
+  const hasInlineMediaMetadata = !hasCaption && !hasReactions && message.media?.kind === 'document';
   const isLinkPreview = message.media?.kind === 'link';
   const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
   const hasReplyQuote = Boolean(message.replyQuote?.text);
@@ -184,12 +185,19 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
         <div className={styles.mediaContent} data-message-media>
-          <MessageBody message={message} onOpenMedia={onOpenMedia} onInteract={onInteract} />
+          <MessageBody
+            message={message}
+            onOpenMedia={onOpenMedia}
+            onInteract={onInteract}
+            metadata={hasInlineMediaMetadata ? <MessageMetadata message={message} /> : undefined}
+          />
           {hasOverlayTime && <MessageMetadata message={message} />}
         </div>
         <div className={styles.messageContent} data-message-text>
           {!isLinkPreview && <MessageText message={message} />}
-          {!hasOverlayTime && !hasReactions && <MessageMetadata message={message} />}
+          {!hasOverlayTime && !hasReactions && !hasInlineMediaMetadata && (
+            <MessageMetadata message={message} />
+          )}
         </div>
         {hasReactions && (
           <div className={styles.reactions} aria-label="Reactions">

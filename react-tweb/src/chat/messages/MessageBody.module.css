@@ -83,18 +83,6 @@
   font-size: 16px;
 }
 
-.documentCard {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 320px;
-  max-width: 100%;
-  padding: 8px 0;
-  color: inherit;
-  text-decoration: none;
-}
-
-.fileIcon,
 .playButton {
   display: grid;
   flex-shrink: 0;
@@ -107,22 +95,6 @@
   background: var(--accent-color);
 }
 
-.cardText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-}
-
-.cardText strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.cardText small,
 .duration {
   color: var(--secondary-color);
   font-size: 14px;

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { CustomEmojiText } from '../emoji/CustomEmojiText';
 import { MessageCode } from '../rich-text/MessageCode';
 import { MessageQuote } from '../rich-text/MessageQuote';
@@ -15,12 +16,13 @@ import styles from './MessageBody.module.css';
 
 interface MessageBodyProps {
   message: Message;
+  metadata?: ReactNode;
   onOpenMedia: (message: Message) => void;
   onInteract: (messageId: string, interaction: MessageInteraction) => void;
 }
 
 /** Select one explicit content renderer while the bubble keeps ownership of shared chrome. */
-export function MessageBody({ message, onOpenMedia, onInteract }: MessageBodyProps) {
+export function MessageBody({ message, metadata, onOpenMedia, onInteract }: MessageBodyProps) {
   if (message.attachment) {
     return (
       <PhotoFrame
@@ -52,7 +54,7 @@ export function MessageBody({ message, onOpenMedia, onInteract }: MessageBodyPro
     case 'voice':
       return <VoiceMessage media={media} />;
     case 'document':
-      return <DocumentCard media={media} />;
+      return <DocumentCard media={media} metadata={metadata} />;
     case 'link':
       return <LinkPreview media={media} />;
     case 'contact':

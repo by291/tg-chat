@@ -1,0 +1,158 @@
+.document {
+  --document-color: var(--message-primary-color, var(--accent-color));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 70px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.document[data-extension='pdf'] {
+  --document-color: #df3f40;
+}
+
+.document[data-extension='zip'] {
+  --document-color: #fb8c00;
+}
+
+.document[data-extension='apk'] {
+  --document-color: #43a047;
+}
+
+.icon {
+  --fold-size: 18px;
+  position: relative;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  overflow: hidden;
+  border-radius: 6px;
+  color: white;
+  background: var(--document-color);
+  transition: clip-path 200ms ease-in-out;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--fold-size)) 0,
+    100% var(--fold-size),
+    100% 100%,
+    0 100%
+  );
+}
+
+.icon::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: calc(var(--fold-size) / 2) solid transparent;
+  border-bottom-color: rgb(0 0 0 / 25%);
+  border-left-color: rgb(0 0 0 / 25%);
+  border-bottom-left-radius: 4px;
+  transition: border-width 200ms ease-in-out;
+  content: '';
+}
+
+.extension {
+  display: block;
+  overflow: hidden;
+  padding: 25px 4px 0;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.downloadIcon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 259px;
+}
+
+.name {
+  overflow: hidden;
+  margin-top: 1px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.size {
+  color: var(--message-secondary-color, var(--secondary-color));
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.document:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.document:focus-visible .icon {
+  --fold-size: 0px;
+}
+
+.document:focus-visible .extension {
+  opacity: 0;
+}
+
+.document:focus-visible .downloadIcon {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .document:hover .icon {
+    --fold-size: 0px;
+  }
+
+  .document:hover .extension {
+    opacity: 0;
+  }
+
+  .document:hover .downloadIcon {
+    opacity: 1;
+  }
+}
+
+.sizeRow {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0 6px;
+}
+
+.sizeRow > [data-message-metadata] {
+  position: relative;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.extension,
+.downloadIcon {
+  transition: opacity 200ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon,
+  .icon::after,
+  .extension,
+  .downloadIcon {
+    transition: none;
+  }
+}
