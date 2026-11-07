@@ -1,0 +1,74 @@
+.quote {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: 2px 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--message-peer-color, var(--accent-color)) 10%, transparent);
+  font-size: 14px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  vertical-align: bottom;
+}
+
+.quote::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 1;
+  width: 3px;
+  background: var(--message-peer-color, var(--accent-color));
+  content: '';
+}
+
+.content {
+  padding-block: 1px;
+  padding-inline: 9px 18px;
+}
+
+.content p {
+  margin: 0;
+}
+
+.quoteIcon {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 3px;
+  color: var(--message-peer-color, var(--accent-color));
+  pointer-events: none;
+}
+
+.quote[data-collapsible='true'] {
+  transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapse {
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: 0;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  color: var(--message-peer-color, var(--accent-color));
+  background: transparent;
+  cursor: pointer;
+}
+
+.collapse svg {
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quote[data-expanded='true'] .collapse svg {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote[data-collapsible='true'],
+  .collapse svg {
+    transition: none;
+  }
+}

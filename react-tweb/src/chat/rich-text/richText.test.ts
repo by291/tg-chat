@@ -45,6 +45,21 @@ describe('rich message sanitizing', () => {
     expect(sanitizeRichText(sanitizeRichText(richText))).toBe(richText);
   });
 
+  it('normalizes Telegram collapsed quote markers while rejecting malformed values', () => {
+    expect(sanitizeRichText('<blockquote data-collapsed>Quoted text</blockquote>')).toBe(
+      '<blockquote data-collapsed="true">Quoted text</blockquote>',
+    );
+    expect(sanitizeRichText('<blockquote data-collapsed="1">Quoted text</blockquote>')).toBe(
+      '<blockquote data-collapsed="true">Quoted text</blockquote>',
+    );
+    expect(sanitizeRichText('<blockquote data-collapsed="false">Quoted text</blockquote>')).toBe(
+      '<blockquote data-collapsed="false">Quoted text</blockquote>',
+    );
+    expect(sanitizeRichText('<blockquote data-collapsed="anything">Quoted text</blockquote>')).toBe(
+      '<blockquote>Quoted text</blockquote>',
+    );
+  });
+
   it('rejects malformed custom metadata while keeping readable content', () => {
     const unsafe = [
       '<span data-custom-emoji="javascript:alert(1)" data-spoiler="wrong">Emoji</span>',

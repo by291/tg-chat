@@ -4,7 +4,10 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RichMessageText } from './RichMessageText';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('rich message content', () => {
   it('copies code with its original line breaks', async () => {
@@ -18,6 +21,45 @@ describe('rich message content', () => {
 
     expect(writeText).toHaveBeenCalledWith('const first = 1;\nconst second = 2;');
     expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+  });
+
+  it('expands and collapses a saved collapsible quote without losing its text', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'scrollHeight',
+    );
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get: () => 120,
+    });
+    try {
+      render(
+        <RichMessageText richText='<blockquote data-collapsed="true">First<br>Second<br>Third<br>Fourth</blockquote>' />,
+      );
+      const expand = screen.getByRole('button', { name: 'Expand quote' });
+      expect(expand.getAttribute('aria-expanded')).toBe('false');
+      fireEvent.click(expand);
+      const collapse = screen.getByRole('button', { name: 'Collapse quote' });
+      expect(collapse.getAttribute('aria-expanded')).toBe('true');
+      expect(screen.getByText(/Fourth/)).toBeTruthy();
+      fireEvent.click(collapse);
+      expect(
+        screen.getByRole('button', { name: 'Expand quote' }).getAttribute('aria-expanded'),
+      ).toBe('false');
+    } finally {
+      if (originalScrollHeight) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollHeight', originalScrollHeight);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+      }
+    }
   });
 
   it('renders semantic blocks and opens links without granting access to the message window', () => {

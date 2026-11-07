@@ -11,7 +11,11 @@ import { $createParagraphNode, $createTextNode, $getRoot, type LexicalEditor } f
 import { useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ComposerFormattingToolbar } from './ComposerFormattingToolbar';
+import { $replaceEmojiEditor, $readEmojiEditor } from './emojiEditorState';
+import { $setComposerBlock } from './richEditorCommands';
 import { RICH_EDITOR_NODES } from './richEditorNodes';
+
+const originalRangeRectangle = Range.prototype.getBoundingClientRect;
 
 interface EditorCaptureProps {
   onReady: (editor: LexicalEditor) => void;
@@ -60,9 +64,45 @@ function renderToolbar() {
   return { editor, onError };
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  Range.prototype.getBoundingClientRect = originalRangeRectangle;
+});
 
 describe('composer formatting controls', () => {
+  it('toggles whether the selected quote will be sent collapsed without changing its text', async () => {
+    // JSDOM has no layout, but Lexical measures the caret when it restores focus after formatting.
+    Range.prototype.getBoundingClientRect = () => new DOMRect();
+    const { editor } = renderToolbar();
+    await act(async () => {
+      editor.update(
+        () => {
+          $replaceEmojiEditor({ text: 'Keep this quote' });
+          $getRoot().getAllTextNodes()[0].select(0, 15);
+          $setComposerBlock('quote');
+        },
+        { discrete: true },
+      );
+    });
+
+    const toggle = screen.getByRole('button', { name: 'Send quote collapsed' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(editor.read($readEmojiEditor).richText).toContain('data-collapsed="true"');
+    expect(editor.read($readEmojiEditor).text).toBe('Keep this quote');
+
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(editor.read($readEmojiEditor).richText).not.toContain('data-collapsed');
+    expect(editor.read($readEmojiEditor).text).toBe('Keep this quote');
+  });
+
   it('formats the saved substring through the platform keyboard shortcut', async () => {
     const { editor } = renderToolbar();
     await act(async () => {

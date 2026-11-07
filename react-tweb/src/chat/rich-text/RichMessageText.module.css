@@ -91,16 +91,6 @@
   text-decoration: underline;
 }
 
-.content blockquote {
-  margin: 8px 0;
-  padding: 3px 18px 3px 9px;
-  border-left: 3px solid var(--accent-color);
-  border-radius: 4px;
-  background: var(--reply-color);
-  font-size: 0.875em;
-  line-height: round(nearest, 1.3125em, 1px);
-}
-
 .content code {
   font-family: var(--font-monospace, monospace);
   font-size: 0.875em;

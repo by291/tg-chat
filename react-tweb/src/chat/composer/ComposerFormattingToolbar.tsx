@@ -70,10 +70,12 @@ import {
   $getComposerCodeLanguage,
   $getComposerLink,
   $insertComposerDetails,
+  $isComposerQuoteCollapsed,
   $removeComposerTable,
   $setComposerBlock,
   $setComposerCodeLanguage,
   $toggleComposerSpoiler,
+  $toggleComposerQuoteCollapsed,
 } from './richEditorCommands';
 import {
   $createMathNode,
@@ -229,6 +231,7 @@ export function ComposerFormattingToolbar({ isExpanded, onError }: ComposerForma
   const [position, setPosition] = useState<ToolbarPosition | null>(null);
   const [formats, setFormats] = useState<Set<TextFormatType>>(new Set());
   const [isQuote, setIsQuote] = useState(false);
+  const [isQuoteCollapsed, setIsQuoteCollapsed] = useState(false);
   const [isSpoiler, setIsSpoiler] = useState(false);
   const [isInTable, setIsInTable] = useState(false);
   const [isInCode, setIsInCode] = useState(false);
@@ -248,7 +251,7 @@ export function ComposerFormattingToolbar({ isExpanded, onError }: ComposerForma
   const applyEditorChange = useCallback(
     (updateContent: () => void) => {
       editor.update(() => {
-        // Dialogs and popovers own DOM focus, so restore the editor-owned range before commands applyEditorChange.
+        // Dialogs own DOM focus, so restore the editor range before applying formatting.
         const savedSelection = savedSelectionRef.current;
         if (savedSelection) {
           $setSelection(savedSelection.clone());
@@ -308,6 +311,7 @@ export function ComposerFormattingToolbar({ isExpanded, onError }: ComposerForma
         }
         setFormats(activeFormats);
         setIsQuote($findSelectedAncestor('quote') !== null);
+        setIsQuoteCollapsed($isComposerQuoteCollapsed());
         setIsSpoiler($findSelectedAncestor('spoiler') !== null);
         setIsInTable($findSelectedAncestor('table') !== null);
         setIsInCode($findSelectedAncestor('code') !== null);
@@ -707,6 +711,16 @@ export function ComposerFormattingToolbar({ isExpanded, onError }: ComposerForma
             >
               <Sigma size={23} />
             </button>
+            {isQuote && (
+              <button
+                type="button"
+                className={styles.language}
+                aria-pressed={isQuoteCollapsed}
+                onClick={() => applyEditorChange($toggleComposerQuoteCollapsed)}
+              >
+                Send quote collapsed
+              </button>
+            )}
             {isInCode && (
               <button
                 type="button"

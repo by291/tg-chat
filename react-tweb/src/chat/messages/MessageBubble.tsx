@@ -1,5 +1,6 @@
-import { Check } from 'lucide-react';
+import { Check, Quote } from 'lucide-react';
 import { memo, useLayoutEffect, useRef } from 'react';
+import { Ripple } from '../../components/Ripple';
 import { MessageBody, MessageText } from './MessageBody';
 import { MessageMetadata } from './MessageMetadata';
 import { MessageTail } from './MessageTail';
@@ -89,6 +90,8 @@ export const MessageBubble = memo(function MessageBubble({
   const hasCaption = Boolean(message.text);
   const isLinkPreview = message.media?.kind === 'link';
   const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
+  const hasReplyQuote = Boolean(message.replyQuote?.text);
+  const replyDescription = message.replyQuote?.text || describeMessage(replyMessage);
   const messageIdPrefix = idPrefix ?? (isPreview ? 'preview-message' : 'message');
   const elementId = `${messageIdPrefix}-${message.id}`;
 
@@ -155,14 +158,22 @@ export const MessageBubble = memo(function MessageBubble({
         )}
         {message.replyToId && (
           <button
+            type="button"
             className={styles.replyPreview}
+            data-author={replyMessage?.authorId}
+            data-quote={hasReplyQuote}
+            dir="auto"
             onClick={() => onJumpToMessage(message.replyToId!)}
             disabled={!replyMessage}
           >
-            {replyThumbnailUrl && <ReplyThumbnail source={replyThumbnailUrl} />}
+            <Ripple />
+            {hasReplyQuote && (
+              <Quote className={styles.replyQuoteIcon} aria-hidden="true" fill="currentColor" />
+            )}
             <span className={styles.replyText}>
+              {replyThumbnailUrl && <ReplyThumbnail source={replyThumbnailUrl} />}
               <strong>{replyMessage?.authorName || 'Message unavailable'}</strong>
-              <span>{describeMessage(replyMessage)}</span>
+              <span className={styles.replyDescription}>{replyDescription}</span>
             </span>
           </button>
         )}

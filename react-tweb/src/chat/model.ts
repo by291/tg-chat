@@ -24,6 +24,7 @@ export const messageSchema = z.object({
   expiresAt: z.number().optional(),
   createdAt: z.number().min(-MAX_DATE_TIMESTAMP).max(MAX_DATE_TIMESTAMP),
   replyToId: z.string().optional(),
+  replyQuote: z.object({ text: z.string() }).optional(),
   attachment: attachmentSchema.optional(),
   sticker: z.string().optional(),
   media: messageMediaSchema.optional(),

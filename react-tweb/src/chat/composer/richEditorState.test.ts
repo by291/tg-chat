@@ -20,6 +20,56 @@ function createRichEditor(): LexicalEditor {
 }
 
 describe('rich editor interchange', () => {
+  it('preserves a collapsed quote through HTML import, draft restoration, and further editing', () => {
+    const editor = createRichEditor();
+    editor.update(
+      () => {
+        $replaceEmojiEditor({
+          text: '',
+          richText: '<blockquote data-collapsed="true">First line<br>Second line</blockquote>',
+        });
+      },
+      { discrete: true },
+    );
+    const draft = editor.read($readEmojiEditor);
+    const restored = createRichEditor();
+    restored.update(() => $replaceEmojiEditor(draft), { discrete: true });
+    restored.update(
+      () => {
+        const text = $getRoot().getFirstDescendant();
+        if ($isTextNode(text)) {
+          text.setTextContent('Edited first line');
+        }
+      },
+      { discrete: true },
+    );
+
+    const edited = restored.read($readEmojiEditor);
+    const markup = new DOMParser().parseFromString(edited.richText ?? '', 'text/html');
+    const quote = markup.querySelector('blockquote');
+    expect(quote?.getAttribute('data-collapsed')).toBe('true');
+    expect(quote?.textContent).toBe('Edited first lineSecond line');
+  });
+
+  it('keeps ordinary imported quotes expanded when their draft is restored', () => {
+    const editor = createRichEditor();
+    editor.update(
+      () => $replaceEmojiEditor({ text: '', richText: '<blockquote>Ordinary quote</blockquote>' }),
+      { discrete: true },
+    );
+    const draft = editor.read($readEmojiEditor);
+    const restored = createRichEditor();
+    restored.update(() => $replaceEmojiEditor(draft), { discrete: true });
+
+    const markup = new DOMParser().parseFromString(
+      restored.read($readEmojiEditor).richText ?? '',
+      'text/html',
+    );
+    const quote = markup.querySelector('blockquote');
+    expect(quote?.textContent).toBe('Ordinary quote');
+    expect(quote?.hasAttribute('data-collapsed')).toBe(false);
+  });
+
   it('retains a standalone formula through sanitization and draft restoration', () => {
     const editor = createRichEditor();
     editor.update(

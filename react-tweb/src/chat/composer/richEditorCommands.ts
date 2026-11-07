@@ -1,7 +1,12 @@
 import { $createCodeNode, $isCodeNode } from '@lexical/code';
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { $setBlocksType } from '@lexical/selection';
-import { $createHeadingNode, $createQuoteNode, type HeadingTagType } from '@lexical/rich-text';
+import {
+  $createHeadingNode,
+  $createQuoteNode,
+  $isQuoteNode,
+  type HeadingTagType,
+} from '@lexical/rich-text';
 import { $findMatchingParent, $insertNodeToNearestRoot, $unwrapNode } from '@lexical/utils';
 import {
   $copyNode,
@@ -22,6 +27,8 @@ import {
   SpoilerNode,
 } from './richEditorNodes';
 
+import { CollapsibleQuoteNode } from './CollapsibleQuoteNode';
+
 export type BlockFormat = 'paragraph' | 'quote' | 'code' | HeadingTagType;
 
 /** Find the nearest selected ancestor with the requested semantic type. */
@@ -31,7 +38,9 @@ export function $findSelectedAncestor(type: string): LexicalNode | null {
     return null;
   }
   const anchor = selection.anchor.getNode();
-  return $findMatchingParent(anchor, (node) => node.getType() === type);
+  return $findMatchingParent(anchor, (node) => {
+    return type === 'quote' ? $isQuoteNode(node) : node.getType() === type;
+  });
 }
 
 /** Apply a paragraph-level format through Lexical's block conversion utility. */
@@ -222,4 +231,18 @@ export function $removeComposerTable() {
   const paragraph = $createParagraphNode();
   table.replace(paragraph);
   paragraph.selectStart();
+}
+
+/** Toggle the selected quote's sent presentation without changing its editable content. */
+export function $toggleComposerQuoteCollapsed() {
+  const quote = $findSelectedAncestor('quote');
+  if (quote instanceof CollapsibleQuoteNode) {
+    quote.setCollapsed({ isCollapsed: !quote.isCollapsed() });
+  }
+}
+
+/** Read the selected quote's presentation for the formatting control. */
+export function $isComposerQuoteCollapsed() {
+  const quote = $findSelectedAncestor('quote');
+  return quote instanceof CollapsibleQuoteNode && quote.isCollapsed();
 }

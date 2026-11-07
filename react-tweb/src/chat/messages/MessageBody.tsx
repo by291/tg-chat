@@ -1,4 +1,5 @@
 import { CustomEmojiText } from '../emoji/CustomEmojiText';
+import { MessageQuote } from '../rich-text/MessageQuote';
 import { RichMessageText } from '../rich-text/RichMessageText';
 import { AlbumFrame, PhotoFrame, VideoFrame } from './MessageMediaFrames';
 import { ContactCard, DocumentCard, LinkPreview } from './MessageCards';
@@ -93,9 +94,9 @@ export function MessageText({ message }: { message: Message }) {
   }
   if (message.textStyle === 'quote') {
     return (
-      <blockquote className={styles.quote}>
+      <MessageQuote>
         <CustomEmojiText {...message} />
-      </blockquote>
+      </MessageQuote>
     );
   }
   return (

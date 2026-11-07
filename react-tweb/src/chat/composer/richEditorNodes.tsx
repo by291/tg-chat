@@ -10,6 +10,7 @@ import {
   type DOMConversionMap,
   type SerializedElementNode,
 } from 'lexical';
+import { CollapsibleQuoteNode, $createCollapsibleQuoteNode } from './CollapsibleQuoteNode';
 import styles from './RichEditorNodes.module.css';
 
 export { MathNode, $createMathNode } from './MathNode';
@@ -169,6 +170,12 @@ export function $createSummaryNode() {
 export const RICH_EDITOR_NODES = [
   HeadingNode,
   QuoteNode,
+  CollapsibleQuoteNode,
+  {
+    replace: QuoteNode,
+    with: () => $createCollapsibleQuoteNode({ isCollapsed: false }),
+    withKlass: CollapsibleQuoteNode,
+  },
   ListNode,
   ListItemNode,
   LinkNode,

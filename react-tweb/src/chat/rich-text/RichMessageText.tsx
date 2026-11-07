@@ -6,6 +6,7 @@ import parse, {
   type HTMLReactParserOptions,
 } from 'html-react-parser';
 import { useMemo, useState, type ReactNode } from 'react';
+import { MessageQuote } from './MessageQuote';
 import { CustomEmojiText } from '../emoji/CustomEmojiText';
 import { sanitizeRichText } from './richText';
 import { renderFormulaHtml } from './renderFormula';
@@ -168,6 +169,12 @@ function renderRichElement(node: DOMNode) {
       );
     case 'pre':
       return <CodeBlock element={node}>{renderChildren(node)}</CodeBlock>;
+    case 'blockquote':
+      return (
+        <MessageQuote isCollapsible={node.attribs['data-collapsed'] === 'true'}>
+          {renderChildren(node)}
+        </MessageQuote>
+      );
     case 'li': {
       const checked = node.attribs['data-checked'] ?? node.attribs['aria-checked'];
       if (checked === undefined) {

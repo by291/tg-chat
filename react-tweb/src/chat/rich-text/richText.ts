@@ -47,6 +47,7 @@ const ALLOWED_ATTRIBUTES = [
   'data-math-display',
   'data-message-date',
   'data-code-language',
+  'data-collapsed',
   'data-list-type',
   'data-checked',
   'aria-checked',
@@ -82,6 +83,8 @@ function isSafeAttribute(element: Element, attribute: Attr): boolean {
     }
     case 'datetime':
       return tag === 'time' && Number.isFinite(Date.parse(value));
+    case 'data-collapsed':
+      return tag === 'blockquote' && isBoolean;
     case 'data-code-language':
       return (tag === 'pre' || tag === 'code') && /^[\w+#.-]+$/.test(value);
     case 'data-list-type':
@@ -104,6 +107,15 @@ function isSafeAttribute(element: Element, attribute: Attr): boolean {
   }
 }
 
+function normalizeQuotePresentation(fragment: DocumentFragment) {
+  for (const quote of fragment.querySelectorAll('blockquote[data-collapsed]')) {
+    const marker = quote.getAttribute('data-collapsed');
+    if (marker === '' || marker === '1') {
+      quote.setAttribute('data-collapsed', 'true');
+    }
+  }
+}
+
 /** Keep only supported semantic message content before storing or rendering it. */
 export function sanitizeRichText(html: string): string {
   if (!html || !DOMPurify.isSupported) {
@@ -118,6 +130,7 @@ export function sanitizeRichText(html: string): string {
     RETURN_DOM_FRAGMENT: true,
   });
 
+  normalizeQuotePresentation(fragment);
   for (const element of fragment.querySelectorAll('*')) {
     for (const attribute of Array.from(element.attributes)) {
       if (!isSafeAttribute(element, attribute)) {

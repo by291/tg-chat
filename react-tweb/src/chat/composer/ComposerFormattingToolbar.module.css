@@ -235,3 +235,8 @@
     opacity: 1;
   }
 }
+
+.language[aria-pressed='true'] {
+  background: var(--accent-color);
+  color: white;
+}
