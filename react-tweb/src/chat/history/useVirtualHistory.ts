@@ -9,6 +9,7 @@ import { CURRENT_USER_ID } from '../model';
 import type { MessageNavigation } from './MessageTimeline';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import { animateHistoryInset } from './animateHistoryInset';
+import { createHistoryScroll } from './createHistoryScroll';
 
 const OVERSCAN_ROWS = 8;
 const WIDTH_SETTLE_DELAY_MS = 100;
@@ -49,6 +50,10 @@ export function useVirtualHistory({
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const animatedRowsRef = useRef<HTMLDivElement>(null);
+  const [historyScroll] = useState(() =>
+    createHistoryScroll({ getAnimatedRows: () => animatedRowsRef.current }),
+  );
+  const previousBottomAlignmentRef = useRef(0);
   const insetAnimationRef = useRef<Animation | undefined>(undefined);
   const previousInsetsRef = useRef(overlayInsets);
   const isInitializedRef = useRef(false);
@@ -91,6 +96,27 @@ export function useVirtualHistory({
     [navigationWindow, rows],
   );
 
+  const lastRow = rows.at(-1);
+  const previousLastKey = previousLastKeyRef.current;
+  const hasAppended = Boolean(
+    lastRow &&
+    previousLastKey !== lastRow.key &&
+    (previousLastKey === undefined || rows.some((row) => row.key === previousLastKey)),
+  );
+  const isOwnMessage = lastRow?.kind === 'message' && lastRow.message.authorId === CURRENT_USER_ID;
+  const viewport = viewportRef.current;
+  const scrollOffsetBeforeCommit = viewport?.scrollTop ?? 0;
+  const isFollowingLatest = Boolean(
+    viewport &&
+    viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= FOLLOW_BOTTOM_DISTANCE,
+  );
+  const shouldReveal = hasAppended && (isOwnMessage || isFollowingLatest);
+  if (shouldReveal && isInitializedRef.current && !shouldReduceMotion) {
+    // Ref measurements run before layout effects. Reserve scroll ownership before they can
+    // apply estimate corrections, otherwise the first painted frame starts from a jump.
+    historyScroll.prepare();
+  }
+
   const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: rows.length,
     getScrollElement: () => viewportRef.current,
@@ -107,10 +133,13 @@ export function useVirtualHistory({
     paddingEnd: HISTORY_BOTTOM_PADDING + overlayInsets.bottom,
     scrollPaddingStart: overlayInsets.top,
     scrollPaddingEnd: overlayInsets.bottom,
+    scrollToFn: historyScroll.scrollTo,
     anchorTo: 'end',
     followOnAppend: shouldReduceMotion ? 'auto' : 'smooth',
     scrollEndThreshold: FOLLOW_BOTTOM_DISTANCE,
   });
+  const viewportHeight = virtualizer.scrollRect?.height ?? 0;
+  const bottomAlignment = Math.max(0, viewportHeight - virtualizer.getTotalSize());
 
   useLayoutEffect(() => {
     const previous = previousInsetsRef.current;
@@ -133,6 +162,12 @@ export function useVirtualHistory({
       viewport.clientHeight -
       topChange -
       bottomChange;
+    // An appended message already owns the movement. Collapsing its reply/input helper must
+    // retarget that reveal, rather than snapping to the end and covering it with another motion.
+    if (historyScroll.isAnimating()) {
+      virtualizer.scrollToEnd({ behavior: 'smooth' });
+      return;
+    }
     if (previousDistance <= FOLLOW_BOTTOM_DISTANCE) {
       virtualizer.scrollToEnd({ behavior: 'auto' });
       const animatedRows = animatedRowsRef.current;
@@ -179,13 +214,18 @@ export function useVirtualHistory({
     scheduleScrollWork();
   });
 
-  function cancelNavigation() {
+  function cancelOtherMotion() {
     insetAnimationRef.current?.cancel();
     insetAnimationRef.current = undefined;
     cancelResizeRestoreRef.current?.();
     cancelResizeRestoreRef.current = undefined;
     cancelNavigationRef.current?.();
     cancelNavigationRef.current = undefined;
+  }
+
+  function cancelNavigation() {
+    historyScroll.cancel();
+    cancelOtherMotion();
   }
 
   useEffect(() => {
@@ -214,26 +254,37 @@ export function useVirtualHistory({
   }, [virtualizer, navigation]);
 
   useLayoutEffect(() => {
-    const lastRow = rows.at(-1);
-    const previousLastKey = previousLastKeyRef.current;
-    const hasAppended =
-      lastRow && previousLastKey !== lastRow.key && rows.some((row) => row.key === previousLastKey);
-    const isOwnMessage =
-      lastRow?.kind === 'message' && lastRow.message.authorId === CURRENT_USER_ID;
-
-    // Sending explicitly returns to the latest message, even while reading older history.
-    if (hasAppended && isOwnMessage) {
-      cancelNavigation();
-      setNavigationWindow(undefined);
-      virtualizer.scrollToEnd({ behavior: shouldReduceMotion ? 'auto' : 'smooth' });
-    }
+    const previousBottomAlignment = previousBottomAlignmentRef.current;
+    previousBottomAlignmentRef.current = bottomAlignment;
     previousLastKeyRef.current = lastRow?.key;
-  }, [rows, virtualizer, shouldReduceMotion]);
+    if (!isInitializedRef.current) {
+      return;
+    }
+
+    // Both the estimated append and its measured height change bottom alignment. Compensate
+    // each committed layout before paint, not just the render that first added the message.
+    if (historyScroll.isAnimating()) {
+      // A shrinking canvas clamps native scrollTop even when no scroll command is issued.
+      const scrollOffsetAfterCommit = viewportRef.current?.scrollTop ?? 0;
+      const clampedDistance = scrollOffsetAfterCommit - scrollOffsetBeforeCommit;
+      historyScroll.reveal(previousBottomAlignment - bottomAlignment + clampedDistance);
+    }
+    if (!shouldReveal) {
+      return;
+    }
+    // Reserving the reveal must not keep a previous resize restore or reply navigation alive.
+    cancelOtherMotion();
+    setNavigationWindow(undefined);
+    virtualizer.scrollToEnd({ behavior: shouldReduceMotion ? 'auto' : 'smooth' });
+  });
 
   useLayoutEffect(() => {
     if (!navigation) {
-      cancelNavigation();
-      setNavigationWindow(undefined);
+      if (lastNavigationRef.current !== undefined) {
+        cancelNavigation();
+        lastNavigationRef.current = undefined;
+        setNavigationWindow(undefined);
+      }
       return;
     }
     // A reaction/edit may replace the rows while moving. Re-resolve the index only on that change.

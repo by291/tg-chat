@@ -64,6 +64,8 @@
   width: var(--chat-content-width, 100%);
   margin: 0 auto;
   min-height: 100%;
+  /* Translated rows must not expand scrollHeight while short histories reveal a new message. */
+  overflow-y: clip;
   overflow-anchor: none;
 }
 
