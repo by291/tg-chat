@@ -27,6 +27,8 @@ pnpm format:check
 - Responsive desktop and mobile navigation, plus a dark appearance.
 - Conversation filtering and message search within the current conversation.
 - Text messages, Shift+Enter newlines, and IME-safe Enter submission.
+- Selection formatting, links, spoilers, dates, and expanded rich-text composition.
+- Headings, lists, checklists, collapsible details, tables, code blocks, and LaTeX formulas.
 - Independent conversation drafts, restored after switching or refreshing.
 - Reply previews, double-click to reply, and navigation to the original message.
 - Editing, deleting with confirmation, pinning, copying text, and toggling reactions.
@@ -66,17 +68,20 @@ The source is organized into `src/app` for the shell, `src/components` for reusa
 media, sidebar, details, state, and demo content. Components, CSS Modules, and related tests stay
 together. See the [directory layout](./docs/source-guide.md#directory-layout) for the reading map.
 
-| Library                    | Responsibility                                           |
-| -------------------------- | -------------------------------------------------------- |
-| React                      | Component rendering, reducer state, lifecycle            |
-| Ark UI                     | Menu, popover, dialog, tabs, keyboard and focus behavior |
-| CSS Modules                | Component-scoped visual styles                           |
-| TanStack Virtual           | Dynamic row measurements, end anchoring, and bounded DOM |
-| Motion                     | Message entry animation and reduced-motion preference    |
-| Lucide                     | Consistent interface icons                               |
-| idb-keyval                 | IndexedDB access                                         |
-| Zod                        | Validation before restoring saved state                  |
-| Vitest and Testing Library | State, keyboard, menu, and attachment regression tests   |
+| Library                         | Responsibility                                                       |
+| ------------------------------- | -------------------------------------------------------------------- |
+| React                           | Component rendering, reducer state, lifecycle                        |
+| Ark UI                          | Menu, popover, dialog, tabs, keyboard and focus behavior             |
+| CSS Modules                     | Component-scoped visual styles                                       |
+| TanStack Virtual                | Dynamic row measurements, end anchoring, and bounded DOM             |
+| Motion                          | Message entry animation and reduced-motion preference                |
+| Lucide                          | Consistent interface icons                                           |
+| idb-keyval                      | IndexedDB access                                                     |
+| Zod                             | Validation before restoring saved state                              |
+| Lexical                         | Rich editing, atomic emoji, selection, history, and HTML interchange |
+| DOMPurify and HTML React Parser | Safe semantic message content and React rendering                    |
+| KaTeX                           | Bounded formula rendering in composition and messages                |
+| Vitest and Testing Library      | State, keyboard, menu, and attachment regression tests               |
 
 The lockfile pins the installed dependency graph. See [the source guide](./docs/source-guide.md)
 for a reading order and a map back to the original tweb sources.
@@ -143,7 +148,8 @@ records public source links, retrieval date, and checksums for animations and ge
 
 - `src/chat/emoji/` owns document lookup, UTF-16 entity ranges, and inline message rendering.
 - `EmojiEditor` uses Lexical for atomic emoji nodes, selection, composition, deletion and undo.
-  The domain model remains plain text plus `customEmoji` ranges; it does not persist editor JSON.
+  The domain model stores plain text, `customEmoji` ranges, and optional semantic `richText` HTML;
+  it does not persist editor JSON.
   Draft ranges are saved independently for each chat alongside the existing draft strings.
 - Sending and editing trim text and shift emoji ranges together. Forwarding preserves document
   IDs, and reload restores both sent messages and unsent custom emoji. Unicode fallback text
@@ -154,3 +160,25 @@ records public source links, retrieval date, and checksums for animations and ge
 
 These packs are bundled for the local study. Runtime code does not call Telegram or require a
 bot token, account login, or subscription. Artwork attribution is in `THIRD_PARTY_NOTICES.md`.
+
+### Rich-text composition
+
+Selecting text reveals a formatting toolbar. The expanded composer adds history controls,
+block styles, lists, tables, code language, formulas, and dividers. On macOS use Command;
+elsewhere use Control with B, I, U, S, M, P, or K for bold, italic, underline, strikethrough,
+monospace, spoiler, or link editing. Enter sends; Shift+Enter inserts a newline and continues
+structured list items. Formula and date decorations can be reopened with a double click.
+
+`src/chat/composer/richEditorHtml.ts` adapts Lexical HTML to the portable message attributes.
+`src/chat/rich-text/` sanitizes that content and renders interactive spoilers, custom emoji,
+formulas, dates, tables, and copyable code. Drafts, edits, forwarding, and reload preserve the
+same representation. The plain-text fallback remains available to search and chat previews.
+
+Bubble block spacing and table presentation follow tweb's `instantView.module.scss` and
+`genericTable.module.scss`. The final paragraph shares the bubble's inline formatting context
+so the timestamp can stay beside short formatted text. Table borders and header fills derive
+from the incoming or outgoing bubble colors. Saved checklist states are currently read-only;
+change them through message editing rather than directly toggling the sent checklist.
+
+This is local composition and rendering, without Telegram server entity serialization,
+Premium entitlement enforcement, collaborative editing, or an AI action.
