@@ -1,4 +1,5 @@
 import { trimEmojiText } from '../emoji/customEmojiEntities';
+import { sanitizeRichText } from '../rich-text/richText';
 import { applyPollVote } from './pollVoting';
 import { receiveMessage } from './incomingMessages';
 import {
@@ -32,14 +33,20 @@ function updateMessage(message: Message, action: MessageChange): Message {
   }
 
   if (action.type === 'edit') {
-    const hasContent =
-      action.text.trim().length > 0 || Boolean(message.attachment || message.media);
+    const content = trimEmojiText(action);
+    const hasContent = Boolean(
+      content.text || content.richText || message.attachment || message.media,
+    );
     const canEdit = message.authorId === CURRENT_USER_ID && hasContent;
     if (!canEdit) {
       return message;
     }
 
-    return { ...message, ...trimEmojiText(action), isEdited: true };
+    return {
+      ...message,
+      ...content,
+      isEdited: true,
+    };
   }
 
   if (action.type === 'pin') {
@@ -109,6 +116,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         drafts: { ...state.drafts, [action.chatId]: action.text },
+        draftRichText: {
+          ...state.draftRichText,
+          [action.chatId]: sanitizeRichText(action.richText ?? ''),
+        },
         draftCustomEmoji: {
           ...state.draftCustomEmoji,
           [action.chatId]: action.customEmoji ?? [],
@@ -117,8 +128,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'forward':
     case 'send': {
       const message = assignMessageExpiration({ state, message: action.message });
-      const hasContent =
-        message.text.trim() || message.attachment || message.sticker || message.media;
+      const content = trimEmojiText(message);
+      const hasContent = Boolean(
+        content.text || content.richText || message.attachment || message.sticker || message.media,
+      );
       const isDuplicate = state.messages.some((entry) => entry.id === message.id);
       if (!hasContent || isDuplicate) {
         return state;
@@ -129,10 +142,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const drafts = shouldPreserveDraft ? state.drafts : { ...state.drafts, [message.chatId]: '' };
       return {
         ...state,
-        messages: [...state.messages, { ...message, ...trimEmojiText(message) }],
+        messages: [...state.messages, { ...message, ...content }],
         draftCustomEmoji: shouldPreserveDraft
           ? state.draftCustomEmoji
           : { ...state.draftCustomEmoji, [message.chatId]: [] },
+        draftRichText: shouldPreserveDraft
+          ? state.draftRichText
+          : { ...state.draftRichText, [message.chatId]: '' },
         drafts,
       };
     }

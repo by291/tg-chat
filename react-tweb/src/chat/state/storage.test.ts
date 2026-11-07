@@ -1,8 +1,23 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
 import { parseSavedState } from './storage';
 
 describe('saved conversations', () => {
+  it('sanitizes restored message content and drafts without dropping their formatting', () => {
+    const state = createInitialState();
+    const unsafeRichText =
+      '<p onclick="alert(1)"><strong>Keep</strong><script>alert(1)</script></p>';
+    state.messages = [{ ...state.messages[0], richText: unsafeRichText }];
+    state.draftRichText = { dev: unsafeRichText };
+
+    const restoredState = parseSavedState(state);
+
+    expect(restoredState?.messages[0].richText).toBe('<p><strong>Keep</strong></p>');
+    expect(restoredState?.draftRichText?.dev).toBe('<p><strong>Keep</strong></p>');
+  });
+
   it('rejects timestamps outside the JavaScript date range', () => {
     const state = createInitialState();
     const messages = [{ ...state.messages[0], createdAt: 1e20 }];

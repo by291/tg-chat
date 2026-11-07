@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { customEmojiEntitySchema, type CustomEmojiEntity } from './emoji/customEmojiEntities';
 import { attachmentSchema, messageMediaSchema } from './messageMedia';
+import { sanitizeRichText } from './rich-text/richText';
 
 export { attachmentSchema } from './messageMedia';
 
@@ -17,6 +18,7 @@ export const messageSchema = z.object({
   authorId: z.string(),
   authorName: z.string(),
   text: z.string(),
+  richText: z.string().transform(sanitizeRichText).optional(),
   customEmoji: z.array(customEmojiEntitySchema).optional(),
   expiresAt: z.number().optional(),
   createdAt: z.number().min(-MAX_DATE_TIMESTAMP).max(MAX_DATE_TIMESTAMP),
@@ -55,6 +57,7 @@ export const chatStateSchema = z.object({
   messages: z.array(messageSchema),
   drafts: z.record(z.string(), z.string()),
   draftCustomEmoji: z.record(z.string(), z.array(customEmojiEntitySchema)).optional(),
+  draftRichText: z.record(z.string(), z.string().transform(sanitizeRichText)).optional(),
   activeChatId: z.string(),
   isDark: z.boolean(),
   conversationPreferences: z.record(z.string(), conversationPreferencesSchema).optional(),
@@ -116,6 +119,7 @@ export type ChatAction =
       type: 'set-draft';
       chatId: string;
       text: string;
+      richText?: string;
       customEmoji?: CustomEmojiEntity[];
     }
   | {
@@ -131,6 +135,7 @@ export type ChatAction =
       chatId: string;
       messageId: string;
       text: string;
+      richText?: string;
       customEmoji?: CustomEmojiEntity[];
     }
   | {

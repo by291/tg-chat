@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { createInitialState } from '../demo/fixtures';
 import { describe, expect, it } from 'vitest';
 import { forwardMessages } from '../messages/forwardMessages';
@@ -29,6 +31,98 @@ function createState(): ChatState {
 }
 
 describe('conversation changes', () => {
+  it('accepts structural rich messages and structural edits without plain fallback text', () => {
+    const sent = chatReducer(createState(), {
+      type: 'send',
+      message: {
+        ...ownMessage,
+        id: 'divider',
+        text: '',
+        richText: '<hr>',
+      },
+    });
+    expect(sent.messages.at(-1)?.richText).toBe('<hr>');
+
+    const edited = chatReducer(sent, {
+      type: 'edit',
+      chatId: 'dev',
+      messageId: ownMessage.id,
+      text: '',
+      richText: '<hr>',
+    });
+    expect(edited.messages[0].richText).toBe('<hr>');
+  });
+
+  it('restores formatted drafts and consumes formatting only when the draft is sent', () => {
+    const richText = '<p><strong>Original message</strong></p>';
+    const draft = chatReducer(createState(), {
+      type: 'set-draft',
+      chatId: 'dev',
+      text: ownMessage.text,
+      richText,
+    });
+    const restored = parseSavedState({ ...draft, version: 2 });
+    expect(restored?.draftRichText?.dev).toBe(richText);
+
+    const sent = chatReducer(draft, {
+      type: 'send',
+      message: {
+        ...ownMessage,
+        id: 'formatted',
+        richText,
+      },
+    });
+    expect(sent.messages.at(-1)?.richText).toBe(richText);
+    expect(sent.draftRichText?.dev).toBe('');
+  });
+
+  it('applies formatting-only edits and can remove previous formatting', () => {
+    const formatted = chatReducer(createState(), {
+      type: 'edit',
+      chatId: 'dev',
+      messageId: ownMessage.id,
+      text: ownMessage.text,
+      richText: '<p><em>Original message</em></p>',
+    });
+    expect(formatted.messages[0].richText).toBe('<p><em>Original message</em></p>');
+    expect(formatted.messages[0].isEdited).toBe(true);
+
+    const plain = chatReducer(formatted, {
+      type: 'edit',
+      chatId: 'dev',
+      messageId: ownMessage.id,
+      text: ownMessage.text,
+    });
+    expect(plain.messages[0].richText).toBeUndefined();
+  });
+
+  it.each([
+    { caption: 'Context', captionRichText: '<p><u>Context</u></p>' },
+    { caption: '', captionRichText: '<hr>' },
+  ])(
+    'forwards formatted content without consuming the recipient draft',
+    ({ caption, captionRichText }) => {
+      const richText = '<p><strong>Original message</strong></p>';
+      let state: ChatState = {
+        ...createState(),
+        draftRichText: { design: '<p>Another draft</p>' },
+      };
+      forwardMessages({
+        messages: [{ ...ownMessage, richText }],
+        chatId: 'design',
+        caption,
+        richText: captionRichText,
+        dispatch: (action) => {
+          state = chatReducer(state, action);
+        },
+      });
+
+      expect(state.messages.at(-2)?.richText).toBe(captionRichText);
+      expect(state.messages.at(-1)?.richText).toBe(richText);
+      expect(state.draftRichText?.design).toBe('<p>Another draft</p>');
+    },
+  );
+
   it('allows clearing an image caption without removing its attachment', () => {
     const state = createState();
     state.messages[0] = {

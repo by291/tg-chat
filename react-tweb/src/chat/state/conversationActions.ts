@@ -44,9 +44,11 @@ export function clearConversations({ state, chatIds, mode }: ClearConversationsO
   const affectedChatIds = new Set(chatIds);
   const drafts = { ...state.drafts };
   const draftCustomEmoji = { ...state.draftCustomEmoji };
+  const draftRichText = { ...state.draftRichText };
   for (const chatId of chatIds) {
     delete drafts[chatId];
     delete draftCustomEmoji[chatId];
+    delete draftRichText[chatId];
   }
 
   const nextState = updateConversations({
@@ -64,6 +66,7 @@ export function clearConversations({ state, chatIds, mode }: ClearConversationsO
     ...nextState,
     drafts,
     draftCustomEmoji,
+    draftRichText,
     messages: state.messages.filter((message) => !affectedChatIds.has(message.chatId)),
   };
 }

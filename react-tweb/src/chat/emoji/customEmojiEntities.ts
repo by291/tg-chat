@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeRichText } from '../rich-text/richText';
 
 export const customEmojiEntitySchema = z.object({
   documentId: z.string(),
@@ -10,6 +11,7 @@ export type CustomEmojiEntity = z.infer<typeof customEmojiEntitySchema>;
 
 export interface EmojiText {
   text: string;
+  richText?: string;
   customEmoji?: CustomEmojiEntity[];
 }
 
@@ -59,6 +61,7 @@ export function trimEmojiText(value: EmojiText): EmojiText {
   });
   return {
     text,
+    richText: value.richText ? sanitizeRichText(value.richText) : undefined,
     customEmoji: customEmoji?.map((entity) => ({
       ...entity,
       offset: entity.offset - leadingLength,

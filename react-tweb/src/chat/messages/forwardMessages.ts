@@ -1,4 +1,4 @@
-import type { CustomEmojiEntity } from '../emoji/customEmojiEntities';
+import { trimEmojiText, type CustomEmojiEntity } from '../emoji/customEmojiEntities';
 import type { Dispatch } from 'react';
 import { CURRENT_USER_ID, type ChatAction, type Message } from '../model';
 
@@ -6,6 +6,7 @@ interface ForwardMessagesOptions {
   messages: Message[];
   chatId: string;
   caption?: string;
+  richText?: string;
   customEmoji?: CustomEmojiEntity[];
   dispatch: Dispatch<ChatAction>;
 }
@@ -15,10 +16,16 @@ export function forwardMessages({
   messages,
   chatId,
   caption,
+  richText,
   customEmoji,
   dispatch,
 }: ForwardMessagesOptions) {
-  if (caption?.trim()) {
+  const captionContent = trimEmojiText({
+    text: caption ?? '',
+    richText,
+    customEmoji,
+  });
+  if (captionContent.text || captionContent.richText) {
     // The recipient's existing draft belongs to its composer, not the share dialog.
     dispatch({
       type: 'forward',
@@ -27,8 +34,7 @@ export function forwardMessages({
         chatId,
         authorId: CURRENT_USER_ID,
         authorName: 'You',
-        text: caption,
-        customEmoji,
+        ...captionContent,
         createdAt: Date.now(),
         reactions: [],
       },
@@ -44,6 +50,7 @@ export function forwardMessages({
         authorId: CURRENT_USER_ID,
         authorName: 'You',
         text: source.text,
+        richText: source.richText,
         customEmoji: source.customEmoji,
         attachment: source.attachment,
         media: source.media,
