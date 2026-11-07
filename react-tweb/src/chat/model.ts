@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { customEmojiEntitySchema, type CustomEmojiEntity } from './emoji/customEmojiEntities';
 import { attachmentSchema, messageMediaSchema } from './messageMedia';
 
 export { attachmentSchema } from './messageMedia';
@@ -16,6 +17,7 @@ export const messageSchema = z.object({
   authorId: z.string(),
   authorName: z.string(),
   text: z.string(),
+  customEmoji: z.array(customEmojiEntitySchema).optional(),
   expiresAt: z.number().optional(),
   createdAt: z.number().min(-MAX_DATE_TIMESTAMP).max(MAX_DATE_TIMESTAMP),
   replyToId: z.string().optional(),
@@ -52,6 +54,7 @@ export const chatStateSchema = z.object({
   version: z.union([z.literal(1), z.literal(2)]),
   messages: z.array(messageSchema),
   drafts: z.record(z.string(), z.string()),
+  draftCustomEmoji: z.record(z.string(), z.array(customEmojiEntitySchema)).optional(),
   activeChatId: z.string(),
   isDark: z.boolean(),
   conversationPreferences: z.record(z.string(), conversationPreferencesSchema).optional(),
@@ -113,6 +116,7 @@ export type ChatAction =
       type: 'set-draft';
       chatId: string;
       text: string;
+      customEmoji?: CustomEmojiEntity[];
     }
   | {
       type: 'send' | 'forward';
@@ -127,6 +131,7 @@ export type ChatAction =
       chatId: string;
       messageId: string;
       text: string;
+      customEmoji?: CustomEmojiEntity[];
     }
   | {
       type: 'delete';

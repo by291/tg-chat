@@ -1,5 +1,7 @@
 import { createInitialState } from '../demo/fixtures';
 import { describe, expect, it } from 'vitest';
+import { forwardMessages } from '../messages/forwardMessages';
+import { parseSavedState } from './storage';
 import { chatReducer } from './reducer';
 import type { ChatState, Message } from '../model';
 
@@ -205,5 +207,57 @@ describe('local poll voting', () => {
       ],
     });
     expect(chatReducer(state, { ...vote, optionId: 'missing' }).messages).toEqual(state.messages);
+  });
+});
+
+describe('custom emoji message identity', () => {
+  it('keeps emoji ranges aligned through draft restore, sending, editing and forwarding', () => {
+    const documentId = '5249007745805328497';
+    const original = createState();
+    const draft = chatReducer(original, {
+      type: 'set-draft',
+      chatId: 'dev',
+      text: '  Hi 😂  ',
+      customEmoji: [{ documentId, offset: 5, length: 2 }],
+    });
+    const restored = parseSavedState(JSON.parse(JSON.stringify({ ...draft, version: 2 })));
+    expect(restored?.draftCustomEmoji?.dev).toEqual([{ documentId, offset: 5, length: 2 }]);
+
+    const sent = chatReducer(draft, {
+      type: 'send',
+      message: {
+        ...ownMessage,
+        id: 'custom-message',
+        text: draft.drafts.dev,
+        customEmoji: draft.draftCustomEmoji?.dev,
+      },
+    });
+    expect(sent.messages.at(-1)?.text).toBe('Hi 😂');
+    expect(sent.messages.at(-1)?.customEmoji).toEqual([{ documentId, offset: 3, length: 2 }]);
+    expect(sent.draftCustomEmoji?.dev).toEqual([]);
+
+    const edited = chatReducer(sent, {
+      type: 'edit',
+      chatId: 'dev',
+      messageId: 'custom-message',
+      text: '  New 😂  ',
+      customEmoji: [{ documentId, offset: 6, length: 2 }],
+    });
+    const source = edited.messages.find((message) => message.id === 'custom-message');
+    expect(source?.customEmoji).toEqual([{ documentId, offset: 4, length: 2 }]);
+    if (!source) {
+      throw new Error('Expected the edited message to remain available.');
+    }
+    let forwarded = edited;
+    forwardMessages({
+      messages: [source],
+      chatId: 'design',
+      dispatch: (action) => {
+        forwarded = chatReducer(forwarded, action);
+      },
+    });
+    expect(forwarded.messages.at(-1)?.customEmoji).toEqual(source.customEmoji);
+    expect(forwarded.messages.at(-1)?.text).toBe('New 😂');
+    expect(forwarded.drafts.design).toBe('Another draft');
   });
 });

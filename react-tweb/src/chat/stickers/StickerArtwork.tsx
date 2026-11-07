@@ -7,7 +7,11 @@ import { useStickerPlaybackGroup } from './StickerPlaybackScope';
 import styles from './StickerArtwork.module.css';
 
 /** Decode visible stickers and apply the shared window, overlay, and looping policy. */
-export function StickerArtwork({ sticker }: { sticker: Sticker }) {
+export function StickerArtwork({
+  sticker,
+}: {
+  sticker: Pick<Sticker, 'name' | 'source' | 'preview' | 'renderer'>;
+}) {
   const playbackGroup = useStickerPlaybackGroup();
   const containerRef = useRef<HTMLSpanElement>(null);
   const [hasFailed, setHasFailed] = useState(false);

@@ -1,3 +1,4 @@
+import { CustomEmojiText } from '../emoji/CustomEmojiText';
 import { AlbumFrame, PhotoFrame, VideoFrame } from './MessageMediaFrames';
 import { ContactCard, DocumentCard, LinkPreview } from './MessageCards';
 import { PollMessage } from './PollMessage';
@@ -70,7 +71,15 @@ export function MessageText({ message }: { message: Message }) {
     );
   }
   if (message.textStyle === 'quote') {
-    return <blockquote className={styles.quote}>{message.text}</blockquote>;
+    return (
+      <blockquote className={styles.quote}>
+        <CustomEmojiText {...message} />
+      </blockquote>
+    );
   }
-  return <span className={styles.text}>{message.text}</span>;
+  return (
+    <span className={styles.text}>
+      <CustomEmojiText {...message} />
+    </span>
+  );
 }

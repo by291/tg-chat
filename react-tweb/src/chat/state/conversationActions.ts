@@ -43,8 +43,10 @@ export function updateConversations({ state, chatIds, changes }: UpdateConversat
 export function clearConversations({ state, chatIds, mode }: ClearConversationsOptions): ChatState {
   const affectedChatIds = new Set(chatIds);
   const drafts = { ...state.drafts };
+  const draftCustomEmoji = { ...state.draftCustomEmoji };
   for (const chatId of chatIds) {
     delete drafts[chatId];
+    delete draftCustomEmoji[chatId];
   }
 
   const nextState = updateConversations({
@@ -61,6 +63,7 @@ export function clearConversations({ state, chatIds, mode }: ClearConversationsO
   return {
     ...nextState,
     drafts,
+    draftCustomEmoji,
     messages: state.messages.filter((message) => !affectedChatIds.has(message.chatId)),
   };
 }

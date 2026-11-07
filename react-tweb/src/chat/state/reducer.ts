@@ -1,3 +1,4 @@
+import { trimEmojiText } from '../emoji/customEmojiEntities';
 import { applyPollVote } from './pollVoting';
 import { receiveMessage } from './incomingMessages';
 import {
@@ -38,7 +39,7 @@ function updateMessage(message: Message, action: MessageChange): Message {
       return message;
     }
 
-    return { ...message, text: action.text.trim(), isEdited: true };
+    return { ...message, ...trimEmojiText(action), isEdited: true };
   }
 
   if (action.type === 'pin') {
@@ -108,6 +109,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         drafts: { ...state.drafts, [action.chatId]: action.text },
+        draftCustomEmoji: {
+          ...state.draftCustomEmoji,
+          [action.chatId]: action.customEmoji ?? [],
+        },
       };
     case 'forward':
     case 'send': {
@@ -124,7 +129,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const drafts = shouldPreserveDraft ? state.drafts : { ...state.drafts, [message.chatId]: '' };
       return {
         ...state,
-        messages: [...state.messages, { ...message, text: message.text.trim() }],
+        messages: [...state.messages, { ...message, ...trimEmojiText(message) }],
+        draftCustomEmoji: shouldPreserveDraft
+          ? state.draftCustomEmoji
+          : { ...state.draftCustomEmoji, [message.chatId]: [] },
         drafts,
       };
     }
