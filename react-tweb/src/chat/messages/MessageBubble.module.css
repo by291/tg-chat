@@ -330,6 +330,11 @@
   border-radius: inherit;
 }
 
+.mediaContent:has([data-viewer-source='true']) > .metadata,
+.mediaContent:has([data-viewer-source='true']) .metadataInner {
+  visibility: hidden;
+}
+
 .bubble[data-has-header='true'] .mediaContent {
   border-top-left-radius: 0;
   border-top-right-radius: 0;

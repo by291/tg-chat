@@ -3,10 +3,12 @@ import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
 import { IconButton } from '../../components/IconButton';
+import { Avatar } from '../../components/Avatar';
+import { useClosingDialogValue } from '../sidebar/useClosingDialogValue';
+import { ViewerPhoto } from './ViewerPhoto';
 import { formatMessageDate, formatMessageTime } from '../messageFormatting';
 import type { Message } from '../model';
 import styles from './MediaViewer.module.css';
-import overlays from '../overlays.module.css';
 
 interface MediaViewerProps {
   message?: Message;
@@ -17,9 +19,10 @@ interface MediaViewerProps {
 
 /** Present shared images in a keyboard-accessible full-screen gallery. */
 export function MediaViewer({ message, messages, onClose, onNavigate }: MediaViewerProps) {
+  const displayedMessage = useClosingDialogValue(message);
   const mediaMessages = getPhotoMessages(messages);
   const activeIndex = mediaMessages.findIndex((entry) => {
-    return entry.id === message?.id && entry.attachment?.name === message?.attachment?.name;
+    return entry.id === displayedMessage?.id;
   });
   const previousMessage = mediaMessages[activeIndex - 1];
   const nextMessage = mediaMessages[activeIndex + 1];
@@ -46,23 +49,30 @@ export function MediaViewer({ message, messages, onClose, onNavigate }: MediaVie
       unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop className={overlays.backdrop} />
-        <Dialog.Positioner className={overlays.dialogPositioner}>
+        <Dialog.Backdrop className={styles.backdrop} />
+        <Dialog.Positioner className={styles.positioner}>
           <Dialog.Content
             className={styles.viewer}
             onKeyDown={(event) => navigateGallery(event.key)}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                onClose();
+              }
+            }}
           >
             <header className={styles.toolbar}>
+              <Avatar initials={displayedMessage?.authorName.slice(0, 1) ?? ''} size="small" />
               <div>
-                <Dialog.Title>{message?.authorName}</Dialog.Title>
+                <Dialog.Title>{displayedMessage?.authorName}</Dialog.Title>
                 <Dialog.Description>
-                  {message &&
-                    `${formatMessageDate(message.createdAt)}, ${formatMessageTime(message.createdAt)}`}
+                  {activeIndex + 1} of {mediaMessages.length} ·{' '}
+                  {displayedMessage &&
+                    `${formatMessageDate(displayedMessage.createdAt)} at ${formatMessageTime(displayedMessage.createdAt)}`}
                 </Dialog.Description>
               </div>
               <a
-                href={message?.attachment?.url}
-                download={message?.attachment?.name}
+                href={displayedMessage?.attachment?.url}
+                download={displayedMessage?.attachment?.name}
                 aria-label="Download image"
               >
                 <Download size={23} />
@@ -73,35 +83,32 @@ export function MediaViewer({ message, messages, onClose, onNavigate }: MediaVie
                 </IconButton>
               </Dialog.CloseTrigger>
             </header>
-            {message?.attachment && (
-              <img
-                className={styles.image}
-                src={message.attachment.url}
-                alt={message.attachment.name}
-                width={message.attachment.width}
-                height={message.attachment.height}
+            {displayedMessage?.attachment && (
+              <ViewerPhoto
+                message={displayedMessage}
+                isOpen={Boolean(message)}
+                activeIndex={activeIndex}
               />
             )}
             <div className={styles.navigation}>
               <IconButton
                 label="Previous image"
+                className={styles.previous}
                 disabled={!previousMessage}
                 onClick={() => previousMessage && onNavigate(previousMessage)}
               >
                 <ChevronLeft />
               </IconButton>
-              <span>
-                {activeIndex + 1} of {mediaMessages.length}
-              </span>
               <IconButton
                 label="Next image"
+                className={styles.next}
                 disabled={!nextMessage}
                 onClick={() => nextMessage && onNavigate(nextMessage)}
               >
                 <ChevronRight />
               </IconButton>
             </div>
-            {message?.text && <p className={styles.caption}>{message.text}</p>}
+            {displayedMessage?.text && <p className={styles.caption}>{displayedMessage.text}</p>}
           </Dialog.Content>
         </Dialog.Positioner>
       </Portal>

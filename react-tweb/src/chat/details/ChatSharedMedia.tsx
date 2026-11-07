@@ -1,6 +1,7 @@
 import { File } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { getPhotoMessages } from '../media/photoGallery';
+import { rememberPhotoSource } from '../media/mediaViewerTransition';
 import type { MessageMedia } from '../messageMedia';
 import { useVisiblePlayback } from '../messages/useVisiblePlayback';
 import { VoiceMessage } from '../messages/VoiceMessage';
@@ -63,7 +64,14 @@ export function ChatSharedMedia({
       <div ref={containerRef}>
         <div className={styles.gallery}>
           {photos.map((message) => (
-            <button key={message.id} onClick={() => onOpenMedia(message)}>
+            <button
+              key={message.id}
+              data-photo-id={message.id}
+              onClick={(event) => {
+                rememberPhotoSource(message.id, event.currentTarget);
+                onOpenMedia(message);
+              }}
+            >
               <img src={message.attachment!.url} alt={message.attachment!.name} />
             </button>
           ))}

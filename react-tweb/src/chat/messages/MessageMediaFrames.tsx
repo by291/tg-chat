@@ -1,4 +1,5 @@
 import { createAlbumPhoto } from '../media/photoGallery';
+import { rememberPhotoSource } from '../media/mediaViewerTransition';
 import { PhotoBackdrop } from './PhotoBackdrop';
 import { useRef } from 'react';
 import { useDeferredMediaSource } from './deferredMedia';
@@ -11,13 +12,14 @@ import styles from './MessageBody.module.css';
 const ROUND_VIDEO_SIZE = 240;
 
 interface PhotoFrameProps {
+  messageId: string;
   photo: PhotoAttachment;
   hasCaption: boolean;
   onOpen: () => void;
 }
 
 /** Reserve the photo frame independently of the image loading lifecycle. */
-export function PhotoFrame({ photo, hasCaption, onOpen }: PhotoFrameProps) {
+export function PhotoFrame({ messageId, photo, hasCaption, onOpen }: PhotoFrameProps) {
   const source = useDeferredMediaSource(photo.url);
   const frame = getPhotoGeometry({ ...photo, hasCaption });
   const borderWidth = 2;
@@ -26,9 +28,13 @@ export function PhotoFrame({ photo, hasCaption, onOpen }: PhotoFrameProps) {
   return (
     <button
       className={styles.photoFrame}
+      data-photo-id={messageId}
       data-fitted={frame.isFitted}
       style={{ width: frame.width, aspectRatio: `${frame.width} / ${frame.height}` }}
-      onClick={onOpen}
+      onClick={(event) => {
+        rememberPhotoSource(messageId, event.currentTarget);
+        onOpen();
+      }}
       aria-label={`Open image: ${photo.name}`}
     >
       {frame.isFitted && <PhotoBackdrop source={source} />}
@@ -75,8 +81,13 @@ export function AlbumFrame({
       {photos.map((photo, index) => (
         <button
           key={`${photo.url}-${index}`}
+          data-photo-id={createAlbumPhoto(message, photo, index).id}
           aria-label={`Open album photo ${index + 1}: ${photo.name}`}
-          onClick={() => onOpenMedia(createAlbumPhoto(message, photo, index))}
+          onClick={(event) => {
+            const selectedPhoto = createAlbumPhoto(message, photo, index);
+            rememberPhotoSource(selectedPhoto.id, event.currentTarget);
+            onOpenMedia(selectedPhoto);
+          }}
         >
           <AlbumPhoto photo={photo} />
         </button>

@@ -22,6 +22,7 @@ export function MessageBody({ message, onOpenMedia, onInteract }: MessageBodyPro
   if (message.attachment) {
     return (
       <PhotoFrame
+        messageId={message.id}
         photo={message.attachment}
         hasCaption={Boolean(message.text || message.replyToId)}
         onOpen={() => onOpenMedia(message)}
