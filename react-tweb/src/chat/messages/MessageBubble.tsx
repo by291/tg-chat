@@ -7,6 +7,7 @@ import { MessageTail } from './MessageTail';
 import { useDeferredMediaSource } from './deferredMedia';
 import { describeMessage } from '../messageFormatting';
 import { CURRENT_USER_ID, type Message } from '../model';
+import type { MessageInteraction } from '../messageInteraction';
 import styles from './MessageBubble.module.css';
 
 const MESSAGE_ENTRY_DURATION = 0.2;
@@ -23,7 +24,7 @@ interface MessageBubbleProps {
   isHighlighted: boolean;
   shouldAnimate: boolean;
   onAppear: (messageId: string) => void;
-  onVote: (messageId: string, optionId: string) => void;
+  onInteract: (messageId: string, interaction: MessageInteraction) => void;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMedia: (message: Message) => void;
   onJumpToMessage: (messageId: string) => void;
@@ -60,7 +61,7 @@ export const MessageBubble = memo(function MessageBubble({
   isHighlighted,
   shouldAnimate,
   onAppear,
-  onVote,
+  onInteract,
   onReact,
   onOpenMedia,
   onJumpToMessage,
@@ -173,7 +174,7 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
         <div className={styles.mediaContent} data-message-media>
-          <MessageBody message={message} onOpenMedia={onOpenMedia} onVote={onVote} />
+          <MessageBody message={message} onOpenMedia={onOpenMedia} onInteract={onInteract} />
           {hasOverlayTime && <MessageMetadata message={message} />}
         </div>
         <div className={styles.messageContent}>

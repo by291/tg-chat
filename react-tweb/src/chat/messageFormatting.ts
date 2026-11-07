@@ -73,6 +73,8 @@ export function describeMessage(message?: Message): string {
       return message.media.title;
     case 'contact':
       return message.media.name;
+    case 'checklist':
+      return message.media.title;
     case 'poll':
       return message.media.question;
     default:

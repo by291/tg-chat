@@ -80,6 +80,8 @@ export function estimateHistoryRow(row: HistoryRow, viewportWidth = DEFAULT_VIEW
       return height + availableWidth * ALBUM_HEIGHT_RATIO;
     case 'link':
       return height + (media.image ? LINK_WITH_IMAGE_HEIGHT : LINK_TEXT_HEIGHT);
+    case 'checklist':
+      return height + POLL_HEADER_HEIGHT + media.items.length * POLL_OPTION_HEIGHT;
     case 'poll':
       return height + POLL_HEADER_HEIGHT + media.options.length * POLL_OPTION_HEIGHT;
     case 'voice':

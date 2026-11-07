@@ -1,6 +1,6 @@
 import { trimEmojiText } from '../emoji/customEmojiEntities';
 import { sanitizeRichText } from '../rich-text/richText';
-import { applyPollVote } from './pollVoting';
+import { applyMessageInteraction } from './messageInteractions';
 import { receiveMessage } from './incomingMessages';
 import {
   clearConversations,
@@ -28,8 +28,8 @@ function updateMessage(message: Message, action: MessageChange): Message {
     return message;
   }
 
-  if (action.type === 'vote') {
-    return applyPollVote(message, action.optionId);
+  if (action.type === 'interact') {
+    return applyMessageInteraction(message, action.interaction);
   }
 
   if (action.type === 'edit') {
@@ -167,7 +167,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'edit':
     case 'react':
     case 'pin':
-    case 'vote':
+    case 'interact':
       return {
         ...state,
         messages: state.messages.map((message) => updateMessage(message, action)),

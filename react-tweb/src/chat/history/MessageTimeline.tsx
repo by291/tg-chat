@@ -20,6 +20,7 @@ import { useMessageMenu } from '../messages/useMessageMenu';
 import { findMessageRow } from '../messages/messageRowTarget';
 import { describeMessage } from '../messageFormatting';
 import type { Message, MessageCommand } from '../model';
+import type { MessageInteraction } from '../messageInteraction';
 import { useHistoryWindow } from './useHistoryWindow';
 import { useVirtualHistory } from './useVirtualHistory';
 import { StickyDateHeaders } from './StickyDateHeaders';
@@ -50,7 +51,7 @@ interface MessageTimelineProps {
   onSetSelection?: (change: MessageSelectionChange) => void;
   onCommand: (command: MessageCommand) => void;
   onReact: (messageId: string, emoji: string) => void;
-  onVote: (messageId: string, optionId: string) => void;
+  onInteract: (messageId: string, interaction: MessageInteraction) => void;
   onOpenMedia: (message: Message) => void;
   onJumpToMessage: (messageId: string) => void;
 }
@@ -75,7 +76,7 @@ function VirtualMessageHistory({
   messageIdPrefix,
   onCommand,
   onReact,
-  onVote,
+  onInteract,
   onOpenMedia,
   onJumpToMessage,
 }: VirtualMessageHistoryProps) {
@@ -255,7 +256,7 @@ function VirtualMessageHistory({
                         shouldAnimate={!appearedIds.has(row.key)}
                         onAppear={markMessageAppeared}
                         onReact={onReact}
-                        onVote={onVote}
+                        onInteract={onInteract}
                         onOpenMedia={onOpenMedia}
                         onJumpToMessage={onJumpToMessage}
                       />

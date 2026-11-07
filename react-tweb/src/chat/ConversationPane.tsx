@@ -17,6 +17,7 @@ import { MessageComposer, type ComposedMessage } from './composer/MessageCompose
 import { MessageTimeline, type MessageNavigation } from './history/MessageTimeline';
 import { describeMessage } from './messageFormatting';
 import type { ChatAction, ChatState, Conversation, Message, MessageCommand } from './model';
+import type { MessageInteraction } from './messageInteraction';
 import styles from './ConversationPane.module.css';
 
 interface ConversationPaneProps {
@@ -289,13 +290,13 @@ export function ConversationPane({
     [dispatch, conversation.id],
   );
 
-  const voteOnMessage = useCallback(
-    (messageId: string, optionId: string) => {
+  const interactWithMessage = useCallback(
+    (messageId: string, interaction: MessageInteraction) => {
       dispatch({
-        type: 'vote',
+        type: 'interact',
         chatId: conversation.id,
         messageId,
-        optionId,
+        interaction,
       });
     },
     [dispatch, conversation.id],
@@ -354,7 +355,7 @@ export function ConversationPane({
         navigation={navigation}
         onCommand={applyMessageCommand}
         onReact={reactToMessage}
-        onVote={voteOnMessage}
+        onInteract={interactWithMessage}
         onOpenMedia={onOpenMedia}
         onJumpToMessage={jumpToMessage}
       />

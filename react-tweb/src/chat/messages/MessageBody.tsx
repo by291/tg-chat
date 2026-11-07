@@ -2,21 +2,23 @@ import { CustomEmojiText } from '../emoji/CustomEmojiText';
 import { RichMessageText } from '../rich-text/RichMessageText';
 import { AlbumFrame, PhotoFrame, VideoFrame } from './MessageMediaFrames';
 import { ContactCard, DocumentCard, LinkPreview } from './MessageCards';
+import { ChecklistMessage } from './ChecklistMessage';
 import { PollMessage } from './PollMessage';
 import { VoiceMessage } from './VoiceMessage';
 import { findSticker, STICKER_MESSAGE_SIZE } from '../stickers/stickerCatalog';
 import { StickerArtwork } from '../stickers/StickerArtwork';
 import type { Message } from '../model';
+import type { MessageInteraction } from '../messageInteraction';
 import styles from './MessageBody.module.css';
 
 interface MessageBodyProps {
   message: Message;
   onOpenMedia: (message: Message) => void;
-  onVote: (messageId: string, optionId: string) => void;
+  onInteract: (messageId: string, interaction: MessageInteraction) => void;
 }
 
 /** Select one explicit content renderer while the bubble keeps ownership of shared chrome. */
-export function MessageBody({ message, onOpenMedia, onVote }: MessageBodyProps) {
+export function MessageBody({ message, onOpenMedia, onInteract }: MessageBodyProps) {
   if (message.attachment) {
     return (
       <PhotoFrame
@@ -53,7 +55,20 @@ export function MessageBody({ message, onOpenMedia, onVote }: MessageBodyProps) 
     case 'contact':
       return <ContactCard media={media} />;
     case 'poll':
-      return <PollMessage poll={media} onVote={(optionId) => onVote(message.id, optionId)} />;
+      return (
+        <PollMessage
+          poll={media}
+          onInteract={(interaction) => onInteract(message.id, interaction)}
+        />
+      );
+    case 'checklist':
+      return (
+        <ChecklistMessage
+          message={message}
+          checklist={media}
+          onInteract={(interaction) => onInteract(message.id, interaction)}
+        />
+      );
     default:
       return null;
   }

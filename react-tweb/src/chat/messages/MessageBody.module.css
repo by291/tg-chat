@@ -295,3 +295,81 @@
     grid-auto-rows: 112px;
   }
 }
+
+.pollDescription {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.pollChoice[data-multiple='true'] {
+  border-radius: 5px;
+}
+
+.pollOptions button:disabled {
+  cursor: default;
+}
+
+.pollOptions button[data-correct='true'] {
+  color: #359a61;
+}
+
+.pollAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--accent-color);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pollAction:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+:global(:root[data-touch-supported='false']) .pollAction:hover {
+  background: var(--hover-color);
+}
+
+.checklistTask[aria-checked='true'] > span:last-child {
+  text-decoration: line-through;
+  color: var(--secondary-color);
+}
+
+.pollChoice[data-completed='true'] {
+  color: white;
+  background: var(--accent-color);
+}
+
+.appendForm {
+  display: flex;
+  gap: 8px;
+}
+
+.appendForm input {
+  width: 0;
+  min-width: 0;
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.appendForm button {
+  border: 0;
+  color: var(--accent-color);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}

@@ -94,7 +94,7 @@ export function ConversationPreview({
                 isPreview
                 onCommand={ignorePreviewCommand}
                 onReact={ignorePreviewCommand}
-                onVote={ignorePreviewCommand}
+                onInteract={ignorePreviewCommand}
                 onOpenMedia={ignorePreviewCommand}
                 onJumpToMessage={ignorePreviewCommand}
               />

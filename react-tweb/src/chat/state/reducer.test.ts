@@ -284,14 +284,17 @@ describe('local poll voting', () => {
     };
     const state = { ...initial, messages: [pollMessage] };
     const vote = {
-      type: 'vote' as const,
+      type: 'interact' as const,
       chatId: pollMessage.chatId,
       messageId: pollMessage.id,
-      optionId: 'compact',
+      interaction: { type: 'vote' as const, optionIds: ['compact'] },
     };
     const firstVote = chatReducer(state, vote);
     const repeatedVote = chatReducer(firstVote, vote);
-    const changedVote = chatReducer(repeatedVote, { ...vote, optionId: 'spacious' });
+    const changedVote = chatReducer(repeatedVote, {
+      ...vote,
+      interaction: { type: 'vote', optionIds: ['spacious'] },
+    });
 
     expect(changedVote.messages[0].media).toMatchObject({
       selectedOptionId: 'spacious',
@@ -300,7 +303,10 @@ describe('local poll voting', () => {
         { id: 'spacious', votes: 3 },
       ],
     });
-    expect(chatReducer(state, { ...vote, optionId: 'missing' }).messages).toEqual(state.messages);
+    expect(
+      chatReducer(state, { ...vote, interaction: { type: 'vote', optionIds: ['missing'] } })
+        .messages,
+    ).toEqual(state.messages);
   });
 });
 
@@ -353,5 +359,84 @@ describe('custom emoji message identity', () => {
     expect(forwarded.messages.at(-1)?.customEmoji).toEqual(source.customEmoji);
     expect(forwarded.messages.at(-1)?.text).toBe('New 😂');
     expect(forwarded.drafts.design).toBe('Another draft');
+  });
+});
+
+describe('structured message interactions', () => {
+  it('saves a complete multi-answer vote and rejects revoting when disabled', () => {
+    const state = createState();
+    state.messages[0].media = {
+      kind: 'poll',
+      question: 'Pick two',
+      options: [
+        { id: 'first', text: 'First', votes: 0 },
+        { id: 'second', text: 'Second', votes: 0 },
+      ],
+      canChooseMultiple: true,
+      canRevote: false,
+    };
+    const action = {
+      type: 'interact' as const,
+      chatId: 'dev',
+      messageId: ownMessage.id,
+      interaction: { type: 'vote' as const, optionIds: ['first', 'second'] },
+    };
+    const voted = chatReducer(state, action);
+    expect(voted.messages[0].media).toMatchObject({
+      selectedOptionIds: ['first', 'second'],
+      options: [{ votes: 1 }, { votes: 1 }],
+    });
+    const revised = chatReducer(voted, {
+      ...action,
+      interaction: { type: 'vote', optionIds: ['second'] },
+    });
+    expect(revised.messages).toEqual(voted.messages);
+  });
+
+  it('rejects a vote after the poll deadline', () => {
+    const state = createState();
+    state.messages[0].media = {
+      kind: 'poll',
+      question: 'Closed',
+      options: [
+        { id: 'first', text: 'First', votes: 0 },
+        { id: 'second', text: 'Second', votes: 0 },
+      ],
+      closesAt: 1,
+    };
+    const next = chatReducer(state, {
+      type: 'interact',
+      chatId: 'dev',
+      messageId: ownMessage.id,
+      interaction: { type: 'vote', optionIds: ['first'] },
+    });
+    expect(next.messages).toEqual(state.messages);
+  });
+
+  it('enforces checklist permissions for another author and preserves completed tasks', () => {
+    const state = createState();
+    state.messages[0].authorId = 'mia';
+    state.messages[0].media = {
+      kind: 'checklist',
+      title: 'Release',
+      items: [{ id: 'ship', text: 'Ship', isCompleted: false }],
+      canOthersComplete: false,
+      canOthersAppend: true,
+    };
+    const action = {
+      type: 'interact' as const,
+      chatId: 'dev',
+      messageId: ownMessage.id,
+      interaction: { type: 'toggle-task' as const, taskId: 'ship' },
+    };
+    expect(chatReducer(state, action).messages).toEqual(state.messages);
+    state.messages[0].media.canOthersComplete = true;
+    const completed = chatReducer(state, action);
+    const restored = parseSavedState(completed);
+    expect(restored?.messages[0].media).toMatchObject({
+      kind: 'checklist',
+      items: [{ id: 'ship', isCompleted: true }],
+      canOthersAppend: true,
+    });
   });
 });

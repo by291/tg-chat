@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { MessageInteraction } from './messageInteraction';
 import { customEmojiEntitySchema, type CustomEmojiEntity } from './emoji/customEmojiEntities';
 import { attachmentSchema, messageMediaSchema } from './messageMedia';
 import { sanitizeRichText } from './rich-text/richText';
@@ -86,6 +87,12 @@ export interface Conversation {
 
 export type ChatAction =
   | {
+      type: 'interact';
+      chatId: string;
+      messageId: string;
+      interaction: MessageInteraction;
+    }
+  | {
       type: 'expire-messages';
       now: number;
     }
@@ -153,12 +160,6 @@ export type ChatAction =
       type: 'pin';
       chatId: string;
       messageId: string;
-    }
-  | {
-      type: 'vote';
-      chatId: string;
-      messageId: string;
-      optionId: string;
     }
   | {
       type: 'toggle-theme';

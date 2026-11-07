@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+export const MAX_POLL_OPTIONS = 12;
+export const MAX_POLL_OPTION_LENGTH = 100;
+export const MAX_CHECKLIST_TASKS = 10;
+export const MAX_CHECKLIST_TEXT_LENGTH = 255;
+
 export const attachmentSchema = z.object({
   name: z.string(),
   url: z.string(),
@@ -60,10 +65,40 @@ export const messageMediaSchema = z.discriminatedUnion('kind', [
         }),
       )
       .min(2),
+    voterCount: z.int().nonnegative().optional(),
     selectedOptionId: z.string().optional(),
+    selectedOptionIds: z.array(z.string()).optional(),
+    description: z.string().optional(),
+    shouldShowVoters: z.boolean().optional(),
+    canChooseMultiple: z.boolean().optional(),
+    canAddOptions: z.boolean().optional(),
+    canRevote: z.boolean().optional(),
+    shouldShuffleOptions: z.boolean().optional(),
+    correctOptionIds: z.array(z.string()).optional(),
+    explanation: z.string().optional(),
+    closesAt: z.number().optional(),
+    shouldHideResults: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal('checklist'),
+    title: z.string(),
+    items: z
+      .array(
+        z.object({
+          id: z.string(),
+          text: z.string(),
+          isCompleted: z.boolean(),
+        }),
+      )
+      .min(1)
+      .max(MAX_CHECKLIST_TASKS),
+    canOthersComplete: z.boolean(),
+    canOthersAppend: z.boolean(),
   }),
 ]);
 
 export type MessageMedia = z.infer<typeof messageMediaSchema>;
 export type PhotoAttachment = z.infer<typeof attachmentSchema>;
 export type PollMedia = Extract<MessageMedia, { kind: 'poll' }>;
+
+export type ChecklistMedia = Extract<MessageMedia, { kind: 'checklist' }>;

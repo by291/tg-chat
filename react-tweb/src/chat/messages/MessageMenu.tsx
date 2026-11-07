@@ -89,7 +89,10 @@ interface MessageMenuItem {
 function getMessageItems(message: Message): MessageMenuItem[] {
   const items: MessageMenuItem[] = [{ action: 'reply', label: 'Reply', icon: Reply }];
   const canEdit =
-    message.authorId === CURRENT_USER_ID && !message.sticker && message.media?.kind !== 'poll';
+    message.authorId === CURRENT_USER_ID &&
+    !message.sticker &&
+    message.media?.kind !== 'poll' &&
+    message.media?.kind !== 'checklist';
   if (canEdit) {
     items.push({ action: 'edit', label: 'Edit', icon: Pencil });
   }
