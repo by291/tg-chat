@@ -9,6 +9,10 @@ function message(sequence: number): CanonicalMessage {
     author_name: 'Author',
     sequence: String(sequence),
     version: '9007199254740993',
+    interaction_version: '1',
+    is_deleted: false,
+    is_pinned: false,
+    reactions: [],
     created_at: '2026-11-09T00:00:00Z',
     content: {
       schema_version: 1,
@@ -49,4 +53,23 @@ describe('bounded canonical projections', () => {
     expect(older).toHaveLength(200);
     expect(older.at(-1)?.sequence).toBe('200');
   });
+});
+
+it('merges content and interaction versions independently when responses cross', () => {
+  const current = {
+    ...message(1),
+    version: '3',
+    interaction_version: '2',
+    content: { ...message(1).content, text: 'Edited content' },
+    reactions: [{ emoji: '👍', count: '1', is_selected: true }],
+  };
+  const delayed = {
+    ...message(1),
+    version: '2',
+    interaction_version: '3',
+    reactions: [{ emoji: '👍', count: '2', is_selected: true }],
+  };
+  const merged = mergeMessages({ current: [current], incoming: [delayed], edge: 'latest' });
+  expect(merged[0].content.text).toBe('Edited content');
+  expect(merged[0].reactions[0].count).toBe('2');
 });

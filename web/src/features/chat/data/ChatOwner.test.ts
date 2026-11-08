@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { SessionOwner } from '@/features/auth/SessionOwner';
 import { ChatOwner } from './ChatOwner';
 import { PendingMessages } from './pendingMessages';
+import { cursorFixture } from './messageFixtures.test-support';
 
 const USER = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -35,6 +36,10 @@ const SAVED: components['schemas']['ConversationView'] = {
   is_manually_unread: false,
   pin_rank: null,
   muted_until: null,
+  keep_archived: false,
+  expiry_days: 0,
+  peer_read_through: '0',
+  draft: { version: '0' },
 };
 
 function fixture(options: {
@@ -60,7 +65,7 @@ function fixture(options: {
           contacts: [],
           blocks: [],
           conversations: [SAVED],
-          cursor: 'initial-cursor',
+          cursor: cursorFixture(0),
         });
       }
       if (path.endsWith('/history')) {
@@ -72,6 +77,8 @@ function fixture(options: {
           preceding_message: null,
           has_older: false,
           has_newer: false,
+          generation: '1',
+          observation_cursor: cursorFixture(0),
         });
       }
       return options.transport!(request);
@@ -98,6 +105,7 @@ function fixture(options: {
 
 function receipt(request: components['schemas']['SendMessage']) {
   return {
+    observation_cursor: cursorFixture(1),
     conversation: {
       ...SAVED,
       last_sequence: '1',
@@ -110,6 +118,10 @@ function receipt(request: components['schemas']['SendMessage']) {
       author_name: USER.display_name,
       sequence: '1',
       version: '1',
+      interaction_version: '1',
+      is_deleted: false,
+      is_pinned: false,
+      reactions: [],
       created_at: '2026-11-09T00:00:01Z',
       content: request.content,
     },
@@ -132,6 +144,10 @@ function historyMessage(sequence: number): components['schemas']['CanonicalMessa
     author_name: USER.display_name,
     sequence: String(sequence),
     version: '1',
+    interaction_version: '1',
+    is_deleted: false,
+    is_pinned: false,
+    reactions: [],
     created_at: '2026-11-09T00:00:00Z',
     content: {
       schema_version: 1,
@@ -151,6 +167,8 @@ function historyPage(options: { first: number; last: number; hasNewer?: boolean 
     preceding_message: options.first > 1 ? historyMessage(options.first - 1) : null,
     has_older: options.first > 1,
     has_newer: options.hasNewer ?? false,
+    generation: '1',
+    observation_cursor: cursorFixture(options.last),
   });
 }
 
@@ -159,6 +177,7 @@ function syncPage(options: { first: number; last: number }) {
     const sequence = options.first + index;
     return {
       position: String(sequence),
+      conversation_id: SAVED.id,
       conversation: {
         ...SAVED,
         version: String(options.last),
@@ -169,8 +188,8 @@ function syncPage(options: { first: number; last: number }) {
   });
   return Response.json({
     groups,
-    cursor: String(options.last),
-    observation_cursor: String(options.last),
+    cursor: cursorFixture(options.last),
+    observation_cursor: cursorFixture(options.last),
     has_more: false,
   });
 }
@@ -461,7 +480,7 @@ describe('connected chat ownership', () => {
         }
         const page = await syncPage({ first: 1, last: 100 }).json();
         page.has_more = true;
-        page.observation_cursor = '300';
+        page.observation_cursor = cursorFixture(300);
         for (const group of page.groups) {
           group.conversation.last_sequence = '300';
           group.conversation.version = '300';
@@ -527,4 +546,76 @@ describe('connected chat ownership', () => {
     expect(owner.getSnapshot().precedingMessage?.sequence).toBe('1');
     owner.dispose();
   });
+});
+
+describe('sync invalidation fences', () => {
+  it('does not resurrect a deleted message from a page requested before the deletion', async () => {
+    const delayed = deferredResponse();
+    const { owner } = fixture({
+      history: () => delayed.promise,
+      transport: async () =>
+        Response.json({
+          groups: [
+            {
+              position: '1',
+              conversation_id: SAVED.id,
+              conversation: { ...SAVED, version: '2' },
+              removed_message_id: 'message-1',
+            },
+          ],
+          cursor: cursorFixture(1),
+          observation_cursor: cursorFixture(1),
+          has_more: false,
+        }),
+    });
+    await owner.start();
+    const selecting = owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await owner.catchUp();
+    delayed.release(
+      Response.json({
+        messages: [historyMessage(1)],
+        preceding_message: null,
+        has_older: false,
+        has_newer: false,
+        generation: '1',
+        observation_cursor: cursorFixture(0),
+      }),
+    );
+    await selecting;
+    expect(owner.getSnapshot().messages).toEqual([]);
+    owner.dispose();
+  });
+});
+
+it('full reset fences an old page and preserves text typed before the reset', async () => {
+  const delayed = deferredResponse();
+  let historyRequests = 0;
+  const { owner } = fixture({
+    history: async () => {
+      historyRequests += 1;
+      return historyRequests === 1 ? delayed.promise : historyPage({ first: 2, last: 2 });
+    },
+    transport: async () =>
+      Response.json(
+        {
+          error: {
+            code: 'sync_reset_required',
+            message: 'A fresh bootstrap is required.',
+            request_id: 'reset-request',
+          },
+        },
+        { status: 409 },
+      ),
+  });
+  await owner.start();
+  const selecting = owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await owner.setDraft({ text: 'Keep my unsent text' });
+  await owner.catchUp();
+  delayed.release(historyPage({ first: 1, last: 1 }));
+  await selecting;
+  expect(owner.getSnapshot().messages.map((message) => message.id)).toEqual(['message-2']);
+  expect(owner.getSnapshot().draft.value.text).toBe('Keep my unsent text');
+  owner.dispose();
 });

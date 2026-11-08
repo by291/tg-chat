@@ -1,3 +1,5 @@
+import { Centrifuge } from 'centrifuge';
+import { CanonicalCache, observedAtLeast, type CanonicalSnapshot } from './canonicalCache';
 import type { EmojiText } from '@/domain/messages/customEmoji';
 import { ApiError, isCancelled, requirePayload, SessionOwner } from '@/features/auth/SessionOwner';
 import { canonicalMessageContent } from './messageContent';
@@ -77,9 +79,16 @@ function precedingMessage(options: {
   if (!first) {
     return undefined;
   }
-  const previousSequence = (BigInt(first.sequence) - 1n).toString();
-
-  return options.candidates.find((message) => message?.sequence === previousSequence);
+  let preceding: CanonicalMessage | undefined;
+  for (const candidate of options.candidates) {
+    if (!candidate || compareCounter(candidate.sequence, first.sequence) >= 0) {
+      continue;
+    }
+    if (!preceding || compareCounter(candidate.sequence, preceding.sequence) > 0) {
+      preceding = candidate;
+    }
+  }
+  return preceding;
 }
 
 export class ChatOwner {
@@ -88,6 +97,8 @@ export class ChatOwner {
   private readonly userId: string;
   private readonly sessionId: string;
   private store?: PendingMessages;
+  private cache?: CanonicalCache;
+  private cacheSnapshot?: CanonicalSnapshot;
   private snapshot = initialSnapshot();
   private readonly listeners = new Set<() => void>();
   private readonly unsubscribe: () => void;
@@ -137,9 +148,15 @@ export class ChatOwner {
     });
     const persisted = await this.store.open();
     this.ensureCurrent();
-    this.cursor = bootstrap.cursor;
+    this.cache ??= new CanonicalCache({
+      key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
+    });
+    const cached = await this.cache.open(bootstrap);
+    this.ensureCurrent();
+    this.cacheSnapshot = cached;
+    this.cursor = cached.cursor;
     this.publish({
-      conversations: bootstrap.conversations,
+      conversations: cached.conversations,
       pending: persisted.pending.map((message) => ({
         ...message,
         status: message.status === 'sending' ? 'queued' : message.status,
@@ -155,22 +172,32 @@ export class ChatOwner {
     let isRunning = false;
     let timer: ReturnType<typeof setTimeout>;
     let backoff = POLL_INTERVAL_MS;
+    let unwatchCache: (() => void) | undefined;
+    const watchCache = () => {
+      unwatchCache ??= this.cache?.subscribe(() => {
+        void this.reloadSharedCache()
+          .then(wake)
+          .catch((error) => this.report(error));
+      });
+    };
     const tick = async () => {
       if (isStopped || isRunning || this.isDisposed) {
         return;
       }
-      if (document.visibilityState === 'hidden') {
+      if (!this.snapshot.isReady || document.visibilityState === 'hidden') {
         timer = setTimeout(tick, POLL_INTERVAL_MS);
         return;
       }
       isRunning = true;
+      watchCache();
       try {
         await this.catchUp();
         await this.flush();
         backoff = POLL_INTERVAL_MS;
       } catch (error) {
         this.report(error);
-        backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+        const jitter = Math.floor(Math.random() * POLL_INTERVAL_MS);
+        backoff = Math.min(backoff * 2 + jitter, MAX_BACKOFF_MS);
       }
       isRunning = false;
       if (!isStopped) {
@@ -182,12 +209,21 @@ export class ChatOwner {
       void tick();
     };
     timer = setTimeout(tick, POLL_INTERVAL_MS);
+    const endpoint = new URL('/connection/websocket', window.location.href);
+    endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
+    const realtime = new Centrifuge(endpoint.toString());
+    realtime.on('connected', wake);
+    realtime.on('publication', wake);
+    realtime.connect();
+    watchCache();
     window.addEventListener('focus', wake);
     window.addEventListener('online', wake);
     document.addEventListener('visibilitychange', wake);
 
     return () => {
       isStopped = true;
+      realtime.disconnect();
+      unwatchCache?.();
       clearTimeout(timer);
       window.removeEventListener('focus', wake);
       window.removeEventListener('online', wake);
@@ -218,6 +254,17 @@ export class ChatOwner {
     const draft = persisted.drafts[destinationKey(selection.destination)] ?? emptyDraft();
     if (this.snapshot.draft.id === initialDraftId) {
       this.publish({ draft });
+    }
+    const conversation = this.selectedConversation();
+    const cached = await this.requireCache().read();
+    const page = conversation ? cached.pages[conversation.id] : undefined;
+    if (this.isCurrentView(generation) && page) {
+      this.publish({
+        messages: page.messages,
+        precedingMessage: page.preceding_message ?? undefined,
+        hasOlder: page.has_older,
+        hasNewer: page.has_newer,
+      });
     }
     await this.loadHistory('latest');
   }
@@ -319,7 +366,7 @@ export class ChatOwner {
         if (!(error instanceof ApiError) || error.code !== 'sync_reset_required') {
           throw error;
         }
-        await this.start();
+        await this.resetCache();
         await this.loadHistory('latest');
       })
       .finally(() => {
@@ -336,6 +383,7 @@ export class ChatOwner {
       return;
     }
     const generation = this.viewGeneration;
+    const epoch = this.cacheSnapshot?.epoch;
     const first = this.snapshot.messages[0];
     const load: HistoryLoad = {
       generation,
@@ -358,6 +406,21 @@ export class ChatOwner {
         return;
       }
       const page = requirePayload(reply);
+      const cached = await this.requireCache().read();
+      if (!this.isCurrentView(generation) || epoch !== cached.epoch) {
+        return;
+      }
+      const didSave = await this.requireCache().saveHistory({
+        expected: cached,
+        conversationId: conversation.id,
+        page,
+      });
+      this.ensureCurrent();
+      if (!didSave) {
+        await this.reloadSharedCache();
+        this.publish({ hasNewer: true });
+        return;
+      }
       // A send or sync may have committed after the history snapshot began. Keep those newer rows.
       const firstSequence = page.messages[0]?.sequence;
       const candidates = [...this.snapshot.messages, ...load.concurrentMessages];
@@ -433,8 +496,32 @@ export class ChatOwner {
       });
       this.ensureCurrent();
       const page = requirePayload(reply);
+      const expected = this.cacheSnapshot;
+      if (!expected) {
+        throw new Error('Chat cache is not ready.');
+      }
+      const didCommit = await this.requireCache().applySync({ expected, page });
+      this.ensureCurrent();
+      if (!didCommit) {
+        await this.reloadSharedCache();
+        continue;
+      }
+      const committed = await this.requireCache().read();
+      this.ensureCurrent();
+      if (committed.cursor !== page.cursor || committed.epoch !== expected.epoch) {
+        await this.reloadSharedCache();
+        continue;
+      }
+      this.cacheSnapshot = committed;
       for (const group of page.groups) {
-        this.mergeConversation(group.conversation);
+        if (group.conversation) {
+          this.mergeConversation(group.conversation);
+        } else {
+          this.removeConversation(group.conversation_id);
+        }
+        if (group.removed_message_id) {
+          this.removeMessage(group.removed_message_id);
+        }
         if (group.message) {
           await this.acceptMessage(group.message);
         }
@@ -466,11 +553,20 @@ export class ChatOwner {
         error: undefined,
       });
       try {
+        const epoch = this.cacheSnapshot?.epoch;
         const reply = await this.session.client.POST('/api/v1/messages', { body: pending.request });
         this.ensureCurrent();
         const receipt = requirePayload(reply);
-        this.mergeConversation(receipt.conversation);
-        await this.acceptMessage(receipt.message);
+        const invalidated = this.cacheSnapshot?.invalidations[receipt.conversation.id];
+        const isCurrentReceipt =
+          epoch === this.cacheSnapshot?.epoch &&
+          (!invalidated || observedAtLeast(receipt.observation_cursor, invalidated));
+        if (isCurrentReceipt) {
+          this.mergeConversation(receipt.conversation);
+          await this.acceptMessage(receipt.message);
+        } else {
+          await this.discard(receipt.message.id);
+        }
       } catch (error) {
         if (isCancelled(error) || this.isDisposed) {
           return;
@@ -501,6 +597,11 @@ export class ChatOwner {
     const pending = this.snapshot.pending.filter(
       (candidate) => candidate.request.message_id !== message.id,
     );
+    if (message.is_deleted) {
+      this.removeMessage(message.id);
+      this.publish({ pending });
+      return;
+    }
     const isSelected = this.selectedConversation()?.id === message.conversation_id;
     const isVisible = this.snapshot.messages.some((candidate) => candidate.id === message.id);
     const load = this.historyLoad;
@@ -556,12 +657,108 @@ export class ChatOwner {
     if (current && compareCounter(current.version, incoming.version) > 0) {
       return;
     }
+    if (
+      current &&
+      current.generation !== incoming.generation &&
+      this.selectedConversation()?.id === incoming.id
+    ) {
+      this.viewGeneration += 1;
+      this.historyLoad = undefined;
+      this.publish({ messages: [], precedingMessage: undefined, isLoading: false, hasNewer: true });
+    }
     const conversations = this.snapshot.conversations.filter(
       (conversation) => conversation.id !== incoming.id,
     );
     conversations.push(incoming);
     conversations.sort((first, second) => second.updated_at.localeCompare(first.updated_at));
     this.publish({ conversations });
+  }
+
+  private removeMessage(messageId: string): void {
+    const messages = this.snapshot.messages.filter((message) => message.id !== messageId);
+    for (let index = 0; index < messages.length; index += 1) {
+      const message = messages[index];
+      if (message.reply?.message_id === messageId) {
+        messages[index] = {
+          ...message,
+          reply: { ...message.reply, is_unavailable: true, quote: null },
+        };
+      }
+    }
+    if (this.historyLoad) {
+      this.historyLoad.concurrentMessages = this.historyLoad.concurrentMessages.filter(
+        (message) => message.id !== messageId,
+      );
+    }
+    const precedingMessage =
+      this.snapshot.precedingMessage?.id === messageId ? undefined : this.snapshot.precedingMessage;
+    this.publish({ messages, precedingMessage });
+  }
+
+  private removeConversation(conversationId: string): void {
+    if (this.selectedConversation()?.id === conversationId) {
+      this.viewGeneration += 1;
+      this.historyLoad = undefined;
+      this.publish({ messages: [], precedingMessage: undefined, isLoading: false });
+    }
+    const conversations = this.snapshot.conversations.filter((item) => item.id !== conversationId);
+    this.publish({ conversations });
+  }
+
+  private requireCache(): CanonicalCache {
+    this.ensureCurrent();
+    if (!this.cache) {
+      throw new Error('Chat cache is not ready.');
+    }
+    return this.cache;
+  }
+
+  private async reloadSharedCache(): Promise<void> {
+    const cached = await this.requireCache().read();
+    this.ensureCurrent();
+    const selectedId = this.selectedConversation()?.id;
+    const hasReset = cached.epoch !== this.cacheSnapshot?.epoch;
+    if (hasReset) {
+      this.viewGeneration += 1;
+      this.historyLoad = undefined;
+      this.publish({ messages: [], precedingMessage: undefined, isLoading: false });
+    }
+    for (const conversation of cached.conversations) {
+      this.mergeConversation(conversation);
+    }
+    this.cacheSnapshot = cached;
+    this.cursor = cached.cursor;
+    this.publish({ conversations: cached.conversations });
+    for (const messageId of Object.keys(cached.removedMessages)) {
+      this.removeMessage(messageId);
+    }
+    for (const conversationId of cached.removedConversations) {
+      this.removeConversation(conversationId);
+    }
+    const page = selectedId ? cached.pages[selectedId] : undefined;
+    if (page) {
+      for (const message of page.messages) {
+        await this.acceptMessage(message);
+      }
+    }
+    const selected = this.selectedConversation();
+    const last = this.snapshot.messages.at(-1);
+    const hasUnfetchedMessages =
+      selected && (!last || compareCounter(selected.last_sequence, last.sequence) > 0);
+    if (hasUnfetchedMessages && !this.snapshot.hasNewer && !this.snapshot.isLoading) {
+      await this.loadHistory('latest');
+    }
+  }
+
+  private async resetCache(): Promise<void> {
+    this.viewGeneration += 1;
+    this.historyLoad = undefined;
+    this.publish({ messages: [], precedingMessage: undefined, isLoading: false });
+    const expected = await this.requireCache().read();
+    const reply = await this.session.client.GET('/api/v1/chat/bootstrap');
+    this.ensureCurrent();
+    await this.requireCache().reset({ expected, bootstrap: requirePayload(reply) });
+    await this.reloadSharedCache();
   }
 
   private async failPending(pending: PendingMessage, error: string): Promise<void> {
@@ -612,6 +809,7 @@ export class ChatOwner {
     }
     // Retain a tombstone rather than deleting the key: another tab may still hold an old writer.
     void this.store?.invalidate().catch(() => undefined);
+    void this.cache?.invalidate().catch(() => undefined);
   }
 
   private report(error: unknown): void {

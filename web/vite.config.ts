@@ -26,6 +26,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '/connection': {
+        target: process.env.TG_CHAT_DEV_REALTIME_ORIGIN ?? 'http://127.0.0.1:8000',
+        ws: true,
+      },
       '/api': process.env.TG_CHAT_DEV_API_ORIGIN ?? 'http://127.0.0.1:8080',
       '/health': process.env.TG_CHAT_DEV_API_ORIGIN ?? 'http://127.0.0.1:8080',
     },

@@ -26,9 +26,21 @@ export function mergeMessages(options: {
   const messages = new Map(options.current.map((message) => [message.id, message]));
   for (const message of options.incoming) {
     const existing = messages.get(message.id);
-    if (!existing || compareCounter(message.version, existing.version) >= 0) {
+    if (!existing) {
       messages.set(message.id, message);
+      continue;
     }
+    const content = compareCounter(message.version, existing.version) >= 0 ? message : existing;
+    const interactions =
+      compareCounter(message.interaction_version, existing.interaction_version) >= 0
+        ? message
+        : existing;
+    messages.set(message.id, {
+      ...content,
+      interaction_version: interactions.interaction_version,
+      is_pinned: !content.is_deleted && interactions.is_pinned,
+      reactions: content.is_deleted ? [] : interactions.reactions,
+    });
   }
   const ordered = Array.from(messages.values());
   ordered.sort((first, second) => compareCounter(first.sequence, second.sequence));
@@ -86,6 +98,10 @@ export function renderPending(options: {
     created_at: new Date(pending.createdAt).toISOString(),
     sequence: '0',
     version: '0',
+    interaction_version: '0',
+    is_deleted: false,
+    is_pinned: false,
+    reactions: [],
   });
 
   return { ...message, deliveryStatus: pending.status };

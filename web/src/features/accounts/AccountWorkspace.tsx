@@ -82,13 +82,19 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       return;
     }
     const connected = new ChatOwner({ session: owner });
-    let disconnect: (() => void) | undefined;
+    const disconnect = connected.connect();
     void connected
       .start()
       .then(() => {
         setChat(connected);
-        disconnect = connected.connect();
-        void connected.flush();
+        void connected
+          .catchUp()
+          .then(() => connected.flush())
+          .catch((error: unknown) => {
+            if (!isCancelled(error)) {
+              setChatError(error instanceof Error ? error.message : 'Chat synchronization failed.');
+            }
+          });
       })
       .catch((error: unknown) => {
         if (!isCancelled(error)) {
