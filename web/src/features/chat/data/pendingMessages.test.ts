@@ -58,3 +58,43 @@ describe('durable pending ownership', () => {
     expect((await store.read()).pending).toHaveLength(100);
   });
 });
+
+it('retains both drafts when two tabs edit the same stale local revision', async () => {
+  const key = crypto.randomUUID();
+  const first = new PendingMessages({ key });
+  const second = new PendingMessages({ key });
+  await first.open();
+  await second.open();
+  const original = { id: 'original', value: { text: 'Original' } };
+  await first.saveDraft({ destination: 'saved', draft: original });
+  const firstEdit = { id: 'first-edit', value: { text: 'First tab' } };
+  const secondEdit = { id: 'second-edit', value: { text: 'Second tab' } };
+  await first.saveDraft({ destination: 'saved', draft: firstEdit, expectedId: original.id });
+  const conflict = await second.saveDraft({
+    destination: 'saved',
+    draft: secondEdit,
+    expectedId: original.id,
+  });
+  expect(conflict?.value.text).toBe('First tab');
+  const persisted = await first.read();
+  expect(persisted.drafts.saved.value.text).toBe('Second tab');
+  expect(persisted.draftAlternatives?.saved[0].value.text).toBe('First tab');
+});
+
+it('reuses an ambiguous command identity after reload and removes only its acknowledgement', async () => {
+  const key = crypto.randomUUID();
+  const first = new PendingMessages({ key });
+  await first.open();
+  const request = {
+    operation_id: crypto.randomUUID(),
+    conversation_id: crypto.randomUUID(),
+    action: { kind: 'clear' as const },
+  };
+  await first.rememberCommand(request);
+  const second = new PendingMessages({ key });
+  await second.open();
+  const restored = await second.rememberCommand({ ...request, operation_id: crypto.randomUUID() });
+  expect(restored.operation_id).toBe(request.operation_id);
+  await second.removeCommand(restored.operation_id);
+  expect((await first.read()).commands).toEqual([]);
+});

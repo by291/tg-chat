@@ -4,6 +4,7 @@ import type { EmojiText } from '@/domain/messages/customEmoji';
 
 const MAX_PENDING_MESSAGES = 100;
 const MAX_DRAFTS = 201;
+const MAX_DRAFT_ALTERNATIVES = 5;
 
 export interface PendingMessage {
   request: components['schemas']['SendMessage'];
@@ -13,15 +14,25 @@ export interface PendingMessage {
   error?: string;
 }
 
+export interface PendingCommand {
+  request: components['schemas']['MessageCommand'];
+  createdAt: number;
+}
+
 export interface Draft {
   id: string;
   value: EmojiText;
+  serverVersion?: string;
+  hasLocalChanges?: boolean;
+  reply?: components['schemas']['ReplyInput'];
 }
 
 export interface PendingSnapshot {
   isActive: boolean;
   pending: PendingMessage[];
   drafts: Record<string, Draft>;
+  draftAlternatives?: Record<string, Draft[]>;
+  commands?: PendingCommand[];
 }
 
 interface EnqueueOptions {
@@ -119,18 +130,101 @@ export class PendingMessages {
     });
   }
 
+  /** Retain an ambiguous desired-state operation across reloads and competing tabs. */
+  async rememberCommand(
+    request: components['schemas']['MessageCommand'],
+  ): Promise<components['schemas']['MessageCommand']> {
+    let remembered = request;
+    await this.mutate((snapshot) => {
+      snapshot.commands ??= [];
+      const existing = snapshot.commands.find((entry) => {
+        return (
+          entry.request.conversation_id === request.conversation_id &&
+          JSON.stringify(entry.request.action) === JSON.stringify(request.action)
+        );
+      });
+      if (existing) {
+        remembered = existing.request;
+        return;
+      }
+      if (snapshot.commands.length >= MAX_PENDING_MESSAGES) {
+        throw new Error('Resolve pending actions before creating another one.');
+      }
+      snapshot.commands.push({ request, createdAt: Date.now() });
+    });
+    return remembered;
+  }
+
+  /** Forget an acknowledged or explicitly abandoned action without implying server cancellation. */
+  async removeCommand(operationId: string): Promise<void> {
+    await this.mutate((snapshot) => {
+      snapshot.commands = snapshot.commands?.filter(
+        (entry) => entry.request.operation_id !== operationId,
+      );
+    });
+  }
+
   /** Save a private draft without letting draft growth exceed the directory budget. */
-  async saveDraft(options: { destination: string; draft: Draft }): Promise<void> {
+  async saveDraft(options: {
+    destination: string;
+    draft: Draft;
+    expectedId?: string;
+  }): Promise<Draft | undefined> {
+    let conflict: Draft | undefined;
     await this.mutate((snapshot) => {
       const isNew = !snapshot.drafts[options.destination];
       if (isNew && Object.keys(snapshot.drafts).length >= MAX_DRAFTS) {
         throw new Error('The draft limit has been reached. Clear an unused draft first.');
       }
-      if (!options.draft.value.text && !options.draft.value.richText) {
+      const existing = snapshot.drafts[options.destination];
+      const hasConcurrentEdit =
+        existing && existing.id !== options.expectedId && existing.id !== options.draft.id;
+      if (hasConcurrentEdit) {
+        const alternatives = snapshot.draftAlternatives?.[options.destination] ?? [];
+        if (alternatives.length >= MAX_DRAFT_ALTERNATIVES) {
+          throw new Error(
+            'Resolve the recovered draft alternatives before saving another conflict.',
+          );
+        }
+        snapshot.draftAlternatives ??= {};
+        snapshot.draftAlternatives[options.destination] = [...alternatives, existing];
+        conflict = existing;
+      }
+      const isEmpty =
+        !options.draft.value.text && !options.draft.value.richText && !options.draft.reply;
+      if (isEmpty && !options.draft.hasLocalChanges) {
         delete snapshot.drafts[options.destination];
         return;
       }
       snapshot.drafts[options.destination] = options.draft;
+    });
+    return conflict;
+  }
+
+  /** Acknowledge only a still-owned draft revision, preserving typing and alternatives from other tabs. */
+  async acknowledgeDraft(options: { destination: string; draft: Draft }): Promise<void> {
+    await this.mutate((snapshot) => {
+      if (snapshot.drafts[options.destination]?.id === options.draft.id) {
+        snapshot.drafts[options.destination] = options.draft;
+      }
+      const alternatives = snapshot.draftAlternatives?.[options.destination];
+      if (alternatives) {
+        snapshot.draftAlternatives![options.destination] = alternatives.map((draft) => {
+          return draft.id === options.draft.id ? options.draft : draft;
+        });
+      }
+    });
+  }
+
+  /** Remove an explicitly resolved alternative without discarding the active draft. */
+  async resolveAlternative(options: { destination: string; id: string }): Promise<void> {
+    await this.mutate((snapshot) => {
+      const alternatives = snapshot.draftAlternatives?.[options.destination];
+      if (alternatives) {
+        snapshot.draftAlternatives![options.destination] = alternatives.filter(
+          (draft) => draft.id !== options.id,
+        );
+      }
     });
   }
 

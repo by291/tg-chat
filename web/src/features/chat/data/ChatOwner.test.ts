@@ -47,6 +47,7 @@ function fixture(options: {
   store?: PendingMessages;
   sessionId?: string;
   history?: (request: Request) => Promise<Response>;
+  commands?: (request: Request) => Promise<Response>;
 }) {
   const sessionId = options.sessionId ?? crypto.randomUUID();
   const session = new SessionOwner({
@@ -79,6 +80,24 @@ function fixture(options: {
           has_newer: false,
           generation: '1',
           observation_cursor: cursorFixture(0),
+        });
+      }
+      if (path.endsWith('/commands')) {
+        if (options.commands) {
+          return options.commands(request);
+        }
+        const input = await request.json();
+        const draft =
+          input.action.kind === 'draft'
+            ? {
+                version: String(Number(input.action.expected_version) + 1),
+                content: input.action.content,
+                reply: input.action.reply,
+              }
+            : SAVED.draft;
+        return Response.json({
+          observation_cursor: cursorFixture(1),
+          conversation: { ...SAVED, draft },
         });
       }
       return options.transport!(request);
@@ -617,5 +636,159 @@ it('full reset fences an old page and preserves text typed before the reset', as
   await selecting;
   expect(owner.getSnapshot().messages.map((message) => message.id)).toEqual(['message-2']);
   expect(owner.getSnapshot().draft.value.text).toBe('Keep my unsent text');
+  owner.dispose();
+});
+
+it('keeps active local typing and exposes the competing server draft', async () => {
+  const { owner } = fixture({
+    commands: async () =>
+      Response.json(
+        {
+          error: { code: 'message_conflict', message: 'Draft changed', request_id: 'conflict' },
+          current: {
+            observation_cursor: cursorFixture(2),
+            conversation: {
+              ...SAVED,
+              version: '2',
+              draft: {
+                version: '1',
+                content: { schema_version: 1, text: 'Another device', custom_emoji: [] },
+              },
+            },
+          },
+        },
+        { status: 409 },
+      ),
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.setDraft({ text: 'My active text' });
+  await owner.flushDraft();
+  expect(owner.getSnapshot().draft.value.text).toBe('My active text');
+  expect(owner.getSnapshot().draftConflict?.value.text).toBe('Another device');
+  owner.dispose();
+});
+
+it('preserves typing made while a draft save is awaiting acknowledgement', async () => {
+  const delayed = deferredResponse();
+  const { owner } = fixture({ commands: () => delayed.promise });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.setDraft({ text: 'First draft' });
+  const saving = owner.flushDraft();
+  await owner.setDraft({ text: 'New typing' });
+  delayed.release(
+    Response.json({
+      observation_cursor: cursorFixture(1),
+      conversation: {
+        ...SAVED,
+        version: '2',
+        draft: {
+          version: '1',
+          content: { schema_version: 1, text: 'First draft', custom_emoji: [] },
+        },
+      },
+    }),
+  );
+  await saving;
+  expect(owner.getSnapshot().draft.value.text).toBe('New typing');
+  expect(owner.getSnapshot().draft.serverVersion).toBe('1');
+  expect(owner.getSnapshot().draft.hasLocalChanges).toBe(true);
+  owner.dispose();
+});
+
+it('marks only a reached visible message read while the document is foreground', async () => {
+  const actions: unknown[] = [];
+  const { owner } = fixture({
+    history: async () => historyPage({ first: 1, last: 3 }),
+    commands: async (request) => {
+      const input = await request.json();
+      actions.push(input.action);
+      return Response.json({
+        observation_cursor: cursorFixture(1),
+        conversation: { ...SAVED, read_through: input.action.through, version: '2' },
+      });
+    },
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.markReached('message-2');
+  expect(actions).toEqual([]);
+  Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => true });
+  await owner.markReached('not-loaded');
+  await owner.markReached('message-2');
+  await owner.markReached('message-1');
+  expect(actions).toEqual([{ kind: 'read', through: '2' }]);
+  Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => false });
+  owner.dispose();
+});
+
+it('preserves an edit draft and exposes the current message when content versions conflict', async () => {
+  const current = { ...historyMessage(1), version: '2' };
+  current.content.text = 'Changed remotely';
+  const { owner } = fixture({
+    commands: async () =>
+      Response.json(
+        {
+          error: { code: 'message_conflict', message: 'Changed', request_id: 'edit-conflict' },
+          current: {
+            observation_cursor: cursorFixture(2),
+            conversation: { ...SAVED, version: '2' },
+            message: current,
+          },
+        },
+        { status: 409 },
+      ),
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.setDraft({ text: 'Unrelated composer draft' });
+  await expect(
+    owner.command({
+      kind: 'edit',
+      message_id: current.id,
+      expected_version: '1',
+      content: { schema_version: 1, text: 'My edit', custom_emoji: [] },
+    }),
+  ).rejects.toThrow('changed on another device');
+  expect(owner.getSnapshot().editConflict?.content.text).toBe('Changed remotely');
+  expect(owner.getSnapshot().draft.value.text).toBe('Unrelated composer draft');
+  owner.dispose();
+});
+
+it('ignores a delayed command projection after a newer removal was synchronized', async () => {
+  const delayed = deferredResponse();
+  const { owner } = fixture({
+    history: async () => historyPage({ first: 1, last: 1 }),
+    commands: () => delayed.promise,
+    transport: async () =>
+      Response.json({
+        groups: [
+          {
+            position: '2',
+            conversation_id: SAVED.id,
+            conversation: { ...SAVED, version: '3' },
+            removed_message_id: 'message-1',
+          },
+        ],
+        cursor: cursorFixture(2),
+        observation_cursor: cursorFixture(2),
+        has_more: false,
+      }),
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  const command = owner.command({ kind: 'pin', message_id: 'message-1', is_pinned: true });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await owner.catchUp();
+  delayed.release(
+    Response.json({
+      observation_cursor: cursorFixture(1),
+      conversation: { ...SAVED, version: '2' },
+      message: { ...historyMessage(1), is_pinned: true },
+    }),
+  );
+  await command;
+  expect(owner.getSnapshot().messages).toEqual([]);
   owner.dispose();
 });

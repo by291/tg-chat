@@ -8,6 +8,7 @@ type Registration = components['schemas']['Registration'];
 type Profile = components['schemas']['PrivateProfile'];
 
 const ERROR_RESPONSE = z.object({
+  current: z.unknown().optional(),
   error: z.object({
     code: z.string(),
     message: z.string(),
@@ -27,12 +28,14 @@ export interface SessionSnapshot {
 
 export class ApiError extends Error {
   readonly code: string;
+  readonly context?: unknown;
 
   /** Preserve a safe machine code alongside the API's user-facing failure description. */
-  constructor(options: { code: string; message: string }) {
+  constructor(options: { code: string; message: string; context?: unknown }) {
     super(options.message);
     this.name = 'ApiError';
     this.code = options.code;
+    this.context = options.context;
   }
 }
 
@@ -268,6 +271,6 @@ export class SessionOwner {
     if (failure.code === 'unauthenticated') {
       this.invalidate();
     }
-    throw new ApiError(failure);
+    throw new ApiError({ ...failure, context: parsed.success ? parsed.data.current : undefined });
   }
 }
