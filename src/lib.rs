@@ -15,3 +15,5 @@ pub mod messages;
 
 pub mod conversations;
 pub mod sync;
+
+pub mod realtime;

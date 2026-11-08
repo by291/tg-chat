@@ -16,6 +16,7 @@ use crate::{
     database::connect_pool,
     http::{ApplicationState, router_with_api},
     jobs::{MailQueue, MailSettings},
+    realtime::{self, RealtimeClient, RealtimeSettings, WorkerServices},
 };
 
 const GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
@@ -62,7 +63,7 @@ async fn drain_worker(worker: Option<tokio::task::JoinHandle<()>>) {
 
     worker.abort();
     let _ = worker.await;
-    tracing::warn!("mail_drain_deadline_reached");
+    tracing::warn!("worker_drain_deadline_reached");
 }
 
 /// Serve one process until shutdown, bounding both HTTP draining and pool cleanup.
@@ -76,20 +77,38 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         MailSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
     let mail = MailQueue::new(pool.clone(), mail_settings)
         .map_err(|_| RuntimeError::AccountConfiguration)?;
+    let realtime_settings =
+        RealtimeSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
+    let account_settings =
+        AccountSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
+    let realtime_client = realtime_settings
+        .clone()
+        .map(RealtimeClient::new)
+        .transpose()
+        .map_err(|_| RuntimeError::AccountConfiguration)?;
     let worker = if matches!(service, ServiceKind::Worker) {
         let queue = mail.clone();
         let stop = shutdown.clone();
-        Some(tokio::spawn(async move { queue.run(stop).await }))
+        let services = WorkerServices {
+            pool: pool.clone(),
+            client: realtime_client,
+            idle_days: account_settings.idle_days,
+        };
+        Some(tokio::spawn(async move {
+            tokio::join!(queue.run(stop.clone()), realtime::run(services, stop));
+        }))
     } else {
         None
     };
     let account_routes = if matches!(service, ServiceKind::Api) {
-        let account_settings = AccountSettings::from_values(&values)
-            .map_err(|_| RuntimeError::AccountConfiguration)?;
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
-        account_router(AccountHttpState::new(accounts, transport, mail))
+        let routes = account_router(AccountHttpState::new(accounts.clone(), transport, mail));
+        match realtime_settings {
+            Some(settings) => routes.merge(realtime::router(accounts, settings)),
+            None => routes,
+        }
     } else {
         axum::Router::new()
     };

@@ -13,6 +13,9 @@
 }
 
 :80 {
+	# Internal callbacks accept only direct secret-authenticated Centrifugo traffic.
+	respond /internal/* 404
+
 	# Keep API failures out of the SPA fallback so clients receive the real JSON error.
 	@backend path /health/* /api /api/*
 	handle @backend {

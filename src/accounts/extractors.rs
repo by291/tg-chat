@@ -3,7 +3,7 @@ use std::net::{IpAddr, SocketAddr};
 use axum::{
     Json,
     extract::{ConnectInfo, FromRequest, FromRequestParts, Request},
-    http::{Method, StatusCode, request::Parts},
+    http::{HeaderMap, Method, StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
 use cookie::Cookie;
@@ -135,9 +135,10 @@ impl FromRequestParts<AccountHttpState> for PublicContext {
     }
 }
 
-fn session_token(parts: &Parts, name: &str) -> Option<String> {
+/// Extract exactly one named session cookie, rejecting ambiguous duplicate credentials.
+pub(crate) fn session_token(headers: &HeaderMap, name: &str) -> Option<String> {
     let mut token = None;
-    for header in parts.headers.get_all("cookie") {
+    for header in headers.get_all("cookie") {
         let encoded = header.to_str().ok()?;
         for cookie in Cookie::split_parse(encoded) {
             let cookie = cookie.ok()?;
@@ -163,7 +164,7 @@ impl FromRequestParts<AccountHttpState> for ActorContext {
         state: &AccountHttpState,
     ) -> Result<Self, Self::Rejection> {
         let context = PublicContext::from_request_parts(parts, state).await?;
-        let token = session_token(parts, state.settings.cookie_name())
+        let token = session_token(&parts.headers, state.settings.cookie_name())
             .ok_or_else(|| context.failure(AccountError::Unauthenticated))?;
         let actor =
             state.accounts.authenticate(&token).await.map_err(|error| context.failure(error))?;

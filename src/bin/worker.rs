@@ -14,7 +14,6 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     let settings = Settings::from_env(ServiceKind::Worker)?;
     telemetry::initialize(settings.log_level)?;
 
-    // M1 owns lifecycle and readiness only; real durable job consumers begin with M2.
     runtime::serve(settings, ServiceKind::Worker).await?;
     Ok(())
 }

@@ -2,7 +2,9 @@
   "engine": {
     "type": "redis",
     "redis": {
-      "address": ["redis://valkey:6379"]
+      "address": [
+        "redis://valkey:6379"
+      ]
     }
   },
   "health": {
@@ -10,5 +12,31 @@
   },
   "usage_stats": {
     "disabled": true
+  },
+  "client": {
+    "proxy": {
+      "connect": {
+        "enabled": true,
+        "endpoint": "http://api:8080/internal/realtime/connect",
+        "timeout": "2s",
+        "http_headers": [
+          "Cookie",
+          "Origin"
+        ]
+      },
+      "refresh": {
+        "enabled": true,
+        "endpoint": "http://api:8080/internal/realtime/refresh",
+        "timeout": "2s",
+        "include_connection_meta": true
+      }
+    }
+  },
+  "channel": {
+    "namespaces": [
+      {
+        "name": "personal"
+      }
+    ]
   }
 }

@@ -54,6 +54,8 @@ uuid = { version = "=1.29.0", features = ["v4", "serde"] }
 ammonia = "=4.2.3"
 scraper = "=0.27.0"
 
+reqwest = { version = "=0.13.5", default-features = false, features = ["json", "rustls"] }
+
 [dev-dependencies]
 http-body-util = "0.1"
 tower = { version = "=0.5.3", features = ["util"] }

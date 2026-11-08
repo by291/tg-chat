@@ -9,6 +9,9 @@ x-application: &application
     TG_CHAT_LOG_LEVEL: ${TG_CHAT_LOG_LEVEL:-info}
     TG_CHAT_PUBLIC_ORIGIN: ${TG_CHAT_PUBLIC_ORIGIN:-http://localhost:8080}
     TG_CHAT_VALKEY_URL: redis://valkey:6379
+    TG_CHAT_CENTRIFUGO_URL: http://centrifugo:8000
+    TG_CHAT_CENTRIFUGO_API_KEY: ${TG_CHAT_CENTRIFUGO_API_KEY:?Generate .env first}
+    TG_CHAT_CENTRIFUGO_PROXY_KEY: ${TG_CHAT_CENTRIFUGO_PROXY_KEY:?Generate .env first}
     TG_CHAT_TRUST_GATEWAY: 'true'
     TG_CHAT_SMTP_HOST: ${TG_CHAT_SMTP_HOST:-}
     TG_CHAT_SMTP_PORT: ${TG_CHAT_SMTP_PORT:-587}
@@ -58,9 +61,12 @@ services:
     image: centrifugo/centrifugo:v6.10.2
     command: [centrifugo, --config=/etc/centrifugo/config.json]
     environment:
-      CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: ${TG_CHAT_CENTRIFUGO_TOKEN_KEY:?Generate .env first}
       CENTRIFUGO_HTTP_API_KEY: ${TG_CHAT_CENTRIFUGO_API_KEY:?Generate .env first}
       CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: ${TG_CHAT_PUBLIC_ORIGIN:-http://localhost:8080}
+      CENTRIFUGO_CLIENT_PROXY_CONNECT_HTTP_STATIC_HEADERS: >-
+        {"X-TG-Proxy-Key":"${TG_CHAT_CENTRIFUGO_PROXY_KEY:?Generate .env first}"}
+      CENTRIFUGO_CLIENT_PROXY_REFRESH_HTTP_STATIC_HEADERS: >-
+        {"X-TG-Proxy-Key":"${TG_CHAT_CENTRIFUGO_PROXY_KEY:?Generate .env first}"}
     volumes:
       - ./deploy/centrifugo.json:/etc/centrifugo/config.json:ro
     depends_on:
