@@ -34,10 +34,10 @@
   border-radius: 16px;
   opacity: 0;
   z-index: 3;
-  transform: scale(0.86);
+  transform: scale(0.8);
   transition:
-    transform 200ms var(--menu-easing),
-    opacity 200ms var(--menu-easing);
+    transform 300ms var(--menu-easing),
+    opacity 300ms var(--menu-easing);
   content: '';
 }
 
@@ -80,21 +80,26 @@
 .emoji {
   position: absolute;
   bottom: 8px;
-  left: 0;
-  width: 100%;
-  font-size: 24px;
+  left: calc(50% - 14px);
+  width: 28px;
+  height: 28px;
+  font-size: 28px;
   line-height: 28px;
   text-align: center;
+  transform-origin: center bottom;
+  transition: transform 300ms var(--menu-easing);
 }
 
-.themeCard[aria-pressed='true'] .emoji {
-  animation: selectTheme 350ms var(--menu-easing);
+.emoji[data-expanded='true'] {
+  transform: scale(2);
 }
 
-@keyframes selectTheme {
-  50% {
-    transform: scale(1.25);
-  }
+.emojiArtwork,
+.emojiArtwork svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .variants {
@@ -145,7 +150,8 @@
   .accentReveal {
     transition: none;
   }
-  .themeCard[aria-pressed='true'] .emoji {
-    animation: none;
+  .emoji {
+    transition: none;
+    transform: none;
   }
 }

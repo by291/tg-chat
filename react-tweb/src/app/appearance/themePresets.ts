@@ -21,7 +21,7 @@ const presets = [
   {
     "id": "peach",
     "label": "Peach",
-    "emoji": "🍑",
+    "emoji": "🧡",
     "accent": "#ff5fa9",
     "bubbles": [
       "#fff4d7"
@@ -82,7 +82,7 @@ const presets = [
   {
     "id": "ocean",
     "label": "Ocean",
-    "emoji": "🌊",
+    "emoji": "💙",
     "accent": "#199972",
     "bubbles": [
       "#fffec7"
@@ -97,7 +97,7 @@ const presets = [
   {
     "id": "sunset",
     "label": "Sunset",
-    "emoji": "🌅",
+    "emoji": "🌞",
     "accent": "#da90d9",
     "bubbles": [
       "#94fff9",

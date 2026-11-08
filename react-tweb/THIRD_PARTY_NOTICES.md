@@ -98,3 +98,15 @@ under this project's GPL license; no separate artwork license is asserted.
 
 Lexical and `@lexical/react` provide the inline emoji editor under the MIT license:
 https://github.com/facebook/lexical.
+
+## Theme picker animated emoji
+
+The nine TGS files under `public/assets/theme-emoji/` are Telegram Animated Emoji artwork,
+retrieved from the [Telemoji mirror](https://github.com/saeedtahmtan/telemoji) on 2026-11-08.
+The mirror credits Telegram as the artwork author; the original artwork retains its upstream
+terms and is not relicensed by this project. Playback uses the existing Lottie dependency.
+See [Telegram animated emoji documentation](https://core.telegram.org/api/animated-emojis).
+
+Local palette labels are unchanged. Peach, Ocean, and Sunset use the supported orange heart,
+blue heart, and sun animations because their previous Unicode symbols lack animated assets
+in this collection.

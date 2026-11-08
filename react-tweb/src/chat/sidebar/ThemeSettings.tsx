@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import type { ThemeChoice } from '../../app/appearance/appearanceStore';
 import { selectAppearanceMode, selectThemeChoice } from '../../app/appearance/appearanceActions';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../app/appearance/themeCatalog';
 import { useResolvedAppearance } from '../../app/appearance/useAppearanceTheme';
 import { WallpaperGradient } from '../../app/appearance/WallpaperGradient';
+import { ThemeEmoji } from './ThemeEmoji';
 import { SettingsRadio } from './SettingsControls';
 import settings from './SettingsPage.module.css';
 import styles from './ThemeSettings.module.css';
@@ -77,6 +78,7 @@ function movePickerFocus(event: KeyboardEvent<HTMLDivElement>) {
 /** Select bundled color themes and brightness modes using Telegram's compact preview strip. */
 export function ThemeSettings() {
   const { appearance, variant, choice } = useResolvedAppearance();
+  const [playingTheme, setPlayingTheme] = useState<string>();
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -125,6 +127,7 @@ export function ThemeSettings() {
               aria-label={`${theme.label} theme`}
               aria-pressed={isSelected}
               onClick={() => {
+                setPlayingTheme(theme.id);
                 applyChoice({
                   themeId: previewChoice.themeId,
                   accent: null,
@@ -135,9 +138,14 @@ export function ThemeSettings() {
               <WallpaperGradient colors={wallpaper.colors} />
               <span className={styles.previewOutgoing} />
               <span className={styles.previewIncoming} />
-              <span className={styles.emoji} aria-hidden="true">
-                {theme.emoji}
-              </span>
+              <ThemeEmoji
+                themeId={theme.id}
+                fallback={theme.emoji}
+                isPlaying={playingTheme === theme.id}
+                onComplete={() =>
+                  setPlayingTheme((current) => (current === theme.id ? undefined : current))
+                }
+              />
             </button>
           );
         })}
