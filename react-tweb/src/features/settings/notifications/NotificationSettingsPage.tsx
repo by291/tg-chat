@@ -37,9 +37,11 @@ interface NotificationSettingsPageProps extends NotificationChatActions {
 }
 
 function savePreferences(changes: Partial<NotificationPreferences>) {
-  if (!setNotificationPreferences(changes)) {
+  const isSaved = setNotificationPreferences(changes);
+  if (!isSaved) {
     showToast('Notifications changed, but could not be saved on this device.');
   }
+  return isSaved;
 }
 
 /** Configure supported local notifications while preserving the future offline-delivery option. */
@@ -95,10 +97,12 @@ export function NotificationSettingsPage({
   }
 
   function resetNotifications() {
-    savePreferences(structuredClone(DEFAULT_NOTIFICATION_PREFERENCES));
+    const isSaved = savePreferences(structuredClone(DEFAULT_NOTIFICATION_PREFERENCES));
     onResetMutes();
     setIsResetOpen(false);
-    showToast('Notification settings reset.');
+    if (isSaved) {
+      showToast('Notification settings reset.');
+    }
   }
 
   let permissionCaption = 'Notifications are shown while this app is open.';
