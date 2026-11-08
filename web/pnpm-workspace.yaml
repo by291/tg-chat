@@ -1,2 +1,6 @@
 # Keep dependency compatibility rules in the checked-in install hook.
 pnpmfile: .pnpmfile.cjs
+
+# This dependency only checks downstream version ranges; runtime code needs no build step.
+allowBuilds:
+  protobufjs: false
