@@ -88,6 +88,7 @@ services:
       - seaweed-data:/data
       - ./deploy/start-seaweedfs.sh:/etc/seaweedfs/start.sh:ro
       - ./deploy/filer.toml:/etc/seaweedfs/filer.toml:ro
+      - ./deploy/master.toml:/etc/seaweedfs/master.toml:ro
       - ./deploy/s3.json:/etc/seaweedfs/s3.json:ro
     ports:
       - '127.0.0.1:${TG_CHAT_S3_PORT:-8333}:8333'

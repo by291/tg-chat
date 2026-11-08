@@ -146,6 +146,8 @@ PostgreSQL stores its database under its dedicated named volume. Valkey uses AOF
 volume. SeaweedFS runs master, volume, filer, and S3 together for local use; master metadata, object
 volumes, and the filer's LevelDB metadata share a persistent SeaweedFS volume. Preserving only blob
 files without filer metadata is insufficient for recovery.
+The local master grows one volume at a time so its small volume limit leaves room for S3 bucket
+collections. This is a development capacity policy, not a production storage-sizing plan.
 
 `docker compose down` preserves named volumes. **`docker compose down --volumes` deletes stored
 application data.** Never use it for routine restarts or deployments. The acceptance runner uses it
