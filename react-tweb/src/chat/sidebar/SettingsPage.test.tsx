@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
@@ -89,4 +89,22 @@ it('opens the nested power page directly and preserves the profile cover after s
   expect(
     screen.getByRole('button', { name: 'Expand profile photo' }).getAttribute('aria-expanded'),
   ).toBe('true');
+});
+
+it('labels account actions as unavailable and dismisses their menu without leaving settings', async () => {
+  const user = userEvent.setup();
+  const onBack = renderSettings();
+  await user.click(screen.getByRole('button', { name: 'More settings' }));
+  const edit = await screen.findByRole('menuitem', { name: 'Edit Profile' });
+  expect(edit.getAttribute('aria-disabled')).toBe('true');
+  expect(screen.getByRole('menuitem', { name: 'QR Code' }).getAttribute('aria-disabled')).toBe(
+    'true',
+  );
+  expect(screen.getByRole('menuitem', { name: 'Log Out' }).getAttribute('aria-disabled')).toBe(
+    'true',
+  );
+  expect(screen.getByText('Requires account backend')).toBeTruthy();
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+  expect(onBack).not.toHaveBeenCalled();
 });

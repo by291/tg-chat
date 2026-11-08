@@ -12,6 +12,7 @@ import { SettingsProfile } from './SettingsProfile';
 import { NotificationSettingsPage, type NotificationChatActions } from './NotificationSettingsPage';
 import { DevicesSettingsPage } from './DevicesSettingsPage';
 import { KeyboardSettingsPage } from './KeyboardSettingsPage';
+import { SettingsOverflowMenu } from './SettingsOverflowMenu';
 import { SettingsSearchPanel } from './SettingsSearchPanel';
 import { SETTINGS_CATEGORIES, rememberSetting, type SettingsSearchItem } from './settingsSearch';
 import { useSettingsSearchTarget } from './useSettingsSearchTarget';
@@ -82,13 +83,16 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
           identity={DEMO_PROFILE}
           header={
             <SettingsHeader title="Settings" backLabel="Back from settings" onBack={navigateBack}>
-              <IconButton
-                ref={searchButtonRef}
-                label="Search settings"
-                onClick={() => setIsSearching(true)}
-              >
-                <Search />
-              </IconButton>
+              <div className={styles.headerActions}>
+                <IconButton
+                  ref={searchButtonRef}
+                  label="Search settings"
+                  onClick={() => setIsSearching(true)}
+                >
+                  <Search />
+                </IconButton>
+                <SettingsOverflowMenu />
+              </div>
             </SettingsHeader>
           }
         >

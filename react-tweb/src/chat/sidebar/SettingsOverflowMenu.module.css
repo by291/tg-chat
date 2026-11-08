@@ -1,0 +1,19 @@
+.menu {
+  min-width: 180px;
+}
+
+.menu [data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menu [data-disabled]:active {
+  transform: none;
+}
+
+.notice {
+  margin: 6px 12px 8px;
+  color: var(--secondary-color);
+  font-size: 12px;
+  line-height: 16px;
+}

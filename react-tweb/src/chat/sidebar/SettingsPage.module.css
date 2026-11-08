@@ -218,6 +218,12 @@
   line-height: 18px;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .empty {
   padding: 24px;
   color: var(--secondary-color);
