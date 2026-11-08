@@ -277,3 +277,48 @@ async fn reply_targets_and_neighborhoods_require_visible_same_conversation_conte
         Err(AccountError::NotFound)
     ));
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn pinned_history_uses_personal_visibility_and_pagination(pool: PgPool) {
+    let (service, alice, bobby) = fixture(pool).await;
+    let first = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    service
+        .command(
+            alice,
+            command(
+                first.conversation.id,
+                json!({
+                    "kind": "pin",
+                    "message_id": first.message.id,
+                    "is_pinned": true
+                }),
+            ),
+        )
+        .await
+        .unwrap();
+    let query = || tg_chat::messages::HistoryQuery {
+        conversation_id: first.conversation.id,
+        pinned: Some(true),
+        ..Default::default()
+    };
+    let pinned = service.history(bobby.clone(), query()).await.unwrap();
+    assert_eq!(pinned.messages.len(), 1);
+    assert_eq!(pinned.messages[0].id, first.message.id);
+    assert!(!pinned.has_newer);
+    service
+        .command(
+            bobby.clone(),
+            command(
+                first.conversation.id,
+                json!({
+                    "kind": "hide_message",
+                    "message_id": first.message.id
+                }),
+            ),
+        )
+        .await
+        .unwrap();
+    assert!(service.history(bobby, query()).await.unwrap().messages.is_empty());
+}

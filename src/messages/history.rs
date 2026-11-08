@@ -23,6 +23,7 @@ pub struct HistoryQuery {
     pub after: Option<String>,
     pub limit: Option<u16>,
     pub around: Option<Uuid>,
+    pub pinned: Option<bool>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -63,6 +64,9 @@ fn history_statement(
     let mut statement = QueryBuilder::new(MESSAGE_SELECT);
     statement.push(" WHERE message.conversation_id = ").push_bind(query.conversation_id);
     projection::restrict_visible(&mut statement, user_id);
+    if query.pinned == Some(true) {
+        statement.push(" AND message.is_pinned");
+    }
     if let Some(before) = &query.before {
         statement.push(" AND message.sequence < ").push_bind(parse_sequence(before)?);
     }
@@ -83,6 +87,7 @@ struct PrecedingQuery {
     conversation_id: Uuid,
     user_id: Uuid,
     first_sequence: i64,
+    is_pinned_only: bool,
 }
 
 /// Fetch the preceding authorized message to preserve sender grouping across a remote page edge.
@@ -93,6 +98,9 @@ async fn preceding(
     let mut statement = QueryBuilder::new(MESSAGE_SELECT);
     statement.push(" WHERE message.conversation_id = ").push_bind(query.conversation_id);
     projection::restrict_visible(&mut statement, query.user_id);
+    if query.is_pinned_only {
+        statement.push(" AND message.is_pinned");
+    }
     statement.push(" AND message.sequence < ").push_bind(query.first_sequence);
     statement.push(" ORDER BY message.sequence DESC LIMIT 1");
 
@@ -143,6 +151,7 @@ impl MessageService {
                     conversation_id: query.conversation_id,
                     user_id: actor.user_id,
                     first_sequence: parse_sequence(&first.sequence)?,
+                    is_pinned_only: query.pinned == Some(true),
                 },
             )
             .await?
@@ -160,6 +169,9 @@ impl MessageService {
         newer.push_bind(query.conversation_id);
         newer.push(" AND message.sequence > ").push_bind(parse_sequence(last_sequence)?);
         projection::restrict_visible(&mut newer, actor.user_id);
+        if query.pinned == Some(true) {
+            newer.push(" AND message.is_pinned");
+        }
         newer.push(")");
         let has_newer = newer.build_query_scalar().fetch_one(&mut *transaction).await?;
         let scope = crate::sync::cursor::CursorScope::read(&mut transaction, actor.user_id).await?;

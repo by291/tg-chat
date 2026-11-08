@@ -1411,6 +1411,7 @@ export interface operations {
         after?: string;
         limit?: number;
         around?: string;
+        pinned?: boolean;
       };
       header?: never;
       path: {

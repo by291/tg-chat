@@ -450,7 +450,8 @@
             "in": "query",
             "required": false,
             "schema": { "type": "string", "format": "uuid" }
-          }
+          },
+          { "name": "pinned", "in": "query", "required": false, "schema": { "type": "boolean" } }
         ],
         "responses": {
           "200": {
