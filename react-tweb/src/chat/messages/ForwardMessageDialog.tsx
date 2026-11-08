@@ -1,7 +1,7 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { useRef, useState } from 'react';
-import { Check, CheckCircle2, Search, Send, X } from 'lucide-react';
+import { Check, CheckCircle2, Send, X } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
 import { Ripple } from '../../components/Ripple';
@@ -12,6 +12,7 @@ import { getConversationList } from '../sidebar/conversationList';
 import type { ChatState, Conversation } from '../model';
 import overlays from '../overlays.module.css';
 import styles from './ForwardMessageDialog.module.css';
+import { ForwardRecipientSearch } from './ForwardRecipientSearch';
 
 export interface ForwardRecipients {
   recipients: Conversation[];
@@ -50,7 +51,10 @@ export function ForwardMessageDialog({
   const matchingConversations = conversations.filter((conversation) => {
     return conversation.title.toLowerCase().includes(normalizedQuery);
   });
-  const recipients = conversations.filter((conversation) => recipientIds.includes(conversation.id));
+  const recipients = recipientIds.flatMap((id) => {
+    const conversation = conversations.find((candidate) => candidate.id === id);
+    return conversation ? [conversation] : [];
+  });
   const hasRecipients = recipients.length > 0;
 
   function closeWithAction(action: () => void) {
@@ -124,31 +128,16 @@ export function ForwardMessageDialog({
                 </IconButton>
               )}
             </header>
-            <div className={styles.search}>
-              {!hasRecipients && <Search size={22} />}
-              {recipients.map((recipient) => (
-                <button
-                  key={recipient.id}
-                  className={styles.chip}
-                  aria-label={`Remove ${recipient.title}`}
-                  onClick={() => chooseRecipient(recipient)}
-                >
-                  <Avatar initials={recipient.initials} color={recipient.color} size="small" />
-                  <span>{recipient.title}</span>
-                  <X size={14} />
-                </button>
-              ))}
-              <input
-                aria-label="Search recipients"
-                placeholder={hasRecipients ? '' : 'Search'}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
+            <ForwardRecipientSearch
+              recipients={recipients}
+              query={query}
+              onQueryChange={setQuery}
+              onRemove={chooseRecipient}
+            />
             <div
               className={styles.savedSection}
-              data-collapsed={hasRecipients || Boolean(query)}
-              inert={hasRecipients || Boolean(query)}
+              data-collapsed={Boolean(query)}
+              inert={Boolean(query)}
             >
               {saved && (
                 <button className={styles.saved} onClick={() => chooseRecipient(saved)}>
