@@ -145,5 +145,5 @@ it('falls back to remaining content when the active category becomes empty', asy
   view.rerender(<DetailsScreen messages={[]} />);
   expect(screen.queryByRole('tablist')).toBeNull();
   expect(screen.queryByRole('img')).toBeNull();
-  expect(screen.getByText('Alex')).toBeTruthy();
+  expect(await screen.findByText('Alex')).toBeTruthy();
 });
