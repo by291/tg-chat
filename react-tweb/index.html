@@ -6,8 +6,151 @@
     <meta name="theme-color" content="#c6b5eb" />
     <meta name="description" content="A local React study of Telegram Web K conversations." />
     <title>Telegram · React study</title>
+    <!-- Keep the startup frame paintable before the application modules arrive. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #c6b5eb;
+      }
+
+      .startup-frame {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        height: 100dvh;
+        overflow: hidden;
+        pointer-events: none;
+        background: var(
+          --startup-background,
+          radial-gradient(ellipse at 75% 8%, #efb7d5 0, transparent 60%),
+          radial-gradient(ellipse at 15% 95%, #9be2db 0, transparent 65%),
+          linear-gradient(135deg, #c7b5ed, #b9c8ec)
+        );
+      }
+
+      .startup-frame::before {
+        position: absolute;
+        inset: 0;
+        opacity: 0.09;
+        background: url('/assets/telegram-pattern.svg') repeat;
+        background-size: 460px auto;
+        mix-blend-mode: multiply;
+        content: '';
+      }
+
+      :root[data-startup-solid='true'] .startup-frame::before {
+        display: none;
+      }
+
+      .startup-sidebar-slot {
+        position: absolute;
+        inset: 16px auto 16px 16px;
+        width: 360px;
+      }
+
+      .startup-sidebar {
+        box-sizing: border-box;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 24px;
+        background: var(--surface-color, #fff);
+        box-shadow: 0 1px 4px rgb(0 0 0 / 3%);
+      }
+
+      .startup-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-sizing: border-box;
+        height: 56px;
+        padding: 6px 16px;
+      }
+
+      .startup-menu {
+        flex: 0 0 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--input-color, #f4f4f5);
+      }
+
+      .startup-search {
+        flex: 1;
+        height: 44px;
+        border-radius: 24px;
+        background: var(--input-color, #f4f4f5);
+      }
+
+      .startup-status {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      :root[data-theme='dark'] .startup-frame {
+        --surface-color: #212121;
+        --input-color: #181818;
+        background: var(--startup-background, linear-gradient(135deg, #211b2b, #19243b));
+      }
+
+      :root[data-theme='dark'] .startup-frame::before {
+        opacity: 0.16;
+        mix-blend-mode: screen;
+        filter: invert(1);
+      }
+
+      @media (max-width: 1300px) {
+        .startup-sidebar-slot {
+          width: 320px;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .startup-sidebar-slot {
+          inset: 8px 8px max(8px, env(safe-area-inset-bottom));
+          width: auto;
+        }
+      }
+    </style>
+    <script>
+      // Read only the existing preference; React resolves the complete palette after startup.
+      try {
+        const savedAppearance = JSON.parse(localStorage.getItem('react-tweb.appearance.v1'));
+        let mode = savedAppearance?.mode ?? 'classic';
+        if (mode === 'system') {
+          const isSystemDark = matchMedia('(prefers-color-scheme: dark)').matches;
+          mode = isSystemDark
+            ? (savedAppearance.lastDark ?? 'night')
+            : (savedAppearance.lastLight ?? 'classic');
+        }
+        const isDark = mode === 'night' || mode === 'dark';
+        document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+        const wallpaper = savedAppearance?.choices?.[mode]?.wallpaper;
+        const isSolidColor = wallpaper?.kind === 'color' && /^#[\da-f]{6}$/i.test(wallpaper.color);
+        if (isSolidColor) {
+          document.documentElement.style.setProperty('--startup-background', wallpaper.color);
+          document.documentElement.dataset.startupSolid = 'true';
+        }
+      } catch {
+        // Unavailable or invalid preferences must not prevent the initial frame from painting.
+      }
+    </script>
   </head>
   <body>
+    <!-- React mounts beneath this cover; readiness fades it out without replacing a painted frame. -->
+    <div id="startup-frame" class="startup-frame" aria-hidden="true" inert>
+      <div class="startup-sidebar-slot">
+        <div class="startup-sidebar">
+          <div class="startup-header">
+            <span class="startup-menu"></span>
+            <span class="startup-search"></span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

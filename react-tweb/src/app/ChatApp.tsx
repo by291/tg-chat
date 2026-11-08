@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useReducedMotion } from 'motion/react';
 import { SenderProfileProvider } from '../chat/details/SenderProfileProvider';
 import { ChatDetails } from '../chat/details/ChatDetails';
 import { ChatSidebar } from '../chat/sidebar/ChatSidebar';
@@ -19,6 +20,8 @@ import { useInputModality } from './useInputModality';
 import { useAppPreferences } from './settings/appPreferences';
 import { useAppearanceTheme } from './appearance/useAppearanceTheme';
 import { ChatWallpaper } from './appearance/ChatWallpaper';
+import { StartupSidebar } from './StartupSidebar';
+import { useStartupTransition } from './useStartupTransition';
 import { ToastViewport } from '../components/Toast';
 import { showToast } from '../components/toastStore';
 import { useMessageNotifications } from './notifications/useMessageNotifications';
@@ -31,6 +34,8 @@ export function ChatApp() {
   useInputModality();
   const messageTextSize = useAppPreferences((preferences) => preferences.messageTextSize);
   const { state, dispatch, isReady, storageError } = useChatState();
+  const shouldReduceMotion = useReducedMotion() ?? false;
+  useStartupTransition({ isReady, shouldReduceMotion });
   const conversationEntries = useConversationList(state);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
@@ -45,7 +50,7 @@ export function ChatApp() {
   const isConversationDeleted =
     state.conversationPreferences?.[state.activeChatId]?.isDeleted ?? false;
   const conversation = conversationEntries.find((entry) => entry.id === state.activeChatId);
-  const hasConversation = Boolean(conversation) && !isConversationDeleted;
+  const hasConversation = isReady && Boolean(conversation) && !isConversationDeleted;
   const hasDetails = isDetailsOpen && hasConversation;
   const activeEntry = conversationEntries.find((entry) => entry.id === conversation?.id);
   const messages = state.messages.filter((message) => message.chatId === conversation?.id);
@@ -137,14 +142,6 @@ export function ChatApp() {
     });
   }, [conversation?.id]);
 
-  if (!isReady) {
-    return (
-      <div className={styles.loading} role="status">
-        Opening your conversations…
-      </div>
-    );
-  }
-
   return (
     <ContactActionsProvider
       state={state}
@@ -165,13 +162,17 @@ export function ChatApp() {
         >
           <ChatWallpaper variant={variant} choice={choice} />
           <div className={styles.sidebarSlot}>
-            <ChatSidebar
-              state={state}
-              dispatch={dispatch}
-              onSelectChat={selectConversation}
-              onToggleTheme={toggleTheme}
-              isDark={isDark}
-            />
+            {isReady ? (
+              <ChatSidebar
+                state={state}
+                dispatch={dispatch}
+                onSelectChat={selectConversation}
+                onToggleTheme={toggleTheme}
+                isDark={isDark}
+              />
+            ) : (
+              <StartupSidebar />
+            )}
           </div>
           <div className={styles.conversationSlot}>
             {hasConversation && conversation && (
@@ -194,7 +195,7 @@ export function ChatApp() {
                 onNotify={showToast}
               />
             )}
-            {!hasConversation && (
+            {isReady && !hasConversation && (
               <div className={styles.emptyConversation}>
                 <p>Select a chat to start messaging</p>
               </div>

@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatApp } from './ChatApp';
 
+const { readStoredState } = vi.hoisted(() => ({
+  readStoredState: vi.fn<() => Promise<unknown>>(),
+}));
+
 vi.mock('idb-keyval', () => ({
-  get: async () => undefined,
+  get: readStoredState,
   set: async () => {},
   del: async () => {},
 }));
@@ -15,6 +19,8 @@ vi.mock('idb-keyval', () => ({
 vi.mock('../chat/sidebar/ThemeEmoji', () => ({ ThemeEmoji: () => null }));
 
 beforeEach(() => {
+  readStoredState.mockReset();
+  readStoredState.mockResolvedValue(undefined);
   class LayoutObserver {
     observe() {}
     unobserve() {}
@@ -38,6 +44,37 @@ beforeEach(() => {
   });
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(360);
   window.history.replaceState(null, '', '/?chat=dev');
+});
+
+it('keeps the wallpaper and sidebar frame visible while restoring conversations', async () => {
+  let finishRestore: (value: unknown) => void = () => {};
+  readStoredState.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finishRestore = resolve;
+      }),
+  );
+  const view = render(<ChatApp />, { wrapper: BrowserRouter });
+  const wallpaper = view.container.querySelector('[data-pattern]');
+  expect(wallpaper).not.toBeNull();
+  expect(screen.getByLabelText('Chat list').getAttribute('aria-busy')).toBe('true');
+  expect(screen.queryByRole('button', { name: /This feels familiar/ })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Message' })).toBeNull();
+
+  await act(async () => finishRestore(undefined));
+
+  expect(await screen.findByRole('button', { name: /This feels familiar/ })).toBeTruthy();
+  expect(view.container.querySelector('[data-pattern]')).toBe(wallpaper);
+  expect(screen.getByLabelText('Chat list').getAttribute('aria-busy')).not.toBe('true');
+});
+
+it('leaves the startup frame when conversation storage fails', async () => {
+  readStoredState.mockRejectedValue(new Error('Storage is unavailable'));
+  render(<ChatApp />, { wrapper: BrowserRouter });
+
+  expect(await screen.findByRole('button', { name: /This feels familiar/ })).toBeTruthy();
+  expect(screen.getByRole('alert').textContent).toContain('Local storage is unavailable');
+  expect(screen.getByLabelText('Chat list').getAttribute('aria-busy')).not.toBe('true');
 });
 
 afterEach(() => {

@@ -98,14 +98,6 @@
   background: #934655;
 }
 
-.loading {
-  display: grid;
-  height: 100dvh;
-  place-items: center;
-  color: var(--secondary-color);
-  background: var(--surface-color);
-}
-
 @media (max-width: 1300px) {
   .app {
     --left-width: 320px;
