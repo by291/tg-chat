@@ -15,7 +15,7 @@
   `src/features/media/albumLayout.ts`; upstream credits the Telegram Desktop grouped layout
   implementation at https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 - Emoji-only size steps: `BIG_EMOJI_SIZES` in `src/components/chat/bubbles.ts`, used in
-  `src/features/chat/messages/largeEmoji.ts`
+  `src/features/chat/messages/content/largeEmoji.ts`
 - License: GNU General Public License, version 3
 
 The full license text is included in `LICENSE`. Conversation data, account credentials, private

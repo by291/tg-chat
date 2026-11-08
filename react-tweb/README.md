@@ -85,7 +85,8 @@ currently support plain text; embedded poll media and the custom end-date picker
 ## Dependencies and ownership
 
 The source separates application assembly (`src/app`), workspace orchestration (`src/pages`),
-visual shells (`src/layouts`), and business modules (`src/features`). Features cover chat,
+visual shells (`src/layouts`), domain contracts (`src/domain`), and business modules
+(`src/features`). Features cover chat, editor,
 conversation lists, settings, media, emoji, and stickers. Reusable UI stays in `src/components`;
 generic hooks, browser infrastructure, navigation, and global styles have their own directories.
 Components, CSS Modules, and related tests stay together. Cross-module imports use the `@/` source
@@ -122,7 +123,7 @@ not reproduced.
 
 ### Emoji and sticker picker
 
-`src/features/chat/composer/emoticons/` owns the picker browsing behavior. Ark UI manages the popover,
+`src/features/chat/composer/picker/` owns the picker browsing behavior. Ark UI manages the popover,
 tabs, tone popovers, sticker menus, and pack dialog. The 382 × 420 desktop panel, 49-pixel
 navigation bars, eight-column emoji rows, five-column sticker rows, and scale transition follow
 `tweb/src/scss/partials/_emojiDropdown.scss`.
@@ -194,8 +195,9 @@ elsewhere use Control with B, I, U, S, M, P, or K for bold, italic, underline, s
 monospace, spoiler, or link editing. Enter sends; Shift+Enter inserts a newline and continues
 structured list items. Formula and date decorations can be reopened with a double click.
 
-`src/features/chat/composer/richEditorHtml.ts` adapts Lexical HTML to the portable message attributes.
-`src/features/chat/rich-text/` sanitizes that content and renders interactive spoilers, custom emoji,
+`src/features/editor/richEditorHtml.ts` adapts Lexical HTML to the portable message attributes.
+`src/domain/messages/richText.ts` sanitizes that content. `src/features/chat/rich-text/`
+renders interactive spoilers, custom emoji,
 formulas, dates, tables, and copyable code. Drafts, edits, forwarding, and reload preserve the
 same representation. The plain-text fallback remains available to search and chat previews.
 

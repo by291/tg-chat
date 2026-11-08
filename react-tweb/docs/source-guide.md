@@ -9,12 +9,13 @@ Read these files in order:
 3. `src/pages/chat/ChatPage.tsx` coordinates URL selection, chat state, and feature panels.
 4. `src/layouts/chat/ChatLayout.tsx` arranges the sidebar, conversation, details, and overlay slots.
 5. `src/features/chat/state/useChatState.ts` restores IndexedDB and persists reducer snapshots.
-6. `src/features/chat/model.ts` defines messages, actions, and persisted-data validation.
-7. `src/features/chat/state/reducer.ts` owns permanent state transitions.
-8. `src/features/chat/ConversationPane.tsx` translates user commands into those actions.
-9. `src/features/chat/history/MessageTimeline.tsx` owns scrolling and sender grouping.
-10. `src/features/chat/messages/MessageBubble.tsx` renders messages and their action menus.
-11. `src/features/chat/composer/MessageComposer.tsx` owns draft editing and sending.
+6. `src/domain/messages/message.ts` and `src/domain/conversations/conversation.ts` define contracts.
+7. `src/features/chat/state/chatState.ts` validates snapshots; `chatActions.ts` defines reducer actions.
+8. `src/features/chat/state/reducer.ts` owns permanent state transitions.
+9. `src/features/chat/ConversationPane.tsx` translates user commands into those actions.
+10. `src/features/chat/history/MessageTimeline.tsx` owns scrolling and sender grouping.
+11. `src/features/chat/messages/MessageBubble.tsx` renders messages and their action menus.
+12. `src/features/chat/composer/MessageComposer.tsx` owns draft editing and sending.
 
 ## First paint and conversation restoration
 
@@ -50,56 +51,69 @@ dynamically imports optional features such as poll creation and the media editor
 
 ## Directory layout
 
-The top level separates application assembly, workspace orchestration, visual layout, business
-features, and shared infrastructure. Feature internals keep their existing functional groupings;
-a component's styles and behavior tests stay beside it.
+The top level separates application assembly, workspace orchestration, visual layout, domain
+contracts, business features, and shared infrastructure. Feature internals group behaviors rather
+than collecting every component or hook in one large directory. Styles and tests stay with owners.
 
-| Directory                              | Responsibility                                                          |
-| -------------------------------------- | ----------------------------------------------------------------------- |
-| `src/app/`                             | Router setup and application-wide input policy                          |
-| `src/pages/chat/`                      | Chat workspace state and cross-feature orchestration                    |
-| `src/layouts/chat/`                    | Responsive three-pane geometry and startup handoff                      |
-| `src/layouts/sidebar/`                 | Nested sidebar page transitions and focus restoration                   |
-| `src/features/chat/`                   | Conversation, composer, messages, history, details, state, fixtures     |
-| `src/features/conversations/`          | Sidebar list, selection, archive, and chat creation                     |
-| `src/features/settings/`               | Settings panels, search, profile, and preferences                       |
-| `src/features/settings/appearance/`    | Theme controls, wallpaper rendering, and preferences                    |
-| `src/features/settings/notifications/` | Notification controls, policy, and delivery                             |
-| `src/features/settings/devices/`       | Local device identification and device settings                         |
-| `src/features/settings/keyboard/`      | Shortcut settings and documentation                                     |
-| `src/features/media/`                  | Media viewer, playback, gallery, and gesture geometry                   |
-| `src/features/emoji/`                  | Custom emoji catalog, entities, and inline rendering                    |
-| `src/features/stickers/`               | Sticker catalog and visibility-aware animation playback                 |
-| `src/components/`                      | Reusable UI such as avatars, icon buttons, ripples, sorting, and toasts |
-| `src/hooks/`                           | Generic input modality and retained closing-dialog values               |
-| `src/lib/`                             | Preference-store infrastructure and browser keyboard conventions        |
-| `src/routes/`                          | URL navigation and conversation selection synchronization               |
-| `src/styles/`                          | Global tokens, reset, and cross-component interaction styles            |
+| Directory                         | Responsibility                                                               |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `src/app/`                        | Router setup and application-wide input policy                               |
+| `src/pages/chat/`                 | Workspace state and cross-feature orchestration                              |
+| `src/layouts/`                    | Responsive chat geometry, startup handoff, and sidebar transitions           |
+| `src/domain/messages/`            | Message/media schemas, interactions, emoji entities, safe rich text          |
+| `src/domain/conversations/`       | Conversation identity and preference contracts                               |
+| `src/features/chat/conversation/` | Sending, editing, forwarding, deletion, and navigation ownership             |
+| `src/features/chat/composer/`     | Composition shell, attachments, forms, picker, and reply/edit context        |
+| `src/features/chat/messages/`     | Bubble assembly, content, reactions, menu, selection, and forwarding         |
+| `src/features/chat/history/`      | Timeline, virtual measurements, scroll anchoring, and sender groups          |
+| `src/features/chat/rich-text/`    | Rendering semantic message HTML, quotes, code, and formulas                  |
+| `src/features/chat/state/`        | Snapshot schema, action contracts, reducer, persistence, and restoration     |
+| `src/features/chat/details/`      | Conversation and sender information                                          |
+| `src/features/editor/`            | Lexical editing, custom nodes, serialization, toolbar, and editor plugins    |
+| `src/features/conversations/`     | Sidebar coordinator, list/search views, archive, and creation                |
+| `src/features/settings/`          | Settings panels, profile, preferences, appearance, notifications, devices    |
+| `src/features/media/`             | Viewer, playback, geometry measurement, gesture math, and input coordination |
+| `src/features/emoji/`             | Custom emoji catalog and inline artwork                                      |
+| `src/features/stickers/`          | Sticker catalog and animation playback                                       |
+| `src/components/`                 | Generic UI, including shared overlay/menu/dialog presentation                |
+| `src/hooks/`                      | Generic input modality and retained closing-dialog values                    |
+| `src/lib/`                        | Preference stores, keyboard conventions, code labels, and formula rendering  |
+| `src/routes/`                     | URL navigation and conversation selection synchronization                    |
+| `src/styles/`                     | Global tokens and reset                                                      |
 
-There is one top-level chat workspace. Settings, archive, and conversation-creation screens remain
-embedded sidebar features; a component ending in `Page` does not automatically become a top-level
-route. Query parameters, history behavior, and panel mounting remain unchanged.
+There is one top-level chat workspace. Settings, archive, and conversation creation remain embedded
+sidebar features. Query parameters, history behavior, panel mounting, and loading boundaries are
+unchanged. `ChatPage` connects features; `ChatLayout` arranges rendered slots without importing
+business state.
 
-`ChatPage` selects and connects features. `ChatLayout` accepts rendered slots and controls geometry
-without importing chat state or business components. The page keeps its empty-state and storage-error
-styles; the layout owns sidebar, conversation, and details positioning. `SidebarNavigation` is shared
-by sidebar features and settings without importing either feature's business state.
+Inside `messages`, `content` groups media, contact, poll, and checklist renderers. `reactions` owns
+reaction selection, flight, and layout animation; `forwarding`, `selection`, `menu`, and `transitions`
+own their respective interactions. The bubble and metadata remain at the messages entry level.
+Inside `composer`, `attachments`, `forms`, `picker`, and `context` keep UI and behavior together.
+The editor owns Lexical nodes and editing mechanics; sending and attachment preparation remain
+composer/conversation responsibilities.
 
-Use `@/` for imports across owners, such as `@/features/chat/model` or `@/components/IconButton`.
-Use relative imports inside one feature or layout. TypeScript and Vite share the same source alias,
-which also resolves Vitest mocks and existing dynamic imports. Import the owning file directly;
-there are no barrel exports or compatibility forwarding files at the old locations.
+`ConversationPane` composes the screen and retains overlay/animation lifetimes. Its conversation
+hooks separately own composer submission, dialog transitions, message commands, and navigation.
+`ChatSidebar` coordinates sidebar destinations; list/archive views render their pages, while
+`useSidebarSearch` owns search scope and focus handoff. `ComposerFormattingToolbar` renders controls;
+its selection, dialogs, keyboard shortcuts, and command definitions have separate owners.
+`useViewerTransform` coordinates input listeners and animation; `viewerGeometry` measures layout
+and `viewerGesture` calculates pan, inertia, and swipe decisions.
 
-Feature-specific hooks, schemas, styles, and types remain with their features. `components`, `hooks`,
-and `lib` must not depend on pages or feature implementations. The chat model and reducer stay in
-`features/chat`; shared use by media, settings, and the conversation list does not make them generic
-UI infrastructure. Cross-feature imports are allowed when they reflect an actual business dependency.
-The state layer continues to avoid rendered components.
+Use `@/` for cross-owner imports and relative paths within an owner. Import the owning module
+directly; old paths do not retain compatibility barrels. The domain modules do not import features,
+React components, application state, or persistence. Message sanitization remains the same DOMPurify
+policy and still runs before storage/restoration and rendering.
 
-Navigation resolves settings destinations against the settings search catalog. That catalog contains
-metadata rather than page implementations, so sidebar features can use navigation without importing
-workspace assembly. Existing lazy module boundaries, browser storage formats, and public asset URLs
-are unchanged. Earlier dated plans retain the original paths; this guide is the current source map.
+`ChatState` and `ChatAction` remain under chat state because they describe application coordination,
+not reusable message values. Shared components, hooks, and infrastructure must not import features.
+Generic overlay styles live under `components/overlays`; mute-specific controls keep their styles
+beside `ConversationMuteDialog`.
+
+The source guide is the current ownership map. Dated implementation plans retain the paths used
+when they were written. No storage migration, new feature loading boundary, or public asset change
+is part of this refactor.
 
 ## Follow one send
 
@@ -107,8 +121,8 @@ The composer receives a draft and reports edits through `onDraftChange`. The con
 dispatches `set-draft` with a chat ID. On Enter, `shouldSubmitMessage` checks Shift and IME state
 before the composer reports a `ComposedMessage`.
 
-The conversation pane creates the message ID and timestamp, attaches the current reply reference,
-and dispatches `send`. The reducer appends the message and clears only that chat's text draft.
+The pane's `useConversationComposer` hook creates the message ID and timestamp, attaches the current
+reply reference, and dispatches `send`. The reducer appends the message and clears that chat's draft.
 Sending a sticker preserves the separate text draft. React renders the new message; the timeline
 follows a new outgoing message to the bottom; the persistence hook writes the updated snapshot.
 
@@ -149,7 +163,7 @@ Chat IndexedDB persistence and the conversation reducer's business rules remain 
 
 ### Ordinary animation values
 
-`src/features/chat/messages/usePollResultAnimation.ts` retains the choice/path/result phases and uses Motion values
+`src/features/chat/messages/content/poll/usePollResultAnimation.ts` retains the choice/path/result phases and uses Motion values
 for percentage and bar interpolation. `PollOption` renders these values directly, avoiding React
 state updates on every frame. Interrupted votes continue from their visible values; restored results
 and reduced-motion requests display their final values immediately. Message flights, reaction
@@ -332,12 +346,12 @@ and momentum. Approaching the start within one viewport (at least 360px) request
 before reaching the loaded boundary. Each boundary is requested once until the prepended rows commit;
 TanStack's end anchoring preserves the current reading position. Scrolling toward newer messages
 does not request older pages.
-`src/features/chat/messages/deferredMedia.tsx` postpones new photo, album, link-image, reply-thumbnail, and video-poster
+`src/features/chat/messages/content/media/deferredMedia.tsx` postpones new photo, album, link-image, reply-thumbnail, and video-poster
 sources during navigation. Existing images remain visible, frames retain their dimensions, and
 media loading resumes after the temporary range is released. Audio and video already use
 `preload="none"`. This coordination is local to the history view, not a global application lock.
 
-`src/features/chat/messages/MessageMenu.tsx` owns one Ark menu per history view. `useMessageMenu.ts` delegates pointer,
+`src/features/chat/messages/menu/MessageMenu.tsx` owns one Ark menu per history view. `useMessageMenu.ts` delegates pointer,
 keyboard, and touch long-press entry points from the viewport. It uses a virtual anchor rectangle,
 closes when the history scrolls or its target unmounts, and releases the target DOM reference after
 exit. Escape returns focus to the message button; selecting Reply or Edit restores that focus
@@ -497,7 +511,7 @@ See [verification notes](./virtual-history-verification.md) for the recorded bro
 
 ## Message context menu
 
-`src/features/chat/messages/MessageMenu.tsx` owns the shared Ark UI menu. Its transparent positioning box contains
+`src/features/chat/messages/menu/MessageMenu.tsx` owns the shared Ark UI menu. Its transparent positioning box contains
 an independent 40px reaction capsule, an 8px gap, and a 196px action panel. Positioning includes
 both surfaces when avoiding viewport edges. These dimensions and the separate entrance animations
 follow tweb's `src/scss/partials/_button.scss` (`btn-menu-reactions-container`) and
@@ -564,9 +578,9 @@ against all pinned conversations, including those outside the visible window. Se
 keeps the same mounted viewport and does not load another component.
 
 `src/components/SortableList.tsx` owns poll sorting cancellation and keyboard focus restoration.
-`src/features/chat/composer/FormListRow.tsx` exposes each row's drag handle while retaining entry/exit animation.
-`src/features/chat/composer/useListForm.ts` owns React Hook Form state and field-array operations;
-`src/features/chat/composer/listFormSchema.ts` validates poll/checklist limits and dependent correct answers.
+`src/features/chat/composer/forms/FormListRow.tsx` exposes each row's drag handle while retaining entry/exit animation.
+`src/features/chat/composer/forms/useListForm.ts` owns React Hook Form state and field-array operations;
+`src/features/chat/composer/forms/listFormSchema.ts` validates poll/checklist limits and dependent correct answers.
 
 `src/features/media/useViewerTransform.ts` uses use-gesture for drag/pinch recognition while preserving viewer
 geometry, wheel behavior, swipe thresholds, and momentum. Post-pinch continuation transfers to
