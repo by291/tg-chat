@@ -19,10 +19,10 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Product design approved on 2026-11-08. M1 through M3 are implemented and locally verified,
-including real Compose acceptance and independent review with findings resolved. M4 implementation
-and Compose acceptance are complete; independent final review is in progress. M5 through M10 remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes
-have not been pushed.
+**Status:** Product design approved on 2026-11-08. M1 through M4 are implemented and locally verified,
+including real Compose acceptance and independent review with findings resolved. M5 through M10
+remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes have
+not been pushed.
 
 ## Global constraints
 

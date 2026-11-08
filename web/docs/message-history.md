@@ -87,7 +87,15 @@ history source and delegates loading when the viewport reaches the older edge. I
 existing TanStack Virtual measurements and anchors; remote availability does not create a second
 scroll owner. A preceding-message projection preserves sender grouping at a fetched page boundary.
 
-A pending message keeps its client UUID when accepted, preventing an optimistic row from becoming
-a second canonical row. Connected metadata distinguishes queued/sending/failed states from server
-acceptance. The acceptance indicator makes no delivered/read claim. Message actions and attachments
-remain disabled until their backend milestones provide authoritative commands.
+A pending message keeps its client UUID when accepted, preventing an optimistic row from becoming a
+second canonical row. Connected metadata distinguishes queued/sending/failed states from server
+acceptance. The acceptance indicator makes no delivery claim; the peer's read cursor separately
+controls the read indicator. Foreground read advancement uses the actually reached visible message,
+not the directory's newest sequence. Connected lifecycle controls use authoritative commands and
+retain editor text when an expected-version edit conflicts.
+
+Reply jumps can request an authorized bounded neighborhood outside the loaded window. Pins have a
+separate paginated directory. Hidden, deleted, cleared, or expired targets remove obsolete excerpts;
+late pages and command receipts must pass the cache's observation/generation fences before merging.
+The server enforces expiry independently of cleanup, and a local deadline removes visible expired
+rows even during a network outage. Attachments remain a later milestone.

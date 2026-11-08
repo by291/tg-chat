@@ -2,9 +2,9 @@
 
 ## Design direction
 
-The application has a connected account and messaging workspace and an explicit local conversation demo. React
-owns rendering and lifecycle. Domain values, durable state changes, and temporary UI state have
-separate owners so changes to one do not require rebuilding the others.
+The application has a connected account and messaging workspace and an explicit local conversation
+demo. React owns rendering and lifecycle. Domain values, durable state changes, and temporary UI
+state have separate owners so changes to one do not require rebuilding the others.
 
 The structure follows responsibilities rather than uniform folder templates or file-size limits.
 Code that changes together stays together. A module is split when it contains independent concepts,
@@ -56,9 +56,9 @@ identity resets conversation-specific editing context, preventing it from leakin
 
 ## Data flow and derived views
 
-In the demo, user input produces a domain-level command. The conversation layer supplies identity and context,
-the reducer applies the durable change, and the persistence layer saves the resulting snapshot.
-Rendering subscribes to that state; persistence does not drive individual UI interactions.
+In the demo, user input produces a domain-level command. The conversation layer supplies identity
+and context, the reducer applies the durable change, and the persistence layer saves the resulting
+snapshot. Rendering subscribes to that state; persistence does not drive individual UI interactions.
 
 Derived conversation metadata and message indexes are shared at the workspace level. A draft edit
 should not rebuild an unrelated conversation directory, restart a mute timer, or invalidate every
@@ -69,19 +69,18 @@ policy, so changing a preference does not replay messages that were intentionall
 
 ## Persistence and backend boundary
 
-Demo storage input is validated before it becomes application state. A failed restore leaves a usable
-local interface; a failed write reports the problem while allowing the current session to continue.
-Existing storage keys and serialized shapes are compatibility contracts. Fixture upgrades preserve
-user changes and do not recreate content the user already removed.
+Demo storage input is validated before it becomes application state. A failed restore leaves a
+usable local interface; a failed write reports the problem while allowing the current session to
+continue. Existing storage keys and serialized shapes are compatibility contracts. Fixture upgrades
+preserve user changes and do not recreate content the user already removed.
 
 The current persistence unit is a conversation snapshot. Bounding rendered rows does not bound
 stored data, and preference storage events do not provide concurrent conversation editing. Keep
 this local model until backend requirements justify changing it.
 
-Connected mode now supplies server identities, durable direct messages, and HTTP catch-up through
-its data owner. Later milestones extend delivery, lifecycle commands, and durable cache coordination
-through that boundary. Rendering and scroll measurement
-remain frontend responsibilities.
+Connected mode supplies server identities, durable direct messages, lifecycle commands, and HTTP
+catch-up through its data owner. Centrifugo only wakes that catch-up path. Rendering and scroll
+measurement remain frontend responsibilities.
 
 ## Related designs
 
@@ -97,6 +96,8 @@ settings are open. It supplies bounded canonical projections to the existing com
 it never mounts the demo reducer or demo conversation persistence. A React identity provider gives
 shared renderers the authenticated user while preserving the demo default outside connected mode.
 
-Pending operations and drafts use transactional IndexedDB ownership. Canonical message projections
-remain in memory in M3; future durable cache/checkpoint work belongs to M4. See
-[durable messaging](../../docs/messaging.md) for acceptance, cursor, and recovery guarantees.
+Canonical projections and their checkpoint share an IndexedDB transaction, with epoch/cursor
+compare-and-set across tabs. Pending operations and drafts have separate transactional ownership, so
+a full canonical reset preserves unsent work. Versioned draft conflicts require an explicit choice
+when local input is dirty. See [durable messaging](../../docs/messaging.md) for acceptance, cursor,
+and recovery guarantees.

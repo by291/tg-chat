@@ -23,14 +23,14 @@ The build runs TypeScript checks before bundling. The browser suite builds produ
 starts an isolated preview, with a fresh browser context per test. It does not reuse the regular
 development server or its saved data. Failed cases retain traces and screenshots in `test-results/`.
 
-Connected browser tests use a separately running frontend, API, Worker, Valkey, and SMTP
-capture. Set `TG_CHAT_ACCOUNT_TEST_URL` and `TG_CHAT_MAILPIT_TEST_URL`, then run `pnpm test:accounts`.
-They create isolated test identities and exercise private profiles, contacts, device revocation,
-cross-tab logout, verification, single-use recovery, direct/Saved rich messaging, pending reload,
-and history paging. Use a disposable deployment with available
-registration rate budget. The root `node scripts/check-runtime.mjs` command provisions that complete
-environment and runs Rust, account/messaging browser checks, and committed-response-loss recovery; see
-[backend development](../../docs/development.md).
+Connected browser tests use a separately running frontend, API, Worker, Valkey, and SMTP capture,
+plus Centrifugo for realtime acceptance. Set `TG_CHAT_ACCOUNT_TEST_URL` and
+`TG_CHAT_MAILPIT_TEST_URL`, then run `pnpm test:accounts`. They create isolated test identities and
+exercise private profiles, contacts, device revocation, cross-tab logout, verification, single-use
+recovery, direct/Saved rich messaging, pending reload, and history paging. Use a disposable
+deployment with available registration rate budget. The root `node scripts/check-runtime.mjs`
+command provisions that complete environment and runs Rust, account/messaging browser checks, and
+committed-response-loss recovery; see [backend development](../../docs/development.md).
 
 Use the existing Prettier configuration. Text files use LF on Windows, macOS, and Linux through
 Git attributes, EditorConfig, and Prettier; no global Git setting is needed. Binary assets are not
@@ -85,3 +85,9 @@ local SMTP capture, which does not establish delivery through a public mail prov
 Choose checks according to the change. Documentation-only edits need formatting, link/reference
 validation, and `git diff --check`; they do not require rerunning runtime suites. Report checks
 actually run and their limits rather than retaining historical passing counts as guarantees.
+
+`pnpm test:sync` exercises four sessions across two accounts plus a shared-cache tab. It checks
+mixed lifecycle commands, read advancement, reply navigation, full reset preserving local input, and
+deletion without resurrection after reload. Its output directory is separate from the demo and
+account suites. Run it with independent admission fixtures; the root Compose runner resets only its
+own ephemeral Valkey between suites rather than weakening application registration limits.
