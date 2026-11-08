@@ -11,6 +11,7 @@ import { SettingsAccountDetails } from './SettingsAccountDetails';
 import { SettingsProfile } from './SettingsProfile';
 import { NotificationSettingsPage, type NotificationChatActions } from './NotificationSettingsPage';
 import { DevicesSettingsPage } from './DevicesSettingsPage';
+import { KeyboardSettingsPage } from './KeyboardSettingsPage';
 import styles from './SettingsPage.module.css';
 
 const SETTINGS_CATEGORIES = [
@@ -173,39 +174,5 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
         secondary={detailPage}
       />
     </div>
-  );
-}
-
-function KeyboardSettingsPage({ onBack }: { onBack: () => void }) {
-  return (
-    <section className={styles.page} aria-label="Keyboard Shortcuts">
-      <SettingsHeader
-        title="Keyboard Shortcuts"
-        backLabel="Back from keyboard shortcuts"
-        onBack={onBack}
-      />
-      <div className={styles.scrollContent}>
-        <dl className={`${styles.section} ${styles.shortcuts}`}>
-          <div>
-            <dt>Send message</dt>
-            <dd>
-              <kbd>Enter</kbd>
-            </dd>
-          </div>
-          <div>
-            <dt>New line</dt>
-            <dd>
-              <kbd>Shift + Enter</kbd>
-            </dd>
-          </div>
-          <div>
-            <dt>Close or go back</dt>
-            <dd>
-              <kbd>Esc</kbd>
-            </dd>
-          </div>
-        </dl>
-      </div>
-    </section>
   );
 }
