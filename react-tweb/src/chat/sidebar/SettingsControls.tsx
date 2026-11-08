@@ -17,7 +17,7 @@ interface SettingsRangeProps {
 
 interface SettingsRadioProps {
   label: string;
-  description: string;
+  description?: string;
   name: string;
   value: string;
   isChecked: boolean;
@@ -147,7 +147,7 @@ export function SettingsRadio({
         className={styles.radioInput}
         type="radio"
         aria-label={label}
-        aria-describedby={descriptionId}
+        aria-describedby={description ? descriptionId : undefined}
         name={name}
         value={value}
         checked={isChecked}
@@ -156,9 +156,11 @@ export function SettingsRadio({
       <span className={styles.radioControl} aria-hidden="true" />
       <span className={styles.radioText}>
         <span>{label}</span>
-        <span id={descriptionId} className={styles.radioDescription}>
-          {description}
-        </span>
+        {description && (
+          <span id={descriptionId} className={styles.radioDescription}>
+            {description}
+          </span>
+        )}
       </span>
       <Ripple />
     </label>

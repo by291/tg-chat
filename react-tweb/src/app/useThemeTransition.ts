@@ -1,6 +1,4 @@
-import { useLayoutEffect, useRef, type Dispatch } from 'react';
 import { flushSync } from 'react-dom';
-import type { ChatAction } from '../chat/model';
 
 const REVEAL_DURATION = 600;
 const CONCEAL_DURATION = 500;
@@ -15,7 +13,8 @@ export interface ThemeOrigin {
 
 interface ThemeTransitionOptions {
   isDark: boolean;
-  dispatch: Dispatch<ChatAction>;
+  apply: () => void;
+  origin?: ThemeOrigin;
 }
 
 function getRevealFrames(origin: ThemeOrigin): Keyframe[] {
@@ -34,54 +33,48 @@ function getRevealFrames(origin: ThemeOrigin): Keyframe[] {
   ];
 }
 
-/** Reveal dark mode from its control and shrink it back when returning to light mode. */
-export function useThemeTransition({ isDark, dispatch }: ThemeTransitionOptions) {
-  const transitionRef = useRef<ViewTransition | undefined>(undefined);
+let activeTransition: ViewTransition | undefined;
 
-  useLayoutEffect(() => {
-    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
-  }, [isDark]);
+/** Reveal a new dark palette or shrink the old one while applying the requested theme once. */
+export async function runThemeTransition({ isDark, apply, origin }: ThemeTransitionOptions) {
+  if (activeTransition) {
+    activeTransition.skipTransition();
+  }
+  const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!document.startViewTransition || shouldReduceMotion) {
+    apply();
+    return;
+  }
 
-  return async function toggleTheme(origin?: ThemeOrigin) {
-    if (transitionRef.current) {
-      return;
-    }
-    const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!document.startViewTransition || shouldReduceMotion) {
-      dispatch({ type: 'toggle-theme' });
-      return;
-    }
+  const root = document.documentElement;
+  const revealOrigin = origin ?? { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+  root.dataset.themeTransition = isDark ? 'conceal' : 'reveal';
+  // React must commit the new document palette before the second browser snapshot.
+  const transition = document.startViewTransition(() => flushSync(apply));
+  activeTransition = transition;
+  const timeout = window.setTimeout(() => transition.skipTransition(), TRANSITION_TIMEOUT);
+  let animation: Animation | undefined;
 
-    const root = document.documentElement;
-    const revealOrigin = origin ?? { left: window.innerWidth / 2, top: window.innerHeight / 2 };
-    root.dataset.themeTransition = isDark ? 'conceal' : 'reveal';
-    // React must commit the entire new palette before the browser captures its second snapshot.
-    const transition = document.startViewTransition(() => {
-      flushSync(() => dispatch({ type: 'toggle-theme' }));
+  try {
+    await transition.ready;
+    const frames = getRevealFrames(revealOrigin);
+    animation = root.animate(isDark ? frames.reverse() : frames, {
+      duration: isDark ? CONCEAL_DURATION : REVEAL_DURATION,
+      easing: TRANSITION_EASING,
+      pseudoElement: isDark ? '::view-transition-old(root)' : '::view-transition-new(root)',
+      fill: 'forwards',
     });
-    transitionRef.current = transition;
-    const timeout = window.setTimeout(() => transition.skipTransition(), TRANSITION_TIMEOUT);
-    let animation: Animation | undefined;
-
-    try {
-      await transition.ready;
-      const frames = getRevealFrames(revealOrigin);
-      animation = root.animate(isDark ? frames.reverse() : frames, {
-        duration: isDark ? CONCEAL_DURATION : REVEAL_DURATION,
-        easing: TRANSITION_EASING,
-        pseudoElement: isDark ? '::view-transition-old(root)' : '::view-transition-new(root)',
-        fill: 'forwards',
-      });
-      await transition.finished;
-    } catch {
-      // Hidden documents and interrupted transitions still commit their requested theme.
-      transition.skipTransition();
-      await transition.finished.catch(() => {});
-    } finally {
-      window.clearTimeout(timeout);
-      animation?.cancel();
+    await transition.finished;
+  } catch {
+    // Hidden documents and interrupted transitions still commit their requested theme.
+    transition.skipTransition();
+    await transition.finished.catch(() => {});
+  } finally {
+    window.clearTimeout(timeout);
+    animation?.cancel();
+    if (activeTransition === transition) {
       delete root.dataset.themeTransition;
-      transitionRef.current = undefined;
+      activeTransition = undefined;
     }
-  };
+  }
 }

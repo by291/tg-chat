@@ -77,10 +77,8 @@ describe('sidebar search', () => {
     await user.click(screen.getByRole('button', { name: 'Search settings' }));
     await user.type(screen.getByRole('textbox', { name: 'Search settings' }), 'dark');
     await user.click(screen.getByRole('button', { name: 'General Settings' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Dark Mode' }));
-    expect((screen.getByRole('checkbox', { name: 'Dark Mode' }) as HTMLInputElement).checked).toBe(
-      true,
-    );
+    await user.click(screen.getByRole('radio', { name: 'Dark' }));
+    expect((screen.getByRole('radio', { name: 'Dark' }) as HTMLInputElement).checked).toBe(true);
     await user.click(screen.getByRole('button', { name: 'Back from general settings' }));
     expect(
       (screen.getByRole('textbox', { name: 'Search settings' }) as HTMLInputElement).value,

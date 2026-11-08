@@ -25,7 +25,7 @@
   --bubble-top-right: 15px;
   --bubble-bottom-right: 15px;
   --bubble-bottom-left: 5px;
-  --bubble-background: var(--surface-color);
+  --bubble-background: var(--incoming-color, var(--surface-color));
   --message-control-border: #8d969c;
   --message-control-check: white;
   --bubble-status-color: var(--incoming-meta-color);
@@ -56,6 +56,10 @@
   --bubble-bottom-right: 5px;
   --bubble-bottom-left: 15px;
   --bubble-background: var(--outgoing-color);
+  --accent-color: var(--outgoing-meta-color);
+  --message-icon-color: var(--outgoing-color);
+  color: var(--outgoing-text-color, var(--message-text-color));
+  background: var(--outgoing-gradient, var(--outgoing-color));
   --message-control-border: var(--accent-color);
   --message-control-check: var(--bubble-background);
   --bubble-status-color: var(--outgoing-meta-color);

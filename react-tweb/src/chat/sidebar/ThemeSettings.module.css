@@ -1,0 +1,151 @@
+.themeStrip,
+.accentStrip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px;
+  overscroll-behavior-x: contain;
+}
+
+.themeCard {
+  position: relative;
+  flex: 0 0 72px;
+  height: 96px;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.themeCard::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: url('/assets/telegram-pattern.svg') center / 150px;
+  opacity: 0.12;
+  z-index: 1;
+  content: '';
+}
+
+.themeCard::after {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--accent-color);
+  border-radius: 16px;
+  opacity: 0;
+  z-index: 3;
+  transform: scale(0.86);
+  transition:
+    transform 200ms var(--menu-easing),
+    opacity 200ms var(--menu-easing);
+  content: '';
+}
+
+.themeCard[aria-pressed='true']::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.themeCard:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 1px;
+}
+
+.previewIncoming,
+.previewOutgoing {
+  position: absolute;
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+.previewIncoming,
+.previewOutgoing,
+.emoji {
+  z-index: 2;
+}
+
+.previewIncoming {
+  left: 6px;
+  top: 32px;
+  background: var(--preview-incoming);
+}
+
+.previewOutgoing {
+  right: 6px;
+  top: 8px;
+  background: var(--preview-outgoing);
+}
+
+.emoji {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  width: 100%;
+  font-size: 24px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.themeCard[aria-pressed='true'] .emoji {
+  animation: selectTheme 350ms var(--menu-easing);
+}
+
+@keyframes selectTheme {
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+.variants {
+  margin-top: 8px;
+}
+
+.variants > label {
+  min-height: 54px;
+}
+
+.accentReveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms var(--menu-easing);
+}
+
+.accentReveal[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+.accentReveal > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.accentStrip {
+  gap: 12px;
+  padding: 12px 8px;
+}
+
+.accent {
+  flex: 0 0 40px;
+  height: 40px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--swatch-color);
+  background-clip: content-box;
+  cursor: pointer;
+}
+
+.accent[aria-pressed='true'] {
+  border-color: var(--swatch-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .themeCard::after,
+  .accentReveal {
+    transition: none;
+  }
+  .themeCard[aria-pressed='true'] .emoji {
+    animation: none;
+  }
+}

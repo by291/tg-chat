@@ -1,6 +1,5 @@
 import { Keyboard, Search, Settings, Sticker, X } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { ThemeOrigin } from '../../app/useThemeTransition';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -17,7 +16,7 @@ const SETTINGS_CATEGORIES = [
     id: 'general',
     label: 'General Settings',
     keywords:
-      'appearance theme light dark mode text size time format autoplay video power animation',
+      'appearance theme light dark mode wallpaper background color text size time format autoplay video power animation',
     icon: Settings,
     color: 'gray',
   },
@@ -40,13 +39,11 @@ const SETTINGS_CATEGORIES = [
 type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number]['id'];
 
 interface SettingsPageProps {
-  isDark: boolean;
-  onToggleTheme: (origin?: ThemeOrigin) => void;
   onBack: () => void;
 }
 
 /** Browse supported preferences without replacing the conversation or losing sidebar state. */
-export function SettingsPage({ isDark, onToggleTheme, onBack }: SettingsPageProps) {
+export function SettingsPage({ onBack }: SettingsPageProps) {
   const [category, setCategory] = useState<SettingsCategory>();
   const closingCategory = useClosingDialogValue(category);
   const [isSearching, setIsSearching] = useState(false);
@@ -76,13 +73,7 @@ export function SettingsPage({ isDark, onToggleTheme, onBack }: SettingsPageProp
     onBack();
   }
 
-  let detailPage = (
-    <GeneralSettingsPage
-      isDark={isDark}
-      onToggleTheme={onToggleTheme}
-      onBack={() => setCategory(undefined)}
-    />
-  );
+  let detailPage = <GeneralSettingsPage onBack={() => setCategory(undefined)} />;
   if (closingCategory === 'stickers') {
     detailPage = <StickerSettingsPage onBack={() => setCategory(undefined)} />;
   } else if (closingCategory === 'shortcuts') {

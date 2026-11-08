@@ -15,7 +15,8 @@ import { useConversationList } from '../chat/sidebar/conversationList';
 import { useChatState } from '../chat/state/useChatState';
 import { useInputModality } from './useInputModality';
 import { useAppPreferences } from './settings/appPreferences';
-import { useThemeTransition } from './useThemeTransition';
+import { useAppearanceTheme } from './appearance/useAppearanceTheme';
+import { ChatWallpaper } from './appearance/ChatWallpaper';
 import { ToastViewport } from '../components/Toast';
 import { showToast } from '../components/toastStore';
 import styles from './ChatApp.module.css';
@@ -41,7 +42,10 @@ export function ChatApp() {
   const hasDetails = isDetailsOpen && hasConversation;
   const activeEntry = conversationEntries.find((entry) => entry.id === conversation?.id);
   const messages = state.messages.filter((message) => message.chatId === conversation?.id);
-  const toggleTheme = useThemeTransition({ isDark: state.isDark, dispatch });
+  const { variant, choice, isDark, toggleTheme } = useAppearanceTheme({
+    isReady,
+    isLegacyDark: state.isDark,
+  });
 
   useEffect(
     () => {
@@ -136,12 +140,14 @@ export function ChatApp() {
         data-details-open={hasDetails}
         data-mobile-chat-open={isMobileChatOpen && hasConversation}
       >
+        <ChatWallpaper variant={variant} choice={choice} />
         <div className={styles.sidebarSlot}>
           <ChatSidebar
             state={state}
             dispatch={dispatch}
             onSelectChat={selectConversation}
             onToggleTheme={toggleTheme}
+            isDark={isDark}
           />
         </div>
         <div className={styles.conversationSlot}>

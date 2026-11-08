@@ -1,6 +1,5 @@
-import { Moon, Rocket } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import type { ThemeOrigin } from '../../app/useThemeTransition';
+import { Palette, Rocket } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
   MAX_MESSAGE_TEXT_SIZE,
   MIN_MESSAGE_TEXT_SIZE,
@@ -16,22 +15,23 @@ import {
   SettingsSwitch,
 } from './SettingsControls';
 import { SidebarNavigation } from './SidebarNavigation';
+import { ThemeSettings } from './ThemeSettings';
+import { WallpaperSettingsPage } from './WallpaperSettingsPage';
+import { useClosingDialogValue } from './useClosingDialogValue';
 import styles from './SettingsPage.module.css';
 
 const MINUTE_DURATION = 60_000;
 
 interface GeneralSettingsPageProps {
-  isDark: boolean;
-  onToggleTheme: (origin?: ThemeOrigin) => void;
   onBack: () => void;
 }
 
 /** Edit message presentation and open the media power-saving preferences. */
-export function GeneralSettingsPage({ isDark, onToggleTheme, onBack }: GeneralSettingsPageProps) {
+export function GeneralSettingsPage({ onBack }: GeneralSettingsPageProps) {
   const preferences = useAppPreferences();
-  const [isPowerSavingOpen, setIsPowerSavingOpen] = useState(false);
+  const [page, setPage] = useState<'power' | 'wallpaper'>();
+  const closingPage = useClosingDialogValue(page);
   const [previewTimestamp, setPreviewTimestamp] = useState(Date.now);
-  const appearanceRef = useRef<HTMLDivElement>(null);
   const isPowerSaving =
     !preferences.shouldAutoplayVideos ||
     !preferences.shouldAnimateStickers ||
@@ -42,18 +42,6 @@ export function GeneralSettingsPage({ isDark, onToggleTheme, onBack }: GeneralSe
     const interval = window.setInterval(() => setPreviewTimestamp(Date.now()), MINUTE_DURATION);
     return () => window.clearInterval(interval);
   }, []);
-
-  function changeTheme({ isChecked }: { isChecked: boolean }) {
-    if (isChecked === isDark) {
-      return;
-    }
-    const icon = appearanceRef.current?.querySelector('svg');
-    const bounds = icon?.getBoundingClientRect();
-    const origin = bounds
-      ? { left: bounds.left + bounds.width / 2, top: bounds.top + bounds.height / 2 }
-      : undefined;
-    onToggleTheme(origin);
-  }
 
   const generalPage = (
     <section className={styles.page} aria-label="General Settings">
@@ -73,23 +61,20 @@ export function GeneralSettingsPage({ isDark, onToggleTheme, onBack }: GeneralSe
             onChange={(messageTextSize) => setAppPreferences({ messageTextSize })}
           />
           <SettingsRow
+            label="Chat Wallpaper"
+            icon={Palette}
+            color="orange"
+            onClick={() => setPage('wallpaper')}
+          />
+          <SettingsRow
             label="Power Saving Mode"
             icon={Rocket}
             color="purple"
             value={isPowerSaving ? 'Enabled' : 'Disabled'}
-            onClick={() => setIsPowerSavingOpen(true)}
+            onClick={() => setPage('power')}
           />
         </section>
-        <div ref={appearanceRef} className={styles.section}>
-          <h3>Appearance</h3>
-          <SettingsSwitch
-            label="Dark Mode"
-            icon={Moon}
-            color="purple"
-            isChecked={isDark}
-            onChange={changeTheme}
-          />
-        </div>
+        <ThemeSettings />
         <fieldset className={`${styles.section} ${styles.radioSection}`}>
           <legend>Time Format</legend>
           <SettingsRadio
@@ -117,17 +102,23 @@ export function GeneralSettingsPage({ isDark, onToggleTheme, onBack }: GeneralSe
     <div
       className={styles.page}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && isPowerSavingOpen && !event.defaultPrevented) {
+        if (event.key === 'Escape' && page && !event.defaultPrevented) {
           event.preventDefault();
           event.stopPropagation();
-          setIsPowerSavingOpen(false);
+          setPage(undefined);
         }
       }}
     >
       <SidebarNavigation
-        isSecondaryOpen={isPowerSavingOpen}
+        isSecondaryOpen={Boolean(page)}
         primary={generalPage}
-        secondary={<PowerSavingPage onBack={() => setIsPowerSavingOpen(false)} />}
+        secondary={
+          closingPage === 'wallpaper' ? (
+            <WallpaperSettingsPage onBack={() => setPage(undefined)} />
+          ) : (
+            <PowerSavingPage onBack={() => setPage(undefined)} />
+          )
+        }
       />
     </div>
   );

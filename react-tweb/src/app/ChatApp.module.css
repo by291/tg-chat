@@ -8,27 +8,7 @@
   height: 100dvh;
   padding: 16px 0 16px 16px;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse at 73% 6%, #efb7d5 0, transparent 56%),
-    radial-gradient(ellipse at 12% 100%, #9be2db 0, transparent 60%),
-    linear-gradient(135deg, #c7b5ed 15%, #b9c8ec 100%);
-}
-
-.app::before {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.09;
-  background: url('/assets/telegram-pattern.svg') repeat;
-  background-size: 460px auto;
-  mix-blend-mode: multiply;
-  content: '';
-}
-
-:global([data-theme='dark']) .app {
-  background:
-    radial-gradient(ellipse at 75% 0, #493348 0, transparent 60%),
-    radial-gradient(ellipse at 10% 100%, #244a4b 0, transparent 65%), #292e47;
+  background: var(--panel-color);
 }
 
 .app[data-details-open='true'] {

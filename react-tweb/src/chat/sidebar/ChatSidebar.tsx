@@ -33,6 +33,7 @@ import { useClosingDialogValue } from './useClosingDialogValue';
 import styles from './ChatSidebar.module.css';
 
 interface ChatSidebarProps {
+  isDark?: boolean;
   state: ChatState;
   dispatch: Dispatch<ChatAction>;
   onSelectChat: (chatId: string) => void;
@@ -40,7 +41,13 @@ interface ChatSidebarProps {
 }
 
 /** Display local conversations and switch to search without losing list position. */
-export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: ChatSidebarProps) {
+export function ChatSidebar({
+  state,
+  dispatch,
+  onSelectChat,
+  onToggleTheme,
+  isDark = state.isDark,
+}: ChatSidebarProps) {
   const [query, setQuery] = useState('');
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -189,7 +196,7 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
         <div className={styles.header}>
           <SidebarMenu
             isSearching={isSearching}
-            isDark={state.isDark}
+            isDark={isDark}
             menuButtonRef={menuButtonRef}
             onCloseSearch={closeSearch}
             onSelectChat={selectChat}
@@ -441,11 +448,7 @@ export function ChatSidebar({ state, dispatch, onSelectChat, onToggleTheme }: Ch
                   onSave={archive.saveSettings}
                 />
               ) : (
-                <SettingsPage
-                  isDark={state.isDark}
-                  onToggleTheme={onToggleTheme}
-                  onBack={() => setIsSettingsOpen(false)}
-                />
+                <SettingsPage onBack={() => setIsSettingsOpen(false)} />
               )
             }
           />
