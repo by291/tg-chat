@@ -16,5 +16,10 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  // prettier-ignore
+  "include": [
+    "src",
+    "e2e",
+    "*.config.ts"
+  ]
 }
