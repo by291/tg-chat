@@ -20,7 +20,19 @@ use crate::{
 
 const TRANSACTION_ATTEMPTS: usize = 3;
 const MAX_REACTIONS_PER_ACCOUNT: i64 = 3;
-const ALLOWED_REACTIONS: &[&str] = &["👍", "👎", "❤️", "🔥", "🥰", "👏", "😁", "🤔", "😢", "🎉"];
+#[rustfmt::skip]
+const ALLOWED_REACTIONS: &[&str] = &[
+    "👍",
+    "👎",
+    "❤️",
+    "🔥",
+    "🥰",
+    "👏",
+    "😁",
+    "🤔",
+    "😢",
+    "🎉",
+];
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -84,6 +96,7 @@ pub struct CommandReceipt {
 }
 
 impl CommandAction {
+    /// Identify the target when an action changes an existing message.
     pub(crate) fn message_id(&self) -> Option<Uuid> {
         match self {
             Self::Edit {

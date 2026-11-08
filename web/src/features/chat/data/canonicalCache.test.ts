@@ -106,7 +106,11 @@ describe('atomic canonical checkpoints', () => {
     for (const conversation of conversations) {
       const page = history();
       page.messages = [canonicalFixture({ conversation_id: conversation.id })];
-      await cache.saveHistory({ expected: initial, conversationId: conversation.id, page });
+      await cache.saveHistory({
+        expected: initial,
+        conversationId: conversation.id,
+        page,
+      });
     }
     const persisted = await cache.read();
     expect(Object.keys(persisted.pages).length).toBeLessThanOrEqual(3);

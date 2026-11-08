@@ -13,7 +13,13 @@ use crate::{
 };
 
 const MAX_PIN_RANK: i32 = 199;
-const EXPIRY_POLICIES: &[i32] = &[0, 1, 7, 30];
+#[rustfmt::skip]
+const EXPIRY_POLICIES: &[i32] = &[
+    0,
+    1,
+    7,
+    30,
+];
 
 async fn save_draft(
     connection: &mut PgConnection,

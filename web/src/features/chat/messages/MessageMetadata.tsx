@@ -26,6 +26,10 @@ function SendingStatus({
     );
   }
 
+  let label = status ? labels[status] : 'Stored locally';
+  if (isRead) {
+    label = 'Read';
+  }
   return (
     <svg
       className={styles.sendingStatus}
@@ -36,7 +40,7 @@ function SendingStatus({
       strokeLinecap="round"
       strokeLinejoin="round"
       role="img"
-      aria-label={isRead ? 'Read' : status ? labels[status] : 'Stored locally'}
+      aria-label={label}
     >
       <path d={status && !isRead ? 'M2 8L5 11L12 3' : 'M2 8L5 11L12 3M9 10L10 11L17 3'} />
     </svg>

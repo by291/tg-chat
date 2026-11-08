@@ -170,14 +170,12 @@ async fn reopening_checks_capacity_and_rolls_back_without_revealing_cleared_hist
         service.send(alice, send_input(bobby.user_id)).await,
         Err(AccountError::ConversationUnavailable)
     ));
-    let retained: (bool, i64) = sqlx::query_as(
+    let retained = sqlx::query_as(
         "SELECT directory_active, clear_through FROM conversation_members
          WHERE conversation_id = $1 AND user_id = $2",
     )
     .bind(sent.conversation.id)
-    .bind(bobby.user_id)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    .bind(bobby.user_id);
+    let retained: (bool, i64) = retained.fetch_one(&pool).await.unwrap();
     assert_eq!(retained, (false, 1));
 }

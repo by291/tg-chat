@@ -128,9 +128,13 @@ async fn refresh(
         }
         Err(_) => return Err(StatusCode::SERVICE_UNAVAILABLE),
     }
-    sqlx::query("UPDATE realtime_connections SET expires_at = now() + $2 * interval '1 second' WHERE client_id = $1")
-        .bind(input.client).bind(REGISTRY_SECONDS).execute(&mut *connection).await
-        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let renewal = sqlx::query(
+        "UPDATE realtime_connections SET expires_at = now() + $2 * interval '1 second'
+         WHERE client_id = $1",
+    )
+    .bind(input.client)
+    .bind(REGISTRY_SECONDS);
+    renewal.execute(&mut *connection).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
 
     Ok(Json(json!({"result": {"expire_at": Utc::now().timestamp() + REFRESH_SECONDS}})))
 }

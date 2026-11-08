@@ -192,7 +192,11 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
         break;
       case 'pin':
         void owner
-          .command({ kind: 'pin', message_id: canonical.id, is_pinned: !canonical.is_pinned })
+          .command({
+            kind: 'pin',
+            message_id: canonical.id,
+            is_pinned: !canonical.is_pinned,
+          })
           .catch(report);
         break;
       case 'delete': {

@@ -69,7 +69,11 @@ it('retains both drafts when two tabs edit the same stale local revision', async
   await first.saveDraft({ destination: 'saved', draft: original });
   const firstEdit = { id: 'first-edit', value: { text: 'First tab' } };
   const secondEdit = { id: 'second-edit', value: { text: 'Second tab' } };
-  await first.saveDraft({ destination: 'saved', draft: firstEdit, expectedId: original.id });
+  await first.saveDraft({
+    destination: 'saved',
+    draft: firstEdit,
+    expectedId: original.id,
+  });
   const conflict = await second.saveDraft({
     destination: 'saved',
     draft: secondEdit,

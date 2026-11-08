@@ -11,6 +11,7 @@ use crate::{
 };
 
 const CHANGE_RETENTION_DAYS: i32 = 30;
+const RETENTION_BATCH_SIZE: i64 = 1000;
 
 /// Expire one message while preserving the conversation/account/feed lock order used by writes.
 pub async fn expire_one(pool: &PgPool) -> Result<bool, AccountError> {
@@ -84,16 +85,16 @@ pub async fn prune_one(pool: &PgPool) -> Result<bool, AccountError> {
         return Ok(false);
     };
     // Transaction start timestamps can differ from commit order; stop before the first recent row.
-    let floor: i64 = sqlx::query_scalar(
-        "SELECT least(head.retained_floor + 1000, COALESCE((SELECT min(position) - 1
+    let floor = sqlx::query_scalar(
+        "SELECT least(head.retained_floor + $3, COALESCE((SELECT min(position) - 1
             FROM personal_changes WHERE user_id = $1
               AND created_at >= now() - $2 * interval '1 day'), head.position))
          FROM sync_heads head WHERE head.user_id = $1",
     )
     .bind(user_id)
     .bind(CHANGE_RETENTION_DAYS)
-    .fetch_one(&mut *transaction)
-    .await?;
+    .bind(RETENTION_BATCH_SIZE);
+    let floor: i64 = floor.fetch_one(&mut *transaction).await?;
     sqlx::query("DELETE FROM personal_changes WHERE user_id = $1 AND position <= $2")
         .bind(user_id)
         .bind(floor)

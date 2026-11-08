@@ -61,29 +61,59 @@ it('merges content and interaction versions independently when responses cross',
     version: '3',
     interaction_version: '2',
     content: { ...message(1).content, text: 'Edited content' },
-    reactions: [{ emoji: '👍', count: '1', is_selected: true }],
+    reactions: [
+      {
+        emoji: '👍',
+        count: '1',
+        is_selected: true,
+      },
+    ],
   };
   const delayed = {
     ...message(1),
     version: '2',
     interaction_version: '3',
-    reactions: [{ emoji: '👍', count: '2', is_selected: true }],
+    reactions: [
+      {
+        emoji: '👍',
+        count: '2',
+        is_selected: true,
+      },
+    ],
   };
-  const merged = mergeMessages({ current: [current], incoming: [delayed], edge: 'latest' });
+  const merged = mergeMessages({
+    current: [current],
+    incoming: [delayed],
+    edge: 'latest',
+  });
   expect(merged[0].content.text).toBe('Edited content');
   expect(merged[0].reactions[0].count).toBe('2');
 });
 
 it('renders unavailable replies without exposing their former quote and keeps aggregate reactions', () => {
   const canonical = message(1);
-  canonical.reply = { message_id: 'removed', is_unavailable: true, quote: 'Old private text' };
-  canonical.reactions = [{ emoji: '👍', count: '2', is_selected: false }];
+  canonical.reply = {
+    message_id: 'removed',
+    is_unavailable: true,
+    quote: 'Old private text',
+  };
+  canonical.reactions = [
+    {
+      emoji: '👍',
+      count: '2',
+      is_selected: false,
+    },
+  ];
   canonical.is_pinned = true;
   canonical.edited_at = canonical.created_at;
   const rendered = renderMessage(canonical);
   expect(rendered.replyQuote).toBeUndefined();
   expect(rendered.isReplyUnavailable).toBe(true);
-  expect(rendered.reactionDetails?.[0]).toEqual({ emoji: '👍', count: '2', isSelected: false });
+  expect(rendered.reactionDetails?.[0]).toEqual({
+    emoji: '👍',
+    count: '2',
+    isSelected: false,
+  });
   expect(rendered.isPinned).toBe(true);
   expect(rendered.isEdited).toBe(true);
 });

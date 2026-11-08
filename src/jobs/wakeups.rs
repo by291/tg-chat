@@ -106,14 +106,17 @@ impl WakeupQueue {
                 .await?;
             }
             WakeupOutcome::Retry => {
-                sqlx::query(
+                let retry = sqlx::query(
                     "UPDATE sync_wakeups SET status = CASE WHEN attempts >= $2
                          THEN 'exhausted' ELSE 'pending' END,
                      available_at = now() + ($3 * (1 << attempts) + random() * $3) * interval '1 second',
                      lease_token = NULL, lease_until = NULL, last_error = 'publication_unavailable'
                      WHERE user_id = $1",
-                ).bind(claim.user_id).bind(MAX_ATTEMPTS).bind(RETRY_SECONDS)
-                    .execute(&mut *transaction).await?;
+                )
+                .bind(claim.user_id)
+                .bind(MAX_ATTEMPTS)
+                .bind(RETRY_SECONDS);
+                retry.execute(&mut *transaction).await?;
             }
         }
         transaction.commit().await?;
