@@ -7,7 +7,8 @@
   width: 100%;
   height: 100dvh;
   padding: 16px 0 16px 16px;
-  overflow: hidden;
+  /* Offscreen panels must be clipped without making the application a scroll container. */
+  overflow: clip;
   background: var(--panel-color);
 }
 
