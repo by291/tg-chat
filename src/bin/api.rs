@@ -40,7 +40,6 @@ async fn execute(command: Command) -> Result<(), Box<dyn std::error::Error>> {
         let outcome = migrate(&pool, &MIGRATOR).await;
         pool.close().await;
         outcome?;
-        tracing::info!("migrations_applied");
         return Ok(());
     }
 

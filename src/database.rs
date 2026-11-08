@@ -40,7 +40,12 @@ pub async fn migrate(pool: &PgPool, migrator: &Migrator) -> Result<(), StorageEr
     let outcome = timeout(MIGRATION_TIMEOUT, migrator.run(&mut connection)).await;
 
     connection.close().await.map_err(|_| StorageError::MigrationFailed)?;
-    outcome.map_err(|_| StorageError::MigrationFailed)?.map_err(|_| StorageError::MigrationFailed)
+    outcome
+        .map_err(|_| StorageError::MigrationFailed)?
+        .map_err(|_| StorageError::MigrationFailed)?;
+
+    tracing::info!("migrations_applied");
+    Ok(())
 }
 
 async fn check_schema(pool: &PgPool) -> Result<(), StorageError> {
