@@ -1,7 +1,7 @@
 # Sidebar styling and interaction reference
 
 The reference is the local tweb checkout at `/Users/by291/code/js/tweb` and the live Telegram K
-sidebar inspected on November 6, 2026. Conversation content remains local demonstration data.
+sidebar inspected on November 6, 2026. Conversation content remains local sample data.
 
 ## Measurements and source map
 
@@ -72,7 +72,7 @@ the outline for Tab navigation and keyboard dismissal.
   their height or line height. Avatars and message metadata also have independent line boxes.
 
 Search operates on the local conversations. Telegram's remote search categories, account controls,
-and server-driven recent-search history are outside this local demonstration. The menu retains the
+and server-driven recent-search history are outside the current frontend scope. The menu retains the
 working Saved Messages and theme actions instead of presenting controls with no local behavior.
 
 ## Conversation context menu

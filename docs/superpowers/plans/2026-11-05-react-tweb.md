@@ -13,7 +13,7 @@ accessible interaction primitives; CSS Modules and Motion reproduce the referenc
 
 ## Global Constraints
 
-- Use the existing checkout and a new `react-tweb/` directory.
+- Use the existing checkout and a new `web/` directory.
 - Write readable English code with public function purpose comments and semantic whitespace.
 - Format using Prettier, then run type checks, tests, a production build, and browser checks.
 - Do not connect to Telegram or publish the application.
@@ -28,7 +28,7 @@ accessible interaction primitives; CSS Modules and Motion reproduce the referenc
 
 ## Task 1: Conversation state and project foundation
 
-Files: `react-tweb/package.json`, configuration files, and `src/chat/{model,fixtures,reducer,storage}`.
+Files: `web/package.json`, configuration files, and `src/chat/{model,fixtures,reducer,storage}`.
 Interface: `ChatState`, `ChatAction`, `chatReducer(state, action)`, persisted state schema.
 
 - [x] Create package scripts and install dependencies.
@@ -48,9 +48,9 @@ Interface: UI components consume the model and dispatch `ChatAction` objects.
 - [x] Implement send/reply/edit/delete/react/pin, local media upload, search, and draft restoration.
 - [x] Verify composer keyboard behavior, scroll behavior, and conversation switching in the browser.
 
-## Task 3: Verification and learning documentation
+## Task 3: Verification and developer documentation
 
-Files: `README.md`, `react-tweb/README.md`, `react-tweb/docs/source-guide.md`, attribution files.
+Files: `README.md`, `web/README.md`, `web/docs/source-guide.md`, attribution files.
 
 - [x] Run Prettier, `pnpm test`, and `pnpm build`.
 - [x] Verify desktop and mobile layouts, key interactions, and reload persistence.
@@ -61,7 +61,7 @@ Files: `README.md`, `react-tweb/README.md`, `react-tweb/docs/source-guide.md`, a
 ## Execution Ledger
 
 - Repository inspected: empty checkout on unborn main; no existing implementation to preserve.
-- User selected local demonstration and explicitly requested direct autonomous work.
+- User selected local frontend development and explicitly requested direct autonomous work.
 - Ruling: use this checkout without a new worktree; the user requested this project directory.
 - Ruling: keep work uncommitted for inspection; no commit or publication was requested.
 
@@ -77,4 +77,4 @@ Files: `README.md`, `react-tweb/README.md`, `react-tweb/docs/source-guide.md`, a
   and the native chooser did not enable Open for the selected screenshot. Decoder race behavior
   is covered by component tests; no successful browser upload is claimed.
 - Preview remains available at http://127.0.0.1:5173/.
-- Desktop proof image: react-tweb/docs/screenshots/desktop.jpg.
+- Desktop proof image: web/docs/screenshots/desktop.jpg.

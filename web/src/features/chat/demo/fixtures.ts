@@ -26,7 +26,7 @@ export const conversations: Conversation[] = [
     id: 'lab',
     kind: 'group',
     title: 'Message lab',
-    subtitle: '3 members · local history study',
+    subtitle: '3 members',
     initials: 'ML',
     color: 'purple',
     preview: 'Photos, albums, voice, polls, and a long history',
@@ -211,7 +211,7 @@ function createOtherMessages(): Message[] {
     }));
 }
 
-/** Create independent initial state for a new local demonstration. */
+/** Create independent initial state for a new local session. */
 export function createInitialState(): ChatState {
   return {
     version: 2,

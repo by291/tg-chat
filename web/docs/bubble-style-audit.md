@@ -37,7 +37,7 @@ accessible copy. This matches tweb's layout strategy without measuring strings i
 ## Remaining differences
 
 - Avatars appear at the group end but do not stick to the viewport bottom within a long group.
-  Private conversations still use the demonstration's group-style sender shell.
+  Private conversations still use the shared group-style sender shell.
 - Pure emoji messages are ordinary text. Sticker fixtures use native emoji, without Telegram's
   animated sticker/custom emoji assets, emoji-only sizing, or animated reactions.
 - Albums use a fixed two-column grid, rather than tweb's aspect-ratio-dependent mosaic.

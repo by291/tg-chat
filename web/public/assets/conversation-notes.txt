@@ -1,4 +1,4 @@
-Conversation study notes
+Conversation notes
 
 Use stable message IDs for virtual rows.
 Reserve media dimensions before decoding.

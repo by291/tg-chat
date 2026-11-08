@@ -1,6 +1,6 @@
 # Virtual History and Message Variants
 
-The local React study needs a bounded DOM window and message-specific layouts matching Web K.
+The React frontend needs a bounded DOM window and message-specific layouts matching Web K.
 The user requested alignment with tweb and `/Users/by291/devel/js/virtual-demo`.
 
 ## Approach
@@ -8,7 +8,7 @@ The user requested alignment with tweb and `/Users/by291/devel/js/virtual-demo`.
 Use TanStack Virtual with stable row keys, measured heights, end anchoring, and conditional append
 following. This follows the local demo while avoiding a second handwritten scroll compensation
 system. tweb's own history is a sliced DOM window with ScrollSaver restoration; copying its
-imperative renderer would obscure the React learning goal.
+imperative renderer would obscure the React component architecture.
 
 Keep the message model backward compatible. Add a validated media union for video, album, document,
 voice, link preview, contact, and poll, plus forward and service metadata. Existing photo and sticker
@@ -34,4 +34,4 @@ Existing browser data must survive the upgrade. History paging is local; MTProto
 Test row grouping, paging/navigation, geometry, persistence compatibility, and poll transitions.
 Use real browser scrolling to verify bounded DOM, prepend anchoring, distant jumps, resize, and media.
 Keep unsupported Telegram capabilities explicit: MTProto, animated sticker formats, live locations,
-payments, and channel-specific administration are outside this local conversation study.
+payments, and channel-specific administration are outside the current frontend scope.

@@ -21,7 +21,7 @@
 The full license text is included in `LICENSE`. Conversation data, account credentials, private
 avatars, and messages from the observed Telegram account are not included in this project.
 
-The React implementation was written for this learning project. The CSS uses measured visual
+The React implementation was written for this project. The CSS uses measured visual
 properties from the referenced project. The original landscape illustration is in
 `public/assets/quiet-hills.svg`.
 
@@ -49,7 +49,7 @@ in `pnpm-lock.yaml`.
 - Purpose: on-demand playback in regular and circular message frames
 
 `public/assets/evening-window.svg`, `public/assets/sample-tone.wav`, and the example text document
-were created for this study. The audio is a generated four-second tone, not a person's recording.
+were created for this project. The audio is a generated four-second tone, not a person's recording.
 
 ## Public Telegram sticker packs
 

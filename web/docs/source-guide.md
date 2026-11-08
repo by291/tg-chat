@@ -160,7 +160,7 @@ deletion and forwarding use batch reducer actions, preserving recipient drafts a
 while validating duplicate IDs and assigning destination expiration rules once per accepted message.
 
 Only validated saved data reaches rendering. Timestamps must be inside JavaScript's valid Date
-range. A failed read leaves the initial demonstration usable; a failed write produces a visible
+range. A failed read leaves the default conversations usable; a failed write produces a visible
 storage notice. One tab is the supported editing owner; cross-tab reconciliation is not implemented.
 
 ### URL navigation and preference ownership
@@ -432,7 +432,7 @@ has been ported.
 
 Observed geometry includes a 360px floating sidebar, a centered 696px conversation, a 48px toolbar
 and composer, and 16px outer spacing. Upstream bubble values include 15px and 5px radii, 2px spacing
-within a sender group, and 4px/5px/8px text padding. This study uses 200ms message/composer motion
+within a sender group, and 4px/5px/8px text padding. The frontend uses 200ms message/composer motion
 and 300ms opening / 250ms closing profile transitions. It approximates the visible animation;
 it does not reproduce
 Telegram's full send morph, sticker player, or history animation scheduler.
@@ -454,7 +454,7 @@ on open. Memoized month grids render native day buttons; Ark retains selection a
 navigation. Scroll state stays below the shared date-picker hook, and buffered virtual updates
 avoid synchronous React flushes during scrolling. An IntersectionObserver updates each heading's
 visibility without rerendering its date grid.
-Public-post search requires Telegram connectivity and is not offered in the local study.
+Public-post search requires Telegram connectivity and is not offered in the current frontend.
 
 `ChatLayout.module.css` follows `_rightSidebar.scss` and `_chat.scss`: the profile slides by its
 full width and the chat moves with a transform. The profile remains mounted after its first
@@ -544,7 +544,7 @@ focused until confirmation; date navigation mounts and reveals its target before
 focus. The sidebar search shell retains closing content through its exit and releases the result
 rows afterward, with large open result sets virtualized.
 
-## Extending the study
+## Backend integration
 
 For real Telegram connectivity, replace local history availability with a transport boundary and
 reconcile server IDs with stable local IDs. Keep loaded-data limits distinct from the virtual DOM

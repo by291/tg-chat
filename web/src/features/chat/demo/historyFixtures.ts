@@ -125,7 +125,7 @@ function createShowcase(): Message[] {
       },
     },
     {
-      text: 'The reference we are studying',
+      text: 'The reference for our next release',
       forwardedFrom: 'Frontend notes',
       media: {
         kind: 'link',

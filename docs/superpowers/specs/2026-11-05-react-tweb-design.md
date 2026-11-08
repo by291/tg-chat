@@ -1,10 +1,10 @@
-# React Telegram Conversation Study
+# TG Chat Web Design
 
 ## Intent
 
-Rebuild the observed Telegram Web K conversation experience as a readable React learning project.
-The user approved a local demonstration with simulated conversations and autonomous implementation.
-Create the application in `react-tweb/`, inside the existing empty repository.
+Rebuild the observed Telegram Web K conversation experience as a maintainable React frontend.
+The user approved a local frontend with simulated conversations and autonomous implementation.
+Create the application in `web/`, inside the existing empty repository.
 
 ## Constraints
 
@@ -12,17 +12,17 @@ Create the application in `react-tweb/`, inside the existing empty repository.
 - Follow the supplied global engineering instructions, including descriptive English identifiers,
   public function comments, semantic spacing, at most three nesting levels, and a 100-column limit.
 - Keep conversation code together; share only genuinely reusable presentation primitives.
-- No Telegram authentication or network messages. Use invented demonstration contacts.
+- No Telegram authentication or network messages. Use sample contacts.
 - Preserve upstream attribution for copied wallpaper artwork.
 
 ## Approaches
 
 1. Reuse the original imperative renderer inside React. This preserves upstream behavior but hides
-   the React learning goal and brings the Telegram runtime into a local demonstration.
+   the React component architecture and brings the Telegram runtime into a local frontend.
 2. Reimplement the conversation domain with React state and headless Ark UI components. Selected
    by the implementer because the user explicitly delegated implementation decisions and requested
-   a local demonstration. It makes ownership and interactions visible in ordinary React code.
-3. A static visual mockup would be smaller, but would not satisfy the requested interaction study.
+   a local frontend. It makes ownership and interactions visible in ordinary React code.
+3. A static visual mockup would be smaller, but would not satisfy the required interactions.
 
 ## Experience
 
@@ -56,6 +56,6 @@ CSS variables centralize measured geometry, colors, and timing.
 
 ## Boundaries
 
-This is a local interaction study, not a complete Telegram client. Calls, server delivery receipts,
+The frontend currently runs locally and does not connect to Telegram. Calls, server delivery receipts,
 remote media search, full rich-text editing, and unbounded virtual history are outside this version.
 Documentation must identify these boundaries and explain how React replaces upstream ownership.

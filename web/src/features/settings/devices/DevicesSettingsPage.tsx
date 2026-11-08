@@ -62,7 +62,7 @@ export function DevicesSettingsPage({ onBack }: { onBack: () => void }) {
               <Globe aria-hidden="true" />
             </span>
             <span className={devices.sessionText}>
-              <strong>React study Web</strong>
+              <strong>TG Chat Web</strong>
               <span>
                 {displayName}, {device.system}
               </span>
@@ -194,7 +194,7 @@ function DeviceDetails({
           <dl className={devices.details}>
             <div>
               <dt>Application</dt>
-              <dd>React study Web</dd>
+              <dd>TG Chat Web</dd>
             </div>
             <div>
               <dt>Browser</dt>

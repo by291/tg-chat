@@ -73,7 +73,7 @@ the existing conversation commands remain available and poll selection dispatche
 - Browser verification additionally found the initial-scroll/navigation race and Strict Mode
   initialization issue; targeted virtualizer tests now cover both behaviors.
 - Task 3 complete: 35 tests, production build, formatting, and targeted browser checks recorded
-  in react-tweb/docs/virtual-history-verification.md.
-- Ruling: native video controls and local poll voting remain explicit study boundaries; reproducing
+  in web/docs/virtual-history-verification.md.
+- Ruling: native video controls and local poll voting remain explicit frontend boundaries; reproducing
   the entire Telegram media runtime would obscure the requested React architecture comparison.
 - No new commit, push, or publication was performed in this iteration.

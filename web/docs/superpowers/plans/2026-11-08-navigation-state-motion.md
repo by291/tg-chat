@@ -1,7 +1,7 @@
 # Navigation, Preferences, and Motion Implementation Plan
 
 **Goal:** Adopt React Router, Zustand preferences, and Motion interpolation without changing
-the local demonstration's storage format or conversation behavior.
+the frontend's storage format or conversation behavior.
 
 **Architecture:** React Router owns URL navigation while existing mounted panels own transitions
 and scroll positions. Zustand owns preference snapshots and subscriptions, using the existing
