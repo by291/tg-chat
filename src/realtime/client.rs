@@ -52,7 +52,7 @@ impl RealtimeClient {
         Ok(())
     }
 
-    /// Publish only a personal cursor hint; duplicated or reordered hints contain no private bodies.
+    /// Publish a cursor-only hint without private content, safe to duplicate or reorder.
     pub async fn publish(&self, pool: &PgPool, claim: &WakeupClaim) -> Result<(), AccountError> {
         let mut connection = pool.acquire().await?;
         let scope = CursorScope::read(&mut connection, claim.user_id).await?;

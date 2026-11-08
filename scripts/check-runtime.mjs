@@ -334,6 +334,41 @@ async function verifyValkeyOutage(origin) {
   throw new Error('Account admission did not recover after Valkey restarted');
 }
 
+async function rejectRealtimeConnection({ page, token }) {
+  const rejected = await page.evaluate(
+    async (options) => {
+      const endpoint = new URL('/connection/websocket', window.location.href);
+      endpoint.protocol = 'ws:';
+      const socket = new WebSocket(endpoint);
+      try {
+        return await new Promise((resolve, reject) => {
+          const timeout = setTimeout(
+            () => reject(new Error('Realtime rejection timed out')),
+            options.timeout,
+          );
+          socket.onopen = () =>
+            socket.send(JSON.stringify({ id: 1, connect: { token: options.token } }));
+          socket.onmessage = (event) => {
+            const frame = JSON.parse(event.data);
+            if (frame.id === 1) {
+              clearTimeout(timeout);
+              resolve(Boolean(frame.error));
+            }
+          };
+          socket.onclose = (event) => {
+            clearTimeout(timeout);
+            resolve(event.code >= 3500);
+          };
+        });
+      } finally {
+        socket.close();
+      }
+    },
+    { token, timeout: REQUEST_TIMEOUT_MS },
+  );
+  assert.equal(rejected, true, 'Personal realtime requires the authenticated session cookie');
+}
+
 async function verifyRealtimeAuthentication(origin) {
   const requireWeb = createRequire(new URL('../web/package.json', import.meta.url));
   const { chromium } = requireWeb('@playwright/test');
@@ -342,38 +377,7 @@ async function verifyRealtimeAuthentication(origin) {
     const page = await browser.newPage();
     await page.goto(origin);
     for (const token of [undefined, 'forged-client-token']) {
-      const rejected = await page.evaluate(
-        async (options) => {
-          const endpoint = new URL('/connection/websocket', window.location.href);
-          endpoint.protocol = 'ws:';
-          const socket = new WebSocket(endpoint);
-          try {
-            return await new Promise((resolve, reject) => {
-              const timeout = setTimeout(
-                () => reject(new Error('Realtime rejection timed out')),
-                options.timeout,
-              );
-              socket.onopen = () =>
-                socket.send(JSON.stringify({ id: 1, connect: { token: options.token } }));
-              socket.onmessage = (event) => {
-                const frame = JSON.parse(event.data);
-                if (frame.id === 1) {
-                  clearTimeout(timeout);
-                  resolve(Boolean(frame.error));
-                }
-              };
-              socket.onclose = (event) => {
-                clearTimeout(timeout);
-                resolve(event.code >= 3500);
-              };
-            });
-          } finally {
-            socket.close();
-          }
-        },
-        { token, timeout: REQUEST_TIMEOUT_MS },
-      );
-      assert.equal(rejected, true, 'Personal realtime requires the authenticated session cookie');
+      await rejectRealtimeConnection({ page, token });
     }
   } finally {
     await browser.close();

@@ -65,7 +65,12 @@ export async function verifySynchronization({ origin, compose, queryDatabase }) 
     account,
     path: 'chat/bootstrap',
   });
-  compose(['stop', 'worker', 'centrifugo']);
+  // prettier-ignore
+  compose([
+    'stop',
+    'worker',
+    'centrifugo',
+  ]);
   try {
     const sent = await request({
       origin,
@@ -100,7 +105,14 @@ export async function verifySynchronization({ origin, compose, queryDatabase }) 
       body: deletion,
     });
     // Losing Valkey cannot erase durable changes, command receipts, or publication intent.
-    compose(['exec', '-T', 'valkey', 'valkey-cli', 'FLUSHDB']);
+    // prettier-ignore
+    compose([
+      'exec',
+      '-T',
+      'valkey',
+      'valkey-cli',
+      'FLUSHDB',
+    ]);
     const replay = await request({
       origin,
       account,
@@ -120,7 +132,12 @@ export async function verifySynchronization({ origin, compose, queryDatabase }) 
     assert.match(userId, /^[0-9a-f-]{36}$/);
     queryDatabase(`UPDATE personal_changes SET created_at = now() - interval '31 days'
       WHERE user_id = '${userId}'`);
-    compose(['start', 'centrifugo', 'worker']);
+    // prettier-ignore
+    compose([
+      'start',
+      'centrifugo',
+      'worker',
+    ]);
     await waitFor(
       () =>
         queryDatabase(`SELECT count(*) FROM sync_wakeups
@@ -150,6 +167,11 @@ export async function verifySynchronization({ origin, compose, queryDatabase }) 
     });
     assert.deepEqual(settled.groups, []);
   } finally {
-    compose(['start', 'centrifugo', 'worker']);
+    // prettier-ignore
+    compose([
+      'start',
+      'centrifugo',
+      'worker',
+    ]);
   }
 }

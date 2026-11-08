@@ -166,7 +166,7 @@ test('four sessions and a shared-cache tab converge after edits, replies, reset,
       pages[0].getByRole('group', { name: 'Message: Edited across devices', exact: true }),
     ).toBeInViewport();
 
-    // A retained-cursor rejection must replace canonical state without replacing active local typing.
+    // A retained-cursor rejection replaces canonical state while preserving local typing.
     await sibling
       .getByRole('textbox', { name: 'Message', exact: true })
       .fill('Draft survives full reset');

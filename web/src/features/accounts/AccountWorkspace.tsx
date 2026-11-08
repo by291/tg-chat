@@ -70,7 +70,7 @@ const NAVIGATION = [
   },
 ] as const;
 
-/** Keep the authenticated workspace separate from demo conversation state and browser persistence. */
+/** Keep authenticated ownership separate from demo state and persistence. */
 export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) {
   const [page, setPage] = useState<Page>('profile');
   const action = useOperation();
