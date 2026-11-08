@@ -1,0 +1,203 @@
+.page {
+  --profile-motion: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --profile-recolor: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.header {
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 auto;
+  color: var(--text-color);
+  background: transparent;
+  transition:
+    color var(--profile-recolor),
+    background-color var(--profile-recolor);
+  pointer-events: none;
+}
+
+.header button {
+  color: inherit;
+  pointer-events: auto;
+}
+
+.page[data-expanded='true'] {
+  --profile-recolor: 150ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+}
+
+.page[data-expanded='true'] .header {
+  color: white;
+}
+
+.page[data-scrolled='true'] .header {
+  background: var(--panel-color);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 8%);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+
+.profile {
+  position: relative;
+  height: 0;
+  padding-bottom: max(66%, 276px);
+  overflow: hidden;
+  transition: padding-bottom var(--profile-motion);
+}
+
+.page[data-expanded='true'] .profile {
+  padding-bottom: 100%;
+}
+
+.photo {
+  position: absolute;
+  top: 50%;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 50%;
+  transform: translateY(-53%) scale(0.3);
+  visibility: hidden;
+  transition:
+    transform var(--profile-motion),
+    border-radius var(--profile-motion);
+}
+
+.photo[data-ready='true'] {
+  visibility: visible;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page[data-expanded='true'] .photo {
+  border-radius: 0;
+  transform: translateY(-50%) scale(1);
+}
+
+.fallback {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+}
+
+.shade {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 30%),
+    transparent 100px,
+    transparent calc(100% - 100px),
+    rgb(0 0 0 / 30%)
+  );
+  transition: opacity 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.page[data-expanded='true'] .shade {
+  opacity: 1;
+  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+}
+
+.expand {
+  position: absolute;
+  inset: 56px 0 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.expand:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -4px;
+}
+
+.identity {
+  position: absolute;
+  inset: auto 16px 7px;
+  transform: translateY(-33%);
+  pointer-events: none;
+  transition: transform var(--profile-motion);
+}
+
+.identity h3,
+.identity p {
+  position: relative;
+  left: 50%;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transform: translateX(-50%);
+  transition:
+    left var(--profile-motion),
+    transform var(--profile-motion),
+    color var(--profile-recolor);
+}
+
+.identity h3 {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.identity p {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--secondary-color);
+}
+
+.page[data-expanded='true'] .identity {
+  transform: translateY(0);
+}
+
+.page[data-expanded='true'] .identity :is(h3, p) {
+  left: 0;
+  transform: translateX(0);
+  color: white;
+}
+
+.page[data-expanded='true'] .identity p {
+  color: rgb(255 255 255 / 70%);
+}
+
+.content {
+  padding: 16px 16px 24px;
+}
+
+.page[data-searching='true'] .header {
+  position: relative;
+}
+
+.page[data-searching='true'] .content {
+  padding-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page[data-expanded='true'] .shade {
+    transition: none;
+  }
+}
