@@ -34,6 +34,60 @@ const LOGIN = {
 };
 
 describe('SessionOwner', () => {
+  it('keeps saved profile fields when an earlier session refresh returns late', async () => {
+    let resolveResponse: (response: Response) => void = () => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const owner = new SessionOwner({
+      baseUrl: ORIGIN,
+      fetch: async () => pendingResponse,
+    });
+    owner.accept(SESSION, { shouldBroadcast: false });
+    const pending = owner.refresh();
+    owner.replaceProfile({
+      ...SESSION.user,
+      display_name: 'Saved name',
+      version: '2',
+    });
+
+    resolveResponse(Response.json(SESSION));
+    await pending;
+
+    expect(owner.getSnapshot().auth?.user.display_name).toBe('Saved name');
+    expect(owner.getSnapshot().auth?.user.version).toBe('2');
+  });
+
+  it('compares profile versions exactly and never carries them into another account', () => {
+    const owner = new SessionOwner({ baseUrl: ORIGIN });
+    owner.accept(SESSION, { shouldBroadcast: false });
+    const latest = {
+      ...SESSION.user,
+      display_name: 'Latest name',
+      version: '9007199254740993',
+    };
+    owner.replaceProfile(latest);
+    owner.replaceProfile({
+      ...SESSION.user,
+      display_name: 'Earlier name',
+      version: '9007199254740992',
+    });
+    expect(owner.getSnapshot().auth?.user).toEqual(latest);
+
+    owner.accept({ ...SESSION, session: { ...SESSION.session, id: 'rotated-session' } });
+    expect(owner.getSnapshot().auth?.user).toEqual(latest);
+    owner.accept({
+      ...SESSION,
+      user: {
+        ...SESSION.user,
+        id: 'another-account',
+        username: 'bobby',
+      },
+    });
+    expect(owner.getSnapshot().auth?.user.username).toBe('bobby');
+    expect(owner.getSnapshot().auth?.user.version).toBe('1');
+  });
+
   it('discards a late session response after local ownership is invalidated', async () => {
     let resolveResponse: (response: Response) => void = () => undefined;
     const pendingResponse = new Promise<Response>((resolve) => {

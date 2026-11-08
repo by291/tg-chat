@@ -55,6 +55,8 @@ and account switches cancel old work; another tab receives an invalidation signa
 data or tokens. Focus and periodic session refresh detect peer revocation. A resource whose scope
 changes hides its prior results before starting the next request. Demo stores are loaded only in
 explicit demo mode and never become connected account state.
+Within one account, profile versions merge monotonically so delayed refreshes or older write replies
+cannot replace newer saved fields. Version ordering uses integers without JavaScript precision loss.
 
 ## Profiles, contacts, and blocks
 

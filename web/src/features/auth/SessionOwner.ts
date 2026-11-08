@@ -53,6 +53,19 @@ export function isCancelled(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+function retainNewestProfile(current: Profile | undefined, incoming: Profile): Profile {
+  if (!current || current.id !== incoming.id) {
+    return incoming;
+  }
+
+  // PostgreSQL versions are decimal strings; Number would lose ordering beyond its safe range.
+  if (BigInt(current.version) > BigInt(incoming.version)) {
+    return current;
+  }
+
+  return incoming;
+}
+
 export class SessionOwner {
   readonly client: Client<paths>;
   private snapshot: SessionSnapshot = { auth: null, revision: 0 };
@@ -119,9 +132,13 @@ export class SessionOwner {
     grant: AuthResponse,
     { shouldBroadcast = true }: { shouldBroadcast?: boolean } = {},
   ): void {
+    const auth = {
+      ...grant,
+      user: retainNewestProfile(this.snapshot.auth?.user, grant.user),
+    };
     this.controller.abort();
     this.controller = new AbortController();
-    this.snapshot = { auth: grant, revision: this.snapshot.revision + 1 };
+    this.snapshot = { auth, revision: this.snapshot.revision + 1 };
     this.notify();
     if (shouldBroadcast) {
       this.channel?.postMessage('invalidate');
@@ -140,7 +157,11 @@ export class SessionOwner {
         this.accept(grant, { shouldBroadcast: false });
         return;
       }
-      this.snapshot = { ...this.snapshot, auth: grant };
+      const auth = {
+        ...grant,
+        user: retainNewestProfile(this.snapshot.auth?.user, grant.user),
+      };
+      this.snapshot = { ...this.snapshot, auth };
       this.notify();
     } catch (error) {
       if (isCancelled(error) || (error instanceof ApiError && error.code === 'unauthenticated')) {
@@ -179,7 +200,8 @@ export class SessionOwner {
       return;
     }
 
-    this.snapshot = { ...this.snapshot, auth: { ...auth, user: profile } };
+    const user = retainNewestProfile(auth.user, profile);
+    this.snapshot = { ...this.snapshot, auth: { ...auth, user } };
     this.notify();
   }
 
