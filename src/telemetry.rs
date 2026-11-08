@@ -14,7 +14,7 @@ pub fn initialize(level: LevelFilter) -> Result<(), TelemetryError> {
     // application events are enabled; callers cannot broaden this with RUST_LOG.
     let filter = EnvFilter::new(format!("off,tg_chat={level}"));
     let subscriber = tracing_subscriber::fmt().with_env_filter(filter).json();
-    let subscriber = subscriber.with_target(false).with_writer(std::io::stderr);
+    let subscriber = subscriber.with_writer(std::io::stderr);
 
     subscriber.try_init().map_err(|_| TelemetryError)
 }
