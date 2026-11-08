@@ -5,7 +5,7 @@
 Read these files in order:
 
 1. `src/main.tsx` mounts React and the global design tokens.
-2. `src/app/ChatApp.tsx` owns the selected conversation, page layout, and secondary panels.
+2. `src/app/ChatApp.tsx` connects URL navigation to the selected conversation and secondary panels.
 3. `src/chat/state/useChatState.ts` restores IndexedDB before interaction and persists reducer snapshots.
 4. `src/chat/model.ts` defines the message shape, actions, and persisted-data validation.
 5. `src/chat/state/reducer.ts` makes the permanent state transitions explicit.
@@ -68,7 +68,9 @@ follows a new outgoing message to the bottom; the persistence hook writes the up
 
 ## Keep permanent and temporary state separate
 
-Messages, drafts, selected chat, conversation preferences, and appearance live in the reducer.
+Messages, drafts, conversation preferences, and the applied chat selection live in the reducer.
+React Router owns the requested chat selection. Appearance, application preferences, and notification
+preferences use Zustand stores with selective subscriptions.
 Open menus, active search,
 the editing target, reply target, delete confirmation, and photo viewer are temporary UI state.
 The conversation pane is keyed by conversation ID, so a reply or edit cannot leak into another chat.
@@ -77,6 +79,36 @@ The composer is keyed by the editing message ID, so changing the edit target res
 Only validated saved data reaches rendering. Timestamps must be inside JavaScript's valid Date
 range. A failed read leaves the initial demonstration usable; a failed write produces a visible
 storage notice. One tab is the supported editing owner; cross-tab reconciliation is not implemented.
+
+### URL navigation and preference ownership
+
+`main.tsx` mounts `BrowserRouter`. `app/navigation/useAppNavigation.ts` owns the `chat`, `sidebar`,
+`settings`, and `settingsPage` search parameters. Existing `?chat=` links continue to work, and
+unrelated parameters survive navigation. Settings categories and search results use stable catalog
+IDs; General Settings also supports the nested `power` and `wallpaper` destinations. Invalid settings
+destinations show the overview. Browser back and forward restore the URL destination; panel back
+buttons reuse a known parent history entry or replace a direct link with its parent.
+
+`useChatRoute.ts` waits for chat hydration before applying a requested conversation. Unknown or
+deleted chats show the unselected screen and cannot be resurrected by browser history. Explicit chat
+selection may reopen a deleted local contact. Sidebar panels retain their mounted contents, focus,
+and scroll positions; menus, confirmation dialogs, creation forms, and search text remain local UI state.
+
+`app/settings/createPreferenceStore.ts` uses Zustand for snapshots and subscriptions while retaining
+the existing localStorage keys, raw JSON shapes, Zod validation, and cross-tab storage events. Hot
+rendering paths select individual preferences, such as time format or large emoji, so unrelated
+settings do not invalidate their subscriptions. Imperative readers remain available to playback
+and notification owners. Preference write failures still allow changes within the current session.
+Chat IndexedDB persistence and the conversation reducer's business rules remain in place.
+
+### Ordinary animation values
+
+`messages/usePollResultAnimation.ts` retains the choice/path/result phases and uses Motion values
+for percentage and bar interpolation. `PollOption` renders these values directly, avoiding React
+state updates on every frame. Interrupted votes continue from their visible values; restored results
+and reduced-motion requests display their final values immediately. Message flights, reaction
+geometry, virtual history measurements, scroll anchors, CSS transitions, and native theme view
+transitions retain their existing owners.
 
 For sidebar actions, read `sidebar/ConversationMenu.tsx`, `sidebar/useSidebarActions.ts`, and
 `state/conversationActions.ts`. The menu names available commands, the hook owns selection and

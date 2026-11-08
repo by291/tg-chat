@@ -6,7 +6,7 @@ than embedding the upstream Telegram renderer.
 
 ## Run
 
-Use Node.js 22.12 or newer and pnpm 11.
+Use Node.js 22.22 or newer and pnpm 11.
 
 ```sh
 pnpm install
@@ -25,7 +25,8 @@ pnpm format:check
 
 - Floating conversation list, centered toolbar and composer, pastel patterned wallpaper.
 - Responsive desktop and mobile navigation, plus a dark appearance.
-- An unselected entry screen, explicit `?chat=` navigation, and circular light/dark transitions.
+- An unselected entry screen, URL-based chat/settings navigation with browser back and forward,
+  and circular light/dark transitions.
 - A floating creation menu with contact selection and locally persisted groups and channels.
 - Compact profile actions, editable local information and members, and animated shared-content tabs.
 - Conversation filtering and message search within the current conversation.
@@ -90,11 +91,13 @@ together. See the [directory layout](./docs/source-guide.md#directory-layout) fo
 
 | Library                         | Responsibility                                                       |
 | ------------------------------- | -------------------------------------------------------------------- |
-| React                           | Component rendering, reducer state, lifecycle                        |
+| React                           | Component rendering, conversation reducer, lifecycle                 |
+| React Router                    | Chat, archive, and settings URLs with browser history                |
+| Zustand                         | Validated preference snapshots and selective subscriptions           |
 | Ark UI                          | Menu, popover, dialog, tabs, keyboard and focus behavior             |
 | CSS Modules                     | Component-scoped visual styles                                       |
 | TanStack Virtual                | Dynamic row measurements, end anchoring, and bounded DOM             |
-| Motion                          | Bézier easing, control transitions, and reduced-motion preference    |
+| Motion                          | Control transitions, poll-result values, easing, reduced motion      |
 | Lucide                          | Consistent interface icons                                           |
 | idb-keyval                      | IndexedDB access                                                     |
 | Zod                             | Validation before restoring saved state                              |
