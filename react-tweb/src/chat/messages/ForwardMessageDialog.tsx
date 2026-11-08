@@ -34,6 +34,8 @@ export function ForwardMessageDialog({
   onChooseRecipient,
   onSend,
 }: ForwardMessageDialogProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const closingActionRef = useRef<(() => void) | undefined>(undefined);
   const [query, setQuery] = useState('');
   const [caption, setCaption] = useState<EmojiText>({ text: '' });
   const [editorError, setEditorError] = useState('');
@@ -51,9 +53,28 @@ export function ForwardMessageDialog({
   const recipients = conversations.filter((conversation) => recipientIds.includes(conversation.id));
   const hasRecipients = recipients.length > 0;
 
+  function closeWithAction(action: () => void) {
+    if (!isOpen || closingActionRef.current) {
+      return;
+    }
+    // The destination can unmount this conversation, so hand it off only after presence exits.
+    closingActionRef.current = action;
+    setIsOpen(false);
+  }
+
+  function finishClosing() {
+    const action = closingActionRef.current;
+    closingActionRef.current = undefined;
+    action?.();
+  }
+
+  function cancelForwarding() {
+    closeWithAction(onClose);
+  }
+
   function chooseRecipient(conversation: Conversation) {
     if (!isSelecting) {
-      onChooseRecipient(conversation);
+      closeWithAction(() => onChooseRecipient(conversation));
       return;
     }
     setRecipientIds((current) => {
@@ -67,30 +88,33 @@ export function ForwardMessageDialog({
 
   function sendToRecipients() {
     if (hasRecipients) {
-      onSend({
+      const selection = {
         recipients,
         caption: caption.text,
         customEmoji: caption.customEmoji,
         richText: caption.richText,
-      });
+      };
+      closeWithAction(() => onSend(selection));
     }
   }
 
   return (
     <Dialog.Root
-      open
-      onOpenChange={(details) => {
-        if (!details.open) {
-          onClose();
+      open={isOpen}
+      onOpenChange={({ open }) => {
+        if (!open) {
+          cancelForwarding();
         }
       }}
+      onExitComplete={finishClosing}
+      unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop className={`${overlays.backdrop} ${styles.backdrop}`} />
+        <Dialog.Backdrop className={styles.backdrop} />
         <Dialog.Positioner className={`${overlays.dialogPositioner} ${styles.positioner}`}>
-          <Dialog.Content className={styles.dialog} data-selecting={isSelecting}>
+          <Dialog.Content className={styles.dialog} data-selecting={isSelecting} inert={!isOpen}>
             <header className={styles.header}>
-              <IconButton label="Close forwarding" onClick={onClose}>
+              <IconButton label="Close forwarding" onClick={cancelForwarding}>
                 <X />
               </IconButton>
               <Dialog.Title>Share with</Dialog.Title>
@@ -182,7 +206,7 @@ export function ForwardMessageDialog({
                   value={caption}
                   onChange={setCaption}
                   onSubmit={sendToRecipients}
-                  onCancel={onClose}
+                  onCancel={cancelForwarding}
                   onPasteImage={() => setEditorError('Add photos in the conversation composer.')}
                   onError={setEditorError}
                 />

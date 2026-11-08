@@ -1,6 +1,23 @@
 .backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
   background: rgb(0 0 0 / 30%);
-  backdrop-filter: none;
+}
+
+.backdrop[data-state='open'] {
+  animation: forward-fade-in 150ms var(--menu-easing);
+}
+
+.backdrop[data-state='closed'],
+.dialog[data-state='closed'] {
+  animation: forward-fade-out 150ms var(--menu-easing);
+}
+
+.dialog[data-state='open'] {
+  animation:
+    forward-fade-in 150ms var(--menu-easing),
+    forward-enter 150ms var(--menu-easing);
 }
 
 .positioner {
@@ -85,18 +102,21 @@
 
 .savedSection {
   flex-shrink: 0;
-  max-height: 100px;
+  max-height: 114px;
+  padding: 8px;
   overflow: hidden;
   border-radius: 24px;
   background: var(--surface-color);
   transition:
-    max-height 200ms ease,
-    opacity 200ms ease,
-    margin 200ms ease;
+    max-height 300ms ease,
+    padding-block 300ms ease,
+    opacity 300ms ease,
+    margin 300ms ease;
 }
 
 .savedSection[data-collapsed='true'] {
   max-height: 0;
+  padding-block: 0;
   margin-top: -12px;
   opacity: 0;
 }
@@ -106,11 +126,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  width: 86px;
-  padding: 12px 0 8px;
+  justify-content: space-between;
+  width: 78px;
+  height: 98px;
+  padding: 12px 0;
   border: 0;
-  border-radius: 24px;
+  border-radius: 16px;
   color: var(--text-color);
   background: transparent;
   font-size: 12px;
@@ -138,7 +159,7 @@
 .recipients {
   flex: 1;
   min-height: 0;
-  padding: 6px;
+  padding: 8px;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   border-radius: 24px;
@@ -149,10 +170,10 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 18px;
   width: 100%;
   min-height: 56px;
-  padding: 7px 8px;
+  padding: 7px 46px 7px 12px;
   border: 0;
   border-radius: 16px;
   color: var(--text-color);
@@ -192,6 +213,8 @@
 }
 
 .checkbox {
+  position: absolute;
+  right: 18px;
   display: grid;
   flex-shrink: 0;
   width: 22px;
@@ -207,9 +230,15 @@
   background: var(--accent-color);
 }
 
-:global(:where(:root[data-touch-supported='false'])) .recipient:hover,
-:global(:where(:root[data-touch-supported='false'])) .saved:hover {
-  background: var(--hover-color);
+:global(:where(:root[data-touch-supported='false'])) .recipient:is(:hover, :active),
+:global(:where(:root[data-touch-supported='false'])) .saved:is(:hover, :active) {
+  background: var(--hover-filled-color);
+}
+
+.recipient:focus-visible,
+.saved:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
 }
 
 .footer {
@@ -253,7 +282,38 @@
   background: var(--accent-color);
 }
 
+@keyframes forward-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes forward-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes forward-enter {
+  from {
+    transform: translateY(48px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .dialog[data-state='open'] {
+    animation-name: forward-fade-in;
+  }
+
   .savedSection,
   .footer {
     transition: none;

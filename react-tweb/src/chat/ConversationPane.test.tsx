@@ -228,7 +228,9 @@ describe('conversation interaction', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Close forwarding' }));
 
-    expect(onFinishMediaCommand).toHaveBeenCalledWith({ shouldRestoreViewer: true });
+    await waitFor(() => {
+      expect(onFinishMediaCommand).toHaveBeenCalledWith({ shouldRestoreViewer: true });
+    });
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Share with' })).toBeNull());
   });
 
