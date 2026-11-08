@@ -69,6 +69,19 @@ function failureMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'The request could not be completed.';
 }
 
+function precedingMessage(options: {
+  messages: CanonicalMessage[];
+  candidates: Array<CanonicalMessage | undefined>;
+}): CanonicalMessage | undefined {
+  const first = options.messages[0];
+  if (!first) {
+    return undefined;
+  }
+  const previousSequence = (BigInt(first.sequence) - 1n).toString();
+
+  return options.candidates.find((message) => message?.sequence === previousSequence);
+}
+
 export class ChatOwner {
   private readonly session: SessionOwner;
   private readonly revision: number;
@@ -362,7 +375,15 @@ export class ChatOwner {
       const hasTrimmedNewer = edge === 'older' && combinedIds.size > MAX_VISIBLE_MESSAGES;
       this.publish({
         messages,
-        precedingMessage: page.preceding_message ?? undefined,
+        precedingMessage: precedingMessage({
+          messages,
+          // prettier-ignore
+          candidates: [
+            page.preceding_message ?? undefined,
+            ...candidates,
+            ...page.messages,
+          ],
+        }),
         hasOlder: page.has_older,
         hasNewer: page.has_newer || hasTrimmedNewer || (edge === 'older' && this.snapshot.hasNewer),
         error: '',
@@ -493,7 +514,17 @@ export class ChatOwner {
     }
     // An older request owns its original left edge. Appending here could evict the bridge row.
     const isLoadingOlder = load?.edge === 'older';
-    const canAppend = isSelected && (isVisible || (!this.snapshot.hasNewer && !isLoadingOlder));
+    const firstVisible = this.snapshot.messages[0];
+    const lastVisible = this.snapshot.messages.at(-1);
+    const isBeforeWindow =
+      firstVisible && compareCounter(message.sequence, firstVisible.sequence) < 0;
+    const hasSequenceGap =
+      lastVisible && BigInt(message.sequence) > BigInt(lastVisible.sequence) + 1n;
+    // A history snapshot can be newer than the feed cursor. Backlog must not create a remote gap.
+    const canExtendWindow =
+      !isBeforeWindow && !hasSequenceGap && !this.snapshot.hasNewer && !isLoadingOlder;
+    const shouldRefreshLatest = isSelected && hasSequenceGap && !this.snapshot.hasNewer && !load;
+    const canAppend = isSelected && (isVisible || canExtendWindow);
     const messages = canAppend
       ? mergeMessages({
           current: this.snapshot.messages,
@@ -504,9 +535,18 @@ export class ChatOwner {
     this.publish({
       pending,
       messages,
-      hasNewer: this.snapshot.hasNewer || (isSelected && !canAppend),
-      hasOlder: this.snapshot.hasOlder || messages.length >= MAX_VISIBLE_MESSAGES,
+      precedingMessage: precedingMessage({
+        messages,
+        candidates: [this.snapshot.precedingMessage, ...this.snapshot.messages],
+      }),
+      hasNewer: this.snapshot.hasNewer || (isSelected && !isBeforeWindow && !canAppend),
+      hasOlder:
+        this.snapshot.hasOlder || (messages[0] !== undefined && messages[0].sequence !== '1'),
     });
+    if (shouldRefreshLatest) {
+      // A send receipt can overtake polling. Fetch a continuous latest page instead of stitching a gap.
+      void this.loadHistory('latest').catch((error) => this.report(error));
+    }
   }
 
   private mergeConversation(incoming: Conversation): void {

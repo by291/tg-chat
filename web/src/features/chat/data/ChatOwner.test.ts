@@ -450,4 +450,81 @@ describe('connected chat ownership', () => {
     expect((await store.read()).pending[0].createdAt).toBe(createdAt);
     owner.dispose();
   });
+  it('does not splice an older sync backlog into a newer fetched history window', async () => {
+    let syncRequests = 0;
+    const { owner } = fixture({
+      history: async () => historyPage({ first: 251, last: 300 }),
+      transport: async () => {
+        syncRequests += 1;
+        if (syncRequests > 1) {
+          throw new TypeError('Catch-up was interrupted');
+        }
+        const page = await syncPage({ first: 1, last: 100 }).json();
+        page.has_more = true;
+        page.observation_cursor = '300';
+        for (const group of page.groups) {
+          group.conversation.last_sequence = '300';
+          group.conversation.version = '300';
+        }
+        return Response.json(page);
+      },
+    });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await expect(owner.catchUp()).rejects.toThrow();
+    const messages = owner.getSnapshot().messages;
+    expect(messages).toHaveLength(50);
+    expect(messages[0].sequence).toBe('251');
+    expect(messages.at(-1)?.sequence).toBe('300');
+    expect(owner.getSnapshot().hasNewer).toBe(false);
+    owner.dispose();
+  });
+  it('refreshes latest history when an accepted send jumps beyond the visible sequence edge', async () => {
+    let historyRequests = 0;
+    const newest = deferredResponse();
+    const { owner } = fixture({
+      history: async () => {
+        historyRequests += 1;
+        return historyRequests === 1 ? historyPage({ first: 251, last: 300 }) : newest.promise;
+      },
+      transport: async (submission) => {
+        const accepted = receipt(await submission.json());
+        accepted.message.sequence = '501';
+        accepted.conversation.last_sequence = '501';
+        accepted.conversation.version = '501';
+        return Response.json(accepted);
+      },
+    });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.queueSend({ text: 'After a busy conversation' });
+    await owner.flush();
+    expect(owner.getSnapshot().messages.at(-1)?.sequence).toBe('300');
+    expect(owner.getSnapshot().hasNewer).toBe(true);
+    newest.release(historyPage({ first: 452, last: 501 }));
+    await expect.poll(() => owner.getSnapshot().messages.at(-1)?.sequence).toBe('501');
+    expect(owner.getSnapshot().messages[0].sequence).toBe('452');
+    expect(owner.getSnapshot().hasNewer).toBe(false);
+    owner.dispose();
+  });
+
+  it('retains sender-group context when the bounded latest window evicts its first message', async () => {
+    let syncRequests = 0;
+    const { owner } = fixture({
+      history: async () => historyPage({ first: 1, last: 100 }),
+      transport: async () => {
+        syncRequests += 1;
+        return syncRequests === 1
+          ? syncPage({ first: 101, last: 200 })
+          : syncPage({ first: 201, last: 201 });
+      },
+    });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.catchUp();
+    await owner.catchUp();
+    expect(owner.getSnapshot().messages[0].sequence).toBe('2');
+    expect(owner.getSnapshot().precedingMessage?.sequence).toBe('1');
+    owner.dispose();
+  });
 });
