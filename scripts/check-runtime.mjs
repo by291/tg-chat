@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
 import { createRuntimeEnvironment, serializeEnvironment } from './runtime-environment.mjs';
+import { verifyMessageRecovery } from './check-messaging.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -226,6 +227,18 @@ function configurePublicOrigin(origin) {
     'api',
     'worker',
     'centrifugo',
+  ]);
+}
+
+function resetAdmissionFixtures() {
+  // The randomly named acceptance project owns this cache; never target a shared deployment.
+  // prettier-ignore
+  compose([
+    'exec',
+    '-T',
+    'valkey',
+    'valkey-cli',
+    'FLUSHDB',
   ]);
 }
 
@@ -537,8 +550,19 @@ async function main() {
       '--rm',
       'verification',
     ]);
-    console.log('Checking real account browsers and SMTP links.');
+    console.log('Checking committed-response loss and message replay across API restart.');
+    await verifyMessageRecovery({
+      origin,
+      restartApi: async () => {
+        compose(['restart', 'api']);
+        await waitUntilReady(`${origin}/health/ready`);
+      },
+    });
+    // Independent fixtures share one loopback IP. Clear only this random project's test cache.
+    resetAdmissionFixtures();
+    console.log('Checking real account and messaging browsers and SMTP links.');
     verifyAccountBrowsers(origin);
+    resetAdmissionFixtures();
     console.log('Checking fail-closed admission and surviving reads during Valkey outage.');
     await verifyValkeyOutage(origin);
     console.log('Checking outages, graceful shutdown, and persistent private storage.');

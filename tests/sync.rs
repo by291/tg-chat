@@ -243,3 +243,43 @@ async fn stalled_feed_allocation_cannot_be_skipped_by_another_commit(pool: PgPoo
     assert_eq!(bootstrap.cursor, committed.observation_cursor);
     assert_eq!(bootstrap.conversations.len(), 2);
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn cursor_rejects_future_and_foreign_deployment_positions_and_oversized_pages(pool: PgPool) {
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+
+    let accounts = AccountService::new(pool, AccountSettings::default());
+    let alice = register(&accounts, "alice").await;
+    let service = MessageService::new(accounts);
+    let bootstrap = service.bootstrap(alice.clone()).await.unwrap();
+    let decoded = URL_SAFE_NO_PAD.decode(&bootstrap.cursor).unwrap();
+    let cursor: serde_json::Value = serde_json::from_slice(&decoded).unwrap();
+    let mut future = cursor.clone();
+    future["position"] = serde_json::json!("999999999999");
+    let mut foreign = cursor;
+    foreign["deployment_id"] = serde_json::json!(Uuid::new_v4());
+    for invalid in [future, foreign] {
+        let encoded = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&invalid).unwrap());
+        let result = service
+            .sync(
+                alice.clone(),
+                SyncQuery {
+                    cursor: encoded,
+                    limit: None,
+                },
+            )
+            .await;
+        assert!(matches!(result, Err(AccountError::SyncResetRequired)));
+    }
+    let result = service
+        .sync(
+            alice,
+            SyncQuery {
+                cursor: bootstrap.cursor,
+                limit: Some(101),
+            },
+        )
+        .await;
+    assert!(matches!(result, Err(AccountError::Validation(_))));
+}
