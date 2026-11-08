@@ -845,13 +845,13 @@ export interface operations {
   };
   blocks: {
     parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        search: string | null;
-        cursor: string | null;
-        limit: number | null;
+      query?: {
+        search?: string;
+        cursor?: string;
+        limit?: number;
       };
+      header?: never;
+      path?: never;
       cookie?: never;
     };
     requestBody?: never;
@@ -929,13 +929,13 @@ export interface operations {
   };
   contacts: {
     parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        search: string | null;
-        cursor: string | null;
-        limit: number | null;
+      query?: {
+        search?: string;
+        cursor?: string;
+        limit?: number;
       };
+      header?: never;
+      path?: never;
       cookie?: never;
     };
     requestBody?: never;
@@ -994,13 +994,13 @@ export interface operations {
   };
   discover: {
     parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        search: string | null;
-        cursor: string | null;
-        limit: number | null;
+      query?: {
+        search?: string;
+        cursor?: string;
+        limit?: number;
       };
+      header?: never;
+      path?: never;
       cookie?: never;
     };
     requestBody?: never;

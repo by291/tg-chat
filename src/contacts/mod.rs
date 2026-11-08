@@ -40,6 +40,7 @@ pub struct PublicProfile {
 }
 
 #[derive(Default, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(deny_unknown_fields)]
 pub struct DirectoryQuery {
     pub search: Option<String>,

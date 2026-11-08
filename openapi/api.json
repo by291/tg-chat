@@ -262,23 +262,13 @@
         "tags": [],
         "operationId": "blocks",
         "parameters": [
-          {
-            "name": "search",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["string", "null"] }
-          },
-          {
-            "name": "cursor",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["string", "null"] }
-          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
           {
             "name": "limit",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           }
         ],
         "responses": {
@@ -332,23 +322,13 @@
         "tags": [],
         "operationId": "contacts",
         "parameters": [
-          {
-            "name": "search",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["string", "null"] }
-          },
-          {
-            "name": "cursor",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["string", "null"] }
-          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
           {
             "name": "limit",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           }
         ],
         "responses": {
@@ -388,23 +368,13 @@
         "tags": [],
         "operationId": "discover",
         "parameters": [
-          {
-            "name": "search",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["string", "null"] }
-          },
-          {
-            "name": "cursor",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["string", "null"] }
-          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
           {
             "name": "limit",
-            "in": "path",
-            "required": true,
-            "schema": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           }
         ],
         "responses": {
