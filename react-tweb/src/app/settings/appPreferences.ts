@@ -6,6 +6,7 @@ export const MIN_MESSAGE_TEXT_SIZE = 12;
 export const MAX_MESSAGE_TEXT_SIZE = 20;
 export const DEFAULT_APP_PREFERENCES = {
   messageTextSize: 16,
+  sendShortcut: 'enter' as const,
   timeFormat: 'h12' as const,
   shouldAutoplayVideos: true,
   shouldAnimateStickers: true,
@@ -20,6 +21,7 @@ const messageTextSizeSchema = z.int().min(MIN_MESSAGE_TEXT_SIZE).max(MAX_MESSAGE
 
 const preferenceSchema = z.object({
   messageTextSize: messageTextSizeSchema.catch(DEFAULT_APP_PREFERENCES.messageTextSize),
+  sendShortcut: z.enum(['enter', 'ctrlEnter']).catch(DEFAULT_APP_PREFERENCES.sendShortcut),
   timeFormat: z.enum(['h12', 'h23']).catch(DEFAULT_APP_PREFERENCES.timeFormat),
   shouldAutoplayVideos: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAutoplayVideos),
   shouldAnimateStickers: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAnimateStickers),

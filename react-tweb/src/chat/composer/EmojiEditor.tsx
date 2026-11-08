@@ -27,6 +27,8 @@ import type { EmojiText } from '../emoji/customEmojiEntities';
 import { CustomEmojiNode, $createCustomEmojiNode } from './CustomEmojiNode';
 import { $readEmojiEditor, $replaceEmojiEditor } from './emojiEditorState';
 import { shouldSubmitMessage } from './composerKeyboard';
+import { getAppPreferences } from '../../app/settings/appPreferences';
+import { isAppleKeyboard } from '../../app/keyboard/keyboardPlatform';
 import { useEditorHeight } from './useEditorHeight';
 import { RICH_EDITOR_NODES } from './richEditorNodes';
 import { RICH_EDITOR_THEME } from './richEditorTheme';
@@ -165,14 +167,21 @@ function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: 
         }
         if (
           !event ||
-          !shouldSubmitMessage({
-            key: event.key,
-            shiftKey: event.shiftKey,
-            ctrlKey: event.ctrlKey,
-            metaKey: event.metaKey,
-            isComposing: editor.isComposing() || event.isComposing,
-            keyCode: event.keyCode,
-          })
+          !shouldSubmitMessage(
+            {
+              key: event.key,
+              shiftKey: event.shiftKey,
+              ctrlKey: event.ctrlKey,
+              metaKey: event.metaKey,
+              altKey: event.altKey,
+              isComposing: editor.isComposing() || event.isComposing,
+              keyCode: event.keyCode,
+            },
+            {
+              sendShortcut: getAppPreferences().sendShortcut,
+              isApple: isAppleKeyboard(),
+            },
+          )
         ) {
           return false;
         }

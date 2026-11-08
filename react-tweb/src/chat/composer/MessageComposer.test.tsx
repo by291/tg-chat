@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageComposer } from './MessageComposer';
+import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '../../app/settings/appPreferences';
 import type { Attachment, Message } from '../model';
 
 const imageDecoders = vi.hoisted(() => new Map<string, (attachment: Attachment) => void>());
@@ -61,6 +62,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  setAppPreferences(DEFAULT_APP_PREFERENCES);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -193,4 +195,31 @@ describe('multiline composition', () => {
     });
     expect(screen.queryByRole('button', { name: 'Expand message editor' })).toBeNull();
   });
+});
+
+it('applies send shortcut changes to an already mounted composer', async () => {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Macintosh');
+  vi.stubGlobal('matchMedia', () => ({ matches: true }));
+  const onSubmit = vi.fn();
+  render(
+    <MessageComposer
+      draft="Shortcut check"
+      onDraftChange={() => {}}
+      onSubmit={onSubmit}
+      onCancelContext={() => {}}
+      onJumpToMessage={() => {}}
+      onNotify={() => {}}
+    />,
+  );
+  const editor = screen.getByRole('textbox', { name: 'Message' });
+  act(() => setAppPreferences({ sendShortcut: 'ctrlEnter' }));
+  await act(async () => {
+    fireEvent.focus(editor);
+    fireEvent.keyDown(editor, { key: 'Enter', code: 'Enter', keyCode: 13 });
+  });
+  expect(onSubmit).not.toHaveBeenCalled();
+  await act(async () => {
+    fireEvent.keyDown(editor, { key: 'Enter', code: 'Enter', keyCode: 13, metaKey: true });
+  });
+  expect(onSubmit).toHaveBeenCalledOnce();
 });

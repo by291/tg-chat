@@ -26,3 +26,30 @@ describe('composer submission', () => {
     expect(shouldSubmitMessage({ ...keyboard, isComposing: false, keyCode: 229 })).toBe(false);
   });
 });
+
+it('uses the platform modifier for configured sending and preserves plain Enter for a newline', () => {
+  const keyboard = {
+    key: 'Enter',
+    shiftKey: false,
+    isComposing: false,
+    keyCode: 13,
+  };
+  const appleOptions = { sendShortcut: 'ctrlEnter', isApple: true } as const;
+  const otherOptions = { sendShortcut: 'ctrlEnter', isApple: false } as const;
+
+  expect(shouldSubmitMessage(keyboard, appleOptions)).toBe(false);
+  expect(shouldSubmitMessage({ ...keyboard, metaKey: true }, appleOptions)).toBe(true);
+  expect(shouldSubmitMessage({ ...keyboard, ctrlKey: true }, appleOptions)).toBe(false);
+  expect(shouldSubmitMessage({ ...keyboard, ctrlKey: true }, otherOptions)).toBe(true);
+  expect(shouldSubmitMessage({ ...keyboard, metaKey: true }, otherOptions)).toBe(false);
+  expect(shouldSubmitMessage({ ...keyboard, metaKey: true, shiftKey: true }, appleOptions)).toBe(
+    false,
+  );
+  expect(shouldSubmitMessage({ ...keyboard, metaKey: true, isComposing: true }, appleOptions)).toBe(
+    false,
+  );
+  expect(shouldSubmitMessage({ ...keyboard, ctrlKey: true, keyCode: 229 }, otherOptions)).toBe(
+    false,
+  );
+  expect(shouldSubmitMessage({ ...keyboard, altKey: true })).toBe(false);
+});
