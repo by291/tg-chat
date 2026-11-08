@@ -66,10 +66,60 @@
         }
       }
     },
+    "/api/v1/account/privacy": {
+      "get": {
+        "tags": [],
+        "operationId": "privacy",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PrivacySettings" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [],
+        "operationId": "update_privacy",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PrivacySettings" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PrivacySettings" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/profile": {
       "get": {
         "tags": [],
         "operationId": "profile",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PrivateProfile" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [],
+        "operationId": "update_profile",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ProfileUpdate" } }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "",
@@ -148,6 +198,62 @@
         }
       }
     },
+    "/api/v1/blocks": {
+      "get": {
+        "tags": [],
+        "operationId": "blocks",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["string", "null"] }
+          },
+          {
+            "name": "cursor",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["string", "null"] }
+          },
+          {
+            "name": "limit",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DirectoryPage" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [],
+        "operationId": "add_block",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RelationshipTarget" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      },
+      "delete": {
+        "tags": [],
+        "operationId": "remove_block",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RelationshipTarget" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      }
+    },
     "/api/v1/capabilities": {
       "get": {
         "tags": [],
@@ -157,6 +263,96 @@
             "description": "",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Capabilities" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contacts": {
+      "get": {
+        "tags": [],
+        "operationId": "contacts",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["string", "null"] }
+          },
+          {
+            "name": "cursor",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["string", "null"] }
+          },
+          {
+            "name": "limit",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DirectoryPage" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [],
+        "operationId": "add_contact",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RelationshipTarget" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      },
+      "delete": {
+        "tags": [],
+        "operationId": "remove_contact",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RelationshipTarget" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": [],
+        "operationId": "discover",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["string", "null"] }
+          },
+          {
+            "name": "cursor",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["string", "null"] }
+          },
+          {
+            "name": "limit",
+            "in": "path",
+            "required": true,
+            "schema": { "type": ["integer", "null"], "format": "int32", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DirectoryPage" } }
             }
           }
         }
@@ -199,6 +395,7 @@
   },
   "components": {
     "schemas": {
+      "Audience": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
       "AuthResponse": {
         "type": "object",
         "required": ["user", "session", "csrf_token"],
@@ -228,6 +425,14 @@
         "required": ["session_id"],
         "properties": { "session_id": { "type": "string", "format": "uuid" } },
         "additionalProperties": false
+      },
+      "DirectoryPage": {
+        "type": "object",
+        "required": ["users"],
+        "properties": {
+          "next_cursor": { "type": ["string", "null"] },
+          "users": { "type": "array", "items": { "$ref": "#/components/schemas/PublicProfile" } }
+        }
       },
       "ErrorDetails": {
         "type": "object",
@@ -277,6 +482,16 @@
         },
         "additionalProperties": false
       },
+      "PrivacySettings": {
+        "type": "object",
+        "required": ["direct_messages", "calls", "presence"],
+        "properties": {
+          "calls": { "$ref": "#/components/schemas/Audience" },
+          "direct_messages": { "$ref": "#/components/schemas/Audience" },
+          "presence": { "$ref": "#/components/schemas/Audience" }
+        },
+        "additionalProperties": false
+      },
       "PrivateProfile": {
         "type": "object",
         "required": ["id", "username", "display_name", "biography", "is_operator", "version"],
@@ -290,6 +505,27 @@
           "version": { "type": "string" }
         }
       },
+      "ProfileUpdate": {
+        "type": "object",
+        "required": ["version", "display_name", "biography"],
+        "properties": {
+          "biography": { "type": "string" },
+          "display_name": { "type": "string" },
+          "phone": { "type": ["string", "null"] },
+          "version": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "PublicProfile": {
+        "type": "object",
+        "required": ["id", "username", "display_name", "biography"],
+        "properties": {
+          "biography": { "type": "string" },
+          "display_name": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "username": { "type": "string" }
+        }
+      },
       "Registration": {
         "type": "object",
         "required": ["username", "password", "display_name", "device_name"],
@@ -299,6 +535,12 @@
           "password": { "type": "string" },
           "username": { "type": "string" }
         },
+        "additionalProperties": false
+      },
+      "RelationshipTarget": {
+        "type": "object",
+        "required": ["target_id"],
+        "properties": { "target_id": { "type": "string", "format": "uuid" } },
         "additionalProperties": false
       },
       "ServiceKind": { "type": "string", "enum": ["api", "worker"] },

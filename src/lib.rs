@@ -6,3 +6,5 @@ pub mod database;
 pub mod http;
 pub mod runtime;
 pub mod telemetry;
+
+pub mod contacts;

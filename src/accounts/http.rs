@@ -391,6 +391,7 @@ pub fn router(state: AccountHttpState) -> Router {
         .route("/account/devices", get(devices))
         .route("/account/devices/revoke", post(revoke_device));
     let routes = routes.route("/account/devices/revoke-others", post(revoke_other_devices));
+    let routes = routes.merge(crate::contacts::http::router());
     let routes = routes
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(axum::middleware::from_fn(prevent_caching));

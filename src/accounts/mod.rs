@@ -1,13 +1,14 @@
 //! Account identity and authoritative session ownership.
 
 mod credentials;
-mod extractors;
+pub(crate) mod extractors;
 pub mod http;
 mod model;
 pub mod operator;
+pub mod profile;
 mod rate_limit;
 mod service;
-mod sessions;
+pub(crate) mod sessions;
 mod settings;
 pub mod transport;
 

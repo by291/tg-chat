@@ -197,3 +197,26 @@ where
         Ok(Self(payload))
     }
 }
+
+pub(crate) struct SafeQuery<T>(pub T);
+
+impl<T> FromRequestParts<AccountHttpState> for SafeQuery<T>
+where
+    T: DeserializeOwned + Send,
+{
+    type Rejection = ApiFailure;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AccountHttpState,
+    ) -> Result<Self, Self::Rejection> {
+        let identifier = request_id(parts);
+        let parsed = axum::extract::Query::<T>::from_request_parts(parts, state).await;
+        let axum::extract::Query(parameters) = parsed.map_err(|_| ApiFailure {
+            error: AccountError::Validation("invalid query parameters"),
+            request_id: identifier,
+        })?;
+
+        Ok(Self(parameters))
+    }
+}
