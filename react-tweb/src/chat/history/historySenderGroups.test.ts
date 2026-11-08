@@ -40,6 +40,7 @@ describe('history sender groups', () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({
       key: 'last',
+      authorId: 'sender',
       start: measurements[1].start,
       end: measurements[3].end - GROUP_END_GAP,
     });

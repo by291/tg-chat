@@ -7,6 +7,7 @@ const GROUP_END_GAP = 6;
 
 export interface HistorySenderGroup {
   key: string;
+  authorId: string;
   authorName: string;
   start: number;
   end: number;
@@ -42,6 +43,7 @@ export function createHistorySenderGroups(options: SenderGroupOptions): HistoryS
     if (!currentGroup || row.isGroupStart) {
       currentGroup = {
         key: row.key,
+        authorId: row.message.authorId,
         authorName: row.message.authorName,
         start: measurement.start + bottomAlignment,
         end,

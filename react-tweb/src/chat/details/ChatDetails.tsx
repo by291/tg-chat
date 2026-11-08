@@ -1,5 +1,15 @@
 import { Tabs } from '@ark-ui/react/tabs';
-import { Bell, BellOff, Info, LogOut, Pencil, UserPlus, Video, X } from 'lucide-react';
+import {
+  Bell,
+  BellOff,
+  Info,
+  MessageCircle,
+  LogOut,
+  Pencil,
+  UserPlus,
+  Video,
+  X,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type Dispatch } from 'react';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
@@ -27,9 +37,11 @@ interface ChatDetailsProps {
   state: ChatState;
   dispatch: Dispatch<ChatAction>;
   isOpen: boolean;
+  shouldManageFocus?: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
   onClose: () => void;
+  onMessage?: () => void;
   onOpenMedia: (message: Message) => void;
 }
 
@@ -47,9 +59,11 @@ export function ChatDetails({
   state,
   dispatch,
   isOpen,
+  shouldManageFocus = true,
   isMuted,
   onToggleMute,
   onClose,
+  onMessage,
   onOpenMedia,
 }: ChatDetailsProps) {
   const isGroup = conversation.kind === 'group';
@@ -73,7 +87,8 @@ export function ChatDetails({
   const tabs = SHARED_TABS.filter((tab) => isGroup || tab.value !== 'members');
 
   useEffect(() => {
-    if (!isOpen) {
+    // Modal profiles delegate focus restoration to their dialog focus scope.
+    if (!isOpen || !shouldManageFocus) {
       return;
     }
     const previousFocus = document.activeElement;
@@ -83,7 +98,7 @@ export function ChatDetails({
         previousFocus.focus({ preventScroll: true });
       }
     };
-  }, [isOpen]);
+  }, [isOpen, shouldManageFocus]);
 
   return (
     <aside
@@ -115,6 +130,13 @@ export function ChatDetails({
           <p>{conversation.subtitle}</p>
         </div>
         <div className={styles.actions}>
+          {onMessage && (
+            <button type="button" aria-label="Message" onClick={onMessage}>
+              <MessageCircle />
+              <span>message</span>
+              <Ripple />
+            </button>
+          )}
           <button aria-label={isMuted ? 'Unmute' : 'Mute'} onClick={onToggleMute}>
             {isMuted ? <Bell /> : <BellOff />}
             <span>{isMuted ? 'unmute' : 'mute'}</span>

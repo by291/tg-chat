@@ -1,0 +1,12 @@
+.positioner {
+  padding: 16px;
+}
+
+.dialog {
+  width: min(400px, 100%);
+  height: calc(100dvh - 32px);
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--panel-color);
+  box-shadow: var(--surface-shadow);
+}

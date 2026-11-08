@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { SenderProfileProvider } from '../chat/details/SenderProfileProvider';
 import { ChatDetails } from '../chat/details/ChatDetails';
 import { ChatSidebar } from '../chat/sidebar/ChatSidebar';
 import { ConversationPane } from '../chat/ConversationPane';
@@ -145,86 +146,93 @@ export function ChatApp() {
       dispatch={dispatch}
       onSelectConversation={selectConversation}
     >
-      <div
-        className={styles.app}
-        style={{ '--message-text-size': `${messageTextSize}px` } as CSSProperties}
-        data-details-open={hasDetails}
-        data-mobile-chat-open={isMobileChatOpen && hasConversation}
+      <SenderProfileProvider
+        state={state}
+        dispatch={dispatch}
+        onSelectConversation={selectConversation}
+        onOpenMedia={setMediaMessage}
       >
-        <ChatWallpaper variant={variant} choice={choice} />
-        <div className={styles.sidebarSlot}>
-          <ChatSidebar
-            state={state}
-            dispatch={dispatch}
-            onSelectChat={selectConversation}
-            onToggleTheme={toggleTheme}
-            isDark={isDark}
-          />
-        </div>
-        <div className={styles.conversationSlot}>
-          {hasConversation && conversation && (
-            <ConversationPane
-              key={conversation.id}
-              conversation={conversation}
+        <div
+          className={styles.app}
+          style={{ '--message-text-size': `${messageTextSize}px` } as CSSProperties}
+          data-details-open={hasDetails}
+          data-mobile-chat-open={isMobileChatOpen && hasConversation}
+        >
+          <ChatWallpaper variant={variant} choice={choice} />
+          <div className={styles.sidebarSlot}>
+            <ChatSidebar
               state={state}
-              forwardMessages={forwardDrafts[conversation.id]}
-              requestedMediaCommand={requestedMediaCommand}
-              onFinishMediaCommand={finishMediaViewerCommand}
-              onPrepareForward={prepareForward}
-              onClearForward={clearForwardDraft}
               dispatch={dispatch}
-              onOpenDetails={() => {
-                setHasOpenedDetails(true);
-                setIsDetailsOpen((isOpen) => !isOpen);
-              }}
-              onOpenMedia={setMediaMessage}
-              onBack={() => setIsMobileChatOpen(false)}
-              onNotify={showToast}
+              onSelectChat={selectConversation}
+              onToggleTheme={toggleTheme}
+              isDark={isDark}
             />
-          )}
-          {!hasConversation && (
-            <div className={styles.emptyConversation}>
-              <p>Select a chat to start messaging</p>
+          </div>
+          <div className={styles.conversationSlot}>
+            {hasConversation && conversation && (
+              <ConversationPane
+                key={conversation.id}
+                conversation={conversation}
+                state={state}
+                forwardMessages={forwardDrafts[conversation.id]}
+                requestedMediaCommand={requestedMediaCommand}
+                onFinishMediaCommand={finishMediaViewerCommand}
+                onPrepareForward={prepareForward}
+                onClearForward={clearForwardDraft}
+                dispatch={dispatch}
+                onOpenDetails={() => {
+                  setHasOpenedDetails(true);
+                  setIsDetailsOpen((isOpen) => !isOpen);
+                }}
+                onOpenMedia={setMediaMessage}
+                onBack={() => setIsMobileChatOpen(false)}
+                onNotify={showToast}
+              />
+            )}
+            {!hasConversation && (
+              <div className={styles.emptyConversation}>
+                <p>Select a chat to start messaging</p>
+              </div>
+            )}
+          </div>
+          <div className={styles.detailsSlot} inert={!hasDetails} aria-hidden={!hasDetails}>
+            {hasOpenedDetails && conversation && (
+              <ChatDetails
+                key={conversation.id}
+                conversation={conversation}
+                messages={messages}
+                state={state}
+                dispatch={dispatch}
+                isOpen={hasDetails}
+                isMuted={activeEntry?.isMuted ?? false}
+                onToggleMute={() =>
+                  dispatch({
+                    type: 'update-conversations',
+                    chatIds: [conversation.id],
+                    changes: { isMuted: !activeEntry?.isMuted, mutedUntil: 0 },
+                  })
+                }
+                onClose={() => setIsDetailsOpen(false)}
+                onOpenMedia={setMediaMessage}
+              />
+            )}
+          </div>
+          <MediaViewer
+            message={mediaMessage}
+            messages={state.messages.filter((message) => message.chatId === mediaMessage?.chatId)}
+            onClose={() => setMediaMessage(undefined)}
+            onNavigate={setMediaMessage}
+            onCommand={runMediaViewerCommand}
+            onNotify={showToast}
+          />
+          {storageError && (
+            <div className={styles.storageError} role="alert">
+              {storageError}
             </div>
           )}
+          <ToastViewport />
         </div>
-        <div className={styles.detailsSlot} inert={!hasDetails} aria-hidden={!hasDetails}>
-          {hasOpenedDetails && conversation && (
-            <ChatDetails
-              key={conversation.id}
-              conversation={conversation}
-              messages={messages}
-              state={state}
-              dispatch={dispatch}
-              isOpen={hasDetails}
-              isMuted={activeEntry?.isMuted ?? false}
-              onToggleMute={() =>
-                dispatch({
-                  type: 'update-conversations',
-                  chatIds: [conversation.id],
-                  changes: { isMuted: !activeEntry?.isMuted, mutedUntil: 0 },
-                })
-              }
-              onClose={() => setIsDetailsOpen(false)}
-              onOpenMedia={setMediaMessage}
-            />
-          )}
-        </div>
-        <MediaViewer
-          message={mediaMessage}
-          messages={messages}
-          onClose={() => setMediaMessage(undefined)}
-          onNavigate={setMediaMessage}
-          onCommand={runMediaViewerCommand}
-          onNotify={showToast}
-        />
-        {storageError && (
-          <div className={styles.storageError} role="alert">
-            {storageError}
-          </div>
-        )}
-        <ToastViewport />
-      </div>
+      </SenderProfileProvider>
     </ContactActionsProvider>
   );
 }
