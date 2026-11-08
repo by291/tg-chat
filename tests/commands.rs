@@ -55,3 +55,33 @@ async fn migration_command_reports_completion_without_credentials(pool: PgPool) 
         assert!(!diagnostic.contains(password));
     }
 }
+
+#[sqlx::test]
+#[ignore = "requires an isolated PostgreSQL instance through DATABASE_URL"]
+async fn operator_creation_reads_stdin_and_never_prints_the_password(pool: PgPool) {
+    use std::{io::Write, process::Stdio};
+
+    let connection_url = pool.connect_options().to_url_lossy();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_api"));
+    command.arg("operator").arg("create").arg("--username");
+    command.arg("admin").arg("--display-name").arg("Operator");
+    command.env("TG_CHAT_DATABASE_URL", connection_url.as_str());
+    command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = command.spawn().expect("start operator command");
+    let mut input = child.stdin.take().expect("password input pipe");
+    input.write_all(b"operator-cli-private-password\n").unwrap();
+    drop(input);
+    let output = child.wait_with_output().expect("complete operator command");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stdout.contains("operator-cli-private-password"));
+    assert!(!stderr.contains("operator-cli-private-password"));
+    let is_operator: bool =
+        sqlx::query_scalar("SELECT is_operator FROM users WHERE username = 'admin'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(is_operator);
+}

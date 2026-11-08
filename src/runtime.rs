@@ -1,15 +1,20 @@
 //! Shared API and Worker startup and bounded shutdown.
 
-use std::{future::IntoFuture, time::Duration};
+use std::{collections::HashMap, future::IntoFuture, net::SocketAddr, time::Duration};
 
 use thiserror::Error;
 use tokio::{net::TcpListener, time::timeout};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
+    accounts::{
+        AccountService, AccountSettings,
+        http::{AccountHttpState, router as account_router},
+        transport::HttpSettings,
+    },
     config::{ServiceKind, Settings},
     database::connect_pool,
-    http::{ApplicationState, router},
+    http::{ApplicationState, router_with_api},
 };
 
 const GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
@@ -17,6 +22,8 @@ const POOL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
+    #[error("account runtime configuration is invalid")]
+    AccountConfiguration,
     #[error("the configured HTTP listener could not be bound")]
     BindFailed,
     #[error("the HTTP service failed")]
@@ -49,10 +56,25 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
     let listener =
         TcpListener::bind(settings.bind_address).await.map_err(|_| RuntimeError::BindFailed)?;
     let shutdown = CancellationToken::new();
-    let application = router(ApplicationState {
-        pool: pool.clone(),
-        service,
-    });
+    let account_routes = if matches!(service, ServiceKind::Api) {
+        let values: HashMap<String, String> = std::env::vars().collect();
+        let account_settings = AccountSettings::from_values(&values)
+            .map_err(|_| RuntimeError::AccountConfiguration)?;
+        let transport =
+            HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
+        let accounts = AccountService::new(pool.clone(), account_settings);
+        account_router(AccountHttpState::new(accounts, transport))
+    } else {
+        axum::Router::new()
+    };
+    let application = router_with_api(
+        ApplicationState {
+            pool: pool.clone(),
+            service,
+        },
+        account_routes,
+    );
+    let application = application.into_make_service_with_connect_info::<SocketAddr>();
     let server = axum::serve(listener, application)
         .with_graceful_shutdown(shutdown.clone().cancelled_owned())
         .into_future();

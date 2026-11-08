@@ -20,7 +20,7 @@ use crate::{config::ServiceKind, database::ensure_ready};
 const REQUEST_ID_HEADER: &str = "x-request-id";
 
 #[derive(Clone)]
-struct RequestId(String);
+pub(crate) struct RequestId(pub(crate) String);
 
 #[derive(Serialize, ToSchema)]
 pub struct HealthResponse {
@@ -40,10 +40,10 @@ pub struct ErrorResponse {
 }
 
 #[derive(Serialize, ToSchema)]
-struct ErrorDetails {
-    code: &'static str,
-    message: &'static str,
-    request_id: String,
+pub(crate) struct ErrorDetails {
+    pub(crate) code: &'static str,
+    pub(crate) message: String,
+    pub(crate) request_id: String,
 }
 
 #[derive(Clone)]
@@ -56,11 +56,20 @@ pub struct ApplicationState {
 #[openapi(
     info(title = "TG Chat runtime API", version = "0.1.0"),
     paths(live, ready),
+    modifiers(&AccountApi),
     components(schemas(HealthResponse, HealthStatus, ServiceKind, ErrorResponse, ErrorDetails))
 )]
 pub struct ApiDocument;
 
-fn error_response(status: StatusCode, details: ErrorDetails) -> Response {
+struct AccountApi;
+
+impl utoipa::Modify for AccountApi {
+    fn modify(&self, document: &mut utoipa::openapi::OpenApi) {
+        document.merge(crate::accounts::http::AccountDocument::openapi());
+    }
+}
+
+pub(crate) fn error_response(status: StatusCode, details: ErrorDetails) -> Response {
     (
         status,
         Json(ErrorResponse {
@@ -99,7 +108,8 @@ async fn ready(
             StatusCode::SERVICE_UNAVAILABLE,
             ErrorDetails {
                 code: "dependency_unavailable",
-                message: "A required dependency is unavailable or its schema is not ready.",
+                message: "A required dependency is unavailable or its schema is not ready."
+                    .to_owned(),
                 request_id: request_id.0,
             },
         );
@@ -113,7 +123,7 @@ async fn not_found(Extension(request_id): Extension<RequestId>) -> Response {
         StatusCode::NOT_FOUND,
         ErrorDetails {
             code: "not_found",
-            message: "The requested resource was not found.",
+            message: "The requested resource was not found.".to_owned(),
             request_id: request_id.0,
         },
     )
@@ -124,7 +134,7 @@ async fn method_not_allowed(Extension(request_id): Extension<RequestId>) -> Resp
         StatusCode::METHOD_NOT_ALLOWED,
         ErrorDetails {
             code: "method_not_allowed",
-            message: "The request method is not supported for this resource.",
+            message: "The request method is not supported for this resource.".to_owned(),
             request_id: request_id.0,
         },
     )
@@ -158,8 +168,14 @@ async fn observe_request(mut request: Request, next: Next) -> Response {
 
 /// Build the process health router without coupling liveness to external services.
 pub fn router(state: ApplicationState) -> Router {
-    let routes = Router::new().route("/health/live", get(live)).route("/health/ready", get(ready));
+    router_with_api(state, Router::new())
+}
+
+/// Attach public API routes inside the common request-ID and sanitized logging boundary.
+pub fn router_with_api(state: ApplicationState, api: Router) -> Router {
+    let health = Router::new().route("/health/live", get(live)).route("/health/ready", get(ready));
+    let routes = health.with_state(state).merge(api);
     let routes = routes.fallback(not_found).method_not_allowed_fallback(method_not_allowed);
 
-    routes.layer(middleware::from_fn(observe_request)).with_state(state)
+    routes.layer(middleware::from_fn(observe_request))
 }

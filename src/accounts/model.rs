@@ -29,6 +29,8 @@ pub enum AccountError {
     Unavailable,
     #[error("registration is currently closed")]
     RegistrationClosed,
+    #[error("too many requests; try again later")]
+    RateLimited,
 }
 
 impl From<sqlx::Error> for AccountError {

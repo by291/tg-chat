@@ -7,6 +7,9 @@ x-application: &application
     TG_CHAT_DATABASE_URL: >-
       postgres://tg_chat:${TG_CHAT_DATABASE_PASSWORD:?Generate .env first}@postgres:5432/tg_chat
     TG_CHAT_LOG_LEVEL: ${TG_CHAT_LOG_LEVEL:-info}
+    TG_CHAT_PUBLIC_ORIGIN: ${TG_CHAT_PUBLIC_ORIGIN:-http://localhost:8080}
+    TG_CHAT_VALKEY_URL: redis://valkey:6379
+    TG_CHAT_TRUST_GATEWAY: 'true'
   init: true
   stop_grace_period: 20s
 

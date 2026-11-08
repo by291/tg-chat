@@ -7,6 +7,161 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/account/devices": {
+      "get": {
+        "tags": [],
+        "operationId": "devices",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SessionView" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/devices/revoke": {
+      "post": {
+        "tags": [],
+        "operationId": "revoke_device",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/DeviceRevocation" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      }
+    },
+    "/api/v1/account/devices/revoke-others": {
+      "post": {
+        "tags": [],
+        "operationId": "revoke_other_devices",
+        "responses": { "204": { "description": "" } }
+      }
+    },
+    "/api/v1/account/password": {
+      "post": {
+        "tags": [],
+        "operationId": "change_password",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PasswordReplacement" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/profile": {
+      "get": {
+        "tags": [],
+        "operationId": "profile",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PrivateProfile" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [],
+        "operationId": "login",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Login" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": { "tags": [], "operationId": "logout", "responses": { "204": { "description": "" } } }
+    },
+    "/api/v1/auth/reauthenticate": {
+      "post": {
+        "tags": [],
+        "operationId": "reauthenticate",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PasswordProof" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [],
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/Registration" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "tags": [],
+        "operationId": "session",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "tags": [],
+        "operationId": "capabilities",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Capabilities" } }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "tags": [],
@@ -44,6 +199,36 @@
   },
   "components": {
     "schemas": {
+      "AuthResponse": {
+        "type": "object",
+        "required": ["user", "session", "csrf_token"],
+        "properties": {
+          "csrf_token": { "type": "string" },
+          "session": { "$ref": "#/components/schemas/SessionView" },
+          "user": { "$ref": "#/components/schemas/PrivateProfile" }
+        }
+      },
+      "Capabilities": {
+        "type": "object",
+        "required": [
+          "registration_open",
+          "email_recovery_available",
+          "avatars_available",
+          "messaging_available"
+        ],
+        "properties": {
+          "avatars_available": { "type": "boolean" },
+          "email_recovery_available": { "type": "boolean" },
+          "messaging_available": { "type": "boolean" },
+          "registration_open": { "type": "boolean" }
+        }
+      },
+      "DeviceRevocation": {
+        "type": "object",
+        "required": ["session_id"],
+        "properties": { "session_id": { "type": "string", "format": "uuid" } },
+        "additionalProperties": false
+      },
       "ErrorDetails": {
         "type": "object",
         "required": ["code", "message", "request_id"],
@@ -67,7 +252,68 @@
         }
       },
       "HealthStatus": { "type": "string", "enum": ["ok"] },
-      "ServiceKind": { "type": "string", "enum": ["api", "worker"] }
+      "Login": {
+        "type": "object",
+        "required": ["username", "password", "device_name"],
+        "properties": {
+          "device_name": { "type": "string" },
+          "password": { "type": "string" },
+          "username": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "PasswordProof": {
+        "type": "object",
+        "required": ["password"],
+        "properties": { "password": { "type": "string" } },
+        "additionalProperties": false
+      },
+      "PasswordReplacement": {
+        "type": "object",
+        "required": ["current_password", "new_password"],
+        "properties": {
+          "current_password": { "type": "string" },
+          "new_password": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "PrivateProfile": {
+        "type": "object",
+        "required": ["id", "username", "display_name", "biography", "is_operator", "version"],
+        "properties": {
+          "biography": { "type": "string" },
+          "display_name": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "is_operator": { "type": "boolean" },
+          "phone": { "type": ["string", "null"] },
+          "username": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      },
+      "Registration": {
+        "type": "object",
+        "required": ["username", "password", "display_name", "device_name"],
+        "properties": {
+          "device_name": { "type": "string" },
+          "display_name": { "type": "string" },
+          "password": { "type": "string" },
+          "username": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "ServiceKind": { "type": "string", "enum": ["api", "worker"] },
+      "SessionView": {
+        "type": "object",
+        "required": ["id", "device_name", "created_at", "last_seen_at", "expires_at", "is_current"],
+        "properties": {
+          "created_at": { "type": "string", "format": "date-time" },
+          "device_name": { "type": "string" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "id": { "type": "string", "format": "uuid" },
+          "is_current": { "type": "boolean" },
+          "last_seen_at": { "type": "string", "format": "date-time" }
+        }
+      }
     }
   }
 }
