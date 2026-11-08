@@ -1,5 +1,14 @@
 # Repository documentation
 
+## Dependency selection
+
+Prefer maintained libraries for protocol handling, configuration, validation, migrations, and other
+general-purpose work. There is no artificial limit on dependencies: use a suitable library when it
+removes application-owned complexity. Keep project code focused on business rules and necessary
+integration, and avoid reimplementing mature library behavior. Apply this convention across the
+entire project, including future milestones. Choose compatible versions and verify the behavior at
+the application's boundary.
+
 ## Organization
 
 Use the root README as the documentation entry point and `web/README.md` for frontend setup and
