@@ -55,12 +55,14 @@ export function PinnedConversationSorting({
         if (event.canceled || !source || !target) {
           return;
         }
-        // Resolve identities against the full current list, including pinned rows outside the window.
+
+        // Resolve the full pinned order, including rows outside the virtual window.
         const sourceIndex = pinnedIds.indexOf(String(source.id));
         const targetIndex = pinnedIds.indexOf(String(target.id));
         if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
           return;
         }
+
         onReorder(arrayMove(pinnedIds, sourceIndex, targetIndex));
       }}
     >

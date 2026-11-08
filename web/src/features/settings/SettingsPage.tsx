@@ -35,8 +35,10 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
   const destination = navigation.isSettingsOpen
     ? navigation.settingsDestination
     : closingDestination;
+
   const detailRef = useRef<HTMLDivElement>(null);
   useSettingsSearchTarget({ rootRef: detailRef, item: destination });
+
   const [isSearching, setIsSearching] = useState(false);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -54,6 +56,7 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
       closeSearch();
       return;
     }
+
     onBack();
   }
 
@@ -64,14 +67,20 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
 
   const closeCategory = () => navigation.openSettings();
   let detailPage = <GeneralSettingsPage onBack={closeCategory} />;
-  if (closingDestination?.category === 'notifications') {
-    detailPage = <NotificationSettingsPage {...notificationActions} onBack={closeCategory} />;
-  } else if (closingDestination?.category === 'stickers') {
-    detailPage = <StickerSettingsPage onBack={closeCategory} />;
-  } else if (closingDestination?.category === 'devices') {
-    detailPage = <DevicesSettingsPage onBack={closeCategory} />;
-  } else if (closingDestination?.category === 'shortcuts') {
-    detailPage = <KeyboardSettingsPage onBack={closeCategory} />;
+
+  switch (closingDestination?.category) {
+    case 'notifications':
+      detailPage = <NotificationSettingsPage {...notificationActions} onBack={closeCategory} />;
+      break;
+    case 'stickers':
+      detailPage = <StickerSettingsPage onBack={closeCategory} />;
+      break;
+    case 'devices':
+      detailPage = <DevicesSettingsPage onBack={closeCategory} />;
+      break;
+    case 'shortcuts':
+      detailPage = <KeyboardSettingsPage onBack={closeCategory} />;
+      break;
   }
 
   const overview = (

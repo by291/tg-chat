@@ -23,6 +23,7 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
       });
       return;
     }
+
     expandedRef.current = true;
     setIsExpanded(true);
   }
@@ -33,6 +34,7 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
     if (!page || !scroll) {
       return;
     }
+
     const viewport = scroll;
     expandedRef.current = false;
     setIsExpanded(false);
@@ -43,8 +45,11 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
       if (expandedRef.current === shouldExpand) {
         return false;
       }
+
+      // Multiple wheel events can arrive before React commits the visible expansion state.
       expandedRef.current = shouldExpand;
       setIsExpanded(shouldExpand);
+
       return true;
     }
 
@@ -68,6 +73,7 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
       if (isMomentum({ delta: event.deltaY, time: performance.now() })) {
         return;
       }
+
       moveProfile(event.deltaY, event);
     }
 
@@ -76,6 +82,7 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
         touchStart = undefined;
         return;
       }
+
       const touch = event.touches[0];
       touchStart = { left: touch.clientX, top: touch.clientY };
     }
@@ -84,12 +91,14 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
       if (!touchStart || event.touches.length !== 1) {
         return;
       }
+
       const touch = event.touches[0];
       const horizontal = touch.clientX - touchStart.left;
       const vertical = touchStart.top - touch.clientY;
       if (Math.max(Math.abs(horizontal), Math.abs(vertical)) < TOUCH_THRESHOLD) {
         return;
       }
+
       touchStart = undefined;
       if (Math.abs(vertical) > Math.abs(horizontal)) {
         moveProfile(vertical, event);
@@ -114,6 +123,7 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
     page.addEventListener('touchend', onTouchEnd);
     page.addEventListener('touchcancel', onTouchEnd);
     scroll.addEventListener('scroll', onScroll, { passive: true });
+
     return () => {
       page.removeEventListener('wheel', onWheel);
       page.removeEventListener('touchstart', onTouchStart);

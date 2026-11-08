@@ -18,20 +18,24 @@ export function useSidebarSearch({
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [scope, setScope] = useState<SearchScope>('all');
+
   const inputRef = useRef<HTMLInputElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const shouldRestoreFocus = useRef(false);
   const shouldFocusArchiveSearch = useRef(false);
+
   const normalizedQuery = query.trim().toLowerCase();
   const matchingConversations = useMemo(
     () => {
       if (!isSearching) {
         return [];
       }
+
       return conversations.filter((conversation) => {
         if (scope === 'archive' && !conversation.isArchived) {
           return false;
         }
+
         return conversation.title.toLowerCase().includes(normalizedQuery);
       });
     },
@@ -55,11 +59,13 @@ export function useSidebarSearch({
     if (isArchiveOpen || !isSearching || !shouldFocusArchiveSearch.current) {
       return;
     }
+
     // Wait for page restoration and menu dismissal before search claims focus.
     const frame = requestAnimationFrame(() => {
       shouldFocusArchiveSearch.current = false;
       inputRef.current?.focus({ preventScroll: true });
     });
+
     return () => cancelAnimationFrame(frame);
   }, [isSearching, isArchiveOpen]);
 

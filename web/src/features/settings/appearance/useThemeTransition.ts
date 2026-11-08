@@ -29,6 +29,7 @@ function getRevealFrames(origin: ThemeOrigin): Keyframe[] {
   // Percentages keep the reveal centered in CSS coordinates on high-DPI browser snapshots.
   const radiusPercent = (radius / Math.hypot(width, height)) * Math.SQRT2 * PERCENT;
   const center = `${(origin.left / width) * PERCENT}% ${(origin.top / height) * PERCENT}%`;
+
   return [
     { clipPath: `circle(0% at ${center})` },
     { clipPath: `circle(${radiusPercent}% at ${center})` },
@@ -62,9 +63,11 @@ async function animateThemeChange({
   if (origin) {
     effect = isDark ? 'conceal' : 'reveal';
   }
+
   root.dataset.themeTransition = effect;
   const releasePlayback = reserveAnimationPlayback('theme');
   let transition: ViewTransition;
+
   try {
     transition = document.startViewTransition(commit);
   } catch {
@@ -73,14 +76,17 @@ async function animateThemeChange({
     commit();
     return;
   }
+
   activeTransition = transition;
   const timeout = window.setTimeout(() => transition.skipTransition(), TRANSITION_TIMEOUT);
   let animation: Animation | undefined;
+
   try {
     await transition.ready;
     if (origin && activeTransition === transition) {
       animation = animateCircle({ isDark, origin });
     }
+
     await transition.finished;
   } catch {
     transition.skipTransition();
@@ -89,6 +95,8 @@ async function animateThemeChange({
     window.clearTimeout(timeout);
     animation?.cancel();
     releasePlayback();
+
+    // An interrupted transition must not clear the marker owned by its replacement.
     if (activeTransition === transition) {
       delete root.dataset.themeTransition;
       activeTransition = undefined;
@@ -108,6 +116,7 @@ export async function runThemeTransition({
   activeTransition?.skipTransition();
 
   let releasePrepared: (() => void) | undefined;
+
   try {
     // Keep the old view interactive while a new image loads; never snapshot a placeholder.
     if (prepare) {
@@ -128,7 +137,12 @@ export async function runThemeTransition({
       commit();
       return;
     }
-    await animateThemeChange({ isDark, commit, origin });
+
+    await animateThemeChange({
+      isDark,
+      commit,
+      origin,
+    });
   } finally {
     releasePrepared?.();
   }

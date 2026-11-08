@@ -70,7 +70,7 @@ function AccountDetailRow({ label, value, icon: Icon, color, onCopy }: AccountDe
   );
 }
 
-/** Display account identifiers and copy them with the same feedback as other Telegram-style rows. */
+/** Display account identifiers and copy them with consistent feedback. */
 export function SettingsAccountDetails({ profile }: { profile: SettingsAccountProfile }) {
   function copyDetail({ label, text }: { label: string; text: string }) {
     void copyTextWithToast({

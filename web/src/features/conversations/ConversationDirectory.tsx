@@ -37,6 +37,7 @@ function useMuteDeadline(preferences: ChatState['conversationPreferences']) {
     function refreshTime() {
       setNow(Date.now());
     }
+
     window.addEventListener('focus', refreshTime);
     document.addEventListener('visibilitychange', refreshTime);
     const timer = Number.isFinite(nextDeadline)
@@ -77,6 +78,7 @@ export function ConversationDirectoryProvider({
         now: currentTime,
       });
       const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
+
       return {
         conversations,
         privateConversations,
@@ -107,5 +109,6 @@ export function useConversationDirectory() {
   if (!directory) {
     throw new Error('Conversation components require a ConversationDirectoryProvider.');
   }
+
   return directory;
 }

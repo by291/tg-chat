@@ -49,8 +49,10 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
     if (!container) {
       return;
     }
+
     const target = container;
     let isDisposed = false;
+
     async function loadEmoji() {
       try {
         const animationData = await loadStickerAnimation(
@@ -60,11 +62,13 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
         if (isDisposed) {
           return;
         }
+
         const player = playerModule.default.loadAnimation({
           container: target,
           renderer: 'svg',
           loop: false,
           autoplay: false,
+          // Lottie mutates its input, so each player needs an independent catalog copy.
           animationData: structuredClone(animationData),
         });
         playerRef.current = player;
@@ -81,7 +85,9 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
         }
       }
     }
+
     void loadEmoji();
+
     return () => {
       isDisposed = true;
       playerRef.current?.destroy();
@@ -109,6 +115,7 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
 
       player.goToAndStop(0, true);
       const timer = window.setTimeout(() => player.play(), PLAYBACK_DELAY);
+
       return () => {
         window.clearTimeout(timer);
         player.pause();

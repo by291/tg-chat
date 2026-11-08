@@ -26,7 +26,9 @@ it('keeps a single-color background uniform and opaque', () => {
 
 it('blends all corners without transparent seams', () => {
   const pixels = renderGradientPixels(CORNER_COLORS);
+
   expect(new Set(pixels).size).toBeGreaterThan(10);
+
   for (let index = 3; index < pixels.length; index += RGBA_CHANNEL_COUNT) {
     expect(pixels[index]).toBe(255);
   }

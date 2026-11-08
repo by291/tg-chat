@@ -51,11 +51,13 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const navigation = useAppNavigation();
   const { isArchiveOpen, isSettingsOpen } = navigation;
+
   const [newChatMode, setNewChatMode] = useState<NewChatMode>();
   const [creationSession, setCreationSession] = useState(0);
   const closingNewChatMode = useClosingDialogValue(newChatMode);
   const { entries: conversations } = useConversationDirectory();
   const scrollOffsets = useRef({ inbox: 0, archive: 0 });
+
   const actions = useSidebarActions({ conversations, dispatch });
   const isSelecting = actions.selectedIds.length > 0;
   const archivedConversations = useMemo(() => {
@@ -64,6 +66,7 @@ export function ChatSidebar({
   const inboxConversations = useMemo(() => {
     return conversations.filter((conversation) => !conversation.isArchived);
   }, [conversations]);
+
   const search = useSidebarSearch({
     conversations,
     isArchiveOpen,
@@ -76,12 +79,14 @@ export function ChatSidebar({
     dispatch,
     onSearch: search.openArchiveSearch,
   });
+
   let openSettingsPage: 'archive' | 'settings' | undefined;
   if (archive.isSettingsOpen) {
     openSettingsPage = 'archive';
   } else if (isSettingsOpen) {
     openSettingsPage = 'settings';
   }
+
   // Keep the outgoing page intact until the sidebar's slide-out transition has finished.
   const settingsPage = useClosingDialogValue(openSettingsPage);
 
@@ -103,6 +108,7 @@ export function ChatSidebar({
         navigation.closeArchive();
       }
     }
+
     actions.runMenuAction(conversation, action, anchor);
   }
 
@@ -129,6 +135,7 @@ export function ChatSidebar({
     actions,
     isSelecting,
   });
+
   useLayoutEffect(() => {
     // Rows retain stable callbacks while commands always read the latest selection and route.
     rowActionsRef.current = {
@@ -138,6 +145,7 @@ export function ChatSidebar({
       isSelecting,
     };
   });
+
   const runRowMenuAction = useCallback(
     (
       conversation: ConversationListEntry,
@@ -154,6 +162,7 @@ export function ChatSidebar({
       current.actions.toggleSelection(chatId);
       return;
     }
+
     current.selectChat(chatId);
   }, []);
 

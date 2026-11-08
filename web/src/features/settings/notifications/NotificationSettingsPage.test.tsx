@@ -37,13 +37,16 @@ function renderSettings() {
 it('requests permission only from the enable action and keeps a denial disabled', async () => {
   requestPermission.mockResolvedValue('denied');
   renderSettings();
+
   expect(requestPermission).not.toHaveBeenCalled();
+
   fireEvent.click(screen.getByRole('button', { name: 'Enable Notifications' }));
   await waitFor(() =>
     expect(
       screen.getByRole('checkbox', { name: 'Show notifications' }).hasAttribute('disabled'),
     ).toBe(true),
   );
+
   expect(requestPermission).toHaveBeenCalledTimes(1);
 });
 
@@ -52,9 +55,12 @@ it('turns sound off at zero volume and restores an audible level when enabled', 
   fireEvent.change(screen.getByRole('slider', { name: 'Sound Volume' }), {
     target: { value: '0' },
   });
+
   expect(getNotificationPreferences().shouldPlaySound).toBe(false);
+
   fireEvent.click(screen.getByRole('checkbox', { name: 'Notification Sound' }));
   await waitFor(() => expect(getNotificationPreferences().shouldPlaySound).toBe(true));
+
   expect(getNotificationPreferences().volume).toBeGreaterThan(0);
 });
 
@@ -70,6 +76,7 @@ it('keeps the reset active and reports unsaved preferences when storage fails', 
 
   expect(getNotificationPreferences()).toEqual(DEFAULT_NOTIFICATION_PREFERENCES);
   expect(getToastSnapshot()?.message).toMatch(/could not be saved/i);
+
   await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
 });
 

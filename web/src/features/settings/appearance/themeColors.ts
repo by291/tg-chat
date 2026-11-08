@@ -8,6 +8,7 @@ const HEX_CHANNEL_OFFSETS = [
 const RGB_MAXIMUM = 255;
 const HUE_SECTOR = 60;
 const FULL_ROTATION = 360;
+const MINIMUM_TINT_BRIGHTNESS = 0.18;
 
 /** Derive a tint using the HSV multipliers used by Telegram's Dark theme. */
 export function multiplyThemeColor({
@@ -38,10 +39,11 @@ export function multiplyThemeColor({
       originalHue = (red - green) / delta + 4;
     }
   }
+
   const normalizedHue = (originalHue * HUE_SECTOR + FULL_ROTATION) % FULL_ROTATION;
   const nextHue = ((normalizedHue * hue) % FULL_ROTATION) / HUE_SECTOR;
   const nextSaturation = Math.min(1, (maximum === 0 ? 0 : delta / maximum) * saturation);
-  const nextBrightness = Math.min(1, Math.max(maximum, 0.18) * brightness);
+  const nextBrightness = Math.min(1, Math.max(maximum, MINIMUM_TINT_BRIGHTNESS) * brightness);
   const chroma = nextBrightness * nextSaturation;
   const intermediate = chroma * (1 - Math.abs((nextHue % 2) - 1));
   // prettier-ignore
@@ -82,6 +84,7 @@ export function multiplyThemeColor({
     const value = Math.round((channel + nextBrightness - chroma) * RGB_MAXIMUM);
     return value.toString(16).padStart(2, '0');
   });
+
   return `#${hexChannels.join('')}`;
 }
 

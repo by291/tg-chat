@@ -23,6 +23,7 @@ export function useSidebarActions({ conversations, dispatch }: SidebarActionsOpt
   const [preview, setPreview] = useState<ConversationPreviewRequest>();
   const [muteConversation, setMuteConversation] = useState<ConversationListEntry>();
   const [confirmation, setConfirmation] = useState<ConversationConfirmation>();
+
   const selectedConversations = conversations.filter((conversation) => {
     return selectedIds.includes(conversation.id);
   });
@@ -43,6 +44,7 @@ export function useSidebarActions({ conversations, dispatch }: SidebarActionsOpt
       if (current.includes(chatId)) {
         return current.filter((selectedId) => selectedId !== chatId);
       }
+
       return [...current, chatId];
     });
   }
@@ -74,6 +76,7 @@ export function useSidebarActions({ conversations, dispatch }: SidebarActionsOpt
     if (!muteConversation) {
       return;
     }
+
     const mutedUntil = hours === 0 ? 0 : Date.now() + hours * MILLISECONDS_PER_HOUR;
     updateConversation(muteConversation, { isMuted: true, mutedUntil });
     setMuteConversation(undefined);

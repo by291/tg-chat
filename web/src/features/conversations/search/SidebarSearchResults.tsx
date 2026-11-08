@@ -50,8 +50,10 @@ function SearchResultRows({
       if (retainedIndex < 0 || indexes.includes(retainedIndex)) {
         return indexes;
       }
+
       // Native focus and a portal menu's anchor must survive scrolling beyond the visible window.
       indexes.push(retainedIndex);
+
       return indexes.sort((first, second) => first - second);
     },
     [retainedIndex],
@@ -90,6 +92,7 @@ function SearchResultRows({
               onMenuAction(conversation, 'preview', readPreviewAnchor(event.currentTarget));
               return;
             }
+
             onSelectChat(conversation.id);
           }}
         >
@@ -165,8 +168,10 @@ export function SidebarSearchResults({
       setHasClosingResults(false);
       return;
     }
+
     // The CSS exit lasts 150 ms; retaining this snapshot also prevents query reset flicker.
     const timer = window.setTimeout(() => setHasClosingResults(false), SEARCH_EXIT_DURATION);
+
     return () => window.clearTimeout(timer);
   }, [isSearching, shouldReduceMotion]);
 

@@ -83,6 +83,7 @@ export const ChatRow = memo(function ChatRow({
             onMenuAction(conversation, 'preview', readPreviewAnchor(event.currentTarget));
             return;
           }
+
           onSelect(conversation.id);
         }}
       >
@@ -159,6 +160,7 @@ export const ChatRow = memo(function ChatRow({
       </button>
     </ConversationMenu>
   );
+
   return (
     <SortableChatRow
       id={conversation.id}

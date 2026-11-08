@@ -92,6 +92,7 @@ function getMenuItems(conversation: ConversationListEntry): ConversationMenuItem
     label: getDeleteConversationLabel(conversation),
     icon: Trash2,
   });
+
   return items;
 }
 

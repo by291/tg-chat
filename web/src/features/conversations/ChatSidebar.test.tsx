@@ -77,13 +77,18 @@ describe('sidebar search', () => {
     const loopSwitch = screen.getByRole('checkbox', { name: 'Loop Animated Stickers' });
     const wasChecked = (loopSwitch as HTMLInputElement).checked;
     await user.click(loopSwitch);
+
     expect((loopSwitch as HTMLInputElement).checked).toBe(!wasChecked);
     expect(localStorage.getItem('react-tweb.sticker-playback.v1')).toBe(String(!wasChecked));
+
     await user.click(loopSwitch);
 
     await user.keyboard('{Escape}');
+
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy();
+
     await user.keyboard('{Escape}');
+
     expect(screen.getByRole('button', { name: 'Main menu' })).toBeTruthy();
     expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
   });
@@ -98,8 +103,11 @@ describe('sidebar search', () => {
     await user.type(screen.getByRole('textbox', { name: 'Search settings' }), 'dark');
     await user.click(screen.getByRole('button', { name: 'General Settings' }));
     await user.click(screen.getByRole('radio', { name: 'Dark' }));
+
     expect((screen.getByRole('radio', { name: 'Dark' }) as HTMLInputElement).checked).toBe(true);
+
     await user.click(screen.getByRole('button', { name: 'Back from general settings' }));
+
     expect(
       (screen.getByRole('textbox', { name: 'Search settings' }) as HTMLInputElement).value,
     ).toBe('dark');
@@ -113,14 +121,18 @@ describe('sidebar search', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'New Group' }));
     await user.click(screen.getByRole('checkbox', { name: /Alex Morgan/ }));
     await user.click(screen.getByRole('button', { name: 'Next' }));
+
     expect(
       (screen.getByRole('button', { name: 'Create Group' }) as HTMLButtonElement).disabled,
     ).toBe(true);
+
     await user.type(screen.getByRole('textbox', { name: 'Group Name' }), 'Reading club');
     await user.click(screen.getByRole('button', { name: 'Create Group' }));
 
     expect(screen.getByLabelText('Selected conversation').textContent).toMatch(/^local-/);
+
     await user.type(screen.getByRole('textbox', { name: 'Search conversations' }), 'Reading club');
+
     expect(screen.getByRole('button', { name: /Reading club/ })).toBeTruthy();
   });
 
@@ -129,9 +141,12 @@ describe('sidebar search', () => {
     render(<SidebarTestScreen />);
 
     expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
+
     await user.click(screen.getByRole('button', { name: 'New Chats' }));
+
     expect(await screen.findByRole('menuitem', { name: 'New Group' })).toBeTruthy();
     expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
+
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByRole('menu', { name: 'New Chats' }));
     });
@@ -147,7 +162,9 @@ describe('sidebar search', () => {
 
     await user.click(screen.getByRole('button', { name: 'New Chats' }));
     await user.click(await screen.findByRole('menuitem', { name: 'New Private Chat' }));
+
     expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
+
     await user.click(screen.getByRole('button', { name: /Alex Morgan/ }));
 
     expect(screen.getByLabelText('Selected conversation').textContent).toBe('alex');
@@ -161,6 +178,7 @@ describe('sidebar search', () => {
     const search = screen.getByRole('textbox', { name: 'Search conversations' });
     await user.click(search);
     await user.type(search, 'does not exist');
+
     expect(screen.getByText('No conversations found')).toBeTruthy();
 
     await user.keyboard('{Escape}');
@@ -188,13 +206,17 @@ describe('sidebar search', () => {
 
     const search = await screen.findByRole('textbox', { name: 'Search conversations' });
     await waitFor(() => expect(document.activeElement).toBe(search));
+
     expect(screen.getByRole('button', { name: /Design conversations/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Alex Morgan/ })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Search all chats' }));
+
     expect(screen.getByRole('button', { name: /Alex Morgan/ })).toBeTruthy();
+
     await user.click(search);
     await user.keyboard('{Escape}');
+
     expect(screen.getByRole('navigation', { name: 'Conversations' })).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Main menu' }));
   });
@@ -205,6 +227,7 @@ describe('sidebar search', () => {
     const search = screen.getByRole('textbox', { name: 'Search conversations' });
     await user.type(search, 'not a chat');
     await user.click(screen.getByRole('button', { name: 'Clear search' }));
+
     expect(document.activeElement).toBe(search);
     expect(screen.getByRole('button', { name: 'Close search' })).toBeTruthy();
 

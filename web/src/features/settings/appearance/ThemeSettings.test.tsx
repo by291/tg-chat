@@ -30,6 +30,7 @@ it('applies a theme and clears only the active wallpaper override', () => {
   });
   render(<ThemeSettings />);
   fireEvent.click(screen.getByRole('button', { name: 'Rose theme' }));
+
   expect(getAppearance().choices.classic.themeId).toBe('rose');
   expect(getAppearance().choices.classic.wallpaper).toBeNull();
   expect(screen.getByRole('button', { name: 'Rose theme' }).getAttribute('aria-pressed')).toBe(
@@ -40,10 +41,15 @@ it('applies a theme and clears only the active wallpaper override', () => {
 it('changes mode and exposes accent colors only in Dark', () => {
   render(<ThemeSettings />);
   fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
+
   expect(getAppearance().mode).toBe('dark');
+
   fireEvent.click(screen.getByRole('button', { name: 'Orange accent' }));
+
   expect(getAppearance().choices.dark.accent).toBe('#f08200');
+
   fireEvent.click(screen.getByRole('radio', { name: 'Classic' }));
+
   expect(screen.queryByRole('button', { name: 'Orange accent' })).toBeNull();
 });
 
@@ -61,7 +67,9 @@ it('moves keyboard focus without smooth scrolling when reduced motion becomes en
   screen.getByRole('button', { name: 'Rose theme' }).focus();
 
   fireEvent.keyDown(toolbar, { key: 'ArrowRight' });
+
   expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+
   shouldReduceMotion = true;
   fireEvent.keyDown(toolbar, { key: 'Home' });
 

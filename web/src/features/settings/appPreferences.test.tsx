@@ -27,8 +27,11 @@ afterEach(() => {
 it('persists changes and updates subscribed readers immediately', () => {
   render(<PreferenceReader />);
   act(() => setAppPreferences({ messageTextSize: 20, timeFormat: 'h23' }));
+
   expect(screen.getByText('20 / h23')).toBeTruthy();
+
   const saved = JSON.parse(localStorage.getItem(APP_PREFERENCES_KEY)!);
+
   expect(saved.messageTextSize).toBe(20);
   expect(saved.timeFormat).toBe('h23');
 });
@@ -42,8 +45,11 @@ it('keeps time readers subscribed only to time-format changes', () => {
   });
 
   act(() => setAppPreferences({ messageTextSize: 20 }));
+
   expect(observedFormats).toEqual(['h12']);
+
   act(() => setAppPreferences({ timeFormat: 'h23' }));
+
   expect(view.result.current).toBe('h23');
 });
 
@@ -61,6 +67,7 @@ it('recovers invalid stored fields while preserving valid preferences from anoth
     }),
   );
   act(() => window.dispatchEvent(new StorageEvent('storage', { key: APP_PREFERENCES_KEY })));
+
   expect(screen.getByText('16 / h23')).toBeTruthy();
   expect(getAppPreferences().shouldAutoplayVideos).toBe(false);
   expect(getAppPreferences().shouldUseLargeEmoji).toBe(false);

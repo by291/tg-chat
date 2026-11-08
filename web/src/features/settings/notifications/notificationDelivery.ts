@@ -23,14 +23,17 @@ export async function playNotificationSound({
   if (volume <= 0 || (!isPreview && Date.now() - lastSoundTime < SOUND_COOLDOWN)) {
     return;
   }
+
   lastSoundTime = Date.now();
   const source = isSent ? '/assets/audio/message_sent.mp3' : '/assets/audio/notification.mp3';
+
   try {
     let sound = sounds.get(source);
     if (!sound) {
       sound = new Audio(source);
       sounds.set(source, sound);
     }
+
     sound.volume = Math.min(1, Math.max(0, volume / VOLUME_SCALE));
     sound.currentTime = 0;
     await sound.play();
@@ -54,6 +57,7 @@ export function showMessageNotification({
   if (getNotificationPermission() !== 'granted') {
     return;
   }
+
   try {
     const notification = new Notification(title, {
       body,
@@ -65,6 +69,7 @@ export function showMessageNotification({
       window.focus();
       onOpen(chatId);
     };
+
     return notification;
   } catch {
     // Some browsers expose Notification but require a service worker to construct one.

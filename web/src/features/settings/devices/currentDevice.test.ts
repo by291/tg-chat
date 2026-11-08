@@ -12,6 +12,7 @@ it('distinguishes Edge from its embedded Chrome user agent', () => {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0',
     maxTouchPoints: 0,
   });
+
   expect(device).toEqual({ browser: 'Microsoft Edge 130', system: 'Windows' });
 });
 
@@ -20,6 +21,7 @@ it('recognizes an iPad using a desktop Safari user agent', () => {
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X) Version/18.0 Safari/605.1.15',
     maxTouchPoints: 5,
   });
+
   expect(device).toEqual({ browser: 'Safari 18', system: 'iPadOS' });
 });
 
@@ -44,6 +46,7 @@ it('reports blocked storage without crashing device settings', () => {
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new Error('Storage blocked');
   });
+
   expect(readDeviceName()).toBe('');
   expect(saveDeviceName('Work browser')).toBe(false);
 });

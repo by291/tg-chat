@@ -18,12 +18,13 @@ const categorySchema = z.object({
   shouldNotify: z.boolean().catch(true),
   shouldShowPreview: z.boolean().catch(true),
 });
+const notificationVolumeSchema = z.number().min(0).max(100);
 const preferencesSchema = z.object({
   shouldShowNotifications: z.boolean().catch(true),
   shouldShowOfflineNotifications: z.boolean().catch(true),
   shouldPlaySound: z.boolean().catch(true),
   shouldPlaySentSound: z.boolean().catch(true),
-  volume: z.number().min(0).max(100).catch(DEFAULT_NOTIFICATION_VOLUME),
+  volume: notificationVolumeSchema.catch(DEFAULT_NOTIFICATION_VOLUME),
   private: categorySchema.catch(DEFAULT_NOTIFICATION_PREFERENCES.private),
   group: categorySchema.catch(DEFAULT_NOTIFICATION_PREFERENCES.group),
   channel: categorySchema.catch(DEFAULT_NOTIFICATION_PREFERENCES.channel),

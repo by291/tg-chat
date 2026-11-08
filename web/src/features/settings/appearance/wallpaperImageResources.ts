@@ -16,6 +16,8 @@ function releaseUnusedResource(imageId: string, resource: WallpaperImageResource
     URL.revokeObjectURL(resource.url);
     resource.url = undefined;
   }
+
+  // A newer acquisition may already own this identifier while an older decode finishes.
   if (resources.get(imageId) === resource) {
     resources.delete(imageId);
   }
@@ -26,12 +28,16 @@ async function decodeWallpaper(imageId: string, resource: WallpaperImageResource
   if (!blob) {
     throw new Error('This wallpaper is unavailable. Choose another image or reset the background.');
   }
+
   const url = URL.createObjectURL(blob);
+
   try {
     const image = new Image();
     image.src = url;
     await image.decode();
     resource.url = url;
+
+    // All consumers may have released their ownership while decoding was still pending.
     releaseUnusedResource(imageId, resource);
   } catch (error) {
     URL.revokeObjectURL(url);
@@ -50,15 +56,19 @@ export function acquireWallpaperImage(imageId: string) {
     resources.set(imageId, resource);
     resource.ready = decodeWallpaper(imageId, resource);
   }
+
   resource.users += 1;
   const retained = resource;
   let isReleased = false;
+
   return {
     ready: retained.ready,
     release: () => {
       if (isReleased) {
         return;
       }
+
+      // Repeated cleanup must not release another consumer's ownership.
       isReleased = true;
       retained.users -= 1;
       releaseUnusedResource(imageId, retained);

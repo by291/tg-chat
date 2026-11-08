@@ -60,6 +60,7 @@ export function useArchiveActions({
       setConfirmation('discard-settings');
       return;
     }
+
     setIsSettingsOpen(false);
   }
 

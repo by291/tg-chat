@@ -26,6 +26,7 @@ export function isConversationMuted({
 }) {
   const choice = state.conversationPreferences?.[conversation.id];
   const hasExpired = Boolean(choice?.mutedUntil && choice.mutedUntil <= now);
+
   return (choice?.isMuted ?? conversation.isMuted ?? false) && !hasExpired;
 }
 
@@ -40,13 +41,20 @@ export function resolveMessageNotification({
   if (message.authorId === CURRENT_USER_ID || message.isService || isChatVisible) {
     return;
   }
+
   const conversation = getConversations(state).find((entry) => entry.id === message.chatId);
   const isDeleted = state.conversationPreferences?.[message.chatId]?.isDeleted;
   if (!conversation || conversation.kind === 'saved' || isDeleted) {
     return;
   }
+
   const category = preferences[conversation.kind ?? 'group'];
-  if (!category.shouldNotify || isConversationMuted({ state, conversation, now })) {
+  const isMuted = isConversationMuted({
+    state,
+    conversation,
+    now,
+  });
+  if (!category.shouldNotify || isMuted) {
     return;
   }
 
@@ -57,6 +65,7 @@ export function resolveMessageNotification({
       body = `${message.authorName}: ${body}`;
     }
   }
+
   return {
     title: conversation.title,
     body,

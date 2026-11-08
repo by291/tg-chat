@@ -91,12 +91,14 @@ it('reorders visible pinned identities without moving children across virtual ro
   await user.keyboard('[ArrowDown]');
   await waitFor(() => {
     const target = screen.getByRole('button', { name: 'second' }).parentElement;
+
     expect(target?.getAttribute('data-drop-target')).toBe('true');
   });
   await user.keyboard('[Space]');
   await waitFor(() => {
     expect(screen.getByLabelText('Pinned order').textContent).toBe('offscreen,second,first');
   });
+
   expect(firstButton.closest('[data-test-row]')).toBe(firstWrapper);
   expect(firstWrapper?.getAttribute('data-test-row')).toBe('first');
 });

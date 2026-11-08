@@ -38,6 +38,7 @@ export function DevicesSettingsPage({ onBack }: { onBack: () => void }) {
       showToast('Could not save the device name on this browser.');
       return;
     }
+
     setDeviceName(name);
     setIsRenameOpen(false);
   }

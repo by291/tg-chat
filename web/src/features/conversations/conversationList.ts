@@ -64,6 +64,7 @@ export function resolveConversationEntries({
     if (first.isPinned && second.isPinned) {
       return first.pinnedOrder - second.pinnedOrder;
     }
+
     return 0;
   });
 }
@@ -76,5 +77,6 @@ export function getDeleteConversationLabel(conversation: Conversation): string {
   if (conversation.kind === 'channel') {
     return 'Leave Channel';
   }
+
   return 'Delete Chat';
 }

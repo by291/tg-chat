@@ -35,11 +35,13 @@ it('copies the email exactly and prefixes the copied username with an at sign', 
   render(<SettingsAccountDetails profile={profile} />);
 
   await user.click(screen.getByRole('button', { name: 'alex@example.com Email' }));
+
   expect(await navigator.clipboard.readText()).toBe('alex@example.com');
   expect(screen.getByRole('status').textContent).toBe('Email copied to clipboard');
 
   await user.keyboard('{Escape}');
   await user.click(screen.getByRole('button', { name: 'alex_demo Username' }));
+
   expect(await navigator.clipboard.readText()).toBe('@alex_demo');
   expect(screen.getByRole('status').textContent).toBe('Username copied to clipboard');
 });
@@ -49,10 +51,12 @@ it('copies from the context menu and keeps failures visible', async () => {
   render(<SettingsAccountDetails profile={profile} />);
   fireEvent.contextMenu(screen.getByRole('button', { name: 'alex@example.com Email' }));
   await user.click(await screen.findByRole('menuitem', { name: 'Copy Email' }));
+
   expect(await navigator.clipboard.readText()).toBe('alex@example.com');
 
   await user.keyboard('{Escape}');
   vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('Clipboard unavailable'));
   await user.click(screen.getByRole('button', { name: 'alex_demo Username' }));
+
   expect(screen.getByRole('status').textContent).toBe('Could not copy username');
 });

@@ -53,6 +53,7 @@ function getArchiveMenuItems({
       icon: MailCheck,
     });
   }
+
   items.push(
     {
       action: 'settings',
@@ -65,6 +66,7 @@ function getArchiveMenuItems({
       icon: HelpCircle,
     },
   );
+
   return items;
 }
 

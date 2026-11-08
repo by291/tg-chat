@@ -38,11 +38,14 @@ it('refreshes every consumer at successive mute deadlines without another state 
   );
 
   expect(screen.getByLabelText('dev').textContent).toBe('muted');
+
   act(() => vi.advanceTimersByTime(FIRST_MUTE_DURATION));
+
   expect(screen.getByLabelText('dev').textContent).toBe('unmuted');
   expect(screen.getByLabelText('design').textContent).toBe('muted');
 
   act(() => vi.advanceTimersByTime(SECOND_MUTE_DURATION - FIRST_MUTE_DURATION));
+
   expect(screen.getByLabelText('design').textContent).toBe('unmuted');
 });
 
@@ -61,5 +64,6 @@ it('refreshes an expired mute after a background pause when the window regains f
     vi.setSystemTime(INITIAL_TIME + SECOND_MUTE_DURATION);
     window.dispatchEvent(new Event('focus'));
   });
+
   expect(screen.getByLabelText('dev').textContent).toBe('unmuted');
 });

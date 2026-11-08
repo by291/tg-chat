@@ -13,6 +13,7 @@ export interface PreviewAnchor {
 export function readPreviewAnchor(element: HTMLElement): PreviewAnchor {
   const row = element.getBoundingClientRect();
   const sidebar = element.closest('aside')?.getBoundingClientRect();
+
   return {
     left: row.left,
     right: sidebar?.right ?? row.right,

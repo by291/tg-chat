@@ -25,16 +25,21 @@ it('retains the search shell while releasing closed results after their exit tra
   };
   const view = render(<SidebarSearchResults {...props} isSearching={false} />);
   const shell = view.container.querySelector('nav')!;
+
   expect(shell.querySelectorAll('button')).toHaveLength(0);
 
   view.rerender(<SidebarSearchResults {...props} isSearching />);
   const results = screen.getByRole('navigation', { name: 'Search results' });
   fireEvent.click(within(results).getByRole('button', { name: /^dev/ }));
+
   expect(onSelectChat).toHaveBeenCalledWith('dev');
 
   view.rerender(<SidebarSearchResults {...props} isSearching={false} />);
+
   expect(shell.querySelectorAll('button').length).toBeGreaterThan(0);
+
   act(() => vi.advanceTimersByTime(EXIT_SETTLE_TIME));
+
   expect(view.container.querySelector('nav')).toBe(shell);
   expect(shell.querySelectorAll('button')).toHaveLength(0);
 });
@@ -69,6 +74,8 @@ it('keeps a focused result available for activation when scrolling a large resul
   expect(firstResult.isConnected).toBe(true);
   expect(document.activeElement).toBe(firstResult);
   expect(within(results).getAllByRole('button').length).toBeLessThan(resultCount);
+
   fireEvent.click(firstResult);
+
   expect(onSelectChat).toHaveBeenCalledWith('result-0');
 });

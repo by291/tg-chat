@@ -122,6 +122,7 @@ export function SettingsRange({
 }: SettingsRangeProps) {
   const progress = ((value - minimum) / (maximum - minimum)) * PERCENTAGE_SCALE;
   const rangeStyle = { '--range-progress': `${progress}%` } as CSSProperties;
+
   return (
     <label className={styles.range} data-settings-label={label}>
       <span className={styles.rangeDetails}>

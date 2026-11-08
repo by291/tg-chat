@@ -35,9 +35,12 @@ it('suppresses self messages, service messages, and the chat being read', () => 
 it('honors category switches and hides message text when previews are disabled', () => {
   const preferences = structuredClone(DEFAULT_NOTIFICATION_PREFERENCES);
   preferences.group.shouldNotify = false;
+
   expect(resolve({ preferences })).toBeUndefined();
+
   preferences.group.shouldNotify = true;
   preferences.group.shouldShowPreview = false;
+
   expect(resolve({ preferences })?.body).toBe('New message');
   expect(resolve()?.body).toContain('A new message');
 });
@@ -45,8 +48,11 @@ it('honors category switches and hides message text when previews are disabled',
 it('respects individual mute deadlines and excludes deleted conversations', () => {
   const state = createInitialState();
   state.conversationPreferences = { dev: { isMuted: true, mutedUntil: 300 } };
+
   expect(resolve({ state, now: 200 })).toBeUndefined();
   expect(resolve({ state, now: 301 })?.body).toContain('A new message');
+
   state.conversationPreferences.dev = { isDeleted: true };
+
   expect(resolve({ state })).toBeUndefined();
 });

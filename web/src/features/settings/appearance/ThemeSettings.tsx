@@ -57,6 +57,7 @@ function movePickerFocus(event: KeyboardEvent<HTMLDivElement>) {
   if (!keys.includes(event.key)) {
     return;
   }
+
   const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
   const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
   let nextIndex = event.key === 'ArrowLeft' ? currentIndex - 1 : currentIndex + 1;
@@ -65,6 +66,7 @@ function movePickerFocus(event: KeyboardEvent<HTMLDivElement>) {
   } else if (event.key === 'End') {
     nextIndex = buttons.length - 1;
   }
+
   event.preventDefault();
   const button = buttons[(nextIndex + buttons.length) % buttons.length];
   button?.focus({ preventScroll: true });
@@ -118,6 +120,7 @@ export function ThemeSettings() {
             '--preview-incoming': palette.variables['--incoming-color'],
             '--preview-outgoing': palette.outgoing,
           } as CSSProperties;
+
           return (
             <button
               key={theme.id}

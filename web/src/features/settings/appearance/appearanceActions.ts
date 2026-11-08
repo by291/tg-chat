@@ -19,6 +19,7 @@ interface AppearanceChange {
 
 async function retainPreparedImage(imageId: string) {
   const resource = acquireWallpaperImage(imageId);
+
   try {
     await resource.ready;
     return resource.release;
@@ -32,6 +33,7 @@ function applyAppearanceChange({ choice, apply, origin }: AppearanceChange) {
   const wallpaper = choice.wallpaper;
   const prepare =
     wallpaper?.kind === 'image' ? () => retainPreparedImage(wallpaper.imageId) : undefined;
+
   return runThemeTransition({
     isDark: document.documentElement.dataset.theme === 'dark',
     origin,
@@ -51,6 +53,7 @@ function applyAppearanceChange({ choice, apply, origin }: AppearanceChange) {
 export function selectAppearanceMode(mode: AppearanceMode, origin?: ThemeOrigin) {
   const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const variant = resolveThemeVariant({ mode, isSystemDark });
+
   return applyAppearanceChange({
     choice: getAppearance().choices[variant],
     apply: () => setAppearanceMode(mode),

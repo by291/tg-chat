@@ -215,6 +215,7 @@ function buildSearchItems(): SettingsSearchItem[] {
       });
     }
   }
+
   return items;
 }
 
@@ -225,6 +226,7 @@ function matchScore(item: SettingsSearchItem, query: string) {
   if (title.startsWith(query)) {
     return 0;
   }
+
   return title.includes(query) ? 1 : 2;
 }
 
@@ -234,6 +236,7 @@ export function searchSettings(query: string): SettingsSearchItem[] {
   if (!normalized) {
     return [];
   }
+
   const words = normalized.split(/\s+/);
   const matches = SETTINGS_SEARCH_ITEMS.filter((item) => {
     const searchable = `${item.title} ${item.path} ${item.keywords}`.toLowerCase();
@@ -246,6 +249,7 @@ export function searchSettings(query: string): SettingsSearchItem[] {
     group.push(item);
     groups.set(item.category, group);
   }
+
   return Array.from(groups.values()).flat();
 }
 
@@ -256,8 +260,10 @@ export function readRecentSettings(): string[] {
     if (!Array.isArray(saved)) {
       return [];
     }
+
     const knownIds = new Set(SETTINGS_SEARCH_ITEMS.map((item) => item.id));
     const validIds = saved.filter((id): id is string => typeof id === 'string' && knownIds.has(id));
+
     return Array.from(new Set(validIds)).slice(0, MAX_RECENT_SETTINGS);
   } catch {
     return [];
@@ -268,6 +274,7 @@ export function readRecentSettings(): string[] {
 export function rememberSetting(id: string) {
   const recent = readRecentSettings().filter((entry) => entry !== id);
   const updated = [id, ...recent].slice(0, MAX_RECENT_SETTINGS);
+
   try {
     localStorage.setItem(RECENT_SETTINGS_KEY, JSON.stringify(updated));
   } catch {

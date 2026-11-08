@@ -27,6 +27,7 @@ export function createProfileWheelGesture() {
       samples.length = 0;
       isInertia = false;
     }
+
     previousDirection = direction;
     samples.push({ time, magnitude: Math.abs(delta) });
     if (samples.length > MAX_SAMPLES) {
@@ -46,6 +47,7 @@ export function createProfileWheelGesture() {
         decayCount += Number(samples[i].magnitude < samples[i - 1].magnitude);
       }
     }
+
     const meanMagnitude = totalMagnitude / samples.length;
     const meanInterval = totalInterval / (samples.length - 1);
     const decayRatio = decayCount / (samples.length - 1);
@@ -53,17 +55,21 @@ export function createProfileWheelGesture() {
     for (const sample of samples) {
       variance += (sample.magnitude - meanMagnitude) ** 2;
     }
+
     const deviation = Math.sqrt(variance / samples.length);
     const hasDecayingMomentum =
       meanInterval < INERTIA_INTERVAL &&
       decayRatio > INERTIA_DECAY_RATIO &&
       deviation < meanMagnitude * INERTIA_SPREAD_RATIO;
     const hasDeliberateInput = meanMagnitude > INPUT_MAGNITUDE && decayRatio < INPUT_DECAY_RATIO;
+
+    // Ambiguous samples keep the prior classification instead of toggling during momentum.
     if (hasDecayingMomentum) {
       isInertia = true;
     } else if (hasDeliberateInput) {
       isInertia = false;
     }
+
     return isInertia;
   };
 }

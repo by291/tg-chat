@@ -18,6 +18,7 @@ it('preserves each mode selection and restores it after reload', async () => {
   });
   vi.resetModules();
   const restored = await import('./appearanceStore');
+
   expect(restored.getAppearance().mode).toBe('night');
   expect(restored.getAppearance().choices.classic.themeId).toBe('rose');
   expect(restored.getAppearance().choices.night.wallpaper).toEqual({
@@ -30,8 +31,11 @@ it('resolves system mode and toggles back to the last chosen opposite variant', 
   const appearance = await import('./appearanceStore');
   appearance.setAppearanceMode('day');
   appearance.setAppearanceMode('dark');
+
   expect(appearance.getOppositeMode({ isDark: true })).toBe('day');
+
   appearance.setAppearanceMode('system');
+
   expect(appearance.resolveThemeVariant({ mode: 'system', isSystemDark: true })).toBe('dark');
   expect(appearance.resolveThemeVariant({ mode: 'system', isSystemDark: false })).toBe('day');
 });
@@ -50,6 +54,7 @@ it('recovers malformed choices without discarding valid modes', async () => {
   );
   vi.resetModules();
   const restored = await import('./appearanceStore');
+
   expect(restored.getAppearance().mode).toBe('night');
   expect(restored.getAppearance().choices.night.themeId).toBe('rose');
   expect(restored.getAppearance().choices.classic.wallpaper).toBeNull();
@@ -60,6 +65,7 @@ it('keeps the current session usable when persistence is unavailable', async () 
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new Error('Storage unavailable');
   });
+
   expect(appearance.setAppearanceMode('night')).toBe(false);
   expect(appearance.getAppearance().mode).toBe('night');
 });
@@ -67,8 +73,11 @@ it('keeps the current session usable when persistence is unavailable', async () 
 it('migrates the old dark preference only before appearance has been chosen', async () => {
   const appearance = await import('./appearanceStore');
   appearance.migrateLegacyAppearance({ isDark: true });
+
   expect(appearance.getAppearance().mode).toBe('night');
+
   appearance.setAppearanceMode('day');
   appearance.migrateLegacyAppearance({ isDark: true });
+
   expect(appearance.getAppearance().mode).toBe('day');
 });

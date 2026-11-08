@@ -48,6 +48,7 @@ export function StickerSettingsPage({ onBack }: { onBack: () => void }) {
         ? getOrderedStickerPacks(preferences.stickerPackOrder).map((pack) => pack.id)
         : CUSTOM_EMOJI_PACKS.map((pack) => pack.id);
     const packs = packIds.flatMap((id) => INSTALLED_PACKS.filter((pack) => pack.id === id));
+
     return (
       <section className={settings.section} aria-label={title}>
         <h3>{title}</h3>

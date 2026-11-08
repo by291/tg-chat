@@ -11,6 +11,7 @@ export interface CurrentDevice {
   system: string;
 }
 
+// Chromium-based browsers include Chrome in their agent string, so test their brands first.
 const BROWSER_PATTERNS = [
   { pattern: /(?:Edg|EdgA|EdgiOS)\/([\d.]+)/, name: 'Microsoft Edge' },
   { pattern: /(?:OPR|Opera)\/([\d.]+)/, name: 'Opera' },
@@ -26,6 +27,7 @@ function describeBrowser(userAgent: string) {
       return `${browser.name} ${match[1].split('.')[0]}`;
     }
   }
+
   return 'Web browser';
 }
 
@@ -52,6 +54,7 @@ function describeSystem({ userAgent, maxTouchPoints }: BrowserEnvironment) {
   if (/Linux/.test(userAgent)) {
     return 'Linux';
   }
+
   return 'Unknown system';
 }
 
@@ -75,6 +78,7 @@ export function readDeviceName() {
 /** Save only the local device label; an empty label restores the browser-derived name. */
 export function saveDeviceName(name: string) {
   const normalizedName = name.trim().slice(0, MAX_DEVICE_NAME_LENGTH);
+
   try {
     localStorage.setItem(DEVICE_NAME_KEY, normalizedName);
     return true;

@@ -87,6 +87,7 @@ export function VirtualConversationList({
   if (archiveEntry) {
     rows.unshift({ key: ARCHIVE_ROW_KEY, kind: 'archive' });
   }
+
   const rowKeys = rows.map((row) => row.key);
   const getItemKey = useCallback((index: number) => rowKeys[index], [rowKeys]);
   const virtualizer = useVirtualizer({
@@ -112,17 +113,27 @@ export function VirtualConversationList({
     rowHeight: ROW_HEIGHT,
   });
 
-  useLayoutEffect(() => {
-    previousKeysRef.current = rowKeys;
-    if (scrollAdjustment === undefined || scrollAdjustment === 0) {
-      return;
-    }
+  useLayoutEffect(
+    () => {
+      previousKeysRef.current = rowKeys;
+      if (scrollAdjustment === undefined || scrollAdjustment === 0) {
+        return;
+      }
 
-    // Offscreen insertions or removals move the viewport instead of animating its entire contents.
-    const maximumOffset = Math.max(0, virtualizer.getTotalSize() - viewportHeight);
-    const nextOffset = Math.max(0, Math.min(scrollTop + scrollAdjustment, maximumOffset));
-    virtualizer.scrollToOffset(nextOffset);
-  }, [rowKeys, scrollAdjustment, scrollTop, viewportHeight, virtualizer]);
+      // Offscreen changes adjust the viewport rather than animate all visible rows.
+      const maximumOffset = Math.max(0, virtualizer.getTotalSize() - viewportHeight);
+      const nextOffset = Math.max(0, Math.min(scrollTop + scrollAdjustment, maximumOffset));
+      virtualizer.scrollToOffset(nextOffset);
+    },
+    // prettier-ignore
+    [
+      rowKeys,
+      scrollAdjustment,
+      scrollTop,
+      viewportHeight,
+      virtualizer,
+    ],
+  );
 
   useEffect(() => {
     return () => {
@@ -140,6 +151,7 @@ export function VirtualConversationList({
     if (target.closest('[data-sort-handle]')) {
       return;
     }
+
     const row = target.closest<HTMLElement>('[data-conversation-index]');
     if (!row) {
       return;
@@ -170,6 +182,7 @@ export function VirtualConversationList({
     if (focusFrameRef.current !== undefined) {
       cancelAnimationFrame(focusFrameRef.current);
     }
+
     // The target can be outside the mounted window until the virtualizer commits its scroll.
     focusFrameRef.current = requestAnimationFrame(() => {
       const selector = `[data-conversation-index="${nextIndex}"] button`;
@@ -204,7 +217,9 @@ export function VirtualConversationList({
               </VirtualConversationRow>
             );
           }
+
           const conversation = row.conversation;
+
           return (
             <VirtualConversationRow
               key={row.key}
@@ -221,6 +236,7 @@ export function VirtualConversationList({
       </div>
     </nav>
   );
+
   return (
     <PinnedConversationSorting pinnedIds={pinnedIds} onReorder={onReorderPinned}>
       {list}

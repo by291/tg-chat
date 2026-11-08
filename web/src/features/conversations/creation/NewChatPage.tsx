@@ -51,6 +51,7 @@ export function NewChatPage({
     if (!name) {
       return;
     }
+
     const conversation: Conversation = {
       id: `local-${crypto.randomUUID()}`,
       kind: isGroup ? 'group' : 'channel',
@@ -85,6 +86,7 @@ export function NewChatPage({
               setIsNaming(false);
               return;
             }
+
             onBack();
           }}
         >
@@ -140,6 +142,7 @@ export function NewChatPage({
                     toggleContact(contact.id);
                     return;
                   }
+
                   onSelectChat(contact.id);
                 }}
               >

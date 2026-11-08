@@ -53,6 +53,7 @@ export function SettingsSearchPanel({
       onClose();
       return;
     }
+
     setQuery('');
     inputRef.current?.focus();
   }
@@ -103,6 +104,7 @@ export function SettingsSearchPanel({
               const category = SETTINGS_CATEGORIES.find((entry) => entry.id === item.category)!;
               const Icon = category.icon;
               const isFirstInCategory = index === 0 || items[index - 1].category !== item.category;
+
               return (
                 <button
                   key={item.id}

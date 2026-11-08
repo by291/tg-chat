@@ -20,6 +20,7 @@ export function ChatWallpaper({ variant, choice }: { variant: ThemeVariant; choi
     if (!imageId) {
       return;
     }
+
     const requestedImageId = imageId;
     const resource = acquireWallpaperImage(requestedImageId);
     let isCancelled = false;
@@ -35,6 +36,7 @@ export function ChatWallpaper({ variant, choice }: { variant: ThemeVariant; choi
           showToast('This wallpaper is unavailable. Choose another image or reset the background.');
         }
       });
+
     return () => {
       isCancelled = true;
       resource.release();

@@ -26,13 +26,16 @@ it('updates the document when system brightness changes without changing the sel
   }));
   setAppearanceMode('system');
   render(<ThemeRoot />);
+
   expect(document.documentElement.dataset.theme).toBe('light');
+
   act(() => {
     isSystemDark = true;
     for (const notify of listeners) {
       notify();
     }
   });
+
   expect(document.documentElement.dataset.theme).toBe('dark');
   expect(document.documentElement.style.getPropertyValue('--surface-color')).not.toBe('#ffffff');
 });

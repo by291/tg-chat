@@ -21,9 +21,21 @@ import overlays from '@/components/overlays/overlays.module.css';
 import dialogs from '@/components/overlays/dialogs.module.css';
 
 const NOTIFICATION_CATEGORIES = [
-  { kind: 'private', title: 'Private Chats', label: 'Notifications for private chats' },
-  { kind: 'group', title: 'Groups', label: 'Notifications for groups' },
-  { kind: 'channel', title: 'Channels', label: 'Notifications for channels' },
+  {
+    kind: 'private',
+    title: 'Private Chats',
+    label: 'Notifications for private chats',
+  },
+  {
+    kind: 'group',
+    title: 'Groups',
+    label: 'Notifications for groups',
+  },
+  {
+    kind: 'channel',
+    title: 'Channels',
+    label: 'Notifications for channels',
+  },
 ] as const;
 
 export interface NotificationChatActions {
@@ -41,6 +53,7 @@ function savePreferences(changes: Partial<NotificationPreferences>) {
   if (!isSaved) {
     showToast('Notifications changed, but could not be saved on this device.');
   }
+
   return isSaved;
 }
 
@@ -63,6 +76,7 @@ export function NotificationSettingsPage({
     const refreshPermission = () => setPermission(getNotificationPermission());
     window.addEventListener('focus', refreshPermission);
     document.addEventListener('visibilitychange', refreshPermission);
+
     return () => {
       window.removeEventListener('focus', refreshPermission);
       document.removeEventListener('visibilitychange', refreshPermission);
@@ -73,7 +87,9 @@ export function NotificationSettingsPage({
     if (permission === 'unsupported' || isRequesting) {
       return;
     }
+
     setIsRequesting(true);
+
     try {
       const nextPermission = await Notification.requestPermission();
       setPermission(nextPermission);

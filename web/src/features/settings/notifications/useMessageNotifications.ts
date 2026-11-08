@@ -31,49 +31,64 @@ export function useMessageNotifications({
       for (const notification of activeNotifications.values()) {
         notification.close();
       }
+
       activeNotifications.clear();
     };
   }, []);
 
-  useEffect(() => {
-    function dismissReadNotifications() {
-      const isForeground = document.visibilityState === 'visible' && document.hasFocus();
-      const shouldDismissActive = isForeground && isConversationVisible;
-      for (const [chatId, notification] of notifications.current) {
-        const isActiveChat = shouldDismissActive && state.activeChatId === chatId;
-        if (!preferences.shouldShowNotifications || isActiveChat) {
-          notification.close();
-          notifications.current.delete(chatId);
+  useEffect(
+    () => {
+      function dismissReadNotifications() {
+        const isForeground = document.visibilityState === 'visible' && document.hasFocus();
+        const shouldDismissActive = isForeground && isConversationVisible;
+        for (const [chatId, notification] of notifications.current) {
+          const isActiveChat = shouldDismissActive && state.activeChatId === chatId;
+          if (!preferences.shouldShowNotifications || isActiveChat) {
+            notification.close();
+            notifications.current.delete(chatId);
+          }
         }
       }
-    }
 
-    dismissReadNotifications();
-    window.addEventListener('focus', dismissReadNotifications);
-    document.addEventListener('visibilitychange', dismissReadNotifications);
-    return () => {
-      window.removeEventListener('focus', dismissReadNotifications);
-      document.removeEventListener('visibilitychange', dismissReadNotifications);
-    };
-  }, [state.activeChatId, isConversationVisible, preferences.shouldShowNotifications]);
+      dismissReadNotifications();
+      window.addEventListener('focus', dismissReadNotifications);
+      document.addEventListener('visibilitychange', dismissReadNotifications);
+
+      return () => {
+        window.removeEventListener('focus', dismissReadNotifications);
+        document.removeEventListener('visibilitychange', dismissReadNotifications);
+      };
+    },
+    // prettier-ignore
+    [
+      state.activeChatId,
+      isConversationVisible,
+      preferences.shouldShowNotifications,
+    ],
+  );
 
   const notifyNewMessages = useEffectEvent(() => {
     if (!seenIds.current) {
       seenIds.current = new Set(state.messages.map((message) => message.id));
       return;
     }
+
     const isForeground = document.visibilityState === 'visible' && document.hasFocus();
     for (const message of state.messages) {
       if (seenIds.current.has(message.id)) {
         continue;
       }
+
+      // Record arrival before policy checks so a later preference change cannot replay it.
       seenIds.current.add(message.id);
       if (message.authorId === CURRENT_USER_ID) {
         if (preferences.shouldPlaySentSound && isForeground) {
           void playNotificationSound({ volume: preferences.volume, isSent: true });
         }
+
         continue;
       }
+
       const details = resolveMessageNotification({
         state,
         preferences,
@@ -91,6 +106,7 @@ export function useMessageNotifications({
       if (!preferences.shouldShowNotifications) {
         continue;
       }
+
       const notification = showMessageNotification({
         ...details,
         onOpen: (chatId) => openRef.current(chatId),

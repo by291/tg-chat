@@ -13,15 +13,38 @@ const SHORTCUT_ROW_HEIGHT = 54;
 const SEND_OPTION_HEIGHT = 40;
 const SEND_MENU_PADDING = 4;
 
-const KEY_LABELS: Record<string, { apple: string; other: string; accessible?: string }> = {
+const KEY_LABELS: Record<
+  string,
+  {
+    apple: string;
+    other: string;
+    accessible?: string;
+  }
+> = {
   modifier: { apple: '⌘', other: 'Ctrl' },
   shift: { apple: '⇧', other: 'Shift' },
   alt: { apple: '⌥', other: 'Alt' },
   enter: { apple: '↵', other: 'Enter' },
-  up: { apple: '↑', other: '↑', accessible: 'Up arrow' },
-  down: { apple: '↓', other: '↓', accessible: 'Down arrow' },
-  left: { apple: '←', other: '←', accessible: 'Left arrow' },
-  right: { apple: '→', other: '→', accessible: 'Right arrow' },
+  up: {
+    apple: '↑',
+    other: '↑',
+    accessible: 'Up arrow',
+  },
+  down: {
+    apple: '↓',
+    other: '↓',
+    accessible: 'Down arrow',
+  },
+  left: {
+    apple: '←',
+    other: '←',
+    accessible: 'Left arrow',
+  },
+  right: {
+    apple: '→',
+    other: '→',
+    accessible: 'Right arrow',
+  },
 };
 
 const FORMATTING_SHORTCUTS = [
@@ -37,15 +60,21 @@ const FORMATTING_SHORTCUTS = [
 function KeyCombo({ keys }: { keys: string[] }) {
   const isApple = isAppleKeyboard();
   const labels = keys.map((key) => {
-    const labels = KEY_LABELS[key];
-    return labels ? (isApple ? labels.apple : labels.other) : key;
+    const platformLabels = KEY_LABELS[key];
+    if (!platformLabels) {
+      return key;
+    }
+
+    return isApple ? platformLabels.apple : platformLabels.other;
   });
   const accessibleKeys = keys.map((key) => {
     if (key === 'modifier') {
       return isApple ? 'Command' : 'Control';
     }
+
     return KEY_LABELS[key]?.accessible ?? KEY_LABELS[key]?.other ?? key;
   });
+
   return (
     <span className={styles.keys} aria-label={accessibleKeys.join(' + ')}>
       {labels.map((label, index) => (
@@ -118,6 +147,7 @@ function SendShortcutRow() {
     SEND_OPTION_HEIGHT / 2 +
     selectedOptionOffset
   );
+
   return (
     <Menu.Root
       open={isOpen}
@@ -177,7 +207,14 @@ export function KeyboardSettingsPage({ onBack }: { onBack: () => void }) {
   const sendShortcut = useAppPreferences((preferences) => preferences.sendShortcut);
   const newLineKeys = sendShortcut === 'ctrlEnter' ? ['enter'] : ['shift', 'enter'];
   const modifierKeys = ['modifier'];
+  // prettier-ignore
+  const redoKeys = [
+    ...modifierKeys,
+    'shift',
+    'Z',
+  ];
   const monospaceModifiers = isAppleKeyboard() ? ['modifier', 'shift'] : modifierKeys;
+
   return (
     <section className={settings.page} aria-label="Keyboard Shortcuts">
       <SettingsHeader
@@ -240,7 +277,7 @@ export function KeyboardSettingsPage({ onBack }: { onBack: () => void }) {
           caption="Media editing is not available in this app yet."
         >
           <ShortcutRow label="Undo" keys={['modifier', 'Z']} isUnavailable />
-          <ShortcutRow label="Redo" keys={[...modifierKeys, 'shift', 'Z']} isUnavailable />
+          <ShortcutRow label="Redo" keys={redoKeys} isUnavailable />
         </ShortcutSection>
         <ShortcutSection title="Other">
           <ShortcutRow label="Lock by passcode" keys={['—']} isUnavailable />

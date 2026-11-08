@@ -19,12 +19,15 @@ export async function prepareWallpaperImage(file: File): Promise<Blob> {
   if (file.size > MAXIMUM_UPLOAD_BYTES) {
     throw new Error('Choose an image smaller than 20 MB.');
   }
+
   let bitmap: ImageBitmap;
+
   try {
     bitmap = await createImageBitmap(file);
   } catch {
     throw new Error('This image could not be opened.');
   }
+
   try {
     const scale = Math.min(1, MAXIMUM_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement('canvas');
@@ -34,9 +37,11 @@ export async function prepareWallpaperImage(file: File): Promise<Blob> {
     if (!context) {
       throw new Error('This image could not be processed.');
     }
+
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
     return await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         (blob) => {
@@ -59,6 +64,7 @@ export async function prepareWallpaperImage(file: File): Promise<Blob> {
 export async function saveWallpaperImage(file: File) {
   const blob = await prepareWallpaperImage(file);
   const imageId = crypto.randomUUID();
+
   try {
     await set(`${IMAGE_KEY_PREFIX}${imageId}`, blob);
   } catch {
@@ -66,6 +72,7 @@ export async function saveWallpaperImage(file: File) {
       'Could not save this wallpaper. Check available browser storage and try again.',
     );
   }
+
   return imageId;
 }
 

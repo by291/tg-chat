@@ -11,10 +11,12 @@ function findSearchTarget(root: HTMLElement, label: string, scope?: string) {
   const candidates = searchRoot.querySelectorAll<HTMLElement>(
     '[data-settings-label], h2, h3, legend, button',
   );
+
   return Array.from(candidates).find((element) => {
     if (element.closest('[inert]')) {
       return false;
     }
+
     return element.dataset.settingsLabel === label || element.textContent?.trim() === label;
   });
 }
@@ -28,6 +30,7 @@ function scrollToTarget(root: HTMLElement, target: HTMLElement) {
       container.scrollTo?.({ top: container.scrollTop + offset - TARGET_SCROLL_MARGIN });
       return;
     }
+
     container = container.parentElement;
   }
 }
@@ -45,12 +48,15 @@ export function useSettingsSearchTarget({
     if (!root || !item?.anchor) {
       return;
     }
+
     const target = findSearchTarget(root, item.anchor, item.scope);
     if (!target) {
       return;
     }
+
     scrollToTarget(root, target);
     target.classList.add(styles.highlight);
+
     return () => target.classList.remove(styles.highlight);
   }, [rootRef, item]);
 }

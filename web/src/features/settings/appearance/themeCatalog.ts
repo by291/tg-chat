@@ -13,8 +13,16 @@ export const THEME_VARIANTS = [
 
 // Palette bundles come from tweb/src/config/themePresets.ts (Telegram iOS presets).
 export const THEME_CARDS = [
-  { id: 'default', label: 'Default', emoji: '🏠' },
-  { id: 'diamond', label: 'Diamond', emoji: '💎' },
+  {
+    id: 'default',
+    label: 'Default',
+    emoji: '🏠',
+  },
+  {
+    id: 'diamond',
+    label: 'Diamond',
+    emoji: '💎',
+  },
   ...presets,
 ];
 
@@ -101,7 +109,12 @@ export function getThemePalette({ variant, choice }: PaletteOptions) {
   }
   if (isDark && (preset || choice.themeId === 'diamond')) {
     wallpaper = wallpaper.map((color) => {
-      return multiplyThemeColor({ color, hue: 1, saturation: 0.7, brightness: 0.25 });
+      return multiplyThemeColor({
+        color,
+        hue: 1,
+        saturation: 0.7,
+        brightness: 0.25,
+      });
     });
   }
   if (variant === 'dark' && choice.accent) {
@@ -155,6 +168,7 @@ export function getThemePalette({ variant, choice }: PaletteOptions) {
   if (variant === 'dark') {
     applyDarkSurfaces({ variables, accent });
   }
+
   return {
     variables,
     wallpaper,
@@ -197,6 +211,7 @@ export function getWallpaperAppearance({ variant, choice }: PaletteOptions) {
   if (choice.wallpaper?.kind === 'color') {
     return { background: choice.wallpaper.color, hasPattern: false };
   }
+
   let wallpaperChoice = choice;
   if (choice.wallpaper?.kind === 'gradient') {
     wallpaperChoice = {
@@ -205,7 +220,9 @@ export function getWallpaperAppearance({ variant, choice }: PaletteOptions) {
       accent: null,
     };
   }
+
   const palette = getThemePalette({ variant, choice: wallpaperChoice });
+
   return {
     background: wallpaperGradient(palette.wallpaper),
     colors: palette.wallpaper,

@@ -53,8 +53,10 @@ export function ConversationPreview({
     if (!openRequest) {
       return;
     }
+
     // The anchor belongs to the old viewport; close rather than keep a detached preview.
     window.addEventListener('resize', onClose);
+
     return () => window.removeEventListener('resize', onClose);
   }, [openRequest, onClose]);
 

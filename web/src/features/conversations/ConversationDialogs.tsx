@@ -25,6 +25,7 @@ export function ConversationRemovalDialog({
   if (isDeleting && isSingle && request) {
     title = `${getDeleteConversationLabel(request.conversations[0])}?`;
   }
+
   let subject = `${request?.conversations.length ?? 0} conversations`;
   if (isSingle && request) {
     subject = `“${request.conversations[0].title}”`;

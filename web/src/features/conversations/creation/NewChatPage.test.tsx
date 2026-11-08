@@ -52,6 +52,7 @@ describe('contact selection', () => {
 
       expect(within(picker).queryByText('Maya Chen')).toBeNull();
       expect(within(picker).getByText('Alex Morgan')).toBeTruthy();
+
       fireEvent.click(screen.getByRole('button', { name: 'Add' }));
       const dialog = await screen.findByRole('dialog', { name: 'Add Contact' });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));

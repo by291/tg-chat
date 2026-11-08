@@ -10,16 +10,19 @@ export function WallpaperGradient({ colors }: { colors?: string[] }) {
     if (!colorKey || typeof CanvasRenderingContext2D === 'undefined') {
       return;
     }
+
     const context = canvasRef.current?.getContext('2d');
     if (!context) {
       return;
     }
+
     const pixels = renderGradientPixels(colorKey.split(','));
     context.putImageData(new ImageData(pixels, GRADIENT_SIZE, GRADIENT_SIZE), 0, 0);
   }, [colorKey]);
   if (!colors) {
     return null;
   }
+
   return (
     <canvas
       ref={canvasRef}

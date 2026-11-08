@@ -85,6 +85,7 @@ export function setAppearanceMode(mode: AppearanceMode) {
   if (mode === 'night' || mode === 'dark') {
     next.lastDark = mode;
   }
+
   return preferenceStore.save(next);
 }
 
@@ -117,7 +118,9 @@ export function resolveThemeVariant({
   if (mode !== 'system') {
     return mode;
   }
+
   const appearance = getAppearance();
+
   return isSystemDark ? appearance.lastDark : appearance.lastLight;
 }
 

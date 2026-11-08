@@ -84,12 +84,15 @@ it('consumes a selection made with reduced motion without replaying it later', a
   fireEvent.click(screen.getByRole('button', { name: 'Select theme' }));
 
   expect(screen.getByText('Idle')).toBeTruthy();
+
   changeReducedMotion({ shouldReduceMotion: false });
   advancePlayback();
+
   expect(animation.play).not.toHaveBeenCalled();
 
   fireEvent.click(screen.getByRole('button', { name: 'Select theme' }));
   advancePlayback();
+
   expect(animation.play).toHaveBeenCalledTimes(1);
 });
 
@@ -97,15 +100,19 @@ it('stops active playback and consumes its selection when reduced motion is enab
   await renderReadyEmoji();
   fireEvent.click(screen.getByRole('button', { name: 'Select theme' }));
   advancePlayback();
+
   expect(animation.play).toHaveBeenCalledTimes(1);
+
   animation.pause.mockClear();
 
   changeReducedMotion({ shouldReduceMotion: true });
 
   expect(animation.pause).toHaveBeenCalled();
   expect(screen.getByText('Idle')).toBeTruthy();
+
   changeReducedMotion({ shouldReduceMotion: false });
   advancePlayback();
+
   expect(animation.play).toHaveBeenCalledTimes(1);
 });
 
@@ -125,7 +132,9 @@ it('consumes a selection while sticker animation is disabled', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Select theme' }));
 
   expect(screen.getByText('Idle')).toBeTruthy();
+
   act(() => setAppPreferences({ shouldAnimateStickers: true }));
   advancePlayback();
+
   expect(animation.play).not.toHaveBeenCalled();
 });

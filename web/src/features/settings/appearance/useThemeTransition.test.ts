@@ -50,10 +50,13 @@ it('uses a document fade for settings changes without a circular origin', async 
     },
   });
   browser.callbacks[0]();
+
   expect(visibleTheme).toBe('new');
   expect(document.documentElement.dataset.themeTransition).toBe('fade');
+
   browser.transitions[0].resolve();
   await completion;
+
   expect(document.documentElement.dataset.themeTransition).toBeUndefined();
 });
 
@@ -69,6 +72,7 @@ it('keeps the old view until a new wallpaper is ready and discards a superseded 
       visibleTheme = 'image';
     },
   });
+
   expect(browser.callbacks).toHaveLength(0);
   expect(visibleTheme).toBe('old');
 
@@ -83,6 +87,7 @@ it('keeps the old view until a new wallpaper is ready and discards a superseded 
   await oldSelection;
   browser.transitions[0].resolve();
   await newSelection;
+
   expect(visibleTheme).toBe('color');
   expect(release).toHaveBeenCalledOnce();
 });
@@ -90,6 +95,7 @@ it('keeps the old view until a new wallpaper is ready and discards a superseded 
 it('retains the previous view when wallpaper preparation fails', async () => {
   installTransitions();
   const apply = vi.fn();
+
   await expect(
     runThemeTransition({
       isDark: false,
@@ -119,6 +125,7 @@ it('ignores an obsolete browser snapshot callback after another selection', asyn
   browser.callbacks[0]();
   browser.transitions[1].resolve();
   await Promise.all([older, newer]);
+
   expect(visibleTheme).toBe('newer');
 });
 
@@ -135,11 +142,14 @@ it('still prepares wallpaper pixels before an immediate reduced-motion change', 
       visibleTheme = 'image';
     },
   });
+
   expect(visibleTheme).toBe('old');
+
   preparation.resolve(() => {
     isReleased = true;
   });
   await completion;
+
   expect(visibleTheme).toBe('image');
   expect(browser.callbacks).toHaveLength(0);
   expect(isReleased).toBe(true);

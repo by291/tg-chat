@@ -62,19 +62,31 @@ it('skips restored history and edits, then opens the chat from a new notificatio
   const onOpen = vi.fn();
   const { rerender } = renderHook(
     ({ state, isReady }) =>
-      useMessageNotifications({ state, isReady, isConversationVisible: false, onOpen }),
+      useMessageNotifications({
+        state,
+        isReady,
+        isConversationVisible: false,
+        onOpen,
+      }),
     { initialProps: { state: restored, isReady: false } },
   );
   rerender({ state: restored, isReady: true });
+
   expect(delivered).toHaveLength(0);
+
   const message = { ...incoming, id: 'next-alert' };
   const updated = { ...restored, messages: [...restored.messages, message] };
   rerender({ state: updated, isReady: true });
+
   expect(delivered).toHaveLength(1);
   expect(delivered[0].options.body).toBe('Alex: New arrival');
+
   rerender({ state: { ...updated, drafts: { dev: 'typing' } }, isReady: true });
+
   expect(delivered).toHaveLength(1);
+
   act(() => delivered[0].onclick?.());
+
   expect(onOpen).toHaveBeenCalledWith('dev');
   expect(delivered[0].isClosed).toBe(true);
 });
@@ -93,15 +105,22 @@ it('does not show desktop notifications without permission or when disabled', ()
     { initialProps: { state: initial } },
   );
   rerender({ state: { ...initial, messages: [incoming] } });
+
   expect(delivered).toHaveLength(0);
+
   FakeNotification.permission = 'granted';
   act(() => setNotificationPreferences({ shouldShowNotifications: false }));
   rerender({ state: { ...initial, messages: [incoming, { ...incoming, id: 'disabled-alert' }] } });
+
   expect(delivered).toHaveLength(0);
 });
 
 it('dismisses an unread alert when its chat becomes visible again', () => {
-  const initial = { ...createInitialState(), activeChatId: 'dev', messages: [] as Message[] };
+  const initial = {
+    ...createInitialState(),
+    activeChatId: 'dev',
+    messages: [] as Message[],
+  };
   const { rerender } = renderHook(
     ({ state }) =>
       useMessageNotifications({
@@ -113,10 +132,12 @@ it('dismisses an unread alert when its chat becomes visible again', () => {
     { initialProps: { state: initial } },
   );
   rerender({ state: { ...initial, messages: [incoming] } });
+
   expect(delivered[0].isClosed).toBe(false);
 
   vi.mocked(document.hasFocus).mockReturnValue(true);
   act(() => window.dispatchEvent(new Event('focus')));
+
   expect(delivered[0].isClosed).toBe(true);
 });
 
@@ -138,6 +159,7 @@ it('uses the current delivery policy for future arrivals without replaying suppr
   rerender({ state: suppressed });
   act(() => setNotificationPreferences({ shouldShowNotifications: true }));
   rerender({ state: { ...suppressed, drafts: { dev: 'Unrelated draft' } } });
+
   expect(delivered).toHaveLength(0);
 
   rerender({
@@ -153,6 +175,7 @@ it('uses the current delivery policy for future arrivals without replaying suppr
       ],
     },
   });
+
   expect(delivered.map((notification) => notification.options.body)).toEqual([
     'Alex: Future arrival',
   ]);

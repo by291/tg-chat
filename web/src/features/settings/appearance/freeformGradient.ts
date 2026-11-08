@@ -16,6 +16,7 @@ const CENTER = 0.5;
 const SWIRL_FACTOR = 0.35;
 const SWIRL_ROTATION = 6.4;
 const COLOR_RADIUS = 0.9;
+const COLOR_FALLOFF_EXPONENT = 4;
 const COLOR_POSITIONS = [
   { left: 0.8, top: 0.9 },
   { left: 0.35, top: 0.75 },
@@ -30,6 +31,7 @@ function swirlPoint({ left, top }: { left: number; top: number }) {
   const rotation = (SWIRL_FACTOR * distance) ** 2 * SWIRL_ROTATION;
   const cosine = Math.cos(rotation);
   const sine = Math.sin(rotation);
+
   return {
     left: Math.max(0, Math.min(1, CENTER + horizontal * cosine - vertical * sine)),
     top: Math.max(0, Math.min(1, CENTER + horizontal * sine + vertical * cosine)),
@@ -44,19 +46,22 @@ function blendPixel({
   colors: number[][];
 }) {
   let weightSum = 0;
-  const channels = new Array<number>(3).fill(0);
+  const channels = new Array<number>(HEX_CHANNEL_OFFSETS.length).fill(0);
+
   for (let index = 0; index < colors.length; index += 1) {
     const position = COLOR_POSITIONS[index];
     const distance = Math.hypot(point.left - position.left, point.top - position.top);
-    const weight = Math.max(0, COLOR_RADIUS - distance) ** 4;
+    const weight = Math.max(0, COLOR_RADIUS - distance) ** COLOR_FALLOFF_EXPONENT;
     weightSum += weight;
     for (let channel = 0; channel < channels.length; channel += 1) {
       channels[channel] += weight * colors[index][channel];
     }
   }
+
   if (weightSum === 0) {
     return colors[0];
   }
+
   return channels.map((channel) => channel / weightSum);
 }
 
@@ -66,6 +71,7 @@ export function renderGradientPixels(colors: string[]) {
     return HEX_CHANNEL_OFFSETS.map((offset) => parseInt(color.slice(offset, offset + 2), 16));
   });
   const pixels = new Uint8ClampedArray(GRADIENT_SIZE * GRADIENT_SIZE * CHANNEL_COUNT);
+
   for (let row = 0; row < GRADIENT_SIZE; row += 1) {
     for (let column = 0; column < GRADIENT_SIZE; column += 1) {
       const point = swirlPoint({ left: column / GRADIENT_SIZE, top: row / GRADIENT_SIZE });
@@ -75,5 +81,6 @@ export function renderGradientPixels(colors: string[]) {
       pixels[offset + CHANNEL_COUNT - 1] = MAXIMUM_CHANNEL;
     }
   }
+
   return pixels;
 }

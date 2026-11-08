@@ -68,7 +68,9 @@ function getSelectionActions(conversations: ConversationListEntry[]): SelectionA
       changes: { isArchived: !isEveryConversationArchived },
     });
   }
+
   actions.push({ label: 'Delete', icon: Trash2 });
+
   return actions;
 }
 
@@ -121,6 +123,7 @@ export function SidebarSelectionToolbar({
                       onUpdate(action.changes);
                       return;
                     }
+
                     onDelete();
                   }}
                 >

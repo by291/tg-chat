@@ -6,7 +6,7 @@ import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
 import overlays from '@/components/overlays/overlays.module.css';
 import styles from './SettingsOverflowMenu.module.css';
 
-/** Keep account-only actions visible without pretending that the demo has authenticated sessions. */
+/** Keep account actions visible without implying an authenticated session. */
 export function SettingsOverflowMenu() {
   const [isOpen, setIsOpen] = useState(false);
   return (

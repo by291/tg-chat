@@ -46,7 +46,9 @@ export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
     if (!file) {
       return;
     }
+
     setIsUploading(true);
+
     try {
       const imageId = await saveWallpaperImage(file);
       // The user may have selected another background while the image was decoding.
@@ -54,6 +56,7 @@ export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
         await discardWallpaperImage(imageId);
         return;
       }
+
       await applyWallpaper({
         kind: 'image',
         imageId,
@@ -121,6 +124,7 @@ export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
             const preview = getWallpaperAppearance({ variant, choice: previewChoice });
             const isSelected = wallpaper?.kind === 'gradient' && wallpaper.themeId === theme.id;
             const isDefault = !wallpaper && choice.themeId === theme.id;
+
             return (
               <button
                 key={theme.id}
@@ -169,6 +173,7 @@ function WallpaperColorPage({ onBack }: { onBack: () => void }) {
     if (!/^#[\da-f]{6}$/i.test(next)) {
       return;
     }
+
     void selectThemeChoice({ variant, changes: { wallpaper: { kind: 'color', color: next } } });
   }
 

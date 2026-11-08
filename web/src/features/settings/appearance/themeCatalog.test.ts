@@ -13,6 +13,7 @@ it('honors an explicit wallpaper independently of the Dark accent', () => {
     variant: 'dark',
     choice: { ...choice, wallpaper: { kind: 'gradient', themeId: 'ocean' } },
   });
+
   expect(rose.colors).not.toEqual(ocean.colors);
   expect(getThemePalette({ variant: 'dark', choice }).accent).toBe('#f08200');
 });

@@ -27,6 +27,7 @@ function collectVisibleKeys({
       visibleKeys.push(key);
     }
   }
+
   return visibleKeys;
 }
 
@@ -65,9 +66,11 @@ export function getConversationScrollAdjustment({
     }
 
     const rowAdjustment = currentTop - previousTop;
+    // A shared shift preserves reading position; differing shifts need individual row animation.
     if (adjustment !== undefined && adjustment !== rowAdjustment) {
       return;
     }
+
     adjustment = rowAdjustment;
   }
 

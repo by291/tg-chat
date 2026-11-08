@@ -25,6 +25,7 @@ describe('conversation message index', () => {
     expect(index.lastMessageByChatId.get(firstMessage.chatId)).toBe(finalMessage);
 
     const remainingIndex = indexConversationMessages(messages.slice(0, -1));
+
     expect(remainingIndex.lastMessageByChatId.get(firstMessage.chatId)).toBe(firstMessage);
     expect(remainingIndex.messagesByChatId.has('missing')).toBe(false);
   });

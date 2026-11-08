@@ -18,6 +18,7 @@ export function indexConversationMessages(messages: Message[]): ConversationMess
       conversationMessages = [];
       messagesByChatId.set(message.chatId, conversationMessages);
     }
+
     conversationMessages.push(message);
     lastMessageByChatId.set(message.chatId, message);
   }

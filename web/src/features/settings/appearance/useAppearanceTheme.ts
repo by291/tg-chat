@@ -14,6 +14,7 @@ const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 function subscribeSystemTheme(notify: () => void) {
   const query = window.matchMedia(SYSTEM_DARK_QUERY);
   query.addEventListener('change', notify);
+
   return () => query.removeEventListener('change', notify);
 }
 
@@ -26,6 +27,7 @@ export function useResolvedAppearance() {
   const appearance = useAppearance();
   const isSystemDark = useSyncExternalStore(subscribeSystemTheme, getSystemTheme);
   const variant = resolveThemeVariant({ mode: appearance.mode, isSystemDark });
+
   return {
     appearance,
     variant,
@@ -43,6 +45,7 @@ export function useAppearanceTheme({
 }) {
   const resolved = useResolvedAppearance();
   const palette = useMemo(() => getThemePalette(resolved), [resolved.variant, resolved.choice]);
+
   useLayoutEffect(() => {
     if (isReady) {
       migrateLegacyAppearance({ isDark: isLegacyDark });
@@ -53,6 +56,7 @@ export function useAppearanceTheme({
     const root = document.documentElement;
     root.dataset.theme = palette.isDark ? 'dark' : 'light';
     root.dataset.themeVariant = resolved.variant;
+
     for (const [property, value] of Object.entries(palette.variables)) {
       root.style.setProperty(property, value);
     }
@@ -61,6 +65,7 @@ export function useAppearanceTheme({
   function toggleTheme(origin?: ThemeOrigin) {
     selectAppearanceMode(getOppositeMode({ isDark: palette.isDark }), origin);
   }
+
   return {
     ...resolved,
     isDark: palette.isDark,

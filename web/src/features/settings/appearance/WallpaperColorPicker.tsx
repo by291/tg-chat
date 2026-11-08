@@ -32,6 +32,7 @@ export function WallpaperColorPicker({ color, onChange }: WallpaperColorPickerPr
     if (!isValid) {
       return;
     }
+
     onChange(parseColor(`rgb(${text})`).toString('hex'));
   }
 
