@@ -1,8 +1,10 @@
 //! Bounded, encrypted mail intent with PostgreSQL leases and completion fencing.
 
 mod mail;
+pub mod maintenance;
 mod payload;
 mod settings;
+pub mod wakeups;
 
 use lettre::{AsyncSmtpTransport, Tokio1Executor, message::Mailbox};
 use sqlx::{FromRow, PgConnection, PgPool};

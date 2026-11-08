@@ -34,10 +34,26 @@ enum Command {
     Migrate,
     /// Write the OpenAPI contract to stdout without runtime configuration.
     Openapi,
+    /// Inspect or retry exhausted realtime wakeups through trusted database access.
+    Wakeups {
+        #[command(subcommand)]
+        operation: WakeupCommand,
+    },
     /// Perform audited account operations through trusted database access.
     Operator {
         #[command(subcommand)]
         operation: OperatorCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum WakeupCommand {
+    /// List at most 100 exhausted wakeups with sanitized failure reasons.
+    List,
+    /// Retry one exhausted wakeup after repairing the realtime dependency.
+    Retry {
+        #[arg(long)]
+        user_id: uuid::Uuid,
     },
 }
 
@@ -174,6 +190,27 @@ async fn execute(command: Command) -> Result<(), Box<dyn std::error::Error>> {
         let outcome = migrate(&pool, &MIGRATOR).await;
         pool.close().await;
         outcome?;
+        return Ok(());
+    }
+
+    if let Command::Wakeups {
+        operation,
+    } = command
+    {
+        let pool = connect_pool(&settings.database);
+        let queue = tg_chat::jobs::wakeups::WakeupQueue::new(pool.clone());
+        match operation {
+            WakeupCommand::List => {
+                println!("{}", serde_json::to_string_pretty(&queue.exhausted().await?)?)
+            }
+            WakeupCommand::Retry {
+                user_id,
+            } => {
+                let is_retried = queue.retry(user_id).await?;
+                println!("Retried: {is_retried}");
+            }
+        }
+        pool.close().await;
         return Ok(());
     }
 
