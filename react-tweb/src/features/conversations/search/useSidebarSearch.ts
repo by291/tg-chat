@@ -38,10 +38,10 @@ export function useSidebarSearch({
   }, [isSearching]);
 
   useEffect(() => {
-    if (!isSearching || !shouldFocusArchiveSearch.current) {
+    if (isArchiveOpen || !isSearching || !shouldFocusArchiveSearch.current) {
       return;
     }
-    // Ark restores menu focus after selection; search must claim focus afterward.
+    // Wait for page restoration and menu dismissal before search claims focus.
     const frame = requestAnimationFrame(() => {
       shouldFocusArchiveSearch.current = false;
       inputRef.current?.focus({ preventScroll: true });
