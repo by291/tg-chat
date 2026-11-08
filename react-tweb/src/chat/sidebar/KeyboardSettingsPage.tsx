@@ -106,9 +106,9 @@ function ShortcutSection({
 }
 
 function SendShortcutRow() {
-  const preferences = useAppPreferences();
+  const sendShortcut = useAppPreferences((preferences) => preferences.sendShortcut);
   const [isOpen, setIsOpen] = useState(false);
-  const isModifierSend = preferences.sendShortcut === 'ctrlEnter';
+  const isModifierSend = sendShortcut === 'ctrlEnter';
   const sendKeys = isModifierSend ? ['modifier', 'enter'] : ['enter'];
   const selectedOptionOffset = isModifierSend ? SEND_OPTION_HEIGHT : 0;
   // Align the selected option with the row's current value, as Telegram's inline selector does.
@@ -147,12 +147,12 @@ function SendShortcutRow() {
           <Menu.Content
             className={`${overlays.menu} ${styles.sendMenu}`}
             aria-label="Send message with"
-            data-selection={preferences.sendShortcut}
+            data-selection={sendShortcut}
           >
             <Menu.Item
               value="enter"
               className={overlays.menuItem}
-              data-selected={preferences.sendShortcut === 'enter'}
+              data-selected={sendShortcut === 'enter'}
               onSelect={() => setAppPreferences({ sendShortcut: 'enter' })}
             >
               <KeyCombo keys={['enter']} />
@@ -160,7 +160,7 @@ function SendShortcutRow() {
             <Menu.Item
               value="ctrlEnter"
               className={overlays.menuItem}
-              data-selected={preferences.sendShortcut === 'ctrlEnter'}
+              data-selected={sendShortcut === 'ctrlEnter'}
               onSelect={() => setAppPreferences({ sendShortcut: 'ctrlEnter' })}
             >
               <KeyCombo keys={['modifier', 'enter']} />
@@ -174,8 +174,8 @@ function SendShortcutRow() {
 
 /** Document actual shortcut support with Telegram-style groups, keycaps, and send preferences. */
 export function KeyboardSettingsPage({ onBack }: { onBack: () => void }) {
-  const preferences = useAppPreferences();
-  const newLineKeys = preferences.sendShortcut === 'ctrlEnter' ? ['enter'] : ['shift', 'enter'];
+  const sendShortcut = useAppPreferences((preferences) => preferences.sendShortcut);
+  const newLineKeys = sendShortcut === 'ctrlEnter' ? ['enter'] : ['shift', 'enter'];
   const modifierKeys = ['modifier'];
   const monospaceModifiers = isAppleKeyboard() ? ['modifier', 'shift'] : modifierKeys;
   return (

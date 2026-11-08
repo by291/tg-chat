@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { createPreferenceStore } from './createPreferenceStore';
 import { z } from 'zod';
 
 export const APP_PREFERENCES_KEY = 'react-tweb.preferences.v1';
@@ -38,63 +38,21 @@ const preferenceSchema = z.object({
 
 export type AppPreferences = z.infer<typeof preferenceSchema>;
 
-const listeners = new Set<() => void>();
-let preferences = readPreferences();
-
-function readPreferences(): AppPreferences {
-  try {
-    const stored = localStorage.getItem(APP_PREFERENCES_KEY);
-    return preferenceSchema.parse(stored ? JSON.parse(stored) : {});
-  } catch {
-    return { ...DEFAULT_APP_PREFERENCES };
-  }
-}
-
-function notifyListeners() {
-  for (const notify of listeners) {
-    notify();
-  }
-}
-
-function synchronizeStorage(event: StorageEvent) {
-  if (event.key !== APP_PREFERENCES_KEY && event.key !== null) {
-    return;
-  }
-  preferences = readPreferences();
-  notifyListeners();
-}
+const preferenceStore = createPreferenceStore({
+  storageKey: APP_PREFERENCES_KEY,
+  parse: (value) => preferenceSchema.parse(value),
+});
 
 /** Read the stable preference snapshot shared by UI and media policies. */
-export function getAppPreferences() {
-  return preferences;
-}
+export const getAppPreferences = preferenceStore.getSnapshot;
 
 /** Observe local and cross-tab changes with one shared storage listener. */
-export function subscribeAppPreferences(notify: () => void) {
-  if (listeners.size === 0) {
-    window.addEventListener('storage', synchronizeStorage);
-  }
-  listeners.add(notify);
-  return () => {
-    listeners.delete(notify);
-    if (listeners.size === 0) {
-      window.removeEventListener('storage', synchronizeStorage);
-    }
-  };
-}
+export const subscribeAppPreferences = preferenceStore.subscribe;
 
 /** Persist validated preferences while allowing changes when browser storage is unavailable. */
 export function setAppPreferences(changes: Partial<AppPreferences>) {
-  preferences = preferenceSchema.parse({ ...preferences, ...changes });
-  try {
-    localStorage.setItem(APP_PREFERENCES_KEY, JSON.stringify(preferences));
-  } catch {
-    // Private browsing and storage quotas must not block changes in the current session.
-  }
-  notifyListeners();
+  preferenceStore.save({ ...getAppPreferences(), ...changes });
 }
 
-/** Subscribe a component to immediately applied application preferences. */
-export function useAppPreferences() {
-  return useSyncExternalStore(subscribeAppPreferences, getAppPreferences);
-}
+/** Subscribe to a preference selector, or the complete snapshot for a settings form. */
+export const useAppPreferences = preferenceStore.useValue;

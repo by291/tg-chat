@@ -50,7 +50,7 @@ export function ViewerToolbar({
   onNotify,
   onMenuOpenChange,
 }: ViewerToolbarProps) {
-  const { timeFormat } = useAppPreferences();
+  const timeFormat = useAppPreferences((preferences) => preferences.timeFormat);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_VIEWPORT_QUERY).matches);
   useEffect(() => {
     const viewport = window.matchMedia(MOBILE_VIEWPORT_QUERY);

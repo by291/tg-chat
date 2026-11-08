@@ -28,7 +28,7 @@ const MOBILE_CHAT_BREAKPOINT = 760;
 /** Compose the application shell around persistent conversation state and transient panels. */
 export function ChatApp() {
   useInputModality();
-  const { messageTextSize } = useAppPreferences();
+  const messageTextSize = useAppPreferences((preferences) => preferences.messageTextSize);
   const { state, dispatch, isReady, storageError } = useChatState();
   const conversationEntries = useConversationList(state);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);

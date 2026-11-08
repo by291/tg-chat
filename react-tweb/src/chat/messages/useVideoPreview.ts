@@ -20,7 +20,7 @@ function hasAudibleRoundVideo() {
 
 /** Load visible clips lazily and keep only muted previews eligible for automatic playback. */
 export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOptions) {
-  const { shouldAutoplayVideos } = useAppPreferences();
+  const shouldAutoplayVideos = useAppPreferences((preferences) => preferences.shouldAutoplayVideos);
   const [isVisible, setIsVisible] = useState(false);
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);

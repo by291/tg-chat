@@ -31,7 +31,9 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
   const completeRef = useRef(onComplete);
   const [isReady, setIsReady] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const preferences = useAppPreferences();
+  const shouldAnimateStickers = useAppPreferences(
+    (preferences) => preferences.shouldAnimateStickers,
+  );
   completeRef.current = onComplete;
 
   useEffect(() => {
@@ -79,23 +81,30 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
     };
   }, [themeId]);
 
-  useEffect(() => {
-    const player = playerRef.current;
-    const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const canPlay =
-      isPlaying && isReady && preferences.shouldAnimateStickers && !shouldReduceMotion;
-    setIsExpanded(canPlay);
-    if (!player || !canPlay) {
-      player?.pause();
-      return;
-    }
-    player.goToAndStop(0, true);
-    const timer = window.setTimeout(() => player.play(), PLAYBACK_DELAY);
-    return () => {
-      window.clearTimeout(timer);
-      player.pause();
-    };
-  }, [isPlaying, isReady, preferences.shouldAnimateStickers]);
+  useEffect(
+    () => {
+      const player = playerRef.current;
+      const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const canPlay = isPlaying && isReady && shouldAnimateStickers && !shouldReduceMotion;
+      setIsExpanded(canPlay);
+      if (!player || !canPlay) {
+        player?.pause();
+        return;
+      }
+      player.goToAndStop(0, true);
+      const timer = window.setTimeout(() => player.play(), PLAYBACK_DELAY);
+      return () => {
+        window.clearTimeout(timer);
+        player.pause();
+      };
+    },
+    // prettier-ignore
+    [
+    isPlaying,
+    isReady,
+    shouldAnimateStickers,
+  ],
+  );
 
   return (
     <span className={styles.emoji} data-expanded={isExpanded} aria-hidden="true">

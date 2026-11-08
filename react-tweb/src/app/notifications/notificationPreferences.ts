@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { createPreferenceStore } from '../settings/createPreferenceStore';
 import { z } from 'zod';
 
 export const NOTIFICATION_PREFERENCES_KEY = 'react-tweb.notifications.v1';
@@ -32,65 +32,21 @@ const preferencesSchema = z.object({
 export type NotificationPreferences = z.infer<typeof preferencesSchema>;
 export type NotificationCategory = 'private' | 'group' | 'channel';
 
-const listeners = new Set<() => void>();
-let preferences = readPreferences();
-
-function readPreferences(): NotificationPreferences {
-  try {
-    const saved = localStorage.getItem(NOTIFICATION_PREFERENCES_KEY);
-    return preferencesSchema.parse(saved ? JSON.parse(saved) : {});
-  } catch {
-    return structuredClone(DEFAULT_NOTIFICATION_PREFERENCES);
-  }
-}
-
-function publishChanges() {
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
-function onStorage(event: StorageEvent) {
-  if (event.key !== NOTIFICATION_PREFERENCES_KEY && event.key !== null) {
-    return;
-  }
-  preferences = readPreferences();
-  publishChanges();
-}
+const preferenceStore = createPreferenceStore({
+  storageKey: NOTIFICATION_PREFERENCES_KEY,
+  parse: (value) => preferencesSchema.parse(value),
+});
 
 /** Read the notification preferences used by incoming and outgoing message delivery. */
-export function getNotificationPreferences() {
-  return preferences;
-}
+export const getNotificationPreferences = preferenceStore.getSnapshot;
 
 /** Observe local changes and updates made in another browser tab. */
-export function subscribeNotificationPreferences(listener: () => void) {
-  if (listeners.size === 0) {
-    window.addEventListener('storage', onStorage);
-  }
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-    if (listeners.size === 0) {
-      window.removeEventListener('storage', onStorage);
-    }
-  };
-}
+export const subscribeNotificationPreferences = preferenceStore.subscribe;
 
 /** Persist notification preferences without losing the current choice if storage is blocked. */
 export function setNotificationPreferences(changes: Partial<NotificationPreferences>) {
-  preferences = preferencesSchema.parse({ ...preferences, ...changes });
-  let isSaved = true;
-  try {
-    localStorage.setItem(NOTIFICATION_PREFERENCES_KEY, JSON.stringify(preferences));
-  } catch {
-    isSaved = false;
-  }
-  publishChanges();
-  return isSaved;
+  return preferenceStore.save({ ...getNotificationPreferences(), ...changes });
 }
 
-/** Subscribe settings and delivery to the same notification preference snapshot. */
-export function useNotificationPreferences() {
-  return useSyncExternalStore(subscribeNotificationPreferences, getNotificationPreferences);
-}
+/** Subscribe to notification fields without observing unrelated preferences. */
+export const useNotificationPreferences = preferenceStore.useValue;

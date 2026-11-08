@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 import {
   APP_PREFERENCES_KEY,
@@ -31,6 +31,20 @@ it('persists changes and updates subscribed readers immediately', () => {
   const saved = JSON.parse(localStorage.getItem(APP_PREFERENCES_KEY)!);
   expect(saved.messageTextSize).toBe(20);
   expect(saved.timeFormat).toBe('h23');
+});
+
+it('keeps time readers subscribed only to time-format changes', () => {
+  const observedFormats: string[] = [];
+  const view = renderHook(() => {
+    const timeFormat = useAppPreferences((preferences) => preferences.timeFormat);
+    observedFormats.push(timeFormat);
+    return timeFormat;
+  });
+
+  act(() => setAppPreferences({ messageTextSize: 20 }));
+  expect(observedFormats).toEqual(['h12']);
+  act(() => setAppPreferences({ timeFormat: 'h23' }));
+  expect(view.result.current).toBe('h23');
 });
 
 it('recovers invalid stored fields while preserving valid preferences from another tab', () => {

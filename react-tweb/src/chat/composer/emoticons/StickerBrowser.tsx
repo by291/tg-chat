@@ -30,7 +30,7 @@ export function StickerBrowser({
   onSelect,
   onToggleFavorite,
 }: StickerBrowserProps) {
-  const { stickerPackOrder } = useAppPreferences();
+  const stickerPackOrder = useAppPreferences((preferences) => preferences.stickerPackOrder);
   const orderedPacks = useMemo(() => getOrderedStickerPacks(stickerPackOrder), [stickerPackOrder]);
   const [query, setQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);

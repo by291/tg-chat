@@ -45,7 +45,7 @@ export function ChatRow({
   const hasUnread = conversation.hasUnread;
   const fallbackPreview = conversation.hasClearedHistory ? '' : conversation.preview;
   const preview = lastMessage ? describeMessage(lastMessage) : fallbackPreview;
-  const { timeFormat } = useAppPreferences();
+  const timeFormat = useAppPreferences((preferences) => preferences.timeFormat);
   const time = lastMessage
     ? formatMessageTime(lastMessage.createdAt, { timeFormat })
     : formatConversationTime(conversation.time, { timeFormat });

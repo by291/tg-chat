@@ -24,7 +24,7 @@ function SendingStatus() {
 }
 
 function MetadataContent({ message }: { message: Message }) {
-  const { timeFormat } = useAppPreferences();
+  const timeFormat = useAppPreferences((preferences) => preferences.timeFormat);
   return (
     <>
       {message.isPinned && <Pin size={12} className={styles.metadataPinned} />}

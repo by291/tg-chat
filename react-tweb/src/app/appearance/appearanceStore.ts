@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { createPreferenceStore } from '../settings/createPreferenceStore';
 import { z } from 'zod';
 
 export const APPEARANCE_KEY = 'react-tweb.appearance.v1';
@@ -62,82 +62,30 @@ export type Wallpaper = z.infer<typeof wallpaperSchema>;
 export type ThemeChoice = z.infer<typeof choiceSchema>;
 export type Appearance = z.infer<typeof appearanceSchema>;
 
-const listeners = new Set<() => void>();
-let hasSavedAppearance = false;
-let appearance = readAppearance();
-
-function readAppearance(): Appearance {
-  try {
-    const stored = localStorage.getItem(APPEARANCE_KEY);
-    hasSavedAppearance = stored !== null;
-    return appearanceSchema.parse(stored ? JSON.parse(stored) : {});
-  } catch {
-    return appearanceSchema.parse({});
-  }
-}
-
-function notifyListeners() {
-  for (const notify of listeners) {
-    notify();
-  }
-}
-
-function persist(next: Appearance) {
-  appearance = appearanceSchema.parse(next);
-  hasSavedAppearance = true;
-  let isSaved = true;
-  try {
-    localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appearance));
-  } catch {
-    // Storage failure must not prevent an in-session appearance change.
-    isSaved = false;
-  }
-  notifyListeners();
-  return isSaved;
-}
-
-function synchronizeStorage(event: StorageEvent) {
-  if (event.key !== APPEARANCE_KEY && event.key !== null) {
-    return;
-  }
-  appearance = readAppearance();
-  notifyListeners();
-}
+const preferenceStore = createPreferenceStore({
+  storageKey: APPEARANCE_KEY,
+  parse: (value) => appearanceSchema.parse(value),
+});
 
 /** Read the appearance snapshot shared by controls and document rendering. */
-export function getAppearance() {
-  return appearance;
-}
+export const getAppearance = preferenceStore.getSnapshot;
 
 /** Observe local changes and preferences saved by another tab. */
-export function subscribeAppearance(notify: () => void) {
-  if (listeners.size === 0) {
-    window.addEventListener('storage', synchronizeStorage);
-  }
-  listeners.add(notify);
-  return () => {
-    listeners.delete(notify);
-    if (listeners.size === 0) {
-      window.removeEventListener('storage', synchronizeStorage);
-    }
-  };
-}
+export const subscribeAppearance = preferenceStore.subscribe;
 
-/** Subscribe a React control to persisted theme and wallpaper choices. */
-export function useAppearance() {
-  return useSyncExternalStore(subscribeAppearance, getAppearance);
-}
+/** Subscribe to appearance fields or the complete theme and wallpaper snapshot. */
+export const useAppearance = preferenceStore.useValue;
 
 /** Select a mode while remembering explicit light and dark choices for the menu toggle. */
 export function setAppearanceMode(mode: AppearanceMode) {
-  const next = { ...appearance, mode };
+  const next = { ...getAppearance(), mode };
   if (mode === 'classic' || mode === 'day') {
     next.lastLight = mode;
   }
   if (mode === 'night' || mode === 'dark') {
     next.lastDark = mode;
   }
-  return persist(next);
+  return preferenceStore.save(next);
 }
 
 /** Change only the requested variant, preserving other modes and unrelated appearance fields. */
@@ -148,7 +96,8 @@ export function updateThemeChoice({
   variant: ThemeVariant;
   changes: Partial<ThemeChoice>;
 }) {
-  return persist({
+  const appearance = getAppearance();
+  return preferenceStore.save({
     ...appearance,
     choices: {
       ...appearance.choices,
@@ -168,17 +117,19 @@ export function resolveThemeVariant({
   if (mode !== 'system') {
     return mode;
   }
+  const appearance = getAppearance();
   return isSystemDark ? appearance.lastDark : appearance.lastLight;
 }
 
 /** Return the remembered opposite brightness for the sidebar's mode toggle. */
 export function getOppositeMode({ isDark }: { isDark: boolean }) {
+  const appearance = getAppearance();
   return isDark ? appearance.lastLight : appearance.lastDark;
 }
 
 /** Import the legacy chat preference once, after persisted chat state has loaded. */
 export function migrateLegacyAppearance({ isDark }: { isDark: boolean }) {
-  if (!hasSavedAppearance) {
+  if (!preferenceStore.hasSavedValue()) {
     setAppearanceMode(isDark ? 'night' : 'classic');
   }
 }

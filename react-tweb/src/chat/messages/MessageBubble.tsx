@@ -69,8 +69,8 @@ export const MessageBubble = memo(function MessageBubble({
   onOpenMedia,
   onJumpToMessage,
 }: MessageBubbleProps) {
-  const preferences = useAppPreferences();
-  const largeEmojiSize = preferences.shouldUseLargeEmoji ? getLargeEmojiSize(message) : undefined;
+  const shouldUseLargeEmoji = useAppPreferences((preferences) => preferences.shouldUseLargeEmoji);
+  const largeEmojiSize = shouldUseLargeEmoji ? getLargeEmojiSize(message) : undefined;
   const rowRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const row = rowRef.current;
