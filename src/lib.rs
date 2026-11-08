@@ -10,3 +10,5 @@ pub mod telemetry;
 pub mod contacts;
 
 pub mod jobs;
+
+pub mod messages;

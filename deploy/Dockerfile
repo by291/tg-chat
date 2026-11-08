@@ -5,6 +5,8 @@ COPY Cargo.toml Cargo.lock rustfmt.toml build.rs ./
 COPY src ./src
 COPY migrations ./migrations
 COPY tests ./tests
+COPY contracts ./contracts
+COPY web/src/features/emoji/publicEmojiPacks.json ./web/src/features/emoji/publicEmojiPacks.json
 RUN cargo build --locked --release --bins
 
 FROM build AS verification
@@ -34,6 +36,7 @@ RUN npm install --global pnpm@11.28.0
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 COPY web ./
+COPY contracts /app/contracts
 RUN VITE_APP_MODE=connected pnpm build
 
 FROM caddy:2.11.7-alpine AS gateway
