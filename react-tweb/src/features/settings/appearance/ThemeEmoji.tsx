@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AnimationItem } from 'lottie-web';
 import { useAppPreferences } from '../appPreferences';
 import { loadStickerAnimation } from '@/features/stickers/loadStickerAnimation';
+import {
+  getStickerPlaybackState,
+  subscribeStickerPlayback,
+} from '@/features/stickers/stickerPlayback';
 import styles from './ThemeSettings.module.css';
 
 const PLAYBACK_DELAY = 250;
@@ -33,6 +37,10 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
   const [isExpanded, setIsExpanded] = useState(false);
   const shouldAnimateStickers = useAppPreferences(
     (preferences) => preferences.shouldAnimateStickers,
+  );
+  const { isReducedMotion } = useSyncExternalStore(
+    subscribeStickerPlayback,
+    getStickerPlaybackState,
   );
   completeRef.current = onComplete;
 
@@ -84,13 +92,21 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
   useEffect(
     () => {
       const player = playerRef.current;
-      const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const canPlay = isPlaying && isReady && shouldAnimateStickers && !shouldReduceMotion;
+      const isPlaybackDisabled = !shouldAnimateStickers || isReducedMotion;
+      const canPlay = isPlaying && isReady && !isPlaybackDisabled;
       setIsExpanded(canPlay);
+
+      if (isPlaying && isPlaybackDisabled) {
+        player?.pause();
+        // Consume disabled selections so restoring motion cannot replay an earlier click.
+        completeRef.current();
+        return;
+      }
       if (!player || !canPlay) {
         player?.pause();
         return;
       }
+
       player.goToAndStop(0, true);
       const timer = window.setTimeout(() => player.play(), PLAYBACK_DELAY);
       return () => {
@@ -100,10 +116,11 @@ export function ThemeEmoji({ themeId, fallback, isPlaying, onComplete }: ThemeEm
     },
     // prettier-ignore
     [
-    isPlaying,
-    isReady,
-    shouldAnimateStickers,
-  ],
+      isPlaying,
+      isReady,
+      shouldAnimateStickers,
+      isReducedMotion,
+    ],
   );
 
   return (

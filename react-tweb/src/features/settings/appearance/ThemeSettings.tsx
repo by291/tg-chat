@@ -68,10 +68,11 @@ function movePickerFocus(event: KeyboardEvent<HTMLDivElement>) {
   event.preventDefault();
   const button = buttons[(nextIndex + buttons.length) % buttons.length];
   button?.focus({ preventScroll: true });
+  const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   scrollPickerToButton({
     button,
     alignment: 'nearest',
-    behavior: 'smooth',
+    behavior: shouldReduceMotion ? 'instant' : 'smooth',
   });
 }
 

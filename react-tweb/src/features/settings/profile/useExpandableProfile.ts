@@ -16,7 +16,11 @@ export function useExpandableProfile({ isEnabled }: { isEnabled: boolean }) {
       return;
     }
     if (scrollRef.current.scrollTop > 0) {
-      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      scrollRef.current.scrollTo({
+        top: 0,
+        behavior: shouldReduceMotion ? 'instant' : 'smooth',
+      });
       return;
     }
     expandedRef.current = true;

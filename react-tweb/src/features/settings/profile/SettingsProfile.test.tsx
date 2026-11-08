@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { SettingsProfile } from './SettingsProfile';
 
 const identity = {
@@ -9,7 +9,10 @@ const identity = {
   photoUrl: '/assets/settings-avatar.jpg',
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function renderProfile(photoUrl: string | undefined = identity.photoUrl) {
   render(
@@ -89,5 +92,24 @@ it('keeps the profile folded when content is scrolled with the keyboard', () => 
   expect(photo.getAttribute('aria-expanded')).toBe('true');
   content.scrollTop = 20;
   fireEvent.scroll(content);
+  expect(photo.getAttribute('aria-expanded')).toBe('false');
+});
+
+it('returns to the top without smooth scrolling after reduced motion is enabled', () => {
+  let shouldReduceMotion = false;
+  vi.stubGlobal('matchMedia', () => ({ matches: shouldReduceMotion }));
+  const content = renderProfile();
+  fireEvent.load(screen.getByAltText('Your profile photo'));
+  const photo = screen.getByRole('button', { name: 'Expand profile photo' });
+  const scrollTo = vi.fn();
+  content.scrollTo = scrollTo;
+  content.scrollTop = 100;
+
+  fireEvent.click(photo);
+  expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'smooth' });
+  shouldReduceMotion = true;
+  fireEvent.click(photo);
+
+  expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'instant' });
   expect(photo.getAttribute('aria-expanded')).toBe('false');
 });
