@@ -15,8 +15,23 @@ pub(crate) const VIEW_SELECT: &str =
     "SELECT conversation.id, conversation.kind, peer.id AS peer_id,
             peer.username AS peer_username, peer.display_name AS peer_name,
             conversation.last_sequence::text, conversation.version::text,
-            conversation.summary_text, conversation.updated_at,
-            member.generation::text, member.unread_count::text,
+            COALESCE((SELECT message.content->>'text' FROM messages message
+                WHERE message.conversation_id = conversation.id
+                  AND message.sequence > member.clear_through AND message.deleted_at IS NULL
+                  AND (message.expires_at IS NULL OR message.expires_at > now())
+                  AND NOT EXISTS (SELECT 1 FROM hidden_messages hidden
+                      WHERE hidden.user_id = member.user_id AND hidden.message_id = message.id)
+                ORDER BY message.sequence DESC LIMIT 1), '') AS summary_text,
+            conversation.updated_at,
+            member.generation::text,
+            (SELECT count(*)::text FROM messages message
+                WHERE message.conversation_id = conversation.id AND message.service_kind IS NULL
+                  AND message.sequence > greatest(member.read_through, member.clear_through)
+                  AND message.author_id <> member.user_id AND message.deleted_at IS NULL
+                  AND (message.expires_at IS NULL OR message.expires_at > now())
+                  AND NOT EXISTS (SELECT 1 FROM hidden_messages hidden
+                      WHERE hidden.user_id = member.user_id AND hidden.message_id = message.id)
+            ) AS unread_count,
             member.read_through::text, member.clear_through::text,
             member.is_archived, member.is_hidden, member.is_manually_unread,
             member.pin_rank, member.muted_until

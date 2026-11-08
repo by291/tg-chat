@@ -22,6 +22,7 @@ async fn register(accounts: &AccountService, username: &str) -> Actor {
 
 fn outgoing(destination: Destination) -> SendMessage {
     SendMessage {
+        reply: None,
         operation_id: Uuid::new_v4(),
         message_id: Uuid::new_v4(),
         destination,
@@ -70,7 +71,7 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .unwrap();
     assert_eq!(page.groups.len(), 2);
     assert!(page.has_more);
-    assert_eq!(page.groups[0].conversation.last_sequence, "3");
+    assert_eq!(page.groups[0].conversation.as_ref().unwrap().last_sequence, "3");
     assert_eq!(page.groups[0].message.as_ref().unwrap().id, receipts[0].message.id);
     let next = service
         .sync(
@@ -115,6 +116,7 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .history(
             alice.clone(),
             HistoryQuery {
+                around: None,
                 conversation_id,
                 before: None,
                 after: None,
@@ -131,6 +133,7 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .history(
             alice.clone(),
             HistoryQuery {
+                around: None,
                 conversation_id,
                 before: Some("2".to_owned()),
                 after: None,
@@ -145,6 +148,7 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .history(
             alice.clone(),
             HistoryQuery {
+                around: None,
                 conversation_id,
                 before: None,
                 after: Some("1".to_owned()),
@@ -164,6 +168,7 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
             .history(
                 carol,
                 HistoryQuery {
+                    around: None,
                     conversation_id,
                     before: None,
                     after: None,

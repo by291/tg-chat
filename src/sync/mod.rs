@@ -2,6 +2,6 @@
 
 pub(crate) mod changes;
 
-mod cursor;
+pub(crate) mod cursor;
 mod snapshots;
 pub use snapshots::{Bootstrap, SyncGroup, SyncPage, SyncQuery};

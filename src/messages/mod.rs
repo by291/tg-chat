@@ -14,3 +14,8 @@ pub(crate) mod history;
 pub use history::{HistoryPage, HistoryQuery};
 
 pub(crate) mod http;
+
+mod commands;
+pub(crate) mod projection;
+pub use commands::{CommandAction, CommandReceipt, MessageCommand};
+pub use model::{ReactionView, ReplyInput, ReplyView};

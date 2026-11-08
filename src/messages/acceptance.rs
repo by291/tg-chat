@@ -11,7 +11,13 @@ use crate::{
 pub(crate) const MESSAGE_SELECT: &str =
     "SELECT message.id, message.conversation_id, message.author_id,
             author.display_name AS author_name, message.sequence::text,
-            message.version::text, message.created_at, message.content
+            message.version::text, message.created_at, message.edited_at, message.expires_at,
+            message.interaction_version::text, message.is_pinned, message.service_kind,
+            message.reply_id, message.reply_quote,
+            (message.deleted_at IS NOT NULL OR message.expires_at <= now()) IS TRUE AS is_deleted,
+            CASE WHEN message.deleted_at IS NOT NULL OR message.expires_at <= now()
+                THEN '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb
+                ELSE message.content END AS content
      FROM messages message JOIN users author ON author.id = message.author_id";
 
 pub(crate) struct IdentityCheck<'a> {
@@ -116,6 +122,39 @@ pub(crate) async fn insert(
     .bind(message.input.operation_id)
     .bind(message.input.message_id);
     receipt_insert.execute(&mut *connection).await?;
+    if let Some(reply) = &message.input.reply {
+        let mut statement = sqlx::QueryBuilder::new(
+            "SELECT message.content->>'text' FROM messages message WHERE message.id = ",
+        );
+        statement.push_bind(reply.message_id);
+        statement.push(" AND message.conversation_id = ").push_bind(message.conversation.id);
+        super::projection::restrict_visible(&mut statement, message.actor.user_id);
+        let source: String = statement
+            .build_query_scalar()
+            .fetch_optional(&mut *connection)
+            .await?
+            .ok_or(AccountError::NotFound)?;
+        let is_invalid_quote =
+            reply.quote.as_ref().is_some_and(|quote| quote.is_empty() || !source.contains(quote));
+        if is_invalid_quote {
+            return Err(AccountError::Validation("quote must occur in the reply target").into());
+        }
+        let update =
+            sqlx::query("UPDATE messages SET reply_id = $2, reply_quote = $3 WHERE id = $1")
+                .bind(message.input.message_id)
+                .bind(reply.message_id)
+                .bind(&reply.quote);
+        update.execute(&mut *connection).await?;
+    }
+    sqlx::query(
+        "UPDATE messages SET expires_at = CASE WHEN conversation.expiry_days = 0 THEN NULL
+            ELSE messages.created_at + conversation.expiry_days * interval '1 day' END
+         FROM conversations conversation
+         WHERE messages.id = $1 AND conversation.id = messages.conversation_id",
+    )
+    .bind(message.input.message_id)
+    .execute(&mut *connection)
+    .await?;
     changes::append(
         connection,
         ChangeGroup {
@@ -137,11 +176,28 @@ pub(crate) async fn receipt(
 ) -> Result<SendReceipt, AccountError> {
     let mut statement = sqlx::QueryBuilder::new(MESSAGE_SELECT);
     statement.push(" WHERE message.id = ").push_bind(message_id);
-    let message = statement
+    let mut message = statement
         .build_query_as::<CanonicalMessage>()
         .fetch_optional(&mut *connection)
         .await?
         .ok_or(AccountError::NotFound)?;
+    let mut visible = sqlx::QueryBuilder::new(
+        "SELECT EXISTS (SELECT 1 FROM messages message WHERE message.id = ",
+    );
+    visible.push_bind(message_id);
+    super::projection::restrict_visible(&mut visible, user_id);
+    visible.push(")");
+    let is_visible: bool = visible.build_query_scalar().fetch_one(&mut *connection).await?;
+    if !is_visible {
+        message.is_deleted = true;
+        message.content = super::content::MessageContent {
+            schema_version: 1,
+            text: String::new(),
+            rich_text: None,
+            custom_emoji: Vec::new(),
+        };
+    }
+    super::projection::personalize(connection, user_id, &mut message).await?;
     let conversation = conversations::view(connection, user_id, message.conversation_id).await?;
 
     Ok(SendReceipt {

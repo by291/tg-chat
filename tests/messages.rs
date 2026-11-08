@@ -21,6 +21,7 @@ async fn register(accounts: &AccountService, username: &str) -> Actor {
 
 fn message(destination: Destination) -> SendMessage {
     SendMessage {
+        reply: None,
         operation_id: Uuid::new_v4(),
         message_id: Uuid::new_v4(),
         destination,

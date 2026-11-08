@@ -26,6 +26,8 @@ pub struct SendMessage {
     pub message_id: Uuid,
     pub destination: Destination,
     pub content: MessageContent,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply: Option<ReplyInput>,
 }
 
 #[derive(Clone, FromRow, Serialize, ToSchema)]
@@ -37,6 +39,20 @@ pub struct CanonicalMessage {
     pub sequence: String,
     pub version: String,
     pub created_at: DateTime<Utc>,
+    pub edited_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub is_deleted: bool,
+    pub interaction_version: String,
+    pub is_pinned: bool,
+    pub service_kind: Option<String>,
+    #[serde(skip)]
+    pub(crate) reply_id: Option<Uuid>,
+    #[serde(skip)]
+    pub(crate) reply_quote: Option<String>,
+    #[sqlx(skip)]
+    pub reply: Option<ReplyView>,
+    #[sqlx(skip)]
+    pub reactions: Vec<ReactionView>,
     #[sqlx(json)]
     pub content: MessageContent,
 }
@@ -45,4 +61,25 @@ pub struct CanonicalMessage {
 pub struct SendReceipt {
     pub message: CanonicalMessage,
     pub conversation: ConversationView,
+}
+
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReplyInput {
+    pub message_id: Uuid,
+    pub quote: Option<String>,
+}
+
+#[derive(Clone, Serialize, ToSchema)]
+pub struct ReplyView {
+    pub message_id: Uuid,
+    pub is_unavailable: bool,
+    pub quote: Option<String>,
+}
+
+#[derive(Clone, FromRow, Serialize, ToSchema)]
+pub struct ReactionView {
+    pub emoji: String,
+    pub count: String,
+    pub is_selected: bool,
 }

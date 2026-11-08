@@ -24,7 +24,7 @@ pub(crate) enum AcceptanceError {
 }
 
 impl AcceptanceError {
-    fn is_retryable(&self) -> bool {
+    pub(crate) fn is_retryable(&self) -> bool {
         let Self::Database(error) = self else {
             return false;
         };
@@ -35,7 +35,7 @@ impl AcceptanceError {
         matches!(database_error.code().as_deref(), Some("40001" | "40P01"))
     }
 
-    fn into_public(self) -> AccountError {
+    pub(crate) fn into_public(self) -> AccountError {
         match self {
             Self::Business(error) => error,
             Self::Database(error) => {
@@ -126,6 +126,12 @@ impl MessageService {
             return Ok(receipt);
         }
 
+        let is_command_identity: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM command_receipts WHERE actor_id = $1 AND operation_id = $2)",
+        ).bind(actor.user_id).bind(input.operation_id).fetch_one(&mut *transaction).await?;
+        if is_command_identity {
+            return Err(AccountError::MessageConflict.into());
+        }
         access::authorize_send(&mut transaction, actor, &conversation).await?;
         access::admit_members(&mut transaction, &conversation).await?;
         acceptance::insert(

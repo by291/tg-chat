@@ -15,7 +15,7 @@ struct Cursor {
     position: String,
 }
 
-pub(super) struct CursorScope {
+pub(crate) struct CursorScope {
     pub deployment_id: Uuid,
     pub user_id: Uuid,
     pub position: i64,

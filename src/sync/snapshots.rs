@@ -33,7 +33,9 @@ pub struct SyncQuery {
 #[derive(Serialize, ToSchema)]
 pub struct SyncGroup {
     pub position: String,
-    pub conversation: ConversationView,
+    pub conversation: Option<ConversationView>,
+    pub conversation_id: Uuid,
+    pub removed_message_id: Option<Uuid>,
     pub message: Option<CanonicalMessage>,
 }
 
@@ -121,19 +123,43 @@ impl MessageService {
         let mut groups = Vec::with_capacity(references.len());
         let mut position = after;
         for reference in references {
-            let conversation =
-                conversations::view(&mut transaction, actor.user_id, reference.conversation_id)
-                    .await?;
-            let message = match reference.message_id {
-                Some(id) => {
-                    Some(acceptance::receipt(&mut transaction, actor.user_id, id).await?.message)
-                }
-                None => None,
+            let conversation = match conversations::view(
+                &mut transaction,
+                actor.user_id,
+                reference.conversation_id,
+            )
+            .await
+            {
+                Ok(conversation) => Some(conversation),
+                Err(AccountError::NotFound) => None,
+                Err(error) => return Err(error),
             };
+            let mut message = None;
+            let mut removed_message_id = reference.message_id;
+            if let Some(id) = reference.message_id {
+                let mut statement = QueryBuilder::new(acceptance::MESSAGE_SELECT);
+                statement.push(" WHERE message.id = ").push_bind(id);
+                crate::messages::projection::restrict_visible(&mut statement, actor.user_id);
+                message = statement
+                    .build_query_as::<CanonicalMessage>()
+                    .fetch_optional(&mut *transaction)
+                    .await?;
+                if let Some(visible) = &mut message {
+                    crate::messages::projection::personalize(
+                        &mut transaction,
+                        actor.user_id,
+                        visible,
+                    )
+                    .await?;
+                    removed_message_id = None;
+                }
+            }
             position = reference.position;
             groups.push(SyncGroup {
                 position: position.to_string(),
                 conversation,
+                conversation_id: reference.conversation_id,
+                removed_message_id,
                 message,
             });
         }
