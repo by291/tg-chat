@@ -180,21 +180,22 @@
 }
 
 .checkbox {
+  --choice-size: 20px;
+  --choice-fill-inset: 0;
+  --choice-mark-size: 12px;
+  --message-control-border: var(--secondary-color);
+
   position: absolute;
+  top: 50%;
   right: 18px;
-  display: grid;
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border: 2px solid var(--secondary-color);
-  border-radius: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
 }
 
-.recipient[aria-pressed='true'] .checkbox {
-  border-color: var(--accent-color);
-  color: white;
-  background: var(--accent-color);
+.dialog[data-selecting='true'] .checkbox {
+  opacity: 1;
 }
 
 :global(:where(:root[data-touch-supported='false'])) .recipient:is(:hover, :active),
@@ -282,6 +283,7 @@
   }
 
   .savedSection,
+  .checkbox,
   .footer {
     transition: none;
   }

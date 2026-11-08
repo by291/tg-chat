@@ -1,7 +1,7 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { useRef, useState } from 'react';
-import { Check, CheckCircle2, Send, X } from 'lucide-react';
+import { CheckCircle2, Send, X } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
 import { Ripple } from '../../components/Ripple';
@@ -13,6 +13,7 @@ import type { ChatState, Conversation } from '../model';
 import overlays from '../overlays.module.css';
 import styles from './ForwardMessageDialog.module.css';
 import { ForwardRecipientSearch } from './ForwardRecipientSearch';
+import { MessageCheckbox } from './MessageCheckbox';
 
 export interface ForwardRecipients {
   recipients: Conversation[];
@@ -171,11 +172,9 @@ export function ForwardMessageDialog({
                         : conversation.subtitle}
                     </span>
                   </span>
-                  {isSelecting && (
-                    <span className={styles.checkbox} aria-hidden="true">
-                      {recipientIds.includes(conversation.id) && <Check size={16} />}
-                    </span>
-                  )}
+                  <span className={styles.checkbox} aria-hidden="true">
+                    <MessageCheckbox isChecked={recipientIds.includes(conversation.id)} />
+                  </span>
                   <Ripple />
                 </button>
               ))}

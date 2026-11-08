@@ -21,7 +21,7 @@
 
 .fill {
   position: absolute;
-  inset: -15%;
+  inset: var(--choice-fill-inset, -15%);
   border-radius: 50%;
   background: var(--choice-fill, var(--accent-color));
   transform: scale(0);
@@ -37,8 +37,8 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: calc(var(--choice-size, 20px) - 7px);
-  height: calc(var(--choice-size, 20px) - 7px);
+  width: var(--choice-mark-size, calc(var(--choice-size, 20px) - 7px));
+  height: var(--choice-mark-size, calc(var(--choice-size, 20px) - 7px));
   transform: translate(-50%, -50%) scale(var(--choice-scale, 1));
   stroke: var(--message-control-check, white);
   stroke-width: 3.75;
