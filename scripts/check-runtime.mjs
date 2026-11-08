@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -9,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createRuntimeEnvironment, serializeEnvironment } from './runtime-environment.mjs';
 import { verifyMessageRecovery } from './check-messaging.mjs';
+import { verifySynchronization } from './check-synchronization.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -17,8 +19,6 @@ const RETRY_DELAY_MS = 1_000;
 const COMMAND_TIMEOUT_MS = 1_200_000;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const SECRET_MARKER = `private-request-${randomUUID()}`;
-const MISSING_CREDENTIALS_CLOSE_CODE = 3501;
-const INVALID_TOKEN_CLOSE_CODE = 3500;
 const OBJECT_CONTENT = 'Object storage survives service restarts.\n';
 const environment = createRuntimeEnvironment({ httpPort: '0', s3Port: '0' });
 environment.TG_CHAT_MAILPIT_PORT = '0';
@@ -98,7 +98,9 @@ async function expectStatus(url, status) {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
-    throw new Error(`HTTP probe failed for ${new URL(url).pathname}`, { cause: error });
+    throw new Error(`HTTP probe failed for ${new URL(url).pathname}`, {
+      cause: error,
+    });
   }
   const expectedStatuses = Array.isArray(status) ? status : [status];
   assert.ok(
@@ -160,7 +162,9 @@ function signedStorageRequest({ origin, path, method, body }) {
     configuration.push(`data-binary = "@${bodyPath}"`);
   }
 
-  return execute('curl', ['--config', '-'], { input: `${configuration.join('\n')}\n` });
+  return execute('curl', ['--config', '-'], {
+    input: `${configuration.join('\n')}\n`,
+  });
 }
 
 async function waitForStoredObject(origin) {
@@ -183,7 +187,9 @@ async function waitForStoredObject(origin) {
     }
   }
 
-  throw new Error('Stored object did not become readable after restart', { cause: lastError });
+  throw new Error('Stored object did not become readable after restart', {
+    cause: lastError,
+  });
 }
 
 async function verifyRoutes(origin) {
@@ -217,7 +223,9 @@ async function verifyRoutes(origin) {
 function configurePublicOrigin(origin) {
   // Docker chooses the host port; cookie admission and email links must use that exact origin.
   environment.TG_CHAT_PUBLIC_ORIGIN = origin;
-  writeFileSync(environmentPath, serializeEnvironment(environment), { mode: 0o600 });
+  writeFileSync(environmentPath, serializeEnvironment(environment), {
+    mode: 0o600,
+  });
   // prettier-ignore
   compose([
     'up',
@@ -242,13 +250,13 @@ function resetAdmissionFixtures() {
   ]);
 }
 
-function verifyAccountBrowsers(origin) {
+function verifyAccountBrowsers(origin, suite = 'test:accounts') {
   const mailpitOrigin = endpoint('mailpit', '8025');
   // prettier-ignore
   const browserArguments = [
     '--dir',
     'web',
-    'test:accounts',
+    suite,
   ];
   const output = execute('pnpm', browserArguments, {
     env: {
@@ -326,48 +334,50 @@ async function verifyValkeyOutage(origin) {
   throw new Error('Account admission did not recover after Valkey restarted');
 }
 
-async function expectRealtimeRejection({ origin, token, expectedCode }) {
-  const socketUrl = origin.replace('http:', 'ws:') + '/connection/websocket';
-  const socket = new WebSocket(socketUrl);
-  let timeout;
-
-  try {
-    const closeCode = await new Promise((resolve, reject) => {
-      timeout = setTimeout(
-        () => reject(new Error('Realtime authentication timed out')),
-        REQUEST_TIMEOUT_MS,
-      );
-      socket.addEventListener('open', () => {
-        socket.send(JSON.stringify({ id: 1, connect: { token } }));
-      });
-      socket.addEventListener('close', (event) => resolve(event.code), {
-        once: true,
-      });
-      socket.addEventListener('error', () => reject(new Error('Realtime gateway failed')), {
-        once: true,
-      });
-    });
-    assert.equal(
-      closeCode,
-      expectedCode,
-      'Centrifugo must reject client connections without valid credentials',
-    );
-  } finally {
-    clearTimeout(timeout);
-    socket.close();
-  }
-}
-
 async function verifyRealtimeAuthentication(origin) {
-  await expectRealtimeRejection({
-    origin,
-    expectedCode: MISSING_CREDENTIALS_CLOSE_CODE,
-  });
-  await expectRealtimeRejection({
-    origin,
-    token: SECRET_MARKER,
-    expectedCode: INVALID_TOKEN_CLOSE_CODE,
-  });
+  const requireWeb = createRequire(new URL('../web/package.json', import.meta.url));
+  const { chromium } = requireWeb('@playwright/test');
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(origin);
+    for (const token of [undefined, 'forged-client-token']) {
+      const rejected = await page.evaluate(
+        async (options) => {
+          const endpoint = new URL('/connection/websocket', window.location.href);
+          endpoint.protocol = 'ws:';
+          const socket = new WebSocket(endpoint);
+          try {
+            return await new Promise((resolve, reject) => {
+              const timeout = setTimeout(
+                () => reject(new Error('Realtime rejection timed out')),
+                options.timeout,
+              );
+              socket.onopen = () =>
+                socket.send(JSON.stringify({ id: 1, connect: { token: options.token } }));
+              socket.onmessage = (event) => {
+                const frame = JSON.parse(event.data);
+                if (frame.id === 1) {
+                  clearTimeout(timeout);
+                  resolve(Boolean(frame.error));
+                }
+              };
+              socket.onclose = (event) => {
+                clearTimeout(timeout);
+                resolve(event.code >= 3500);
+              };
+            });
+          } finally {
+            socket.close();
+          }
+        },
+        { token, timeout: REQUEST_TIMEOUT_MS },
+      );
+      assert.equal(rejected, true, 'Personal realtime requires the authenticated session cookie');
+    }
+  } finally {
+    await browser.close();
+  }
 }
 
 function verifyPrivateServices() {
@@ -511,7 +521,9 @@ async function verifyPersistence({ origin, storageOrigin }) {
 }
 
 async function main() {
-  writeFileSync(environmentPath, serializeEnvironment(environment), { mode: 0o600 });
+  writeFileSync(environmentPath, serializeEnvironment(environment), {
+    mode: 0o600,
+  });
 
   try {
     console.log('Building isolated runtime images.');
@@ -558,10 +570,20 @@ async function main() {
         await waitUntilReady(`${origin}/health/ready`);
       },
     });
+    resetAdmissionFixtures();
+    console.log('Checking durable synchronization during Worker and realtime outages.');
+    await verifySynchronization({
+      origin,
+      compose,
+      queryDatabase,
+    });
     // Independent fixtures share one loopback IP. Clear only this random project's test cache.
     resetAdmissionFixtures();
     console.log('Checking real account and messaging browsers and SMTP links.');
     verifyAccountBrowsers(origin);
+    resetAdmissionFixtures();
+    console.log('Checking four-session browser convergence and full reset.');
+    verifyAccountBrowsers(origin, 'test:sync');
     resetAdmissionFixtures();
     console.log('Checking fail-closed admission and surviving reads during Valkey outage.');
     await verifyValkeyOutage(origin);
