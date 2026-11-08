@@ -128,7 +128,11 @@ function SendShortcutRow() {
       unmountOnExit
     >
       <Menu.Trigger asChild>
-        <button className={`${styles.row} ${styles.sendRow}`} aria-label="Send message shortcut">
+        <button
+          className={`${styles.row} ${styles.sendRow}`}
+          aria-label="Send message shortcut"
+          data-settings-label="Send message"
+        >
           <span>Send message</span>
           <KeyCombo keys={sendKeys} />
           <Ripple />

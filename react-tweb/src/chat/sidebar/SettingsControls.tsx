@@ -66,7 +66,7 @@ export function SettingsHeader({ title, backLabel, onBack, children }: SettingsH
 /** Open a settings category using the same hit area as a preference row. */
 export function SettingsRow({ label, icon: Icon, color, onClick, value }: SettingsRowProps) {
   return (
-    <button type="button" className={styles.row} onClick={onClick}>
+    <button type="button" className={styles.row} data-settings-label={label} onClick={onClick}>
       <span className={styles.icon} data-color={color}>
         <Icon aria-hidden="true" />
       </span>
@@ -89,6 +89,7 @@ export function SettingsSwitch({
   return (
     <Switch.Root
       className={styles.row}
+      data-settings-label={label}
       data-has-icon={Boolean(Icon)}
       checked={isChecked}
       disabled={isDisabled}
@@ -122,7 +123,7 @@ export function SettingsRange({
   const progress = ((value - minimum) / (maximum - minimum)) * PERCENTAGE_SCALE;
   const rangeStyle = { '--range-progress': `${progress}%` } as CSSProperties;
   return (
-    <label className={styles.range}>
+    <label className={styles.range} data-settings-label={label}>
       <span className={styles.rangeDetails}>
         <span>{label}</span>
         <output>

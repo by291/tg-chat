@@ -1,4 +1,4 @@
-import { Bell, Keyboard, MonitorSmartphone, Search, Settings, Sticker, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -12,48 +12,11 @@ import { SettingsProfile } from './SettingsProfile';
 import { NotificationSettingsPage, type NotificationChatActions } from './NotificationSettingsPage';
 import { DevicesSettingsPage } from './DevicesSettingsPage';
 import { KeyboardSettingsPage } from './KeyboardSettingsPage';
+import { SettingsSearchPanel } from './SettingsSearchPanel';
+import { SETTINGS_CATEGORIES, rememberSetting, type SettingsSearchItem } from './settingsSearch';
+import { useSettingsSearchTarget } from './useSettingsSearchTarget';
+import searchStyles from './SettingsSearchPanel.module.css';
 import styles from './SettingsPage.module.css';
-
-const SETTINGS_CATEGORIES = [
-  {
-    id: 'notifications',
-    label: 'Notifications and Sounds',
-    keywords: 'alerts desktop push offline volume sound preview mute exceptions',
-    icon: Bell,
-    color: 'red',
-  },
-  {
-    id: 'general',
-    label: 'General Settings',
-    keywords:
-      'appearance theme light dark mode wallpaper background color text size time format autoplay video power animation',
-    icon: Settings,
-    color: 'gray',
-  },
-  {
-    id: 'stickers',
-    label: 'Stickers and Emoji',
-    keywords: 'animation loop packs emoticons large emoji dynamic order sort',
-    icon: Sticker,
-    color: 'pink',
-  },
-  {
-    id: 'devices',
-    label: 'Devices',
-    keywords: 'sessions browser login device rename terminate logout inactive',
-    icon: MonitorSmartphone,
-    color: 'blue',
-  },
-  {
-    id: 'shortcuts',
-    label: 'Keyboard Shortcuts',
-    keywords: 'keyboard send message enter newline escape',
-    icon: Keyboard,
-    color: 'orange',
-  },
-] as const;
-
-type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number]['id'];
 
 interface SettingsPageProps extends NotificationChatActions {
   onBack: () => void;
@@ -61,26 +24,21 @@ interface SettingsPageProps extends NotificationChatActions {
 
 /** Browse supported preferences without replacing the conversation or losing sidebar state. */
 export function SettingsPage({ onBack, ...notificationActions }: SettingsPageProps) {
-  const [category, setCategory] = useState<SettingsCategory>();
-  const closingCategory = useClosingDialogValue(category);
+  const [destination, setDestination] = useState<SettingsSearchItem>();
+  const closingDestination = useClosingDialogValue(destination);
+  const detailRef = useRef<HTMLDivElement>(null);
+  useSettingsSearchTarget({ rootRef: detailRef, item: destination });
   const [isSearching, setIsSearching] = useState(false);
-  const [query, setQuery] = useState('');
   const searchButtonRef = useRef<HTMLButtonElement>(null);
-  const normalizedQuery = query.trim().toLowerCase();
-  const categories = SETTINGS_CATEGORIES.filter((entry) => {
-    const searchableText = `${entry.label} ${entry.keywords}`.toLowerCase();
-    return searchableText.includes(normalizedQuery);
-  });
 
   function closeSearch() {
     setIsSearching(false);
-    setQuery('');
-    searchButtonRef.current?.focus();
+    requestAnimationFrame(() => searchButtonRef.current?.focus({ preventScroll: true }));
   }
 
   function navigateBack() {
-    if (category) {
-      setCategory(undefined);
+    if (destination) {
+      setDestination(undefined);
       return;
     }
     if (isSearching) {
@@ -90,70 +48,78 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
     onBack();
   }
 
-  let detailPage = <GeneralSettingsPage onBack={() => setCategory(undefined)} />;
-  if (closingCategory === 'notifications') {
-    detailPage = (
-      <NotificationSettingsPage {...notificationActions} onBack={() => setCategory(undefined)} />
-    );
-  } else if (closingCategory === 'stickers') {
-    detailPage = <StickerSettingsPage onBack={() => setCategory(undefined)} />;
-  } else if (closingCategory === 'devices') {
-    detailPage = <DevicesSettingsPage onBack={() => setCategory(undefined)} />;
-  } else if (closingCategory === 'shortcuts') {
-    detailPage = <KeyboardSettingsPage onBack={() => setCategory(undefined)} />;
+  function openSearchResult(item: SettingsSearchItem) {
+    rememberSetting(item.id);
+    setDestination(item);
+  }
+
+  const closeCategory = () => setDestination(undefined);
+  let detailPage = (
+    <GeneralSettingsPage
+      key={closingDestination?.id}
+      initialPage={closingDestination?.page}
+      onBack={closeCategory}
+    />
+  );
+  if (closingDestination?.category === 'notifications') {
+    detailPage = <NotificationSettingsPage {...notificationActions} onBack={closeCategory} />;
+  } else if (closingDestination?.category === 'stickers') {
+    detailPage = <StickerSettingsPage onBack={closeCategory} />;
+  } else if (closingDestination?.category === 'devices') {
+    detailPage = <DevicesSettingsPage onBack={closeCategory} />;
+  } else if (closingDestination?.category === 'shortcuts') {
+    detailPage = <KeyboardSettingsPage onBack={closeCategory} />;
   }
 
   const overview = (
-    <section className={styles.page} aria-label="Settings">
-      <SettingsProfile
-        identity={DEMO_PROFILE}
-        isSearching={isSearching}
-        header={
-          <SettingsHeader title="Settings" backLabel="Back from settings" onBack={navigateBack}>
-            <IconButton
-              ref={searchButtonRef}
-              label="Search settings"
-              onClick={() => setIsSearching(true)}
-            >
-              <Search />
-            </IconButton>
-          </SettingsHeader>
-        }
-        search={
-          isSearching && (
-            <div className={styles.search}>
-              <Search aria-hidden="true" />
-              <input
-                autoFocus
-                aria-label="Search settings"
-                placeholder="Search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              <IconButton label="Close settings search" onClick={closeSearch}>
-                <X />
+    <section
+      className={`${styles.page} ${searchStyles.layers}`}
+      aria-label="Settings"
+      data-searching={isSearching}
+    >
+      <div className={searchStyles.mainLayer} inert={isSearching} aria-hidden={isSearching}>
+        <SettingsProfile
+          identity={DEMO_PROFILE}
+          header={
+            <SettingsHeader title="Settings" backLabel="Back from settings" onBack={navigateBack}>
+              <IconButton
+                ref={searchButtonRef}
+                label="Search settings"
+                onClick={() => setIsSearching(true)}
+              >
+                <Search />
               </IconButton>
-            </div>
-          )
-        }
-      >
-        {!isSearching && <SettingsAccountDetails profile={DEMO_PROFILE} />}
-        {categories.length > 0 ? (
+            </SettingsHeader>
+          }
+        >
+          <SettingsAccountDetails profile={DEMO_PROFILE} />
           <div className={styles.section}>
-            {categories.map((entry) => (
+            {SETTINGS_CATEGORIES.map((entry) => (
               <SettingsRow
                 key={entry.id}
                 label={entry.label}
                 icon={entry.icon}
                 color={entry.color}
-                onClick={() => setCategory(entry.id)}
+                onClick={() =>
+                  setDestination({
+                    id: entry.id,
+                    category: entry.id,
+                    title: entry.label,
+                    path: '',
+                    keywords: entry.keywords,
+                  })
+                }
               />
             ))}
           </div>
-        ) : (
-          <p className={styles.empty}>No settings found</p>
-        )}
-      </SettingsProfile>
+        </SettingsProfile>
+      </div>
+      <SettingsSearchPanel
+        isOpen={isSearching}
+        isCovered={Boolean(destination)}
+        onClose={closeSearch}
+        onSelect={openSearchResult}
+      />
     </section>
   );
 
@@ -169,9 +135,13 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
       }}
     >
       <SidebarNavigation
-        isSecondaryOpen={Boolean(category)}
+        isSecondaryOpen={Boolean(destination)}
         primary={overview}
-        secondary={detailPage}
+        secondary={
+          <div ref={detailRef} className={styles.page}>
+            {detailPage}
+          </div>
+        }
       />
     </div>
   );

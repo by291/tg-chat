@@ -1,0 +1,195 @@
+.layers {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.mainLayer,
+.searchLayer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel-color);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    visibility 0s 150ms;
+}
+
+.mainLayer {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.searchLayer {
+  visibility: hidden;
+  opacity: 0;
+  transform: scale(1.1);
+}
+
+.layers[data-searching='true'] .mainLayer {
+  visibility: hidden;
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.layers[data-searching='true'] .searchLayer {
+  visibility: visible;
+  opacity: 1;
+  transform: scale(1);
+  transition-delay: 0s;
+}
+
+.layers[data-searching='false'] .mainLayer {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.searchHeader {
+  display: flex;
+  flex: 0 0 56px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 24px 6px 16px;
+  background: var(--surface-color);
+}
+
+.inputWrap {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 44px;
+  padding-left: 12px;
+  padding-right: 4px;
+  border: 2px solid transparent;
+  border-radius: 24px;
+  background: var(--panel-color);
+  color: var(--secondary-color);
+}
+
+.inputWrap:focus-within {
+  border-color: var(--accent-color);
+  background: var(--surface-color);
+  color: var(--accent-color);
+}
+
+.inputWrap > svg {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+}
+
+.inputWrap input {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-color);
+  font-size: 16px;
+}
+
+.inputWrap button {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+}
+
+.results {
+  padding-top: 16px;
+}
+
+.result {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 16px 8px 12px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-color);
+  text-align: start;
+  cursor: pointer;
+}
+
+.result:hover {
+  background: var(--hover-color);
+}
+
+.categoryIcon {
+  display: flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+}
+
+.resultText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+  line-height: 22px;
+}
+
+.resultText small {
+  overflow: hidden;
+  color: var(--secondary-color);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 56px 16px;
+  color: var(--secondary-color);
+  text-align: center;
+}
+
+.empty svg {
+  width: 64px;
+  height: 64px;
+  stroke-width: 1;
+}
+
+/* Controls without their own radius still need a rounded search highlight. */
+:where(.highlight) {
+  border-radius: 16px;
+}
+
+.highlight {
+  animation: setting-highlight 1600ms ease-in-out;
+}
+
+@keyframes setting-highlight {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  15%,
+  70% {
+    background-color: color-mix(in srgb, var(--accent-color) 16%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mainLayer,
+  .searchLayer {
+    transition: none;
+  }
+
+  .highlight {
+    animation: none;
+  }
+}

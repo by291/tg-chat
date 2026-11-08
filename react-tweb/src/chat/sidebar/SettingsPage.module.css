@@ -218,27 +218,6 @@
   line-height: 18px;
 }
 
-.search {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 16px 16px;
-  padding-left: 16px;
-  border-radius: 24px;
-  background: var(--surface-color);
-  color: var(--secondary-color);
-}
-
-.search input {
-  width: 0;
-  flex: 1;
-  min-height: 44px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-color);
-}
-
 .empty {
   padding: 24px;
   color: var(--secondary-color);

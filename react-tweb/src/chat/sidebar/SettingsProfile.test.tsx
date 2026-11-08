@@ -13,11 +13,7 @@ afterEach(cleanup);
 
 function renderProfile(photoUrl: string | undefined = identity.photoUrl) {
   render(
-    <SettingsProfile
-      identity={{ ...identity, photoUrl }}
-      header={<button>Search settings</button>}
-      isSearching={false}
-    >
+    <SettingsProfile identity={{ ...identity, photoUrl }} header={<button>Search settings</button>}>
       <button>General Settings</button>
     </SettingsProfile>,
   );

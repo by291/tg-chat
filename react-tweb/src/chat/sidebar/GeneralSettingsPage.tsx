@@ -23,13 +23,14 @@ import styles from './SettingsPage.module.css';
 const MINUTE_DURATION = 60_000;
 
 interface GeneralSettingsPageProps {
+  initialPage?: 'power' | 'wallpaper';
   onBack: () => void;
 }
 
 /** Edit message presentation and open the media power-saving preferences. */
-export function GeneralSettingsPage({ onBack }: GeneralSettingsPageProps) {
+export function GeneralSettingsPage({ onBack, initialPage }: GeneralSettingsPageProps) {
   const preferences = useAppPreferences();
-  const [page, setPage] = useState<'power' | 'wallpaper'>();
+  const [page, setPage] = useState<'power' | 'wallpaper' | undefined>(initialPage);
   const closingPage = useClosingDialogValue(page);
   const [previewTimestamp, setPreviewTimestamp] = useState(Date.now);
   const isPowerSaving =
