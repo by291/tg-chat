@@ -9,6 +9,8 @@ export const DEFAULT_APP_PREFERENCES = {
   timeFormat: 'h12' as const,
   shouldAutoplayVideos: true,
   shouldAnimateStickers: true,
+  shouldAutoplayStickersInChat: true,
+  shouldAutoplayStickersInPanel: true,
   shouldUseLargeEmoji: true,
   shouldUseDynamicPackOrder: true,
   stickerPackOrder: [] as string[],
@@ -21,6 +23,12 @@ const preferenceSchema = z.object({
   timeFormat: z.enum(['h12', 'h23']).catch(DEFAULT_APP_PREFERENCES.timeFormat),
   shouldAutoplayVideos: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAutoplayVideos),
   shouldAnimateStickers: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAnimateStickers),
+  shouldAutoplayStickersInChat: z
+    .boolean()
+    .catch(DEFAULT_APP_PREFERENCES.shouldAutoplayStickersInChat),
+  shouldAutoplayStickersInPanel: z
+    .boolean()
+    .catch(DEFAULT_APP_PREFERENCES.shouldAutoplayStickersInPanel),
   shouldUseLargeEmoji: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldUseLargeEmoji),
   shouldUseDynamicPackOrder: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldUseDynamicPackOrder),
   stickerPackOrder: z.array(z.string()).catch(DEFAULT_APP_PREFERENCES.stickerPackOrder),

@@ -3,6 +3,7 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '../../app/settings/appPreferences';
 import { StickerArtwork } from './StickerArtwork';
+import { StickerPlaybackScope } from './StickerPlaybackScope';
 
 const { animation } = vi.hoisted(() => ({
   animation: {
@@ -106,5 +107,58 @@ it('applies animation preferences to an already visible sticker', async () => {
   act(() => setAppPreferences({ shouldAnimateStickers: false }));
   expect(animation.isPaused).toBe(true);
   act(() => setAppPreferences({ shouldAnimateStickers: true }));
+  await waitFor(() => expect(animation.isPaused).toBe(false));
+});
+
+it('keeps panel playback independent of chat autoplay and responds to panel changes', async () => {
+  setAppPreferences({ shouldAutoplayStickersInChat: false });
+  render(
+    <StickerPlaybackScope group="panel" isActive={false}>
+      <StickerArtwork
+        sticker={{
+          name: 'Panel sticker',
+          source: '/sticker.json',
+          preview: '/sticker.webp',
+          renderer: 'svg',
+        }}
+      />
+    </StickerPlaybackScope>,
+  );
+  act(() => {
+    notifyVisibility(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+  });
+  await waitFor(() => expect(animation.isPaused).toBe(false));
+  act(() => setAppPreferences({ shouldAutoplayStickersInPanel: false }));
+  expect(animation.isPaused).toBe(true);
+  act(() => setAppPreferences({ shouldAutoplayStickersInPanel: true }));
+  await waitFor(() => expect(animation.isPaused).toBe(false));
+});
+
+it('allows a held preview when automatic chat and panel playback are disabled', async () => {
+  setAppPreferences({
+    shouldAutoplayStickersInChat: false,
+    shouldAutoplayStickersInPanel: false,
+  });
+  render(
+    <StickerPlaybackScope group="preview">
+      <StickerArtwork
+        sticker={{
+          name: 'Held sticker',
+          source: '/sticker.json',
+          preview: '/sticker.webp',
+          renderer: 'svg',
+        }}
+      />
+    </StickerPlaybackScope>,
+  );
+  act(() => {
+    notifyVisibility(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+  });
   await waitFor(() => expect(animation.isPaused).toBe(false));
 });

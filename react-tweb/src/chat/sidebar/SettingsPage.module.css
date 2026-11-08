@@ -464,3 +464,6 @@
     transition: none;
   }
 }
+.nestedControls {
+  padding-inline-start: 20px;
+}

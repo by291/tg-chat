@@ -10,6 +10,7 @@ import { usePickerPreferences } from './emoticons/pickerPreferences';
 import type { CustomEmoji } from '../emoji/customEmojiCatalog';
 import type { Sticker } from '../stickers/stickerCatalog';
 import { rememberSentSticker } from '../stickers/stickerPackOrder';
+import { StickerPlaybackScope } from '../stickers/StickerPlaybackScope';
 import styles from './EmojiPicker.module.css';
 
 const HOVER_OPEN_DELAY = 200;
@@ -149,86 +150,88 @@ export function EmojiPicker({
           <Smile />
         </IconButton>
       </PickerTrigger>
-      <Portal>
-        <Popover.Positioner className={styles.positioner}>
-          <Popover.Content
-            className={styles.panel}
-            data-variant={variant}
-            aria-label={label}
-            onPointerEnter={cancelHoverTimer}
-            onFocusCapture={() => {
-              isClickOpenedRef.current = true;
-            }}
-            onContextMenuCapture={() => {
-              isClickOpenedRef.current = true;
-            }}
-            onPointerLeave={(event) => {
-              const nextTarget = event.relatedTarget;
-              const isPickerOverlay =
-                nextTarget instanceof Element &&
-                Boolean(nextTarget.closest('[data-emoticon-overlay]'));
-              if (isPickerOverlay || event.buttons > 0) {
-                return;
-              }
-              scheduleHoverClose();
-            }}
-            onPointerDownCapture={(event) => {
-              if (event.pointerType !== 'mouse' || !(event.target instanceof Element)) {
-                return;
-              }
+      <StickerPlaybackScope group="panel" isActive={false}>
+        <Portal>
+          <Popover.Positioner className={styles.positioner}>
+            <Popover.Content
+              className={styles.panel}
+              data-variant={variant}
+              aria-label={label}
+              onPointerEnter={cancelHoverTimer}
+              onFocusCapture={() => {
+                isClickOpenedRef.current = true;
+              }}
+              onContextMenuCapture={() => {
+                isClickOpenedRef.current = true;
+              }}
+              onPointerLeave={(event) => {
+                const nextTarget = event.relatedTarget;
+                const isPickerOverlay =
+                  nextTarget instanceof Element &&
+                  Boolean(nextTarget.closest('[data-emoticon-overlay]'));
+                if (isPickerOverlay || event.buttons > 0) {
+                  return;
+                }
+                scheduleHoverClose();
+              }}
+              onPointerDownCapture={(event) => {
+                if (event.pointerType !== 'mouse' || !(event.target instanceof Element)) {
+                  return;
+                }
 
-              // Preserve the editor selection, but let clicks outside the search input blur it.
-              // Blocking every pointerdown traps search focus and prevents Telegram's collapse.
-              const focusedElement = event.currentTarget.ownerDocument.activeElement;
-              const isSearchFocused = focusedElement?.matches('[data-picker-search-input]');
-              const isInputTarget = Boolean(event.target.closest('input'));
-              if (!isSearchFocused && !isInputTarget) {
-                event.preventDefault();
-              }
-            }}
-          >
-            {onSelectSticker ? (
-              <Tabs.Root
-                value={activeTab}
-                onValueChange={(details) => setTab(details.value)}
-                className={styles.tabRoot}
-                lazyMount
-              >
-                <Tabs.Content value="emoji" className={styles.tabContent}>
-                  {emojiBrowser}
-                </Tabs.Content>
-                <Tabs.Content value="stickers" className={styles.tabContent}>
-                  <StickerBrowser
-                    recentStickers={preferences.recentStickers}
-                    favoriteStickers={preferences.favoriteStickers}
-                    onSelect={sendSticker}
-                    onToggleFavorite={toggleFavorite}
-                  />
-                </Tabs.Content>
-                <Tabs.List className={styles.tabs}>
-                  <Tabs.Trigger value="emoji" aria-label="Emoji">
-                    <Smile size={24} />
-                  </Tabs.Trigger>
-                  <Tabs.Trigger value="stickers" aria-label="Stickers">
-                    <StickerIcon size={24} />
-                  </Tabs.Trigger>
-                  {onDeleteCharacter && activeTab === 'emoji' && (
-                    <button
-                      className={styles.delete}
-                      aria-label="Delete last character"
-                      onClick={onDeleteCharacter}
-                    >
-                      <Delete size={22} />
-                    </button>
-                  )}
-                </Tabs.List>
-              </Tabs.Root>
-            ) : (
-              emojiBrowser
-            )}
-          </Popover.Content>
-        </Popover.Positioner>
-      </Portal>
+                // Preserve the editor selection, but let clicks outside the search input blur it.
+                // Blocking every pointerdown traps search focus and prevents Telegram's collapse.
+                const focusedElement = event.currentTarget.ownerDocument.activeElement;
+                const isSearchFocused = focusedElement?.matches('[data-picker-search-input]');
+                const isInputTarget = Boolean(event.target.closest('input'));
+                if (!isSearchFocused && !isInputTarget) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              {onSelectSticker ? (
+                <Tabs.Root
+                  value={activeTab}
+                  onValueChange={(details) => setTab(details.value)}
+                  className={styles.tabRoot}
+                  lazyMount
+                >
+                  <Tabs.Content value="emoji" className={styles.tabContent}>
+                    {emojiBrowser}
+                  </Tabs.Content>
+                  <Tabs.Content value="stickers" className={styles.tabContent}>
+                    <StickerBrowser
+                      recentStickers={preferences.recentStickers}
+                      favoriteStickers={preferences.favoriteStickers}
+                      onSelect={sendSticker}
+                      onToggleFavorite={toggleFavorite}
+                    />
+                  </Tabs.Content>
+                  <Tabs.List className={styles.tabs}>
+                    <Tabs.Trigger value="emoji" aria-label="Emoji">
+                      <Smile size={24} />
+                    </Tabs.Trigger>
+                    <Tabs.Trigger value="stickers" aria-label="Stickers">
+                      <StickerIcon size={24} />
+                    </Tabs.Trigger>
+                    {onDeleteCharacter && activeTab === 'emoji' && (
+                      <button
+                        className={styles.delete}
+                        aria-label="Delete last character"
+                        onClick={onDeleteCharacter}
+                      >
+                        <Delete size={22} />
+                      </button>
+                    )}
+                  </Tabs.List>
+                </Tabs.Root>
+              ) : (
+                emojiBrowser
+              )}
+            </Popover.Content>
+          </Popover.Positioner>
+        </Portal>
+      </StickerPlaybackScope>
     </Popover.Root>
   );
 }

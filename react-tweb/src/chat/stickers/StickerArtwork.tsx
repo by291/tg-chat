@@ -46,13 +46,21 @@ export function StickerArtwork({
         return;
       }
       const policy = getStickerPlaybackState();
+      const preferences = getAppPreferences();
+      const shouldAutoplay =
+        playbackGroup === 'default'
+          ? preferences.shouldAutoplayStickersInChat
+          : preferences.shouldAutoplayStickersInPanel;
+      // A held preview is an explicit playback request, not panel autoplay.
+      const isAutoplayAllowed = shouldAutoplay || playbackGroup === 'preview';
       const isGroupAllowed = !policy.exclusiveGroup || policy.exclusiveGroup === playbackGroup;
       const shouldPlay =
         isVisible &&
         policy.isWindowActive &&
         !policy.isReducedMotion &&
         isGroupAllowed &&
-        getAppPreferences().shouldAnimateStickers;
+        preferences.shouldAnimateStickers &&
+        isAutoplayAllowed;
 
       // Disabling looping finishes the current lap; re-enabling it releases a completed player.
       animation.loop = policy.shouldLoop;

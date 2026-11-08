@@ -32,7 +32,11 @@ export function GeneralSettingsPage({ isDark, onToggleTheme, onBack }: GeneralSe
   const [isPowerSavingOpen, setIsPowerSavingOpen] = useState(false);
   const [previewTimestamp, setPreviewTimestamp] = useState(Date.now);
   const appearanceRef = useRef<HTMLDivElement>(null);
-  const isPowerSaving = !preferences.shouldAutoplayVideos || !preferences.shouldAnimateStickers;
+  const isPowerSaving =
+    !preferences.shouldAutoplayVideos ||
+    !preferences.shouldAnimateStickers ||
+    !preferences.shouldAutoplayStickersInChat ||
+    !preferences.shouldAutoplayStickersInPanel;
 
   useEffect(() => {
     const interval = window.setInterval(() => setPreviewTimestamp(Date.now()), MINUTE_DURATION);
@@ -146,6 +150,24 @@ function PowerSavingPage({ onBack }: { onBack: () => void }) {
             isChecked={preferences.shouldAnimateStickers}
             onChange={({ isChecked }) => setAppPreferences({ shouldAnimateStickers: isChecked })}
           />
+          {preferences.shouldAnimateStickers && (
+            <div className={styles.nestedControls}>
+              <SettingsSwitch
+                label="Autoplay in Chat"
+                isChecked={preferences.shouldAutoplayStickersInChat}
+                onChange={({ isChecked }) =>
+                  setAppPreferences({ shouldAutoplayStickersInChat: isChecked })
+                }
+              />
+              <SettingsSwitch
+                label="Autoplay in Panel"
+                isChecked={preferences.shouldAutoplayStickersInPanel}
+                onChange={({ isChecked }) =>
+                  setAppPreferences({ shouldAutoplayStickersInPanel: isChecked })
+                }
+              />
+            </div>
+          )}
         </div>
         <p className={styles.caption}>
           Disable automatic playback to reduce power usage. You can still open and play videos. Your

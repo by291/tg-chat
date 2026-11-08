@@ -42,6 +42,7 @@ it('recovers invalid stored fields while preserving valid preferences from anoth
       timeFormat: 'h23',
       shouldAutoplayVideos: false,
       shouldUseLargeEmoji: false,
+      shouldAutoplayStickersInPanel: false,
       stickerPackOrder: ['recent-pack'],
     }),
   );
@@ -49,5 +50,6 @@ it('recovers invalid stored fields while preserving valid preferences from anoth
   expect(screen.getByText('16 / h23')).toBeTruthy();
   expect(getAppPreferences().shouldAutoplayVideos).toBe(false);
   expect(getAppPreferences().shouldUseLargeEmoji).toBe(false);
+  expect(getAppPreferences().shouldAutoplayStickersInPanel).toBe(false);
   expect(getAppPreferences().stickerPackOrder).toEqual(['recent-pack']);
 });

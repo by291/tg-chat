@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'react-tweb.sticker-playback.v1';
 
-export type StickerPlaybackGroup = 'default' | 'pack' | 'preview';
+export type StickerPlaybackGroup = 'default' | 'panel' | 'pack' | 'preview';
 type AnimationPlaybackGroup = StickerPlaybackGroup | 'viewer';
 
 interface PlaybackState {
