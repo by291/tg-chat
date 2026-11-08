@@ -118,9 +118,10 @@ impl AccountService {
         };
         let mut transaction = self.pool.begin().await?;
         lock_actor(&mut transaction, actor, &self.settings).await?;
+        // Saved relationships must remain manageable even when their target is suspended.
         let query = sqlx::query_as::<_, PublicProfile>(
             "SELECT id, username, display_name, biography FROM users
-             WHERE NOT is_suspended AND id > $2
+             WHERE id > $2 AND ($5 <> 'discovery' OR NOT is_suspended)
              AND (strpos(username, lower($3)) > 0 OR strpos(lower(display_name), lower($3)) > 0)
              AND (
                 ($5 = 'discovery' AND id <> $1)

@@ -169,6 +169,57 @@ async fn contacts_are_directional_and_blocks_prevent_new_direct_relationships(po
 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]
+async fn suspended_saved_targets_remain_listed_until_the_owner_removes_them(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let alice = register(&accounts, "alice").await;
+    let bobby = register(&accounts, "bobby").await;
+    accounts
+        .add_contact(RelationshipChange {
+            actor: alice.clone(),
+            target_id: bobby.user_id,
+        })
+        .await
+        .unwrap();
+    accounts
+        .add_block(RelationshipChange {
+            actor: alice.clone(),
+            target_id: bobby.user_id,
+        })
+        .await
+        .unwrap();
+
+    sqlx::query("UPDATE users SET is_suspended = true WHERE id = $1")
+        .bind(bobby.user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let contacts = accounts.contacts(&alice, first_page()).await.unwrap();
+    let blocks = accounts.blocks(&alice, first_page()).await.unwrap();
+    assert_eq!(contacts.users.len(), 1);
+    assert_eq!(blocks.users.len(), 1);
+    assert_eq!(contacts.users[0].id, bobby.user_id);
+    assert_eq!(blocks.users[0].id, bobby.user_id);
+
+    accounts
+        .remove_contact(RelationshipChange {
+            actor: alice.clone(),
+            target_id: bobby.user_id,
+        })
+        .await
+        .unwrap();
+    accounts
+        .remove_block(RelationshipChange {
+            actor: alice.clone(),
+            target_id: bobby.user_id,
+        })
+        .await
+        .unwrap();
+    assert!(accounts.contacts(&alice, first_page()).await.unwrap().users.is_empty());
+    assert!(accounts.blocks(&alice, first_page()).await.unwrap().users.is_empty());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
 async fn concurrent_contact_admission_preserves_the_capacity_boundary(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let alice = register(&accounts, "alice").await;
