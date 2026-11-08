@@ -5,6 +5,7 @@ import { useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObjec
 import { TextFieldEmojiButton } from './TextFieldEmojiButton';
 import { PollCorrectAnswer } from './PollCorrectAnswer';
 import { FormListRow } from './FormListRow';
+import { SortableList, type SortMove } from '../../components/SortableList';
 import { Ripple } from '../../components/Ripple';
 import { createListEntry, MIN_POLL_OPTIONS, type ListEntry } from './listComposition';
 import styles from './ComposerListDialog.module.css';
@@ -14,28 +15,35 @@ const OPTION_ICON_TRANSITION_SECONDS = 0.12;
 
 interface ListEntryFieldsProps {
   entries: ListEntry[];
-  onChange: (entries: ListEntry[]) => void;
+  onUpdate: (index: number, text: string) => void;
+  onAppend: (entry: ListEntry) => void;
+  onRemove: (index: number) => void;
+  onMove: (sourceIndex: number, targetIndex: number) => void;
   maximum: number;
   maxLength: number;
   correctOptionIds?: string[];
   canChooseMultiple: boolean;
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   onCorrectAnswer: (id: string) => void;
+  onSortingChange: (options: { isDragging: boolean }) => void;
 }
 
 /** Render poll answers with stable focus, bounded additions, and animated sorting controls. */
 export function ListEntryFields({
   entries,
-  onChange,
+  onUpdate,
+  onAppend,
+  onRemove,
+  onMove,
   maximum,
   maxLength,
   correctOptionIds,
   canChooseMultiple,
   scrollContainerRef,
   onCorrectAnswer,
+  onSortingChange,
 }: ListEntryFieldsProps) {
   const inputs = useRef(new Map<string, HTMLInputElement>());
-  const draggedId = useRef<string | undefined>(undefined);
   const answerGroupName = useId();
   const previousEntryCount = useRef(entries.length);
   const pendingRevealId = useRef<string | undefined>(undefined);
@@ -77,12 +85,11 @@ export function ListEntryFields({
   }
 
   function updateEntry(id: string, text: string) {
-    const next = entries.map((entry) => (entry.id === id ? { ...entry, text } : entry));
-    const lastEntry = next.at(-1);
-    if (lastEntry?.text.trim() && next.length < maximum) {
-      next.push(createListEntry());
+    const index = entries.findIndex((entry) => entry.id === id);
+    onUpdate(index, text);
+    if (index === entries.length - 1 && text.trim() && entries.length < maximum) {
+      onAppend(createListEntry());
     }
-    onChange(next);
   }
 
   function addEntry() {
@@ -90,168 +97,153 @@ export function ListEntryFields({
       return;
     }
     const entry = createListEntry();
-    onChange([...entries, entry]);
+    onAppend(entry);
     // Wait for React to mount the new input before moving the caret into it.
     requestAnimationFrame(() => inputs.current.get(entry.id)?.focus());
   }
 
-  function moveEntry(sourceId: string, targetId: string) {
+  function moveEntry({ sourceId, targetIndex }: SortMove) {
     const sourceIndex = entries.findIndex((entry) => entry.id === sourceId);
-    const targetIndex = entries.findIndex((entry) => entry.id === targetId);
-    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+    if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= entries.length) {
       return;
     }
-    const next = [...entries];
-    const [movedEntry] = next.splice(sourceIndex, 1);
-    next.splice(targetIndex, 0, movedEntry);
-    onChange(next);
+    onMove(sourceIndex, targetIndex);
   }
 
   return (
-    <div className={styles.entries} data-kind="poll" data-dragging={isDragging}>
-      <AnimatePresence initial={false}>
-        {entries.map((entry, index) => {
-          const isTrailingOption = index === entries.length - 1 && !entry.text;
-          const isInitialEmptyOption =
-            entries.length === MIN_POLL_OPTIONS && index === 0 && !entry.text;
-          const canReorder = !isTrailingOption && !isInitialEmptyOption;
-          const shouldShowEmoji = !isTrailingOption || Boolean(entries[0]?.text);
-          const shouldFocusFirstOption =
-            isTrailingOption && entries.length === MIN_POLL_OPTIONS && !entries[0].text;
-          const isDuplicate =
-            Boolean(entry.text) &&
-            entries.some((other) => {
-              return other.id !== entry.id && other.text === entry.text;
-            });
-          const fieldName = `Option ${index + 1}`;
-          return (
-            <FormListRow
-              key={entry.id}
-              hasGap={index > 0}
-              onRevealComplete={() => revealAddedEntry(entry.id)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (draggedId.current) {
-                  moveEntry(draggedId.current, entry.id);
-                  draggedId.current = undefined;
-                  setIsDragging(false);
-                }
-              }}
-            >
-              {correctOptionIds && (
-                <div className={styles.answerSlot}>
-                  {canReorder && (
-                    <PollCorrectAnswer
-                      label={`Correct answer ${index + 1}`}
-                      groupName={answerGroupName}
-                      isChecked={correctOptionIds.includes(entry.id)}
-                      canChooseMultiple={canChooseMultiple}
-                      onSelect={() => onCorrectAnswer(entry.id)}
-                    />
-                  )}
-                </div>
-              )}
-              <div className={styles.entry} data-invalid={isDuplicate}>
-                <button
-                  type="button"
-                  className={styles.reorder}
-                  aria-label={`Reorder option ${index + 1}`}
-                  aria-hidden={!canReorder}
-                  disabled={!canReorder}
-                  draggable={canReorder}
-                  onDragStart={() => {
-                    draggedId.current = entry.id;
-                    setIsDragging(true);
-                  }}
-                  onDragEnd={() => {
-                    draggedId.current = undefined;
-                    setIsDragging(false);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
-                      return;
-                    }
-                    event.preventDefault();
-                    const offset = event.key === 'ArrowUp' ? -1 : 1;
-                    const target = entries[index + offset];
-                    if (target) {
-                      moveEntry(entry.id, target.id);
-                    }
-                  }}
-                >
-                  <AnimatePresence initial={false}>
-                    {!isInitialEmptyOption && (
-                      <motion.span
-                        key={isTrailingOption ? 'add' : 'reorder'}
-                        className={styles.optionGlyph}
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{
-                          duration: shouldReduceMotion ? 0 : OPTION_ICON_TRANSITION_SECONDS,
-                          ease: 'easeOut',
-                        }}
-                      >
-                        {isTrailingOption ? <Plus size={20} /> : <Menu size={20} />}
-                      </motion.span>
+    <SortableList
+      onMove={moveEntry}
+      onDraggingChange={({ isDragging }) => {
+        setIsDragging(isDragging);
+        onSortingChange({ isDragging });
+      }}
+    >
+      <div className={styles.entries} data-kind="poll" data-dragging={isDragging}>
+        <AnimatePresence initial={false}>
+          {entries.map((entry, index) => {
+            const isTrailingOption = index === entries.length - 1 && !entry.text;
+            const isInitialEmptyOption =
+              entries.length === MIN_POLL_OPTIONS && index === 0 && !entry.text;
+            const canReorder = !isTrailingOption && !isInitialEmptyOption;
+            const shouldShowEmoji = !isTrailingOption || Boolean(entries[0]?.text);
+            const shouldFocusFirstOption =
+              isTrailingOption && entries.length === MIN_POLL_OPTIONS && !entries[0].text;
+            const isDuplicate =
+              Boolean(entry.text) &&
+              entries.some((other) => {
+                return other.id !== entry.id && other.text.trim() === entry.text.trim();
+              });
+            const fieldName = `Option ${index + 1}`;
+            return (
+              <FormListRow
+                key={entry.id}
+                id={entry.id}
+                index={index}
+                isDisabled={!canReorder}
+                hasGap={index > 0}
+                onRevealComplete={() => revealAddedEntry(entry.id)}
+              >
+                {({ handleRef }) => (
+                  <>
+                    {correctOptionIds && (
+                      <div className={styles.answerSlot}>
+                        {canReorder && (
+                          <PollCorrectAnswer
+                            label={`Correct answer ${index + 1}`}
+                            groupName={answerGroupName}
+                            isChecked={correctOptionIds.includes(entry.id)}
+                            canChooseMultiple={canChooseMultiple}
+                            onSelect={() => onCorrectAnswer(entry.id)}
+                          />
+                        )}
+                      </div>
                     )}
-                  </AnimatePresence>
-                </button>
-                <input
-                  ref={(element) => {
-                    if (element) {
-                      inputs.current.set(entry.id, element);
-                    } else {
-                      inputs.current.delete(entry.id);
-                    }
-                  }}
-                  data-list-entry
-                  aria-label={fieldName}
-                  placeholder={isTrailingOption ? 'Add an Option' : 'Option'}
-                  value={entry.text}
-                  maxLength={maxLength}
-                  onFocus={() => {
-                    if (shouldFocusFirstOption) {
-                      inputs.current.get(entries[0].id)?.focus();
-                    }
-                  }}
-                  onChange={(event) => updateEntry(entry.id, event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Backspace' && !entry.text) {
-                      event.preventDefault();
-                      const previousEntry = entries[Math.max(0, index - 1)];
-                      if (entries.length > MIN_POLL_OPTIONS && !isTrailingOption) {
-                        onChange(entries.filter((item) => item.id !== entry.id));
-                      }
-                      inputs.current.get(previousEntry.id)?.focus();
-                      return;
-                    }
-                    if (event.key !== 'Enter') {
-                      return;
-                    }
-                    event.preventDefault();
-                    const nextEntry = entries[index + 1];
-                    if (nextEntry) {
-                      inputs.current.get(nextEntry.id)?.focus();
-                    } else {
-                      addEntry();
-                    }
-                  }}
-                />
-                {shouldShowEmoji && (
-                  <TextFieldEmojiButton
-                    label={`Emoji for option ${index + 1}`}
-                    getInput={() => inputs.current.get(entry.id)}
-                    onChange={(text) => updateEntry(entry.id, text)}
-                  />
+                    <div className={styles.entry} data-invalid={isDuplicate}>
+                      <button
+                        type="button"
+                        className={styles.reorder}
+                        aria-label={`Reorder option ${index + 1}`}
+                        aria-hidden={!canReorder}
+                        disabled={!canReorder}
+                        ref={handleRef}
+                        data-sort-handle
+                        style={{ touchAction: 'none' }}
+                      >
+                        <AnimatePresence initial={false}>
+                          {!isInitialEmptyOption && (
+                            <motion.span
+                              key={isTrailingOption ? 'add' : 'reorder'}
+                              className={styles.optionGlyph}
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }}
+                              transition={{
+                                duration: shouldReduceMotion ? 0 : OPTION_ICON_TRANSITION_SECONDS,
+                                ease: 'easeOut',
+                              }}
+                            >
+                              {isTrailingOption ? <Plus size={20} /> : <Menu size={20} />}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </button>
+                      <input
+                        ref={(element) => {
+                          if (element) {
+                            inputs.current.set(entry.id, element);
+                          } else {
+                            inputs.current.delete(entry.id);
+                          }
+                        }}
+                        data-list-entry
+                        aria-label={fieldName}
+                        placeholder={isTrailingOption ? 'Add an Option' : 'Option'}
+                        value={entry.text}
+                        maxLength={maxLength}
+                        onFocus={() => {
+                          if (shouldFocusFirstOption) {
+                            inputs.current.get(entries[0].id)?.focus();
+                          }
+                        }}
+                        onChange={(event) => updateEntry(entry.id, event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Backspace' && !entry.text) {
+                            event.preventDefault();
+                            const previousEntry = entries[Math.max(0, index - 1)];
+                            if (entries.length > MIN_POLL_OPTIONS && !isTrailingOption) {
+                              onRemove(index);
+                            }
+                            inputs.current.get(previousEntry.id)?.focus();
+                            return;
+                          }
+                          if (event.key !== 'Enter') {
+                            return;
+                          }
+                          event.preventDefault();
+                          const nextEntry = entries[index + 1];
+                          if (nextEntry) {
+                            inputs.current.get(nextEntry.id)?.focus();
+                          } else {
+                            addEntry();
+                          }
+                        }}
+                      />
+                      {shouldShowEmoji && (
+                        <TextFieldEmojiButton
+                          label={`Emoji for option ${index + 1}`}
+                          getInput={() => inputs.current.get(entry.id)}
+                          onChange={(text) => updateEntry(entry.id, text)}
+                        />
+                      )}
+                    </div>
+                  </>
                 )}
-              </div>
-            </FormListRow>
-          );
-        })}
-      </AnimatePresence>
-    </div>
+              </FormListRow>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+    </SortableList>
   );
 }
 

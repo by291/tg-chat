@@ -17,7 +17,9 @@ interface ChecklistTextFieldProps {
 
 interface ChecklistFieldsProps {
   entries: ListEntry[];
-  onChange: (entries: ListEntry[]) => void;
+  onUpdate: (index: number, text: string) => void;
+  onAppend: (entry: ListEntry) => void;
+  onRemove: (index: number) => void;
 }
 
 /** Animate the placeholder separately from checklist text, without floating it above the border. */
@@ -57,7 +59,7 @@ export function ChecklistTextField({
 }
 
 /** Keep Telegram's contiguous task rows and focus each explicitly added task. */
-export function ChecklistFields({ entries, onChange }: ChecklistFieldsProps) {
+export function ChecklistFields({ entries, onUpdate, onAppend, onRemove }: ChecklistFieldsProps) {
   const inputs = useRef(new Map<string, HTMLInputElement>());
 
   function addTask() {
@@ -65,16 +67,9 @@ export function ChecklistFields({ entries, onChange }: ChecklistFieldsProps) {
       return;
     }
     const entry = createListEntry();
-    onChange([...entries, entry]);
+    onAppend(entry);
     // Telegram focuses the new row after it is mounted, revealing it in the scroll container.
     requestAnimationFrame(() => inputs.current.get(entry.id)?.focus());
-  }
-
-  function updateTask(id: string, text: string) {
-    const nextEntries = entries.map((entry) => {
-      return entry.id === id ? { ...entry, text } : entry;
-    });
-    onChange(nextEntries);
   }
 
   return (
@@ -92,8 +87,8 @@ export function ChecklistFields({ entries, onChange }: ChecklistFieldsProps) {
               inputs.current.delete(entry.id);
             }
           }}
-          onChange={(text) => updateTask(entry.id, text)}
-          onRemove={() => onChange(entries.filter((item) => item.id !== entry.id))}
+          onChange={(text) => onUpdate(index, text)}
+          onRemove={() => onRemove(index)}
         />
       ))}
       {entries.length < MAX_CHECKLIST_TASKS && (

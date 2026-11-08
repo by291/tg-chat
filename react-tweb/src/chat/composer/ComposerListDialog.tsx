@@ -11,15 +11,9 @@ import { ListEntryFields, ListSetting } from './ListDialogFields';
 import { PollSettingsFields } from './PollSettingsFields';
 import { PollTextField } from './PollTextField';
 import { ChecklistFields, ChecklistTextField } from './ChecklistFields';
-import {
-  composePoll,
-  createListEntry,
-  INITIAL_POLL_SETTINGS,
-  MIN_POLL_OPTIONS,
-  MAX_DESCRIPTION_LENGTH,
-  MAX_TITLE_LENGTH,
-  type PollSettings,
-} from './listComposition';
+import { composePoll, MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from './listComposition';
+import { useListForm } from './useListForm';
+import type { ListFormValues } from './listFormSchema';
 import overlays from '../overlays.module.css';
 import dialogs from '../sidebar/ConversationDialogs.module.css';
 import styles from './ComposerListDialog.module.css';
@@ -34,71 +28,47 @@ interface ComposerListDialogProps {
 export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDialogProps) {
   const isPoll = kind === 'poll';
   const [isOpen, setIsOpen] = useState(true);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [entries, setEntries] = useState(() => {
-    return Array.from({ length: isPoll ? MIN_POLL_OPTIONS : 1 }, createListEntry);
-  });
-  const [settings, setSettings] = useState(INITIAL_POLL_SETTINGS);
-  const [correctOptionIds, setCorrectOptionIds] = useState<string[]>([]);
-  const [explanation, setExplanation] = useState('');
-  const [canOthersComplete, setCanOthersComplete] = useState(false);
-  const [canOthersAppend, setCanOthersAppend] = useState(false);
+  const isSorting = useRef(false);
+  const listForm = useListForm(kind);
+  const { form, values, changeField } = listForm;
+  const {
+    title,
+    description,
+    entries,
+    settings,
+    correctOptionIds,
+    explanation,
+    canOthersComplete,
+    canOthersAppend,
+  } = values;
   const titleRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasSubmitted = useRef(false);
   const filledEntries = entries.filter((entry) => entry.text.trim());
-  const validCorrectIds = correctOptionIds.filter((id) => {
-    return filledEntries.some((entry) => entry.id === id);
-  });
-  const hasEnoughItems = filledEntries.length >= (isPoll ? MIN_POLL_OPTIONS : 1);
-  const hasValidChecklist = isPoll || filledEntries.length === entries.length;
   const needsCorrectAnswer = isPoll && settings.hasCorrectAnswer;
-  const hasCorrectAnswer = !needsCorrectAnswer || validCorrectIds.length > 0;
-  const hasDuplicateOptions =
-    isPoll && new Set(filledEntries.map((entry) => entry.text)).size !== filledEntries.length;
-  const canSubmit =
-    Boolean(title.trim()) &&
-    hasEnoughItems &&
-    hasValidChecklist &&
-    hasCorrectAnswer &&
-    !hasDuplicateOptions;
+  const canSubmit = form.formState.isValid;
+  const entriesError = form.formState.errors.entries;
+  const entryErrorMessage = entriesError?.message ?? entriesError?.root?.message;
 
-  function updateSettings(next: PollSettings) {
-    setSettings(next);
-    if (!next.canChooseMultiple) {
-      setCorrectOptionIds((current) => current.slice(0, 1));
-    }
-  }
-
-  function selectCorrectAnswer(id: string) {
-    setCorrectOptionIds((current) => {
-      if (!settings.canChooseMultiple) {
-        return [id];
-      }
-      if (current.includes(id)) {
-        return current.filter((selectedId) => selectedId !== id);
-      }
-      return [...current, id];
-    });
-  }
-
-  function submit() {
-    if (!canSubmit || hasSubmitted.current) {
+  function submit(submitted: ListFormValues) {
+    if (hasSubmitted.current) {
       return;
     }
+    const validCorrectIds = submitted.correctOptionIds.filter((id) => {
+      return submitted.entries.some((entry) => entry.id === id && entry.text.trim());
+    });
     // Prevent a second activation while the dialog remains mounted for its exit animation.
     hasSubmitted.current = true;
     if (isPoll) {
       onSubmit({
         text: '',
         media: composePoll({
-          title,
-          description,
-          entries,
-          settings,
+          title: submitted.title,
+          description: submitted.description,
+          entries: submitted.entries,
+          settings: submitted.settings,
           correctOptionIds: validCorrectIds,
-          explanation,
+          explanation: submitted.explanation,
         }),
       });
     } else {
@@ -106,14 +76,14 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
         text: '',
         media: {
           kind: 'checklist',
-          title: title.trim(),
-          items: filledEntries.map((entry) => ({
+          title: submitted.title,
+          items: submitted.entries.map((entry) => ({
             id: entry.id,
             text: entry.text.trim(),
             isCompleted: false,
           })),
-          canOthersComplete,
-          canOthersAppend,
+          canOthersComplete: submitted.canOthersComplete,
+          canOthersAppend: submitted.canOthersAppend,
         },
       });
     }
@@ -123,6 +93,12 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
   return (
     <Dialog.Root
       open={isOpen}
+      onEscapeKeyDown={(event) => {
+        // Escape belongs to the active sort session before it can dismiss the enclosing dialog.
+        if (isSorting.current) {
+          event.preventDefault();
+        }
+      }}
       onOpenChange={({ open }) => setIsOpen(open)}
       onExitComplete={onClose}
       initialFocusEl={() => {
@@ -141,13 +117,7 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
             data-kind={kind}
             aria-describedby={undefined}
           >
-            <form
-              className={styles.form}
-              onSubmit={(event) => {
-                event.preventDefault();
-                submit();
-              }}
-            >
+            <form className={styles.form} onSubmit={form.handleSubmit(submit)}>
               <header className={styles.header}>
                 <IconButton label="Close" onClick={() => setIsOpen(false)}>
                   <X size={24} />
@@ -171,7 +141,7 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                       label="Ask a Question"
                       value={title}
                       maxLength={MAX_TITLE_LENGTH}
-                      onChange={setTitle}
+                      onChange={(value) => changeField('title', value)}
                     />
                   ) : (
                     <ChecklistTextField
@@ -179,7 +149,7 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                       label="Title"
                       placeholder="Title..."
                       value={title}
-                      onChange={setTitle}
+                      onChange={(value) => changeField('title', value)}
                     />
                   )}
                   {isPoll && (
@@ -188,7 +158,7 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                       value={description}
                       maxLength={MAX_DESCRIPTION_LENGTH}
                       isMultiline
-                      onChange={setDescription}
+                      onChange={(value) => changeField('description', value)}
                     />
                   )}
                 </section>
@@ -197,18 +167,34 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                   {isPoll ? (
                     <ListEntryFields
                       entries={entries}
-                      onChange={setEntries}
+                      onUpdate={listForm.updateEntry}
+                      onAppend={listForm.appendEntry}
+                      onRemove={listForm.removeEntry}
+                      onMove={listForm.moveEntry}
+                      onSortingChange={({ isDragging }) => {
+                        isSorting.current = isDragging;
+                      }}
                       maximum={MAX_POLL_OPTIONS}
                       maxLength={MAX_POLL_OPTION_LENGTH}
                       correctOptionIds={needsCorrectAnswer ? correctOptionIds : undefined}
                       canChooseMultiple={settings.canChooseMultiple}
                       scrollContainerRef={scrollContainerRef}
-                      onCorrectAnswer={selectCorrectAnswer}
+                      onCorrectAnswer={listForm.selectCorrectAnswer}
                     />
                   ) : (
-                    <ChecklistFields entries={entries} onChange={setEntries} />
+                    <ChecklistFields
+                      entries={entries}
+                      onUpdate={listForm.updateEntry}
+                      onAppend={listForm.appendEntry}
+                      onRemove={listForm.removeEntry}
+                    />
                   )}
                 </section>
+                {entryErrorMessage && filledEntries.length >= 2 && (
+                  <p className={styles.hint} role="alert">
+                    {entryErrorMessage}
+                  </p>
+                )}
                 {isPoll && (
                   <p className={styles.hint}>
                     You can add {MAX_POLL_OPTIONS - filledEntries.length} more options
@@ -218,9 +204,9 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                 {isPoll ? (
                   <PollSettingsFields
                     settings={settings}
-                    onChange={updateSettings}
+                    onChange={listForm.updateSettings}
                     explanation={explanation}
-                    onExplanationChange={setExplanation}
+                    onExplanationChange={(value) => changeField('explanation', value)}
                   />
                 ) : (
                   <section className={styles.section}>
@@ -228,12 +214,12 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                     <ListSetting
                       title="Allow Others to Mark as Done"
                       isChecked={canOthersComplete}
-                      onChange={setCanOthersComplete}
+                      onChange={(value) => changeField('canOthersComplete', value)}
                     />
                     <ListSetting
                       title="Allow Others to Add Tasks"
                       isChecked={canOthersAppend}
-                      onChange={setCanOthersAppend}
+                      onChange={(value) => changeField('canOthersAppend', value)}
                     />
                   </section>
                 )}

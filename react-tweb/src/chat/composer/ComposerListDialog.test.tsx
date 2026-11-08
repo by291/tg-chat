@@ -7,11 +7,37 @@ import { ComposerListDialog } from './ComposerListDialog';
 beforeEach(() => {
   // Motion restores document scroll after layout measurements; jsdom has no scrolling viewport.
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+  }));
+  document.getAnimations = () => [];
+  Element.prototype.getAnimations = () => [];
 });
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function fillField(name: string, value: string) {
@@ -19,6 +45,43 @@ function fillField(name: string, value: string) {
 }
 
 describe('structured message composition', () => {
+  it('cancels keyboard sorting without changing the answers', async () => {
+    const user = userEvent.setup();
+    render(<ComposerListDialog kind="poll" onClose={() => {}} onSubmit={() => {}} />);
+    fillField('Option 1', 'First');
+    fillField('Option 2', 'Second');
+    screen.getByRole('button', { name: 'Reorder option 1' }).focus();
+    await user.keyboard('[Space]');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Reorder option 1' }).getAttribute('aria-pressed'),
+      ).toBe('true');
+    });
+    await user.keyboard('[ArrowDown][Escape]');
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Option 1' }).value).toBe('First');
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Option 2' }).value).toBe(
+      'Second',
+    );
+  });
+
+  it('rejects answers that become duplicates after whitespace is trimmed', async () => {
+    const onSubmit = vi.fn();
+    render(<ComposerListDialog kind="poll" onClose={() => {}} onSubmit={onSubmit} />);
+    fillField('Ask a Question', 'Which one?');
+    fillField('Option 1', 'First');
+    fillField('Option 2', ' First ');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Create' }).hasAttribute('disabled')).toBe(true);
+    });
+    expect(screen.getByRole('alert').textContent).toContain('different');
+    fillField('Option 2', 'Second');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Create' }).hasAttribute('disabled')).toBe(false);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+  });
+
   it('keeps one correct answer in single-answer mode and allows independent multiple answers', async () => {
     const user = userEvent.setup();
     render(<ComposerListDialog kind="poll" onClose={() => {}} onSubmit={() => {}} />);
@@ -59,8 +122,8 @@ describe('structured message composition', () => {
     fillField('Option 2', 'Second');
     await userEvent.click(screen.getByText('Set Correct Answer'));
     expect(screen.getByRole('button', { name: 'Create' }).hasAttribute('disabled')).toBe(true);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Correct answer 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Correct answer 2' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
     const poll = onSubmit.mock.calls[0][0].media;
     expect(poll.options).toHaveLength(2);
@@ -94,7 +157,7 @@ describe('structured message composition', () => {
     fillField('Task 2', 'Ship');
     fireEvent.click(screen.getByRole('button', { name: 'Delete task 1' }));
     await userEvent.click(screen.getByText('Allow Others to Add Tasks'));
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
     expect(onSubmit).toHaveBeenCalledWith({
       text: '',
       media: {
