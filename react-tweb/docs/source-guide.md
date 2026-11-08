@@ -146,6 +146,18 @@ the editing target, reply target, delete confirmation, and photo viewer are temp
 The conversation pane is keyed by conversation ID, so a reply or edit cannot leak into another chat.
 The composer is keyed by the editing message ID, so changing the edit target resets its editing text.
 
+`ConversationDirectoryProvider` derives the catalog and effective preferences for the workspace,
+including one shared mute-expiration timer. Its metadata inputs exclude drafts and message contents.
+`ChatPage` indexes messages by conversation when the message collection changes; sidebar previews,
+profile media, conversation details, and the viewer reuse that index. Rows receive their own draft,
+preview, and selection state instead of the complete snapshot. Contact and sender action contexts
+keep stable values across unrelated draft edits.
+
+Message arrival detection follows message-collection changes and readiness; notification delivery
+reads the current policy without replaying messages suppressed by an earlier preference. Selected
+deletion and forwarding use batch reducer actions, preserving recipient drafts and message order
+while validating duplicate IDs and assigning destination expiration rules once per accepted message.
+
 Only validated saved data reaches rendering. Timestamps must be inside JavaScript's valid Date
 range. A failed read leaves the initial demonstration usable; a failed write produces a visible
 storage notice. One tab is the supported editing owner; cross-tab reconciliation is not implemented.
@@ -510,6 +522,9 @@ out of order. `composerKeyboard.test.ts` protects input-method composition. `sto
 rejects malformed saved state and out-of-range timestamps before rendering.
 
 `historyViewportPolicy.test.ts` covers foreground/read boundaries and older-history prefetch gates.
+`useVirtualHistory.test.tsx` advances a fake animation clock through movement, interruption, and
+completion; hover-delay tests also advance controlled time. TypeScript checks unused locals and
+parameters alongside the existing strict checks.
 `EmojiEditor.test.tsx` checks that external draft replacement preserves the mounted editor and does
 not publish the previous draft again. Attachment tests also cover cancellation during replacement,
 editing-mode draft retention, unmounts, sending, and input-mode changes.
@@ -521,6 +536,12 @@ comparing offsets, including deferred resize correction. Run `pnpm test:browser`
 Chromium with `pnpm exec playwright install chromium`. The dedicated server uses port 5193 and is
 never reused; each test receives a clean browser context. Failure traces and screenshots are saved
 under `test-results/`. Vitest discovery remains limited to colocated `src/**/*.test.{ts,tsx}` files.
+
+`e2e/search.spec.ts` checks message-search keyboard confirmation, IME composition, focus restoration,
+and keyboard navigation into virtual calendar months. Search result highlights keep the input
+focused until confirmation; date navigation mounts and reveals its target before restoring cell
+focus. The sidebar search shell retains closing content through its exit and releases the result
+rows afterward, with large open result sets virtualized.
 
 ## Extending the study
 
