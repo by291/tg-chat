@@ -1,4 +1,4 @@
-import { Bell, Keyboard, Search, Settings, Sticker, X } from 'lucide-react';
+import { Bell, Keyboard, MonitorSmartphone, Search, Settings, Sticker, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -10,6 +10,7 @@ import { DEMO_PROFILE } from '../demo/profile';
 import { SettingsAccountDetails } from './SettingsAccountDetails';
 import { SettingsProfile } from './SettingsProfile';
 import { NotificationSettingsPage, type NotificationChatActions } from './NotificationSettingsPage';
+import { DevicesSettingsPage } from './DevicesSettingsPage';
 import styles from './SettingsPage.module.css';
 
 const SETTINGS_CATEGORIES = [
@@ -34,6 +35,13 @@ const SETTINGS_CATEGORIES = [
     keywords: 'animation loop packs emoticons large emoji dynamic order sort',
     icon: Sticker,
     color: 'pink',
+  },
+  {
+    id: 'devices',
+    label: 'Devices',
+    keywords: 'sessions browser login device rename terminate logout inactive',
+    icon: MonitorSmartphone,
+    color: 'blue',
   },
   {
     id: 'shortcuts',
@@ -88,6 +96,8 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
     );
   } else if (closingCategory === 'stickers') {
     detailPage = <StickerSettingsPage onBack={() => setCategory(undefined)} />;
+  } else if (closingCategory === 'devices') {
+    detailPage = <DevicesSettingsPage onBack={() => setCategory(undefined)} />;
   } else if (closingCategory === 'shortcuts') {
     detailPage = <KeyboardSettingsPage onBack={() => setCategory(undefined)} />;
   }
