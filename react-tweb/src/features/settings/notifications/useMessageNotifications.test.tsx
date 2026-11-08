@@ -119,3 +119,41 @@ it('dismisses an unread alert when its chat becomes visible again', () => {
   act(() => window.dispatchEvent(new Event('focus')));
   expect(delivered[0].isClosed).toBe(true);
 });
+
+it('uses the current delivery policy for future arrivals without replaying suppressed messages', () => {
+  const initial = { ...createInitialState(), messages: [] as Message[] };
+  const { rerender } = renderHook(
+    ({ state }) =>
+      useMessageNotifications({
+        state,
+        isReady: true,
+        isConversationVisible: false,
+        onOpen: () => {},
+      }),
+    { initialProps: { state: initial } },
+  );
+
+  act(() => setNotificationPreferences({ shouldShowNotifications: false }));
+  const suppressed = { ...initial, messages: [incoming] };
+  rerender({ state: suppressed });
+  act(() => setNotificationPreferences({ shouldShowNotifications: true }));
+  rerender({ state: { ...suppressed, drafts: { dev: 'Unrelated draft' } } });
+  expect(delivered).toHaveLength(0);
+
+  rerender({
+    state: {
+      ...suppressed,
+      messages: [
+        incoming,
+        {
+          ...incoming,
+          id: 'future-arrival',
+          text: 'Future arrival',
+        },
+      ],
+    },
+  });
+  expect(delivered.map((notification) => notification.options.body)).toEqual([
+    'Alex: Future arrival',
+  ]);
+});

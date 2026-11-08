@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { CURRENT_USER_ID } from '@/domain/identity';
 import { type ChatState } from '@/features/chat/state/chatState';
 import { useNotificationPreferences } from './notificationPreferences';
@@ -57,10 +57,7 @@ export function useMessageNotifications({
     };
   }, [state.activeChatId, isConversationVisible, preferences.shouldShowNotifications]);
 
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
+  const notifyNewMessages = useEffectEvent(() => {
     if (!seenIds.current) {
       seenIds.current = new Set(state.messages.map((message) => message.id));
       return;
@@ -103,5 +100,14 @@ export function useMessageNotifications({
         notifications.current.set(message.chatId, notification);
       }
     }
-  }, [state, isReady, isConversationVisible, preferences]);
+  });
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    // Arrival detection follows the collection; delivery reads the latest visibility and policy.
+    notifyNewMessages();
+  }, [state.messages, isReady]);
 }
