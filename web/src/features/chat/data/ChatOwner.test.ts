@@ -644,7 +644,11 @@ it('keeps active local typing and exposes the competing server draft', async () 
     commands: async () =>
       Response.json(
         {
-          error: { code: 'message_conflict', message: 'Draft changed', request_id: 'conflict' },
+          error: {
+            code: 'message_conflict',
+            message: 'Draft changed',
+            request_id: 'conflict',
+          },
           current: {
             observation_cursor: cursorFixture(2),
             conversation: {
@@ -652,7 +656,11 @@ it('keeps active local typing and exposes the competing server draft', async () 
               version: '2',
               draft: {
                 version: '1',
-                content: { schema_version: 1, text: 'Another device', custom_emoji: [] },
+                content: {
+                  schema_version: 1,
+                  text: 'Another device',
+                  custom_emoji: [],
+                },
               },
             },
           },
@@ -685,7 +693,11 @@ it('preserves typing made while a draft save is awaiting acknowledgement', async
         version: '2',
         draft: {
           version: '1',
-          content: { schema_version: 1, text: 'First draft', custom_emoji: [] },
+          content: {
+            schema_version: 1,
+            text: 'First draft',
+            custom_emoji: [],
+          },
         },
       },
     }),
@@ -706,7 +718,11 @@ it('marks only a reached visible message read while the document is foreground',
       actions.push(input.action);
       return Response.json({
         observation_cursor: cursorFixture(1),
-        conversation: { ...SAVED, read_through: input.action.through, version: '2' },
+        conversation: {
+          ...SAVED,
+          read_through: input.action.through,
+          version: '2',
+        },
       });
     },
   });
@@ -730,7 +746,11 @@ it('preserves an edit draft and exposes the current message when content version
     commands: async () =>
       Response.json(
         {
-          error: { code: 'message_conflict', message: 'Changed', request_id: 'edit-conflict' },
+          error: {
+            code: 'message_conflict',
+            message: 'Changed',
+            request_id: 'edit-conflict',
+          },
           current: {
             observation_cursor: cursorFixture(2),
             conversation: { ...SAVED, version: '2' },
@@ -748,7 +768,11 @@ it('preserves an edit draft and exposes the current message when content version
       kind: 'edit',
       message_id: current.id,
       expected_version: '1',
-      content: { schema_version: 1, text: 'My edit', custom_emoji: [] },
+      content: {
+        schema_version: 1,
+        text: 'My edit',
+        custom_emoji: [],
+      },
     }),
   ).rejects.toThrow('changed on another device');
   expect(owner.getSnapshot().editConflict?.content.text).toBe('Changed remotely');
@@ -778,7 +802,11 @@ it('ignores a delayed command projection after a newer removal was synchronized'
   });
   await owner.start();
   await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
-  const command = owner.command({ kind: 'pin', message_id: 'message-1', is_pinned: true });
+  const command = owner.command({
+    kind: 'pin',
+    message_id: 'message-1',
+    is_pinned: true,
+  });
   await new Promise((resolve) => setTimeout(resolve, 0));
   await owner.catchUp();
   delayed.release(
@@ -790,5 +818,157 @@ it('ignores a delayed command projection after a newer removal was synchronized'
   );
   await command;
   expect(owner.getSnapshot().messages).toEqual([]);
+  owner.dispose();
+});
+
+it('scrubs a quote already on screen when its source text changes', async () => {
+  const original = historyMessage(1);
+  const reply = historyMessage(2);
+  reply.reply = {
+    message_id: original.id,
+    quote: original.content.text,
+    is_unavailable: false,
+  };
+  const edited = {
+    ...original,
+    version: '2',
+    content: { ...original.content, text: 'Replacement' },
+  };
+  const { owner } = fixture({
+    history: async () =>
+      Response.json({
+        messages: [original, reply],
+        generation: '1',
+        observation_cursor: cursorFixture(0),
+        has_older: false,
+        has_newer: false,
+      }),
+    transport: async () =>
+      Response.json({
+        groups: [
+          {
+            position: '1',
+            conversation_id: SAVED.id,
+            conversation: SAVED,
+            message: edited,
+          },
+        ],
+        cursor: cursorFixture(1),
+        observation_cursor: cursorFixture(1),
+        has_more: false,
+      }),
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.catchUp();
+  expect(owner.getSnapshot().messages[1].reply?.quote).toBeNull();
+  owner.dispose();
+});
+
+it('conditionally clears a matching reply draft when the server normalizes an absent quote to null', async () => {
+  let draftVersion: string | null | undefined;
+  const { owner } = fixture({
+    commands: async (request) => {
+      const input = await request.json();
+      return Response.json({
+        observation_cursor: cursorFixture(1),
+        conversation: {
+          ...SAVED,
+          version: '2',
+          draft: {
+            version: '1',
+            content: input.action.content,
+            reply: { ...input.action.reply, quote: null },
+          },
+        },
+      });
+    },
+    transport: async (request) => {
+      const input = await request.json();
+      draftVersion = input.draft_version;
+      return Response.json(receipt(input));
+    },
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.setReply({ message_id: 'reply-target' });
+  await owner.setDraft({ text: 'Reply draft' });
+  await owner.queueSend({ text: 'Reply draft' });
+  await owner.flush();
+  expect(draftVersion).toBe('1');
+  owner.dispose();
+});
+
+it('removes visible expired content and its reply excerpt without waiting for a worker wakeup', async () => {
+  const expiring = historyMessage(1);
+  expiring.expires_at = new Date(Date.now() + 150).toISOString();
+  const reply = historyMessage(2);
+  reply.reply = {
+    message_id: expiring.id,
+    quote: expiring.content.text,
+    is_unavailable: false,
+  };
+  const { owner } = fixture({
+    history: async () =>
+      Response.json({
+        messages: [expiring, reply],
+        generation: '1',
+        observation_cursor: cursorFixture(0),
+        has_older: false,
+        has_newer: false,
+      }),
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  expect(owner.getSnapshot().messages.map((message) => message.id)).toEqual([reply.id]);
+  expect(owner.getSnapshot().messages[0].reply?.is_unavailable).toBe(true);
+  expect(owner.getSnapshot().messages[0].reply?.quote).toBeNull();
+  owner.dispose();
+});
+
+it('restores the newer server draft instead of a stale acknowledged local copy', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  await store.saveDraft({
+    destination: 'saved',
+    draft: {
+      id: 'acknowledged',
+      value: { text: 'Old saved draft' },
+      hasLocalChanges: false,
+      serverVersion: '0',
+    },
+  });
+  const { owner } = fixture({
+    store,
+    transport: async () =>
+      Response.json({
+        groups: [
+          {
+            position: '1',
+            conversation_id: SAVED.id,
+            conversation: {
+              ...SAVED,
+              version: '2',
+              draft: {
+                version: '1',
+                content: {
+                  schema_version: 1,
+                  text: 'New server draft',
+                  custom_emoji: [],
+                },
+              },
+            },
+          },
+        ],
+        cursor: cursorFixture(1),
+        observation_cursor: cursorFixture(1),
+        has_more: false,
+      }),
+  });
+  await owner.start();
+  await owner.catchUp();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  expect(owner.getSnapshot().draft.value.text).toBe('New server draft');
   owner.dispose();
 });

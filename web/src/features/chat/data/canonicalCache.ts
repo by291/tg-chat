@@ -1,6 +1,11 @@
 import { get, update } from 'idb-keyval';
 import type { components } from '@/api/schema';
-import { compareCounter, mergeMessages, type Conversation } from './messageModels';
+import {
+  compareCounter,
+  mergeMessages,
+  scrubReplySource,
+  type Conversation,
+} from './messageModels';
 
 type HistoryPage = components['schemas']['HistoryPage'];
 type SyncPage = components['schemas']['SyncPage'];
@@ -142,13 +147,15 @@ function applyGroup(snapshot: CanonicalSnapshot, group: SyncPage['groups'][numbe
   }
   for (const current of page.messages) {
     if (removedId && current.reply?.message_id === removedId) {
-      current.reply = { ...current.reply, is_unavailable: true, quote: null };
+      current.reply = {
+        ...current.reply,
+        is_unavailable: true,
+        quote: null,
+      };
     }
-    const quote = current.reply?.quote;
-    const hasChangedSource = current.reply?.message_id === message?.id;
-    if (hasChangedSource && quote && !message?.content.text.includes(quote)) {
-      current.reply = { ...current.reply!, quote: null };
-    }
+  }
+  if (message) {
+    page.messages = scrubReplySource(page.messages, message);
   }
 }
 

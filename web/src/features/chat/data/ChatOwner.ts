@@ -10,6 +10,7 @@ import {
   destinationKey,
   MAX_VISIBLE_MESSAGES,
   mergeMessages,
+  scrubReplySource,
   type CanonicalMessage,
   type Conversation,
   type Destination,
@@ -25,6 +26,7 @@ const RETRY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const POLL_INTERVAL_MS = 3000;
 const MAX_BACKOFF_MS = 30_000;
 const DRAFT_DEBOUNCE_MS = 500;
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
 // prettier-ignore
 const TRANSIENT_ERROR_CODES = new Set([
   'dependency_unavailable',
@@ -124,6 +126,7 @@ export class ChatOwner {
   private sendPromise?: Promise<void>;
   private draftPromise?: Promise<void>;
   private draftTimer?: ReturnType<typeof setTimeout>;
+  private expiryTimer?: ReturnType<typeof setTimeout>;
   private readonly explicitRetries = new Set<string>();
 
   /** Own connected projections and pending work within one authenticated session generation. */
@@ -276,7 +279,12 @@ export class ChatOwner {
     const key = destinationKey(selection.destination);
     const canonicalDraft = this.selectedConversation()?.draft;
     const remote = canonicalDraft ? restoreServerDraft(canonicalDraft) : emptyDraft();
-    const draft = persisted.drafts[key] ?? remote;
+    const storedDraft = persisted.drafts[key];
+    let draft = remote;
+    if (storedDraft && storedDraft.hasLocalChanges !== false) {
+      // Legacy local-only drafts have no dirty marker and must remain recoverable after upgrade.
+      draft = { ...storedDraft, hasLocalChanges: true };
+    }
     const hasConflict =
       draft.hasLocalChanges &&
       canonicalDraft &&
@@ -400,7 +408,8 @@ export class ChatOwner {
       serverDraft?.content?.text === content.text &&
       (serverDraft.content.rich_text ?? null) === (content.rich_text ?? null) &&
       JSON.stringify(serverDraft.content.custom_emoji) === JSON.stringify(content.custom_emoji) &&
-      JSON.stringify(serverDraft?.reply ?? null) === JSON.stringify(capturedDraft.reply ?? null);
+      serverDraft?.reply?.message_id === capturedDraft.reply?.message_id &&
+      (serverDraft?.reply?.quote ?? null) === (capturedDraft.reply?.quote ?? null);
     const pending: PendingMessage = {
       createdAt: Date.now(),
       title: selection.title,
@@ -753,6 +762,7 @@ export class ChatOwner {
 
   /** Stop view work on unmount while leaving durable operations recoverable after reload. */
   dispose(): void {
+    clearTimeout(this.expiryTimer);
     clearTimeout(this.draftTimer);
     this.isDisposed = true;
     this.unsubscribe();
@@ -908,7 +918,7 @@ export class ChatOwner {
       : this.snapshot.messages;
     this.publish({
       pending,
-      messages,
+      messages: scrubReplySource(messages, message),
       precedingMessage: precedingMessage({
         messages,
         candidates: [this.snapshot.precedingMessage, ...this.snapshot.messages],
@@ -937,7 +947,12 @@ export class ChatOwner {
     ) {
       this.viewGeneration += 1;
       this.historyLoad = undefined;
-      this.publish({ messages: [], precedingMessage: undefined, isLoading: false, hasNewer: true });
+      this.publish({
+        messages: [],
+        precedingMessage: undefined,
+        isLoading: false,
+        hasNewer: true,
+      });
     }
     if (this.selectedConversation()?.id === incoming.id) {
       const local = this.snapshot.draft;
@@ -964,7 +979,11 @@ export class ChatOwner {
       if (message.reply?.message_id === messageId) {
         messages[index] = {
           ...message,
-          reply: { ...message.reply, is_unavailable: true, quote: null },
+          reply: {
+            ...message.reply,
+            is_unavailable: true,
+            quote: null,
+          },
         };
       }
     }
@@ -982,7 +1001,11 @@ export class ChatOwner {
     if (this.selectedConversation()?.id === conversationId) {
       this.viewGeneration += 1;
       this.historyLoad = undefined;
-      this.publish({ messages: [], precedingMessage: undefined, isLoading: false });
+      this.publish({
+        messages: [],
+        precedingMessage: undefined,
+        isLoading: false,
+      });
     }
     const conversations = this.snapshot.conversations.filter((item) => item.id !== conversationId);
     this.publish({ conversations });
@@ -1004,7 +1027,11 @@ export class ChatOwner {
     if (hasReset) {
       this.viewGeneration += 1;
       this.historyLoad = undefined;
-      this.publish({ messages: [], precedingMessage: undefined, isLoading: false });
+      this.publish({
+        messages: [],
+        precedingMessage: undefined,
+        isLoading: false,
+      });
     }
     for (const conversation of cached.conversations) {
       this.mergeConversation(conversation);
@@ -1036,7 +1063,11 @@ export class ChatOwner {
   private async resetCache(): Promise<void> {
     this.viewGeneration += 1;
     this.historyLoad = undefined;
-    this.publish({ messages: [], precedingMessage: undefined, isLoading: false });
+    this.publish({
+      messages: [],
+      precedingMessage: undefined,
+      isLoading: false,
+    });
     const expected = await this.requireCache().read();
     const reply = await this.session.client.GET('/api/v1/chat/bootstrap');
     this.ensureCurrent();
@@ -1148,6 +1179,7 @@ export class ChatOwner {
   }
 
   private invalidate(): void {
+    clearTimeout(this.expiryTimer);
     clearTimeout(this.draftTimer);
     this.isDisposed = true;
     this.snapshot = initialSnapshot();
@@ -1167,11 +1199,63 @@ export class ChatOwner {
     }
   }
 
+  private refreshVisibleExpiry(): void {
+    clearTimeout(this.expiryTimer);
+    const now = Date.now();
+    let nextExpiry = Infinity;
+    const expiredIds = new Set<string>();
+    const affectedConversations = new Set<string>();
+    for (const message of this.snapshot.messages) {
+      if (!message.expires_at) {
+        continue;
+      }
+      const deadline = Date.parse(message.expires_at);
+      if (deadline <= now) {
+        expiredIds.add(message.id);
+        affectedConversations.add(message.conversation_id);
+      } else {
+        nextExpiry = Math.min(nextExpiry, deadline);
+      }
+    }
+    if (expiredIds.size > 0) {
+      const retained = this.snapshot.messages.filter((message) => !expiredIds.has(message.id));
+      const messages = retained.map((message) => {
+        if (!message.reply || !expiredIds.has(message.reply.message_id)) {
+          return message;
+        }
+        return {
+          ...message,
+          reply: {
+            ...message.reply,
+            is_unavailable: true,
+            quote: null,
+          },
+        };
+      });
+      const conversations = this.snapshot.conversations.map((conversation) => {
+        return affectedConversations.has(conversation.id)
+          ? { ...conversation, summary_text: '' }
+          : conversation;
+      });
+      this.snapshot = {
+        ...this.snapshot,
+        messages,
+        conversations,
+      };
+    }
+    if (Number.isFinite(nextExpiry)) {
+      // Local expiry remains active even when realtime and HTTP are both unavailable.
+      const delay = Math.min(nextExpiry - now, MAX_TIMER_DELAY_MS);
+      this.expiryTimer = setTimeout(() => this.publish({}), delay);
+    }
+  }
+
   private publish(change: Partial<ChatSnapshot>): void {
     if (this.isDisposed) {
       return;
     }
     this.snapshot = { ...this.snapshot, ...change };
+    this.refreshVisibleExpiry();
     for (const listener of this.listeners) {
       listener();
     }

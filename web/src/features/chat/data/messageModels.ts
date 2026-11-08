@@ -50,6 +50,27 @@ export function mergeMessages(options: {
   return ordered.slice(-MAX_VISIBLE_MESSAGES);
 }
 
+/** Remove obsolete reply excerpts when a source edit reaches either cache or visible history. */
+export function scrubReplySource(
+  messages: CanonicalMessage[],
+  source: CanonicalMessage,
+): CanonicalMessage[] {
+  const current = messages.find((message) => message.id === source.id);
+  const authoritative =
+    current && compareCounter(current.version, source.version) > 0 ? current : source;
+  return messages.map((message) => {
+    const reply = message.reply;
+    if (
+      reply?.message_id !== source.id ||
+      !reply.quote ||
+      authoritative.content.text.includes(reply.quote)
+    ) {
+      return message;
+    }
+    return { ...message, reply: { ...reply, quote: null } };
+  });
+}
+
 /** Give draft and pending records stable destination ownership before a conversation exists. */
 export function destinationKey(destination: Destination): string {
   switch (destination.kind) {
