@@ -5,17 +5,17 @@ sidebar inspected on November 6, 2026. Conversation content remains local demons
 
 ## Measurements and source map
 
-| Detail            | Reference                                                                                 | React implementation                         |
-| ----------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Conversation row  | 72px height, 54px avatar, 16px corner radius                                              | `ChatRow.tsx`, `ChatSidebar.module.css`      |
-| Title and preview | 16px type, 22px lines, 2px between lines                                                  | `ChatSidebar.module.css`                     |
-| Timestamp         | 12px type with an independent 16px line box                                               | `ChatSidebar.module.css`                     |
-| Unread badge      | 22px minimum width and height, 22px line height, 7px horizontal padding, 14px medium type | `ChatSidebar.module.css`                     |
-| Search field      | 44px height, 200ms focus color and background transition                                  | `ChatSidebar.module.css`                     |
-| Search content    | 150ms zoom/fade, entering from scale 1.1                                                  | `ChatSidebar.tsx`, `ChatSidebar.module.css`  |
-| Menu/back icon    | 18px bars, 250ms rotation and bar transforms                                              | `SidebarMenu.tsx`, `ChatSidebar.module.css`  |
-| Menu surface      | 200ms, scale 0.8 to 1, cubic-bezier(0.4, 0, 0.2, 1)                                       | `overlays.module.css`                        |
-| Press ripple      | Pointer-origin expansion to the farthest corner; hold until release, then fade            | `components/Ripple.tsx`, `Ripple.module.css` |
+| Detail            | Reference                                                                                 | React implementation                             |
+| ----------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Conversation row  | 72px height, 54px avatar, 16px corner radius                                              | `ChatRow.tsx`, `ChatSidebar.module.css`          |
+| Title and preview | 16px type, 22px lines, 2px between lines                                                  | `ChatSidebar.module.css`                         |
+| Timestamp         | 12px type with an independent 16px line box                                               | `ChatSidebar.module.css`                         |
+| Unread badge      | 22px minimum width and height, 22px line height, 7px horizontal padding, 14px medium type | `ChatSidebar.module.css`                         |
+| Search field      | 44px height, 200ms focus color and background transition                                  | `ChatSidebar.module.css`                         |
+| Search content    | 150ms zoom/fade, entering from scale 1.1                                                  | `ChatSidebar.tsx`, `ChatSidebar.module.css`      |
+| Menu/back icon    | 18px bars, 250ms rotation and bar transforms                                              | `SidebarMenu.tsx`, `ChatSidebar.module.css`      |
+| Menu surface      | 200ms, scale 0.8 to 1, cubic-bezier(0.4, 0, 0.2, 1)                                       | `overlays.module.css`                            |
+| Press ripple      | Pointer-origin expansion to the farthest corner; hold until release, then fade            | `src/components/Ripple.tsx`, `Ripple.module.css` |
 
 Relevant tweb files:
 
@@ -56,7 +56,7 @@ in dark mode. Selected conversation rows and the compose button do not override 
 local overrides for some other controls, including primary-tinted action plates and danger actions;
 the selected purple background alone does not imply a white ripple.
 
-`app/useInputModality.ts` records pointer versus keyboard input before overlay handlers run.
+`src/hooks/useInputModality.ts` records pointer versus keyboard input before overlay handlers run.
 This avoids showing a keyboard outline when a pointer-operated menu restores focus, while keeping
 the outline for Tab navigation and keyboard dismissal.
 

@@ -10,12 +10,12 @@
 - Included sounds: `public/assets/audio/notification.mp3` and `message_sent.mp3`, copied
   without modification from tweb's `public/assets/audio/` directory
 - Included geometry: the `message-tail-filled` SVG path from tweb's `index.html`, used in
-  `src/chat/messages/MessageTail.tsx`
+  `src/features/chat/messages/MessageTail.tsx`
 - Adapted album layout: `src/components/groupedLayout.ts`, used in
-  `src/chat/media/albumLayout.ts`; upstream credits the Telegram Desktop grouped layout
+  `src/features/media/albumLayout.ts`; upstream credits the Telegram Desktop grouped layout
   implementation at https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 - Emoji-only size steps: `BIG_EMOJI_SIZES` in `src/components/chat/bubbles.ts`, used in
-  `src/chat/messages/largeEmoji.ts`
+  `src/features/chat/messages/largeEmoji.ts`
 - License: GNU General Public License, version 3
 
 The full license text is included in `LICENSE`. Conversation data, account credentials, private

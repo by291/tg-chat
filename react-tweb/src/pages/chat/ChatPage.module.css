@@ -1,0 +1,37 @@
+.emptyConversation {
+  align-self: center;
+  padding: 5px 12px;
+  border-radius: 16px;
+  color: white;
+  text-align: center;
+  background: var(--message-highlighting-color);
+  font-size: calc(var(--message-text-size, 16px) - 1px);
+  font-weight: 500;
+  line-height: calc(var(--message-text-size, 16px) + 4px);
+  user-select: none;
+}
+
+.emptyConversation p {
+  margin: 0;
+}
+
+.storageError {
+  position: fixed;
+  z-index: 60;
+  bottom: 86px;
+  left: 50%;
+  max-width: calc(100vw - 32px);
+  padding: 12px 20px;
+  border-radius: 14px;
+  color: white;
+  background: rgb(41 36 55 / 90%);
+  box-shadow: var(--surface-shadow);
+  font-size: 14px;
+  transform: translateX(-50%);
+}
+
+.storageError {
+  top: 76px;
+  bottom: auto;
+  background: #934655;
+}

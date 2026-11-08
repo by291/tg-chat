@@ -84,10 +84,12 @@ currently support plain text; embedded poll media and the custom end-date picker
 
 ## Dependencies and ownership
 
-The source is organized into `src/app` for the shell, `src/components` for reusable UI, and
-`src/chat` for the conversation. Chat subdirectories separate the composer, history, messages,
-media, sidebar, details, state, and demo content. Components, CSS Modules, and related tests stay
-together. See the [directory layout](./docs/source-guide.md#directory-layout) for the reading map.
+The source separates application assembly (`src/app`), workspace orchestration (`src/pages`),
+visual shells (`src/layouts`), and business modules (`src/features`). Features cover chat,
+conversation lists, settings, media, emoji, and stickers. Reusable UI stays in `src/components`;
+generic hooks, browser infrastructure, navigation, and global styles have their own directories.
+Components, CSS Modules, and related tests stay together. Cross-module imports use the `@/` source
+alias. See the [directory layout](./docs/source-guide.md#directory-layout) for ownership and imports.
 
 | Library                         | Responsibility                                                       |
 | ------------------------------- | -------------------------------------------------------------------- |
@@ -120,7 +122,7 @@ not reproduced.
 
 ### Emoji and sticker picker
 
-`src/chat/composer/emoticons/` owns the picker browsing behavior. Ark UI manages the popover,
+`src/features/chat/composer/emoticons/` owns the picker browsing behavior. Ark UI manages the popover,
 tabs, tone popovers, sticker menus, and pack dialog. The 382 × 420 desktop panel, 49-pixel
 navigation bars, eight-column emoji rows, five-column sticker rows, and scale transition follow
 `tweb/src/scss/partials/_emojiDropdown.scss`.
@@ -134,7 +136,7 @@ navigation bars, eight-column emoji rows, five-column sticker rows, and scale tr
 - Sticker clicks send; held presses preview and can slide across stickers. Releasing a preview
   does not send. Context menus expose local favorites and sticker-set viewing. Recents,
   favorites, and tones persist locally.
-- `src/chat/stickers/` owns the local catalog and visibility-aware animation player. Animation
+- `src/features/stickers/` owns the local catalog and visibility-aware animation player. Animation
   requests are cached, but each player gets a separate copy because Lottie mutates its input.
   Players pause outside the viewport, when the window loses focus, in hidden documents, and
   with reduced motion enabled. One shared controller owns the browser event subscriptions.
@@ -169,7 +171,7 @@ original Telegram TGS documents, not Unicode font substitutions. The search fiel
 Telegram's 11 original animated emotion category icons. `public/assets/emoji/SOURCES.json`
 records public source links, retrieval date, and checksums for animations and generated previews.
 
-- `src/chat/emoji/` owns document lookup, UTF-16 entity ranges, and inline message rendering.
+- `src/features/emoji/` owns document lookup, UTF-16 entity ranges, and inline message rendering.
 - `EmojiEditor` uses Lexical for atomic emoji nodes, selection, composition, deletion and undo.
   The domain model stores plain text, `customEmoji` ranges, and optional semantic `richText` HTML;
   it does not persist editor JSON.
@@ -192,8 +194,8 @@ elsewhere use Control with B, I, U, S, M, P, or K for bold, italic, underline, s
 monospace, spoiler, or link editing. Enter sends; Shift+Enter inserts a newline and continues
 structured list items. Formula and date decorations can be reopened with a double click.
 
-`src/chat/composer/richEditorHtml.ts` adapts Lexical HTML to the portable message attributes.
-`src/chat/rich-text/` sanitizes that content and renders interactive spoilers, custom emoji,
+`src/features/chat/composer/richEditorHtml.ts` adapts Lexical HTML to the portable message attributes.
+`src/features/chat/rich-text/` sanitizes that content and renders interactive spoilers, custom emoji,
 formulas, dates, tables, and copyable code. Drafts, edits, forwarding, and reload preserve the
 same representation. The plain-text fallback remains available to search and chat previews.
 

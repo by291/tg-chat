@@ -4,17 +4,17 @@
 
 Read these files in order:
 
-1. `index.html` paints the initial background and sidebar frame before application modules arrive.
-2. `src/main.tsx` mounts React and the global design tokens.
-3. `src/app/ChatApp.tsx` connects URL navigation to the selected conversation and secondary panels.
-4. `src/chat/state/useChatState.ts` restores IndexedDB before interaction and persists reducer
-   snapshots.
-5. `src/chat/model.ts` defines the message shape, actions, and persisted-data validation.
-6. `src/chat/state/reducer.ts` makes the permanent state transitions explicit.
-7. `src/chat/ConversationPane.tsx` translates user commands into those actions.
-8. `src/chat/history/MessageTimeline.tsx` owns scrolling and sender grouping.
-9. `src/chat/messages/MessageBubble.tsx` renders a message and its Ark UI action menu.
-10. `src/chat/composer/MessageComposer.tsx` owns editing, image preparation, and submission.
+1. `index.html` paints the initial background and sidebar before application modules arrive.
+2. `src/main.tsx` mounts React and global styles; `src/app/App.tsx` installs navigation and input policy.
+3. `src/pages/chat/ChatPage.tsx` coordinates URL selection, chat state, and feature panels.
+4. `src/layouts/chat/ChatLayout.tsx` arranges the sidebar, conversation, details, and overlay slots.
+5. `src/features/chat/state/useChatState.ts` restores IndexedDB and persists reducer snapshots.
+6. `src/features/chat/model.ts` defines messages, actions, and persisted-data validation.
+7. `src/features/chat/state/reducer.ts` owns permanent state transitions.
+8. `src/features/chat/ConversationPane.tsx` translates user commands into those actions.
+9. `src/features/chat/history/MessageTimeline.tsx` owns scrolling and sender grouping.
+10. `src/features/chat/messages/MessageBubble.tsx` renders messages and their action menus.
+11. `src/features/chat/composer/MessageComposer.tsx` owns draft editing and sending.
 
 ## First paint and conversation restoration
 
@@ -22,9 +22,9 @@ Read these files in order:
 reads the existing appearance preference to choose light/dark surfaces and a saved solid background;
 it never writes storage. Other wallpapers use a gradient fallback until React resolves the complete
 palette and retrieves any custom image. Keep the static sidebar dimensions aligned with
-`ChatApp.module.css` and its placeholder markup aligned with `src/app/StartupSidebar.tsx`.
+`src/layouts/chat/ChatLayout.module.css` and its placeholder markup aligned with `src/layouts/chat/StartupSidebar.tsx`.
 
-`ChatApp` mounts the real wallpaper and layout before IndexedDB restoration completes. Its sidebar
+`ChatPage` mounts the real wallpaper and layout before IndexedDB restoration completes. Its sidebar
 placeholder uses the same inline styles as the HTML frame. Only data-dependent conversation controls
 wait for `isReady`; the wallpaper stays mounted across that transition. A storage failure still
 finishes restoration and shows the existing usable demo state with an error notice.
@@ -50,44 +50,56 @@ dynamically imports optional features such as poll creation and the media editor
 
 ## Directory layout
 
-This Vite application uses a small application shell, reusable presentation components, and a
-chat module with colocated implementation files. React does not prescribe one directory template;
-its [file structure guide](https://legacy.reactjs.org/docs/faq-structure.html) describes grouping
-by feature, grouping by file type, and mixing them as a project grows. Here the grouping follows
-the parts of the conversation that are read and changed together.
+The top level separates application assembly, workspace orchestration, visual layout, business
+features, and shared infrastructure. Feature internals keep their existing functional groupings;
+a component's styles and behavior tests stay beside it.
 
-| Directory            | Responsibility                                                               |
-| -------------------- | ---------------------------------------------------------------------------- |
-| `src/app/`           | Application layout, selected chat, transient panels, and notices             |
-| `src/components/`    | Reusable avatars, icon buttons, and press ripples                            |
-| `src/chat/`          | Conversation orchestration, header, delete dialog, and common chat contracts |
-| `src/chat/composer/` | Draft input, keyboard behavior, emoji picker, and attachment preparation     |
-| `src/chat/history/`  | Timeline rendering, virtual measurements, paging, and scroll anchoring       |
-| `src/chat/messages/` | Bubble shell, metadata, tails, content renderers, and playback visibility    |
-| `src/chat/media/`    | Photo gallery, viewer navigation, and media geometry                         |
-| `src/chat/sidebar/`  | Conversation rows, account menu, and local search transitions                |
-| `src/chat/details/`  | Chat information and shared-photo panel                                      |
-| `src/chat/state/`    | Reducer transitions, poll voting, persistence, and state restoration         |
-| `src/chat/demo/`     | Initial conversations, archive fixtures, and the message showcase            |
+| Directory                              | Responsibility                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------- |
+| `src/app/`                             | Router setup and application-wide input policy                          |
+| `src/pages/chat/`                      | Chat workspace state and cross-feature orchestration                    |
+| `src/layouts/chat/`                    | Responsive three-pane geometry and startup handoff                      |
+| `src/layouts/sidebar/`                 | Nested sidebar page transitions and focus restoration                   |
+| `src/features/chat/`                   | Conversation, composer, messages, history, details, state, fixtures     |
+| `src/features/conversations/`          | Sidebar list, selection, archive, and chat creation                     |
+| `src/features/settings/`               | Settings panels, search, profile, and preferences                       |
+| `src/features/settings/appearance/`    | Theme controls, wallpaper rendering, and preferences                    |
+| `src/features/settings/notifications/` | Notification controls, policy, and delivery                             |
+| `src/features/settings/devices/`       | Local device identification and device settings                         |
+| `src/features/settings/keyboard/`      | Shortcut settings and documentation                                     |
+| `src/features/media/`                  | Media viewer, playback, gallery, and gesture geometry                   |
+| `src/features/emoji/`                  | Custom emoji catalog, entities, and inline rendering                    |
+| `src/features/stickers/`               | Sticker catalog and visibility-aware animation playback                 |
+| `src/components/`                      | Reusable UI such as avatars, icon buttons, ripples, sorting, and toasts |
+| `src/hooks/`                           | Generic input modality and retained closing-dialog values               |
+| `src/lib/`                             | Preference-store infrastructure and browser keyboard conventions        |
+| `src/routes/`                          | URL navigation and conversation selection synchronization               |
+| `src/styles/`                          | Global tokens, reset, and cross-component interaction styles            |
 
-Components keep their CSS Modules nearby. Unit and component tests remain beside the behavior
-they exercise. `src/main.tsx` is the Vite entry, and `src/global.css` owns global tokens and resets.
-`ConversationPane.module.css` belongs to the conversation itself; the pane does not import styles
-from the application shell.
+There is one top-level chat workspace. Settings, archive, and conversation-creation screens remain
+embedded sidebar features; a component ending in `Page` does not automatically become a top-level
+route. Query parameters, history behavior, and panel mounting remain unchanged.
 
-The chat-wide model, media schemas, formatting functions, and overlay styles stay at the chat
-root because several chat areas use them. This is a single chat application, so an additional
-`features` directory, router-only `pages` directory, and global `hooks` registry would add little.
+`ChatPage` selects and connects features. `ChatLayout` accepts rendered slots and controls geometry
+without importing chat state or business components. The page keeps its empty-state and storage-error
+styles; the layout owns sidebar, conversation, and details positioning. `SidebarNavigation` is shared
+by sidebar features and settings without importing either feature's business state.
 
-Imports name their owning module directly. For example, history renders `messages/MessageBubble`,
-while both message rendering and history estimation use `media/mediaGeometry`. The details panel
-uses the same photo-gallery functions as the viewer. These dependencies are intentional; they do
-not require routing business code through a generic shared layer. The reusable components have no
-chat dependencies, and the state layer does not import rendered components.
+Use `@/` for imports across owners, such as `@/features/chat/model` or `@/components/IconButton`.
+Use relative imports inside one feature or layout. TypeScript and Vite share the same source alias,
+which also resolves Vitest mocks and existing dynamic imports. Import the owning file directly;
+there are no barrel exports or compatibility forwarding files at the old locations.
 
-There are no new dependencies or barrel exports. Runtime state, IndexedDB keys, and public asset
-URLs are unchanged by the reorganization. Earlier implementation plans record the original layout;
-this guide is the current source map.
+Feature-specific hooks, schemas, styles, and types remain with their features. `components`, `hooks`,
+and `lib` must not depend on pages or feature implementations. The chat model and reducer stay in
+`features/chat`; shared use by media, settings, and the conversation list does not make them generic
+UI infrastructure. Cross-feature imports are allowed when they reflect an actual business dependency.
+The state layer continues to avoid rendered components.
+
+Navigation resolves settings destinations against the settings search catalog. That catalog contains
+metadata rather than page implementations, so sidebar features can use navigation without importing
+workspace assembly. Existing lazy module boundaries, browser storage formats, and public asset URLs
+are unchanged. Earlier dated plans retain the original paths; this guide is the current source map.
 
 ## Follow one send
 
@@ -116,7 +128,7 @@ storage notice. One tab is the supported editing owner; cross-tab reconciliation
 
 ### URL navigation and preference ownership
 
-`main.tsx` mounts `BrowserRouter`. `app/navigation/useAppNavigation.ts` owns the `chat`, `sidebar`,
+`src/app/App.tsx` mounts `BrowserRouter`. `src/routes/useAppNavigation.ts` owns the `chat`, `sidebar`,
 `settings`, and `settingsPage` search parameters. Existing `?chat=` links continue to work, and
 unrelated parameters survive navigation. Settings categories and search results use stable catalog
 IDs; General Settings also supports the nested `power` and `wallpaper` destinations. Invalid settings
@@ -128,7 +140,7 @@ deleted chats show the unselected screen and cannot be resurrected by browser hi
 selection may reopen a deleted local contact. Sidebar panels retain their mounted contents, focus,
 and scroll positions; menus, confirmation dialogs, creation forms, and search text remain local UI state.
 
-`app/settings/createPreferenceStore.ts` uses Zustand for snapshots and subscriptions while retaining
+`src/lib/preferences/createPreferenceStore.ts` uses Zustand for snapshots and subscriptions while retaining
 the existing localStorage keys, raw JSON shapes, Zod validation, and cross-tab storage events. Hot
 rendering paths select individual preferences, such as time format or large emoji, so unrelated
 settings do not invalidate their subscriptions. Imperative readers remain available to playback
@@ -137,22 +149,22 @@ Chat IndexedDB persistence and the conversation reducer's business rules remain 
 
 ### Ordinary animation values
 
-`messages/usePollResultAnimation.ts` retains the choice/path/result phases and uses Motion values
+`src/features/chat/messages/usePollResultAnimation.ts` retains the choice/path/result phases and uses Motion values
 for percentage and bar interpolation. `PollOption` renders these values directly, avoiding React
 state updates on every frame. Interrupted votes continue from their visible values; restored results
 and reduced-motion requests display their final values immediately. Message flights, reaction
 geometry, virtual history measurements, scroll anchors, CSS transitions, and native theme view
 transitions retain their existing owners.
 
-For sidebar actions, read `sidebar/ConversationMenu.tsx`, `sidebar/useSidebarActions.ts`, and
-`state/conversationActions.ts`. The menu names available commands, the hook owns selection and
-confirmation dialogs, and reducer helpers persist the actual changes. `sidebar/conversationList.ts`
+For sidebar actions, read `src/features/conversations/ConversationMenu.tsx`, `src/features/conversations/useSidebarActions.ts`, and
+`src/features/chat/state/conversationActions.ts`. The menu names available commands, the hook owns selection and
+confirmation dialogs, and reducer helpers persist the actual changes. `src/features/conversations/conversationList.ts`
 combines fixture defaults with saved preferences, resolves mute deadlines, and orders pinned chats.
-`sidebar/VirtualConversationList.tsx` owns the fixed-height sidebar window and pinned drag order.
-`sidebar/SidebarNavigation.tsx` moves whole sidebar pages with Telegram's forward/back transitions;
+`src/features/conversations/VirtualConversationList.tsx` owns the fixed-height sidebar window and pinned drag order.
+`src/layouts/sidebar/SidebarNavigation.tsx` moves whole sidebar pages with Telegram's forward/back transitions;
 the inbox and archive retain independent scroll positions. `SidebarPageHeader` shares the selection
 overlay behavior between their headers.
-`sidebar/ConversationPreview.tsx` positions a read-only instance of the existing message timeline;
+`src/features/conversations/ConversationPreview.tsx` positions a read-only instance of the existing message timeline;
 it does not maintain a second set of bubble renderers. See the
 [sidebar audit](./sidebar-style-audit.md) for upstream menu and list-virtualization references.
 
@@ -286,7 +298,7 @@ media, middle-track fades, repeated selection, wrapping, and returning to a sing
 pins were removed afterward. No tests were added or run. Selecting the pin preview from the visible
 history position remains outside this implementation.
 
-Message-ID navigation uses `history/animateHistoryNavigation.ts`, following tweb's
+Message-ID navigation uses `src/features/chat/history/animateHistoryNavigation.ts`, following tweb's
 `helpers/fastSmoothScroll.ts`: 250–600ms by distance, at most 1500px of animated travel, and the
 upstream power easing for short and long paths. Tall messages align their beginning; other targets
 are centered. Distant navigation loads history, mounts and measures the bounded animation corridor,
@@ -320,12 +332,12 @@ and momentum. Approaching the start within one viewport (at least 360px) request
 before reaching the loaded boundary. Each boundary is requested once until the prepended rows commit;
 TanStack's end anchoring preserves the current reading position. Scrolling toward newer messages
 does not request older pages.
-`messages/deferredMedia.tsx` postpones new photo, album, link-image, reply-thumbnail, and video-poster
+`src/features/chat/messages/deferredMedia.tsx` postpones new photo, album, link-image, reply-thumbnail, and video-poster
 sources during navigation. Existing images remain visible, frames retain their dimensions, and
 media loading resumes after the temporary range is released. Audio and video already use
 `preload="none"`. This coordination is local to the history view, not a global application lock.
 
-`messages/MessageMenu.tsx` owns one Ark menu per history view. `useMessageMenu.ts` delegates pointer,
+`src/features/chat/messages/MessageMenu.tsx` owns one Ark menu per history view. `useMessageMenu.ts` delegates pointer,
 keyboard, and touch long-press entry points from the viewport. It uses a virtual anchor rectangle,
 closes when the history scrolls or its target unmounts, and releases the target DOM reference after
 exit. Escape returns focus to the message button; selecting Reply or Edit restores that focus
@@ -339,12 +351,12 @@ manually for menu positioning, keyboard access, reply focus, retained drafts, lo
 and width-change anchoring. They have not received a new frame-time benchmark. No automated tests
 were added or run for these changes.
 
-The archive entry and archive page header share `sidebar/ArchiveMenu.tsx`. Their commands live in
-`sidebar/useArchiveActions.ts`; `ArchiveSettingsPage.tsx` owns the editable settings view and
+The archive entry and archive page header share `src/features/conversations/archive/ArchiveMenu.tsx`. Their commands live in
+`src/features/conversations/archive/useArchiveActions.ts`; `ArchiveSettingsPage.tsx` owns the editable settings view and
 `ArchiveDialogs.tsx` owns help and confirmation dialogs. `SidebarNavigation.tsx` keeps both pages
 mounted while sliding between them, including the nested settings page. Archive preferences are
 optional fields in the saved state, so existing snapshots continue to load. The reducer's `receive`
-action in `state/incomingMessages.ts` applies the saved retention preference to local incoming
+action in `src/features/chat/state/incomingMessages.ts` applies the saved retention preference to local incoming
 messages; a future transport can dispatch that action without putting archive rules in the UI.
 
 The headless components provide interaction contracts without imposing a visual theme.
@@ -370,16 +382,16 @@ The hosted conversation was observed on November 5, 2026. This checkout and the 
 may diverge in later revisions; the table is a reading map, not a claim that every upstream feature
 has been ported.
 
-| Original tweb source                    | Responsibility                       | React counterpart                        |
-| --------------------------------------- | ------------------------------------ | ---------------------------------------- |
-| `src/components/chat/chat.ts`           | Conversation coordination            | `ConversationPane.tsx`                   |
-| `src/components/chat/bubbles.ts`        | Message DOM and history ownership    | `MessageTimeline.tsx`                    |
-| `src/components/chat/input.ts`          | Composer and send flow               | `MessageComposer.tsx`                    |
-| `src/scss/partials/_chatVariables.scss` | Bubble geometry and composer timing  | CSS Modules and `global.css`             |
-| `src/scss/partials/_chatTopbar.scss`    | Floating toolbar and pinned plates   | `ChatHeader.module.css`                  |
-| `src/scss/partials/_chat.scss`          | Centering, history, and input layout | `ChatApp.module.css` and timeline styles |
-| `src/scss/partials/_chatBubble.scss`    | Bubble states and media presentation | `MessageBubble.module.css`               |
-| `public/assets/img/pattern.svg`         | Wallpaper artwork                    | `public/assets/telegram-pattern.svg`     |
+| Original tweb source                    | Responsibility                       | React counterpart                           |
+| --------------------------------------- | ------------------------------------ | ------------------------------------------- |
+| `src/components/chat/chat.ts`           | Conversation coordination            | `ConversationPane.tsx`                      |
+| `src/components/chat/bubbles.ts`        | Message DOM and history ownership    | `MessageTimeline.tsx`                       |
+| `src/components/chat/input.ts`          | Composer and send flow               | `MessageComposer.tsx`                       |
+| `src/scss/partials/_chatVariables.scss` | Bubble geometry and composer timing  | CSS Modules and `global.css`                |
+| `src/scss/partials/_chatTopbar.scss`    | Floating toolbar and pinned plates   | `ChatHeader.module.css`                     |
+| `src/scss/partials/_chat.scss`          | Centering, history, and input layout | `ChatLayout.module.css` and timeline styles |
+| `src/scss/partials/_chatBubble.scss`    | Bubble states and media presentation | `MessageBubble.module.css`                  |
+| `public/assets/img/pattern.svg`         | Wallpaper artwork                    | `public/assets/telegram-pattern.svg`        |
 
 Observed geometry includes a 360px floating sidebar, a centered 696px conversation, a 48px toolbar
 and composer, and 16px outer spacing. Upstream bubble values include 15px and 5px radii, 2px spacing
@@ -407,7 +419,7 @@ avoid synchronous React flushes during scrolling. An IntersectionObserver update
 visibility without rerendering its date grid.
 Public-post search requires Telegram connectivity and is not offered in the local study.
 
-`ChatApp.module.css` follows `_rightSidebar.scss` and `_chat.scss`: the profile slides by its
+`ChatLayout.module.css` follows `_rightSidebar.scss` and `_chat.scss`: the profile slides by its
 full width and the chat moves with a transform. The profile remains mounted after its first
 open so closing has an exit animation and reopening retains the selected tab and scroll.
 Below the docking threshold it overlays the chat rather than squeezing the message column.
@@ -485,7 +497,7 @@ See [verification notes](./virtual-history-verification.md) for the recorded bro
 
 ## Message context menu
 
-`messages/MessageMenu.tsx` owns the shared Ark UI menu. Its transparent positioning box contains
+`src/features/chat/messages/MessageMenu.tsx` owns the shared Ark UI menu. Its transparent positioning box contains
 an independent 40px reaction capsule, an 8px gap, and a 196px action panel. Positioning includes
 both surfaces when avoiding viewport edges. These dimensions and the separate entrance animations
 follow tweb's `src/scss/partials/_button.scss` (`btn-menu-reactions-container`) and
@@ -546,16 +558,16 @@ that token; a future custom theme should supply its own value as tweb's `themeCo
 
 ## Sorting, viewer gestures, and structured forms
 
-`sidebar/PinnedConversationSorting.tsx` gives dnd-kit explicit drag handles and drop targets.
+`src/features/conversations/PinnedConversationSorting.tsx` gives dnd-kit explicit drag handles and drop targets.
 Its cloned feedback leaves virtual row children in place; committed order is resolved from IDs
 against all pinned conversations, including those outside the visible window. Selecting a chat
 keeps the same mounted viewport and does not load another component.
 
-`components/SortableList.tsx` owns poll sorting cancellation and keyboard focus restoration.
-`composer/FormListRow.tsx` exposes each row's drag handle while retaining entry/exit animation.
-`composer/useListForm.ts` owns React Hook Form state and field-array operations;
-`composer/listFormSchema.ts` validates poll/checklist limits and dependent correct answers.
+`src/components/SortableList.tsx` owns poll sorting cancellation and keyboard focus restoration.
+`src/features/chat/composer/FormListRow.tsx` exposes each row's drag handle while retaining entry/exit animation.
+`src/features/chat/composer/useListForm.ts` owns React Hook Form state and field-array operations;
+`src/features/chat/composer/listFormSchema.ts` validates poll/checklist limits and dependent correct answers.
 
-`media/useViewerTransform.ts` uses use-gesture for drag/pinch recognition while preserving viewer
+`src/features/media/useViewerTransform.ts` uses use-gesture for drag/pinch recognition while preserving viewer
 geometry, wheel behavior, swipe thresholds, and momentum. Post-pinch continuation transfers to
 the remaining pointer and ends when another pinch begins. Window blur cancels active input.
