@@ -1,6 +1,7 @@
 # TG Chat complete product design
 
-Status: Draft for owner review. This describes the target product, not implemented behavior.
+Status: Approved by the owner on 2026-11-08, including the default product rules. This describes the
+target product, not implemented behavior.
 
 ## 1. Intent and decisions
 
@@ -22,8 +23,9 @@ The owner has confirmed these decisions:
 - PostgreSQL, Valkey, SeaweedFS through S3, and Centrifugo are available. Docker Compose is the
   deployment and integration-environment baseline.
 
-All other choices below are proposed design defaults. They become the agreed baseline only after
-owner review. Adjustable limits are product policy, not performance claims.
+The owner also approved the defaults below as the implementation baseline. Adjustable limits remain
+product policy, not performance claims; deployment measurements may tune them without changing the
+agreed permission and consistency semantics.
 
 ### Goals
 
@@ -50,10 +52,10 @@ or a client's clock as business authority.
 Use an initial verification workload of 1,000 registered users, 100 simultaneously connected
 clients, and 10 accepted message sends per second spread across 20 active conversations. Include a
 200-member group and a 500-subscriber channel in separate fanout stress cases. Use a million-message
-history dataset to expose pagination and search mistakes. These are proposed test scenarios, not
+history dataset to expose pagination and search mistakes. These are agreed test scenarios, not
 guarantees for unspecified hardware or a requirement to support every maximum simultaneously.
 
-Proposed limits include 200 directory memberships per account plus its reserved saved conversation,
+Default limits include 200 directory memberships per account plus its reserved saved conversation,
 1,000 saved contacts per account, 200 members per group, 500 subscribers per channel, and 10
 simultaneous one-to-one calls per deployment. Limits are configurable, enforced on the server,
 returned through capabilities, and validated against measured hardware before launch. Raising
@@ -145,10 +147,9 @@ pnpm. Generate TypeScript API types from OpenAPI; keep runtime validation at ext
 ### Registration and recovery
 
 Register with a unique username and password; a display name is separate and need not be unique.
-Proposed usernames are case-insensitive ASCII letters, digits, and underscores, with a length of 3
-to 32 characters. Normalize before uniqueness checks and reserve system names. User IDs never
-change. Keep usernames immutable in this target; display names, avatars, and biographies are
-editable.
+Usernames are case-insensitive ASCII letters, digits, and underscores, with a length of 3 to 32
+characters. Normalize before uniqueness checks and reserve system names. User IDs never change. Keep
+usernames immutable in this target; display names, avatars, and biographies are editable.
 
 Passwords allow long passphrases and Unicode without silent truncation. Store Argon2id password
 hashes with independently generated salts. Tune cost on deployment hardware; rate limiting protects
@@ -285,7 +286,7 @@ after ordinary idempotency-receipt cleanup. Keep a minimal identity tombstone fo
 
 All mutating commands carry an operation ID. Store actor, operation ID, payload hash, and result in
 the same transaction as the change. Retain general receipts for at least the supported offline retry
-window; the proposed window is seven days. Clients do not silently replay older operations: they
+window; the default window is seven days. Clients do not silently replay older operations: they
 reconcile the resource and ask the user to resubmit where necessary. Prefer idempotent desired
 states such as setting a reaction or task completion over toggles.
 
@@ -380,9 +381,9 @@ user messages after the cursor, excluding hidden, cleared, deleted, expired, sel
 service messages. Update counters transactionally and provide a repair query against canonical
 records. Reading on one device updates all devices.
 
-Proposed expiry policy values are disabled, one day, seven days, or thirty days. Group/channel
-owners or administrators set the policy; either participant can change it for a direct chat, with a
-service notice. The policy applies only to new messages and fixes their expiry at acceptance. Reads,
+Expiry policy values are disabled, one day, seven days, or thirty days. Group/channel owners or
+administrators set the policy; either participant can change it for a direct chat, with a service
+notice. The policy applies only to new messages and fixes their expiry at acceptance. Reads,
 searches, media authorization, and interaction commands exclude expired messages immediately
 according to server time, even if the cleanup worker is late. Cleanup emits deletion changes and
 releases file references. Account UI explains that prior downloads and forwarded copies survive.
@@ -440,9 +441,9 @@ Refetch rather than allowing a late page to resurrect deleted content. Full rese
 in-flight requests, purges server-derived history, and reboots from a fresh snapshot while retaining
 separately owned unsent operations/drafts for explicit reconciliation.
 
-Retain changes for a proposed thirty-day window. A cursor below the retained floor returns a
-specific reset-required response. Pruning advances the floor transactionally. Tombstones in cached
-state prevent late responses during a session; full reset removes dependence on indefinite client
+Retain changes for a default thirty-day window. A cursor below the retained floor returns a specific
+reset-required response. Pruning advances the floor transactionally. Tombstones in cached state
+prevent late responses during a session; full reset removes dependence on indefinite client
 tombstone retention. Invalid, foreign-account, or foreign-deployment cursors are rejected.
 
 ### Centrifugo integration
@@ -542,20 +543,22 @@ reference only ready files owned by its sender or obtained through an authorized
 composer displays upload/processing progress separately from message acceptance. Failure retains the
 user's text and offers retry or replacement.
 
-Proposed initial quotas are 25 MiB per image, 100 MiB per document/video, and 1 GiB of retained
-original uploads per account, with a separate deployment storage ceiling and derivative budget.
-Reserve quota before issuing credentials, reconcile against verified size, and release abandoned
-reservations. These limits are suggested defaults and need storage/bandwidth measurement.
+Initial quotas are 25 MiB per image, 100 MiB per document/video, and 1 GiB of retained original
+uploads per account, with a separate deployment storage ceiling and derivative budget. Reserve quota
+before issuing credentials, reconcile against verified size, and release abandoned reservations.
+These limits are agreed adjustable defaults and need storage/bandwidth measurement.
 
 ### Reading and retention
 
-Download/preview authorization is tied to an accessible message reference or owned pending upload,
-not possession of a file ID. Issue short-lived signed GET URLs after checking current membership,
-personal hide/clear state, deletion, and expiry. Browser playback uses Range requests where
-supported. Keep S3 buckets private and use a separate media origin without application cookies.
-Serve active or unknown document types as downloads, with safe content types and nosniff headers.
+Download/preview authorization is tied to an accessible message reference, an authorized avatar
+reference, or an owned pending upload, not possession of a file ID. Avatar references inherit the
+profile or conversation metadata visibility rules and never authorize unrelated uploads. Issue
+short-lived signed GET URLs after checking current membership, personal hide/clear state, deletion,
+and expiry. Browser playback uses Range requests where supported. Keep S3 buckets private and use a
+separate media origin without application cookies. Serve active or unknown document types as
+downloads, with safe content types and nosniff headers.
 
-A signed URL is a bearer capability until it expires. Proposed lifetime is one minute; membership
+A signed URL is a bearer capability until it expires. Its default lifetime is one minute; membership
 revocation prevents new URLs but cannot cancel an already issued URL or bytes already downloaded.
 This bounded limitation is part of the target. Do not claim immediate revocation of object access.
 If immediate revocation becomes required, replace direct downloads with an authenticated gateway.
@@ -614,7 +617,7 @@ Permanent deletion is a separate action with the deletion rules above. Signed me
 credentials retain their explicitly documented revocation limitations in both cases.
 
 Reports reference content that the reporter could access and retain a restricted evidence snapshot
-for moderator review even if the source is deleted. Proposed evidence retention is ninety days,
+for moderator review even if the source is deleted. Default evidence retention is ninety days,
 followed by removal unless an operator explicitly extends an active case. Explain this exception to
 ordinary content deletion. There is no unrestricted private-message browsing interface for
 administrators. Operators with database/storage access remain trusted under the cloud-chat model.
@@ -802,12 +805,12 @@ failed jobs, sync lag/resets, WebSocket reconnects, storage/quota growth, media 
 setup/termination failures. Exclude message bodies, password/email tokens, cookies, signed URLs, and
 full contact information. Alert on lag and capacity, not merely whether containers are alive.
 
-Proposed recovery objectives for a small single-deployment installation are an RPO of one hour and
-an RTO of four hours, subject to a measured restore drill. PostgreSQL and SeaweedFS need off-host
-backups plus retained secrets/configuration. A consistent backup procedure must coordinate business
-references with object/filer state and pause destructive garbage collection during its capture. Keep
-backup objects long enough to cover older retained database snapshots. Database PITR alone does not
-establish recovery of media bytes. Restore into an isolated environment, verify message/ file
+Recovery objectives for a small single-deployment installation are an RPO of one hour and an RTO of
+four hours, subject to a measured restore drill. PostgreSQL and SeaweedFS need off-host backups plus
+retained secrets/configuration. A consistent backup procedure must coordinate business references
+with object/filer state and pause destructive garbage collection during its capture. Keep backup
+objects long enough to cover older retained database snapshots. Database PITR alone does not
+establish recovery of media bytes. Restore into an isolated environment, verify message and file
 references and permissions, rotate the deployment sync epoch, and force clients to bootstrap. Do not
 use a database snapshot newer than the available object backup without a documented repair
 procedure. Valkey is rebuilt rather than trusted as recovered business state.
@@ -852,7 +855,7 @@ Required acceptance scenarios:
     Test microphone/camera controls, real TURN fallback, and obsolete-room token behavior.
 13. API and Worker restart independently; failed external effects retry; backlogs remain observable.
     A backup restore recovers authorized history and media, and clients reset safely afterward.
-14. The proposed load scenarios are measured on documented hardware with bounded cache, DB, worker,
+14. The agreed load scenarios are measured on documented hardware with bounded cache, DB, worker,
     and media resources. Report observed latency/capacity instead of claiming unmeasured scale.
 
 Target current desktop Chrome, Firefox, Safari, and Edge for core chat. Verify responsive touch use
@@ -864,11 +867,11 @@ Run formatting, linting, type checks, focused tests, migrations against a clean 
 upgrade fixture, integration tests, and relevant browser workflows before accepting implementation.
 Tests must validate behavior and failure recovery, not assert that a particular new file exists.
 
-## 17. Remaining discretion and review points
+## 17. Implementation roadmap and remaining discretion
 
-No milestone breakdown or implementation task list is part of this document. Once its product and
-architecture decisions are approved, derive milestones from the stable contracts and dependencies.
-Do not mark proposals as current repository capabilities.
+The [implementation milestones](../plans/2026-11-08-product-milestones.md) derive delivery order and
+acceptance gates from this approved design. This document owns product semantics; the roadmap owns
+implementation sequence. Neither document claims that planned capabilities already exist.
 
 The builder may choose compatible dependency versions, concrete SQL/index layouts, DTO field names,
 bounded retry schedules, thumbnail sizes, Rust module filenames, and test tooling without changing
@@ -876,18 +879,18 @@ the stated semantics. Record choices where they become executable configuration 
 tune operational limits; changing user-visible permission/history semantics requires revisiting this
 design.
 
-Owner review should focus on the proposed defaults: authenticated-only public discovery, full
-retained history for admitted members, immutable usernames, contacts-only incoming calls by default,
-forwarding/deletion semantics, no self-service recovery without a verified email, device-local
-appearance, signed-URL revocation limits, capacity/quota assumptions, and backup objectives.
+The approved defaults include authenticated-only public discovery, full retained history for
+admitted members, immutable usernames, contacts-only incoming calls by default, forwarding/deletion
+semantics, no self-service recovery without a verified email, device-local appearance, signed-URL
+revocation limits, capacity/quota assumptions, and backup objectives.
 
 ## 18. Primary references
 
 These references support integration constraints, not a claim that the target is implemented.
 
 - [Axum](https://docs.rs/axum/latest/axum/) and [SQLx](https://docs.rs/sqlx/latest/sqlx/) describe
-  the proposed HTTP/runtime and SQL integration foundations.
-- [RustCrypto Argon2](https://docs.rs/argon2/latest/argon2/) documents the proposed password-hash
+  the selected HTTP/runtime and SQL integration foundations.
+- [RustCrypto Argon2](https://docs.rs/argon2/latest/argon2/) documents the selected password-hash
   library.
 - [Centrifugo recovery](https://centrifugal.dev/docs/server/history_and_recovery) describes bounded
   broker recovery; the application still owns durable catch-up.
