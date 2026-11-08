@@ -1,12 +1,22 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
 import { MemoryRouter } from 'react-router';
 import { chatReducer } from '@/features/chat/state/reducer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '@/features/chat/demo/fixtures';
+import type { ChatState } from '@/features/chat/state/chatState';
 import { ChatSidebar } from './ChatSidebar';
+
+// Theme artwork requires browser asset decoding, outside sidebar navigation behavior.
+vi.mock('@/features/settings/appearance/ThemeEmoji', () => ({ ThemeEmoji: () => null }));
+
+const RETAINED_SCROLL_OFFSET = 144;
+
+interface SidebarTestScreenProps {
+  initialState?: ChatState;
+}
 
 beforeEach(() => {
   // Floating menus observe their anchor after the positioning frame in a real browser.
@@ -31,8 +41,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function SidebarTestScreen() {
-  const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
+function SidebarTestScreen({ initialState }: SidebarTestScreenProps) {
+  const [state, dispatch] = useReducer(
+    chatReducer,
+    initialState,
+    (savedState) => savedState ?? createInitialState(),
+  );
 
   return (
     <MemoryRouter>
@@ -134,9 +148,11 @@ describe('sidebar search', () => {
     expect(screen.getByLabelText('Selected conversation').textContent).toBe('alex');
   });
 
-  it('restores the full list and keyboard focus when search is dismissed', async () => {
+  it('restores the list position and keyboard focus when search is dismissed', async () => {
     const user = userEvent.setup();
     render(<SidebarTestScreen />);
+    const conversations = screen.getByRole('navigation', { name: 'Conversations' });
+    fireEvent.scroll(conversations, { target: { scrollTop: RETAINED_SCROLL_OFFSET } });
     const search = screen.getByRole('textbox', { name: 'Search conversations' });
     await user.click(search);
     await user.type(search, 'does not exist');
@@ -145,6 +161,35 @@ describe('sidebar search', () => {
     await user.keyboard('{Escape}');
 
     expect((search as HTMLInputElement).value).toBe('');
+    expect(screen.getByRole('navigation', { name: 'Conversations' }).scrollTop).toBe(
+      RETAINED_SCROLL_OFFSET,
+    );
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Main menu' }));
+  });
+
+  it('focuses archive search after leaving its menu and can broaden the scope', async () => {
+    const user = userEvent.setup();
+    const initialState = chatReducer(createInitialState(), {
+      type: 'update-conversations',
+      chatIds: ['design'],
+      changes: { isArchived: true },
+    });
+    render(<SidebarTestScreen initialState={initialState} />);
+
+    await user.click(screen.getByRole('button', { name: 'Main menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Archived Chats/ }));
+    await user.click(await screen.findByRole('button', { name: 'Archive options' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Search' }));
+
+    const search = await screen.findByRole('textbox', { name: 'Search conversations' });
+    await waitFor(() => expect(document.activeElement).toBe(search));
+    expect(screen.getByRole('button', { name: /Design conversations/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Alex Morgan/ })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Search all chats' }));
+    expect(screen.getByRole('button', { name: /Alex Morgan/ })).toBeTruthy();
+    await user.click(search);
+    await user.keyboard('{Escape}');
     expect(screen.getByRole('navigation', { name: 'Conversations' })).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Main menu' }));
   });

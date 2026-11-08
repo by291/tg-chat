@@ -1,20 +1,14 @@
 import { useAppNavigation } from '@/routes/useAppNavigation';
-import { Archive, ArrowLeft, MoreVertical, Search, X } from 'lucide-react';
-import { NewChatMenu, type NewChatMode } from './creation/NewChatMenu';
+import type { NewChatMode } from './creation/NewChatMenu';
 import { NewChatPage } from './creation/NewChatPage';
 import type { ThemeOrigin } from '@/features/settings/appearance/useThemeTransition';
-import { useEffect, useRef, useState, type Dispatch } from 'react';
-import { Avatar } from '@/components/Avatar';
-import { IconButton } from '@/components/IconButton';
-import { Ripple } from '@/components/Ripple';
+import { useRef, useState, type Dispatch } from 'react';
 import type { ChatAction } from '@/features/chat/state/chatActions';
 import type { ChatState } from '@/features/chat/state/chatState';
 import { ConversationRemovalDialog } from './ConversationDialogs';
 import { ConversationPreview } from './ConversationPreview';
 import { ConversationMuteDialog } from './ConversationMuteDialog';
-import { VirtualConversationList } from './VirtualConversationList';
-import { readPreviewAnchor, type PreviewAnchor } from './previewPosition';
-import { ConversationMenu } from './ConversationMenu';
+import type { PreviewAnchor } from './previewPosition';
 import { SidebarSelectionToolbar } from './SidebarSelectionToolbar';
 import { useSidebarActions } from './useSidebarActions';
 import {
@@ -26,12 +20,17 @@ import { ChatRow } from './ChatRow';
 import { SidebarMenu } from './SidebarMenu';
 import { SidebarNavigation } from '@/layouts/sidebar/SidebarNavigation';
 import { SidebarPageHeader } from './SidebarPageHeader';
-import { ArchiveMenu, type ArchiveMenuAction } from './archive/ArchiveMenu';
+import type { ArchiveMenuAction } from './archive/ArchiveMenu';
 import { ArchiveSettingsPage } from './archive/ArchiveSettingsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { ArchiveConfirmationDialog, ArchiveHelpDialog } from './archive/ArchiveDialogs';
 import { useArchiveActions } from './archive/useArchiveActions';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
+import { ArchivePage } from './archive/ArchivePage';
+import { ConversationListPage } from './list/ConversationListPage';
+import { SidebarSearchField } from './search/SidebarSearchField';
+import { SidebarSearchResults } from './search/SidebarSearchResults';
+import { useSidebarSearch } from './search/useSidebarSearch';
 import styles from './ChatSidebar.module.css';
 
 interface ChatSidebarProps {
@@ -50,7 +49,6 @@ export function ChatSidebar({
   onToggleTheme,
   isDark = state.isDark,
 }: ChatSidebarProps) {
-  const [query, setQuery] = useState('');
   const navigation = useAppNavigation();
   const { isArchiveOpen, isSettingsOpen } = navigation;
   const [newChatMode, setNewChatMode] = useState<NewChatMode>();
@@ -62,17 +60,17 @@ export function ChatSidebar({
   const isSelecting = actions.selectedIds.length > 0;
   const archivedConversations = conversations.filter((conversation) => conversation.isArchived);
   const inboxConversations = conversations.filter((conversation) => !conversation.isArchived);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchScope, setSearchScope] = useState<'all' | 'archive'>('all');
-  const searchRef = useRef<HTMLInputElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const shouldRestoreFocus = useRef(false);
-  const shouldFocusArchiveSearch = useRef(false);
+  const search = useSidebarSearch({
+    conversations,
+    isArchiveOpen,
+    onCloseArchive: navigation.closeArchive,
+  });
+  const { isSearching } = search;
   const archive = useArchiveActions({
     state,
     conversations: archivedConversations,
     dispatch,
-    onSearch: openArchiveSearch,
+    onSearch: search.openArchiveSearch,
   });
   let openSettingsPage: 'archive' | 'settings' | undefined;
   if (archive.isSettingsOpen) {
@@ -82,47 +80,6 @@ export function ChatSidebar({
   }
   // Keep the outgoing page intact until the sidebar's slide-out transition has finished.
   const settingsPage = useClosingDialogValue(openSettingsPage);
-  const normalizedQuery = query.trim().toLowerCase();
-  const matchingChats = conversations.filter((conversation) => {
-    if (searchScope === 'archive' && !conversation.isArchived) {
-      return false;
-    }
-    return conversation.title.toLowerCase().includes(normalizedQuery);
-  });
-
-  useEffect(() => {
-    if (!isSearching && shouldRestoreFocus.current) {
-      shouldRestoreFocus.current = false;
-      menuButtonRef.current?.focus();
-    }
-  }, [isSearching]);
-
-  useEffect(() => {
-    if (!isSearching || !shouldFocusArchiveSearch.current) {
-      return;
-    }
-    // Ark restores menu focus after selection; focus search after that restoration settles.
-    const frame = requestAnimationFrame(() => {
-      shouldFocusArchiveSearch.current = false;
-      searchRef.current?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [isSearching, isArchiveOpen]);
-
-  function closeSearch() {
-    shouldRestoreFocus.current = true;
-    setIsSearching(false);
-    setQuery('');
-    setSearchScope('all');
-  }
-
-  function openArchiveSearch() {
-    shouldFocusArchiveSearch.current = true;
-    navigation.closeArchive();
-    setSearchScope('archive');
-    setQuery('');
-    setIsSearching(true);
-  }
 
   function runArchiveAction(action: ArchiveMenuAction) {
     actions.clearSelection();
@@ -135,9 +92,7 @@ export function ChatSidebar({
     anchor?: PreviewAnchor,
   ) {
     if (action === 'select') {
-      setIsSearching(false);
-      setQuery('');
-      setSearchScope('all');
+      search.resetSearch();
       if (conversation.isArchived) {
         navigation.openArchive();
       } else {
@@ -149,17 +104,13 @@ export function ChatSidebar({
 
   function selectChat(chatId: string) {
     setNewChatMode(undefined);
-    setIsSearching(false);
-    setQuery('');
-    setSearchScope('all');
+    search.resetSearch();
     onSelectChat(chatId);
   }
 
   function openArchive() {
     actions.clearSelection();
-    setIsSearching(false);
-    setQuery('');
-    setSearchScope('all');
+    search.resetSearch();
     navigation.openArchive();
   }
 
@@ -196,186 +147,82 @@ export function ChatSidebar({
     />
   ) : undefined;
 
+  function reorderPinned(chatIds: string[]) {
+    dispatch({ type: 'reorder-pinned-conversations', chatIds });
+  }
+
   const primaryPage = (
-    <>
-      <SidebarPageHeader selection={!isArchiveOpen ? selectionToolbar : undefined}>
-        <div className={styles.header}>
-          <SidebarMenu
-            isSearching={isSearching}
-            isDark={isDark}
-            menuButtonRef={menuButtonRef}
-            onCloseSearch={closeSearch}
-            onSelectChat={selectChat}
-            onToggleTheme={onToggleTheme}
-            onOpenArchive={openArchive}
-            onOpenSettings={() => navigation.openSettings()}
-            archiveUnreadCount={archive.unreadCount}
-          />
-          <div className={styles.searchField} data-archive={searchScope === 'archive'}>
-            <Search className={styles.searchIcon} size={24} aria-hidden="true" />
-            {searchScope === 'archive' && (
-              <button
-                type="button"
-                className={styles.archiveSearchScope}
-                aria-label="Search all chats"
-                onClick={() => setSearchScope('all')}
-              >
-                Archive <X size={14} />
-              </button>
-            )}
-            <input
-              ref={searchRef}
-              aria-label="Search conversations"
-              placeholder="Search"
-              value={query}
-              onFocus={() => setIsSearching(true)}
-              onChange={(event) => setQuery(event.target.value)}
+    <ConversationListPage
+      conversations={inboxConversations}
+      archivedConversations={archivedConversations}
+      isSearching={isSearching}
+      isArchiveShown={archive.isShownInChatList}
+      archiveUnreadCount={archive.unreadCount}
+      initialOffset={scrollOffsets.current.inbox}
+      onScrollOffsetChange={(offset) => {
+        scrollOffsets.current.inbox = offset;
+      }}
+      onReorderPinned={reorderPinned}
+      onOpenArchive={openArchive}
+      onArchiveAction={runArchiveAction}
+      onCreateChat={(mode) => {
+        setCreationSession((session) => session + 1);
+        setNewChatMode(mode);
+      }}
+      renderRow={renderConversationRow}
+      header={
+        <SidebarPageHeader selection={!isArchiveOpen ? selectionToolbar : undefined}>
+          <div className={styles.header}>
+            <SidebarMenu
+              isSearching={isSearching}
+              isDark={isDark}
+              menuButtonRef={search.menuButtonRef}
+              onCloseSearch={search.closeSearch}
+              onSelectChat={selectChat}
+              onToggleTheme={onToggleTheme}
+              onOpenArchive={openArchive}
+              onOpenSettings={() => navigation.openSettings()}
+              archiveUnreadCount={archive.unreadCount}
             />
-            {query && (
-              <IconButton
-                label="Clear search"
-                className={styles.clearSearch}
-                onClick={() => {
-                  setQuery('');
-                  searchRef.current?.focus();
-                }}
-              >
-                <X />
-              </IconButton>
-            )}
-          </div>
-        </div>
-      </SidebarPageHeader>
-      <div className={styles.content}>
-        <div className={styles.conversationsPanel} inert={isSearching} aria-hidden={isSearching}>
-          <VirtualConversationList
-            conversations={inboxConversations}
-            label="Conversations"
-            initialOffset={scrollOffsets.current.inbox}
-            onScrollOffsetChange={(offset) => {
-              scrollOffsets.current.inbox = offset;
-            }}
-            onReorderPinned={(chatIds) =>
-              dispatch({ type: 'reorder-pinned-conversations', chatIds })
-            }
-            archiveEntry={
-              archive.isShownInChatList && archivedConversations.length > 0 ? (
-                <ArchiveMenu
-                  trigger="context"
-                  isShownInChatList={archive.isShownInChatList}
-                  hasUnread={archive.unreadCount > 0}
-                  onAction={runArchiveAction}
-                >
-                  <button className={styles.archiveEntry} onClick={openArchive}>
-                    <span className={styles.archiveAvatar}>
-                      <Archive />
-                    </span>
-                    <span className={styles.rowContent}>
-                      <strong>Archived Chats</strong>
-                      <span>
-                        {archivedConversations.map((conversation) => conversation.title).join(', ')}
-                      </span>
-                    </span>
-                    {archive.unreadCount > 0 && (
-                      <span className={styles.archiveCount}>{archive.unreadCount}</span>
-                    )}
-                    <Ripple />
-                  </button>
-                </ArchiveMenu>
-              ) : undefined
-            }
-            renderRow={renderConversationRow}
-          />
-          <div className={styles.footer}>
-            <NewChatMenu
-              onChoose={(mode) => {
-                setCreationSession((session) => session + 1);
-                setNewChatMode(mode);
-              }}
+            <SidebarSearchField
+              query={search.query}
+              isArchiveScope={search.scope === 'archive'}
+              inputRef={search.inputRef}
+              onFocus={search.startSearch}
+              onQueryChange={search.setQuery}
+              onClearQuery={search.clearQuery}
+              onSearchAllChats={search.searchAllChats}
             />
           </div>
-        </div>
-        <nav
-          className={styles.searchPanel}
-          aria-label="Search results"
-          aria-hidden={!isSearching}
-          inert={!isSearching}
-        >
-          <div className={styles.searchCard}>
-            <h2>{searchScope === 'archive' ? 'Archived Chats' : 'Chats'}</h2>
-            {matchingChats.map((conversation) => (
-              <ConversationMenu
-                key={conversation.id}
-                conversation={conversation}
-                isSelecting={false}
-                onAction={(action, anchor) => runMenuAction(conversation, action, anchor)}
-              >
-                <button
-                  type="button"
-                  className={styles.searchResult}
-                  onClick={(event) => {
-                    if (event.shiftKey) {
-                      runMenuAction(
-                        conversation,
-                        'preview',
-                        readPreviewAnchor(event.currentTarget),
-                      );
-                      return;
-                    }
-                    selectChat(conversation.id);
-                  }}
-                >
-                  <Avatar
-                    initials={conversation.initials}
-                    color={conversation.color}
-                    size="small"
-                  />
-                  <span className={styles.rowContent}>
-                    <span className={styles.resultTitle}>{conversation.title}</span>
-                    <span className={styles.resultSubtitle}>{conversation.subtitle}</span>
-                  </span>
-                  <Ripple />
-                </button>
-              </ConversationMenu>
-            ))}
-            {matchingChats.length === 0 && <p className={styles.empty}>No conversations found</p>}
-          </div>
-        </nav>
-      </div>
-    </>
+        </SidebarPageHeader>
+      }
+      searchResults={
+        <SidebarSearchResults
+          conversations={search.matchingConversations}
+          isSearching={isSearching}
+          isArchiveScope={search.scope === 'archive'}
+          onSelectChat={selectChat}
+          onMenuAction={runMenuAction}
+        />
+      }
+    />
   );
 
   const archivePage = (
-    <>
-      <SidebarPageHeader selection={isArchiveOpen ? selectionToolbar : undefined}>
-        <div className={styles.header}>
-          <IconButton label="Back to conversations" onClick={closeArchive}>
-            <ArrowLeft />
-          </IconButton>
-          <h2 className={styles.archiveTitle}>Archived Chats</h2>
-          <ArchiveMenu
-            trigger="button"
-            isShownInChatList={archive.isShownInChatList}
-            hasUnread={archive.unreadCount > 0}
-            onAction={runArchiveAction}
-          >
-            <IconButton label="Archive options">
-              <MoreVertical />
-            </IconButton>
-          </ArchiveMenu>
-        </div>
-      </SidebarPageHeader>
-      <VirtualConversationList
-        conversations={archivedConversations}
-        label="Archived conversations"
-        initialOffset={scrollOffsets.current.archive}
-        onScrollOffsetChange={(offset) => {
-          scrollOffsets.current.archive = offset;
-        }}
-        onReorderPinned={(chatIds) => dispatch({ type: 'reorder-pinned-conversations', chatIds })}
-        renderRow={renderConversationRow}
-      />
-    </>
+    <ArchivePage
+      conversations={archivedConversations}
+      isShownInChatList={archive.isShownInChatList}
+      hasUnread={archive.unreadCount > 0}
+      initialOffset={scrollOffsets.current.archive}
+      selection={isArchiveOpen ? selectionToolbar : undefined}
+      onBack={closeArchive}
+      onAction={runArchiveAction}
+      onScrollOffsetChange={(offset) => {
+        scrollOffsets.current.archive = offset;
+      }}
+      onReorderPinned={reorderPinned}
+      renderRow={renderConversationRow}
+    />
   );
 
   return (
@@ -411,7 +258,7 @@ export function ChatSidebar({
         if (isSearching && event.key === 'Escape') {
           event.preventDefault();
           event.stopPropagation();
-          closeSearch();
+          search.closeSearch();
           return;
         }
         if (isArchiveOpen && event.key === 'Escape') {
