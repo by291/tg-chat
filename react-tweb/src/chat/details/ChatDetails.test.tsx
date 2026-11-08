@@ -5,7 +5,7 @@ import { useReducer } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { conversations, createInitialState } from '../demo/fixtures';
 import { chatReducer } from '../state/reducer';
-import type { ChatState } from '../model';
+import type { ChatState, Message } from '../model';
 import { ChatDetails } from './ChatDetails';
 
 beforeEach(() => {
@@ -24,17 +24,25 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function DetailsScreen({ initialState }: { initialState?: ChatState }) {
+function DetailsScreen({
+  initialState,
+  conversationId = 'dev',
+  messages,
+}: {
+  initialState?: ChatState;
+  conversationId?: string;
+  messages?: Message[];
+}) {
   const [state, dispatch] = useReducer(
     chatReducer,
     initialState,
     (savedState) => savedState ?? createInitialState(),
   );
-  const conversation = conversations[0];
+  const conversation = conversations.find((candidate) => candidate.id === conversationId)!;
   return (
     <ChatDetails
       conversation={conversation}
-      messages={state.messages.filter((message) => message.chatId === conversation.id)}
+      messages={messages ?? state.messages.filter((message) => message.chatId === conversation.id)}
       state={state}
       dispatch={dispatch}
       isOpen
@@ -78,12 +86,25 @@ it('excludes unsaved private peers from the add-members contact choices', async 
 
 it('keeps mute state while switching between members and shared file categories', async () => {
   const user = userEvent.setup();
-  render(<DetailsScreen />);
+  const state = createInitialState();
+  state.messages.push({
+    ...state.messages[0],
+    id: 'shared-file',
+    chatId: 'dev',
+    media: {
+      kind: 'document',
+      name: 'notes.txt',
+      url: '/notes.txt',
+      mimeType: 'text/plain',
+      size: 16,
+    },
+  });
+  render(<DetailsScreen initialState={state} />);
 
   await user.click(screen.getByRole('button', { name: 'Mute' }));
   expect(screen.getByRole('button', { name: 'Unmute' })).toBeTruthy();
   await user.click(screen.getByRole('tab', { name: 'Files' }));
-  expect(screen.getByText('No shared files yet')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'notes.txt' })).toBeTruthy();
   await waitFor(() => {
     expect(screen.queryByRole('tabpanel', { name: 'Members' })).toBeNull();
   });
@@ -100,4 +121,29 @@ it('requires confirmation before leaving the group', async () => {
   expect(await screen.findByRole('alertdialog')).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(screen.getByRole('button', { name: 'Leave group' })).toBeTruthy();
+});
+
+it('shows a single populated category without an unnecessary tab bar', () => {
+  const messages = createInitialState().messages;
+  const photo = messages.find((message) => message.attachment)!;
+  render(<DetailsScreen conversationId="mia" messages={[photo]} />);
+
+  expect(screen.queryByRole('tablist')).toBeNull();
+  expect(screen.getByRole('img', { name: photo.attachment!.name })).toBeTruthy();
+  expect(screen.queryByText(/No shared/)).toBeNull();
+});
+
+it('falls back to remaining content when the active category becomes empty', async () => {
+  const user = userEvent.setup();
+  const messages = createInitialState().messages;
+  const photo = messages.find((message) => message.attachment)!;
+  const view = render(<DetailsScreen messages={[photo]} />);
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Members', 'Media']);
+  await user.click(screen.getByRole('tab', { name: 'Media' }));
+  expect(screen.getByRole('img', { name: photo.attachment!.name })).toBeTruthy();
+
+  view.rerender(<DetailsScreen messages={[]} />);
+  expect(screen.queryByRole('tablist')).toBeNull();
+  expect(screen.queryByRole('img')).toBeNull();
+  expect(screen.getByText('Alex')).toBeTruthy();
 });

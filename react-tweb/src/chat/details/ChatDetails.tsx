@@ -17,6 +17,7 @@ import { Ripple } from '../../components/Ripple';
 import { HeaderActionDialog } from '../HeaderActionDialog';
 import type { ChatAction, ChatState, Conversation, Message } from '../model';
 import { getConversations } from '../state/conversations';
+import { getPhotoMessages } from '../media/photoGallery';
 import { ConversationRemovalDialog } from '../sidebar/ConversationDialogs';
 import { useSidebarActions } from '../sidebar/useSidebarActions';
 import { useConversationList } from '../sidebar/conversationList';
@@ -68,8 +69,8 @@ export function ChatDetails({
 }: ChatDetailsProps) {
   const isGroup = conversation.kind === 'group';
   const canEdit = isGroup || conversation.kind === 'channel';
-  const [selectedTab, setSelectedTab] = useState(isGroup ? 'members' : 'media');
-  const [direction, setDirection] = useState('forward');
+  const [requestedTab, setRequestedTab] = useState('');
+  const [direction, setDirection] = useState<'forward' | 'backward'>();
   const [isCallOpen, setIsCallOpen] = useState(false);
   const [profileMode, setProfileMode] = useState<'edit' | 'members'>();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -84,7 +85,28 @@ export function ChatDetails({
   const members = privateConversations.filter((candidate) => {
     return conversation.memberIds?.includes(candidate.id);
   });
-  const tabs = SHARED_TABS.filter((tab) => isGroup || tab.value !== 'members');
+  const hasPhotos = getPhotoMessages(messages).length > 0;
+  const tabs = SHARED_TABS.filter((tab) => {
+    if (tab.value === 'members') {
+      return isGroup;
+    }
+    if (tab.value === 'media') {
+      return hasPhotos || messages.some((message) => message.media?.kind === 'video');
+    }
+    const mediaKind = tab.value === 'files' ? 'document' : 'voice';
+    return messages.some((message) => message.media?.kind === mediaKind);
+  });
+  const hasRequestedTab = tabs.some((tab) => tab.value === requestedTab);
+  const selectedTab = hasRequestedTab ? requestedTab : (tabs[0]?.value ?? '');
+  const transitionDirection = hasRequestedTab ? direction : undefined;
+
+  useEffect(() => {
+    // Counter-driven categories can disappear; automatic fallback must not slide the profile.
+    if (requestedTab !== selectedTab) {
+      setRequestedTab(selectedTab);
+      setDirection(undefined);
+    }
+  }, [requestedTab, selectedTab]);
 
   useEffect(() => {
     // Modal profiles delegate focus restoration to their dialog focus scope.
@@ -171,78 +193,80 @@ export function ChatDetails({
             </div>
           </section>
         )}
-        <Tabs.Root
-          value={selectedTab}
-          onValueChange={({ value }) => {
-            const previousIndex = tabs.findIndex((tab) => tab.value === selectedTab);
-            const nextIndex = tabs.findIndex((tab) => tab.value === value);
-            setDirection(nextIndex > previousIndex ? 'forward' : 'backward');
-            setSelectedTab(value);
-          }}
-          className={styles.tabs}
-          lazyMount
-          unmountOnExit
-        >
-          <Tabs.List className={styles.tabList}>
-            {tabs.map((tab) => (
-              <Tabs.Trigger key={tab.value} value={tab.value}>
-                {tab.label}
-                <Ripple />
-              </Tabs.Trigger>
-            ))}
-            <Tabs.Indicator className={styles.indicator} />
-          </Tabs.List>
-          <div className={styles.tabStage}>
-            {isGroup && (
-              <Tabs.Content
-                value="members"
-                className={styles.tabContent}
-                data-direction={direction}
-                inert={selectedTab !== 'members'}
-                aria-hidden={selectedTab !== 'members'}
-              >
-                <div className={styles.members}>
-                  <div className={styles.member}>
-                    <Avatar initials="Y" color="purple" size="small" />
-                    <span>
-                      <strong>You</strong>
-                      <span>online</span>
-                    </span>
-                    <small>owner</small>
-                  </div>
-                  {members.map((member) => (
-                    <div key={member.id} className={styles.member}>
-                      <Avatar initials={member.initials} color={member.color} size="small" />
-                      <span>
-                        <strong>{member.title.split(' ')[0]}</strong>
-                        <span>{member.subtitle}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Tabs.Content>
-            )}
-            {tabs
-              .filter((tab) => tab.value !== 'members')
-              .map((tab) => (
-                <Tabs.Content
-                  key={tab.value}
-                  value={tab.value}
-                  className={styles.tabContent}
-                  data-direction={direction}
-                  inert={selectedTab !== tab.value}
-                  aria-hidden={selectedTab !== tab.value}
-                >
-                  <ChatSharedMedia
-                    category={tab.value}
-                    messages={messages}
-                    isActive={isOpen && selectedTab === tab.value}
-                    onOpenMedia={onOpenMedia}
-                  />
-                </Tabs.Content>
+        {tabs.length > 0 && (
+          <Tabs.Root
+            value={selectedTab}
+            onValueChange={({ value }) => {
+              const previousIndex = tabs.findIndex((tab) => tab.value === selectedTab);
+              const nextIndex = tabs.findIndex((tab) => tab.value === value);
+              setDirection(nextIndex > previousIndex ? 'forward' : 'backward');
+              setRequestedTab(value);
+            }}
+            className={styles.tabs}
+            lazyMount
+            unmountOnExit
+          >
+            <Tabs.List className={styles.tabList} hidden={tabs.length === 1}>
+              {tabs.map((tab) => (
+                <Tabs.Trigger key={tab.value} value={tab.value}>
+                  {tab.label}
+                  <Ripple />
+                </Tabs.Trigger>
               ))}
-          </div>
-        </Tabs.Root>
+              <Tabs.Indicator className={styles.indicator} />
+            </Tabs.List>
+            <div className={styles.tabStage}>
+              {isGroup && (
+                <Tabs.Content
+                  value="members"
+                  className={styles.tabContent}
+                  data-direction={transitionDirection}
+                  inert={selectedTab !== 'members'}
+                  aria-hidden={selectedTab !== 'members'}
+                >
+                  <div className={styles.members}>
+                    <div className={styles.member}>
+                      <Avatar initials="Y" color="purple" size="small" />
+                      <span>
+                        <strong>You</strong>
+                        <span>online</span>
+                      </span>
+                      <small>owner</small>
+                    </div>
+                    {members.map((member) => (
+                      <div key={member.id} className={styles.member}>
+                        <Avatar initials={member.initials} color={member.color} size="small" />
+                        <span>
+                          <strong>{member.title.split(' ')[0]}</strong>
+                          <span>{member.subtitle}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Tabs.Content>
+              )}
+              {tabs
+                .filter((tab) => tab.value !== 'members')
+                .map((tab) => (
+                  <Tabs.Content
+                    key={tab.value}
+                    value={tab.value}
+                    className={styles.tabContent}
+                    data-direction={transitionDirection}
+                    inert={selectedTab !== tab.value}
+                    aria-hidden={selectedTab !== tab.value}
+                  >
+                    <ChatSharedMedia
+                      category={tab.value}
+                      messages={messages}
+                      isActive={isOpen && selectedTab === tab.value}
+                      onOpenMedia={onOpenMedia}
+                    />
+                  </Tabs.Content>
+                ))}
+            </div>
+          </Tabs.Root>
+        )}
       </div>
       {isGroup && (
         <IconButton

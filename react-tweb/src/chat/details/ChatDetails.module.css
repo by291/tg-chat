@@ -123,9 +123,9 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-around;
   min-height: 48px;
-  padding: 4px;
+  padding: 4px 0;
   overflow-x: auto;
   border-radius: 24px;
   background: var(--surface-color);
@@ -137,17 +137,18 @@
 .tabList button {
   position: relative;
   z-index: 1;
-  flex-shrink: 0;
+  flex: 1 1 auto;
   height: 40px;
+  margin: 0 4px;
   padding: 0 16px;
   border: 0;
-  border-radius: 24px;
+  border-radius: 20px;
   color: var(--secondary-color);
   background: transparent;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: color 200ms var(--menu-easing);
+  transition: color 200ms ease-in-out;
 }
 
 .tabList button[data-selected] {
@@ -163,8 +164,8 @@
   border-radius: 24px;
   background: var(--reply-color);
   transition:
-    left 200ms var(--menu-easing),
-    width 200ms var(--menu-easing);
+    left 200ms ease-in-out,
+    width 200ms ease-in-out;
 }
 
 .tabStage {
@@ -179,17 +180,17 @@
   align-self: start;
 }
 
-.tabContent[data-state='open'] {
-  animation: tab-forward 300ms var(--menu-easing);
+.tabContent[data-state='open'][data-direction] {
+  animation: tab-forward 200ms ease-in-out;
 }
 
 .tabContent[data-state='open'][data-direction='backward'] {
   animation-name: tab-backward;
 }
 
-.tabContent[data-state='closed'] {
+.tabContent[data-state='closed'][data-direction] {
   pointer-events: none;
-  animation: tab-backward 300ms var(--menu-easing) reverse;
+  animation: tab-backward 200ms ease-in-out reverse;
 }
 
 .tabContent[data-state='closed'][data-direction='backward'] {
@@ -342,22 +343,33 @@
 
 @keyframes tab-forward {
   from {
-    opacity: 0;
     transform: translateX(100%);
   }
   to {
-    opacity: 1;
     transform: translateX(0);
   }
 }
 
 @keyframes tab-backward {
   from {
-    opacity: 0;
     transform: translateX(-100%);
   }
   to {
-    opacity: 1;
     transform: translateX(0);
+  }
+}
+
+.tabList[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabContent[data-state][data-direction] {
+    animation: none;
+  }
+
+  .indicator,
+  .tabList button {
+    transition: none;
   }
 }

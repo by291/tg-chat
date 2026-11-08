@@ -55,6 +55,8 @@ it('opens the sender profile without navigating, then messages that peer', async
 
   const dialog = await screen.findByRole('dialog', { name: 'User Info' });
   expect(within(dialog).getByRole('heading', { name: 'Mia Chen' })).toBeTruthy();
+  expect(within(dialog).queryByRole('tablist')).toBeNull();
+  expect(within(dialog).queryByText('No shared media yet')).toBeNull();
   expect(screen.getByLabelText('Active chat').textContent).toBe(activeChat);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Message' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
