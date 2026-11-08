@@ -20,15 +20,21 @@ test('search keeps keyboard navigation active until the highlighted result is co
 
   const results = page.getByRole('region', { name: 'Search results' });
   const highlighted = results.locator('button[data-active="true"]');
+
   await expect(highlighted).toBeInViewport();
+
   const highlightedText = await highlighted.innerText();
   await search.press('ArrowUp');
+
   await expect(highlighted).not.toHaveText(highlightedText);
+
   await search.press('Enter');
+
   await expect(search).not.toBeFocused();
   await expect(highlighted).not.toBeInViewport();
 
   await page.keyboard.press('Escape');
+
   await expect(search).toBeHidden();
   await expect(trigger).toBeFocused();
 });
@@ -42,8 +48,11 @@ test('search can reopen and close while its previous exit animation is still run
   const search = page.getByRole('textbox', { name: 'Search in this conversation' });
   await search.press('Escape');
   await trigger.press('Enter');
+
   await expect(search).toBeFocused();
+
   await search.press('Escape');
+
   await expect(search).toBeHidden();
   await expect(trigger).toBeFocused();
 });
@@ -70,9 +79,12 @@ test('composition keys do not navigate, confirm, or dismiss conversation search'
   }
 
   await search.press('Escape');
+
   await expect(search).toBeVisible();
   await expect(search).not.toBeFocused();
+
   await page.keyboard.press('Escape');
+
   await expect(search).toBeHidden();
 });
 
@@ -86,20 +98,29 @@ test('calendar mounts and focuses keyboard targets across months and years', asy
   await today.focus();
   await today.press('PageUp');
   const october = dialog.getByRole('button', { name: 'Thursday, October 8, 2026', exact: true });
+
   await expect(october).toBeFocused();
   await expect(october).toBeInViewport();
+
   await october.press('Shift+PageUp');
   const previousYear = dialog.getByRole('button', {
     name: 'Wednesday, October 8, 2025',
     exact: true,
   });
+
   await expect(previousYear).toBeFocused();
   await expect(previousYear).toBeInViewport();
+
   await previousYear.press('Shift+PageDown');
+
   await expect(october).toBeFocused();
+
   await october.press('PageDown');
+
   await expect(today).toBeFocused();
+
   await today.press('ArrowRight');
+
   await expect(today).toBeFocused();
 
   const firstNovember = dialog.getByRole('button', {
@@ -112,9 +133,12 @@ test('calendar mounts and focuses keyboard targets across months and years', asy
     name: 'Saturday, October 31, 2026',
     exact: true,
   });
+
   await expect(lastOctober).toBeFocused();
   await expect(lastOctober).toBeInViewport();
+
   await lastOctober.press('Enter');
+
   await expect(lastOctober).toHaveAttribute('data-selected');
 });
 
@@ -131,22 +155,31 @@ test('calendar scrolling preserves control focus and Escape only closes the top 
   await dateTrigger.click();
   const dialog = page.getByRole('dialog');
   const closeCalendar = dialog.getByRole('button', { name: 'Close date picker' });
+
   await expect(closeCalendar).toBeFocused();
+
   await dialog.getByLabel('Calendar months').evaluate((viewport) => {
     viewport.scrollTop = 0;
   });
   const earliest = dialog.getByRole('button', { name: 'Thursday, August 1, 2013', exact: true });
+
   await expect(earliest).toBeVisible();
   await expect(closeCalendar).toBeFocused();
+
   await earliest.focus();
   await earliest.press('ArrowLeft');
+
   await expect(earliest).toBeFocused();
+
   await earliest.press('Escape');
+
   await expect(dialog).toBeHidden();
   await expect(search).toBeVisible();
   await expect(dateTrigger).toBeFocused();
   await expect(page.getByRole('button', { name: 'Close chat information' })).toBeVisible();
+
   await page.keyboard.press('Escape');
+
   await expect(search).toBeHidden();
   await expect(page.getByRole('button', { name: 'Close chat information' })).toBeVisible();
 });

@@ -16,6 +16,7 @@ interface SortableListProps {
 /** Commit a sortable session only after a valid drop, leaving cancellation free of state writes. */
 export function SortableList({ children, onMove, onDraggingChange }: SortableListProps) {
   const focusFrame = useRef<number | undefined>(undefined);
+
   useEffect(
     () => () => {
       if (focusFrame.current !== undefined) {
@@ -30,6 +31,7 @@ export function SortableList({ children, onMove, onDraggingChange }: SortableLis
       onBeforeDragStart={() => onDraggingChange?.({ isDragging: true })}
       onDragEnd={(event) => {
         onDraggingChange?.({ isDragging: false });
+
         const sourceHandle = event.operation.source?.handle;
         if (
           event.operation.activatorEvent instanceof KeyboardEvent &&
@@ -42,13 +44,16 @@ export function SortableList({ children, onMove, onDraggingChange }: SortableLis
             }
           });
         }
+
         if (event.canceled || !isSortableOperation(event.operation)) {
           return;
         }
+
         const { source, target } = event.operation;
         if (!source || !target || source.initialIndex === source.index) {
           return;
         }
+
         onMove({ sourceId: String(source.id), targetIndex: source.index });
       }}
     >

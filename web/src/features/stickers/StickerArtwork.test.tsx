@@ -71,6 +71,7 @@ it('pauses a sticker when the final batched intersection leaves the viewport', a
       {} as IntersectionObserver,
     );
   });
+
   await waitFor(() => expect(animation.isPaused).toBe(false));
 
   act(() => {
@@ -103,10 +104,15 @@ it('applies animation preferences to an already visible sticker', async () => {
       {} as IntersectionObserver,
     );
   });
+
   await waitFor(() => expect(animation.isPaused).toBe(false));
+
   act(() => setAppPreferences({ shouldAnimateStickers: false }));
+
   expect(animation.isPaused).toBe(true);
+
   act(() => setAppPreferences({ shouldAnimateStickers: true }));
+
   await waitFor(() => expect(animation.isPaused).toBe(false));
 });
 
@@ -130,10 +136,15 @@ it('keeps panel playback independent of chat autoplay and responds to panel chan
       {} as IntersectionObserver,
     );
   });
+
   await waitFor(() => expect(animation.isPaused).toBe(false));
+
   act(() => setAppPreferences({ shouldAutoplayStickersInPanel: false }));
+
   expect(animation.isPaused).toBe(true);
+
   act(() => setAppPreferences({ shouldAutoplayStickersInPanel: true }));
+
   await waitFor(() => expect(animation.isPaused).toBe(false));
 });
 
@@ -160,5 +171,6 @@ it('allows a held preview when automatic chat and panel playback are disabled', 
       {} as IntersectionObserver,
     );
   });
+
   await waitFor(() => expect(animation.isPaused).toBe(false));
 });

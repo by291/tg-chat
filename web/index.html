@@ -133,6 +133,8 @@
         }
         const isDark = mode === 'night' || mode === 'dark';
         document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+
+        // Image backgrounds need asynchronous preparation; only saved colors can paint here.
         const wallpaper = savedAppearance?.choices?.[mode]?.wallpaper;
         const isSolidColor = wallpaper?.kind === 'color' && /^#[\da-f]{6}$/i.test(wallpaper.color);
         if (isSolidColor) {

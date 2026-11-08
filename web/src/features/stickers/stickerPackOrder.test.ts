@@ -17,6 +17,7 @@ it('moves a sent sticker pack to the front and preserves the remaining order', (
   rememberSentSticker(sticker.id);
 
   const ordered = getOrderedStickerPacks(getAppPreferences().stickerPackOrder);
+
   expect(ordered[0].id).toBe(lastPack.id);
   expect(ordered.slice(1)).toEqual(STICKER_PACKS.slice(0, -1));
 });
@@ -28,6 +29,7 @@ it('freezes the current pack order when dynamic ordering is disabled', () => {
     stickerPackOrder: [lastPack.id],
   });
   rememberSentSticker(STICKERS[0].id);
+
   expect(getOrderedStickerPacks(getAppPreferences().stickerPackOrder)[0].id).toBe(lastPack.id);
 });
 
@@ -39,5 +41,6 @@ it('ignores missing and duplicate packs while retaining newly installed ones', (
     firstPack.id,
     firstPack.id,
   ];
+
   expect(getOrderedStickerPacks(savedOrder)).toEqual(STICKER_PACKS);
 });

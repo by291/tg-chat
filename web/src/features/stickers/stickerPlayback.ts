@@ -30,6 +30,7 @@ function readLoopPreference() {
 
 function updatePlaybackState(changes: Partial<PlaybackState>) {
   playbackState = { ...playbackState, ...changes };
+
   for (const notify of listeners) {
     notify();
   }
@@ -69,20 +70,24 @@ function observeEnvironment() {
 
 function synchronizeExclusiveGroup() {
   const groups = Array.from(exclusiveGroups.values());
+  // Theme snapshots pause all players, including overlays that normally own playback.
   if (groups.includes('theme')) {
     updatePlaybackState({ exclusiveGroup: 'theme' });
     return;
   }
+
   // The full-screen viewer hides every chat and sticker overlay beneath it.
   if (groups.includes('viewer')) {
     updatePlaybackState({ exclusiveGroup: 'viewer' });
     return;
   }
+
   // A held preview takes priority over its pack; closing it restores the still-open pack.
   if (groups.includes('preview')) {
     updatePlaybackState({ exclusiveGroup: 'preview' });
     return;
   }
+
   const exclusiveGroup = groups.includes('pack') ? 'pack' : undefined;
   updatePlaybackState({ exclusiveGroup });
 }
@@ -97,10 +102,12 @@ export function subscribeStickerPlayback(notify: () => void) {
   if (listeners.size === 0) {
     removeEnvironmentListeners = observeEnvironment();
   }
+
   listeners.add(notify);
 
   return () => {
     listeners.delete(notify);
+
     if (listeners.size === 0) {
       removeEnvironmentListeners?.();
       removeEnvironmentListeners = undefined;
@@ -115,6 +122,7 @@ export function setStickerLoopPreference({ shouldLoop }: { shouldLoop: boolean }
   } catch {
     // Storage restrictions must not prevent changing playback for the current session.
   }
+
   updatePlaybackState({ shouldLoop });
 }
 

@@ -130,7 +130,10 @@ export function sanitizeRichText(html: string): string {
     RETURN_DOM_FRAGMENT: true,
   });
 
+  // Legacy quote markers must be normalized before the attribute policy rejects them.
   normalizeQuotePresentation(fragment);
+
+  // Sanitization limits markup; this pass also validates each attribute against its element.
   for (const element of fragment.querySelectorAll('*')) {
     for (const attribute of Array.from(element.attributes)) {
       if (!isSafeAttribute(element, attribute)) {
@@ -149,5 +152,6 @@ export function sanitizeRichText(html: string): string {
 
   const container = document.createElement('div');
   container.append(fragment);
+
   return container.innerHTML;
 }

@@ -45,15 +45,19 @@ function ChatWorkspace({
   const messageTextSize = useAppPreferences((preferences) => preferences.messageTextSize);
   const shouldReduceMotion = useReducedMotion() ?? false;
   useStartupTransition({ isReady, shouldReduceMotion });
+
   const { entriesById } = useConversationDirectory();
   const messageIndex = useMemo(() => indexConversationMessages(state.messages), [state.messages]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
   const navigation = useAppNavigation();
   const navigationRef = useRef(navigation);
+
+  // Stable commands read the latest route without invalidating every conversation row.
   useLayoutEffect(() => {
     navigationRef.current = navigation;
   }, [navigation]);
+
   const previousChatId = useRef(navigation.chatId);
   const isMobileChatOpen = Boolean(navigation.chatId);
   const [mediaMessage, setMediaMessage] = useState<Message>();
@@ -124,6 +128,7 @@ function ChatWorkspace({
 
     selectConversation(resolvedCommand.message.chatId);
     setRequestedMediaCommand(resolvedCommand);
+
     const canReturnToViewer = command.action === 'forward' || command.action === 'delete';
     if (canReturnToViewer) {
       setMediaReturnMessage(command.message);
@@ -153,9 +158,11 @@ function ChatWorkspace({
     if (!conversation) {
       return;
     }
+
     setForwardDrafts((current) => {
       const next = { ...current };
       delete next[conversation.id];
+
       return next;
     });
   }, [conversation?.id]);
@@ -267,6 +274,7 @@ function ChatWorkspace({
 /** Own persisted state and provide shared conversation metadata to the entire workspace. */
 export function ChatPage() {
   const chat = useChatState();
+
   return (
     <ConversationDirectoryProvider state={chat.state}>
       <ChatWorkspace {...chat} />

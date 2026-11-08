@@ -18,6 +18,7 @@ export function SidebarNavigation({ isSecondaryOpen, primary, secondary }: Sideb
     if (previousOpenRef.current === isSecondaryOpen) {
       return;
     }
+
     previousOpenRef.current = isSecondaryOpen;
 
     const destination = isSecondaryOpen ? secondaryRef.current : primaryRef.current;
@@ -30,6 +31,7 @@ export function SidebarNavigation({ isSecondaryOpen, primary, secondary }: Sideb
     if (canRestorePrimaryFocus) {
       focusTarget = primaryFocusRef.current ?? undefined;
     }
+
     focusTarget?.focus({ preventScroll: true });
   }, [isSecondaryOpen]);
 

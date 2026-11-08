@@ -35,11 +35,14 @@ export function createPreferenceStore<State>({ storageKey, parse }: PreferenceSt
     if (subscriberCount === 0) {
       window.addEventListener('storage', synchronizeStorage);
     }
+
     subscriberCount += 1;
     const unsubscribe = subscribeToStore(listener);
+
     return () => {
       unsubscribe();
       subscriberCount -= 1;
+
       if (subscriberCount === 0) {
         window.removeEventListener('storage', synchronizeStorage);
       }
@@ -50,13 +53,16 @@ export function createPreferenceStore<State>({ storageKey, parse }: PreferenceSt
     const next = parse(value);
     hasSavedValue = true;
     let isSaved = true;
+
     try {
       localStorage.setItem(storageKey, JSON.stringify(next));
     } catch {
       // A failed write must still leave the user's choice active for this session.
       isSaved = false;
     }
+
     store.setState({ preferences: next });
+
     return isSaved;
   }
 

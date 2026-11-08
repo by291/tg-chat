@@ -56,12 +56,14 @@ export function Ripple() {
       const farthestX = Math.max(offsetX, bounds.width - offsetX);
       const farthestY = Math.max(offsetY, bounds.height - offsetY);
       const size = Math.hypot(farthestX, farthestY);
+
       const durationValue = getComputedStyle(layer).getPropertyValue('--ripple-duration');
       const durationSeconds = Number.parseFloat(durationValue);
       const hasValidDuration = Number.isFinite(durationSeconds) && durationSeconds > 0;
       const duration = hasValidDuration
         ? durationSeconds * MILLISECONDS_PER_SECOND
         : DEFAULT_DURATION;
+
       const startedAt = performance.now();
       const pressListeners = new AbortController();
       const id = nextId;
@@ -79,6 +81,7 @@ export function Ripple() {
       function release() {
         pressListeners.abort();
         releasePress = undefined;
+
         const elapsed = performance.now() - startedAt;
         const fadeDelay = Math.max(duration / 2 - elapsed, 0);
 
@@ -89,6 +92,7 @@ export function Ripple() {
               if (wave.id === id) {
                 return { ...wave, isFading: true };
               }
+
               return wave;
             }),
           );
@@ -123,6 +127,7 @@ export function Ripple() {
       if (event.button !== 0) {
         return;
       }
+
       beginPress({ clientX: event.clientX, clientY: event.clientY });
     }
 
@@ -145,6 +150,7 @@ export function Ripple() {
     return () => {
       listeners.abort();
       releasePress?.();
+
       for (const timer of timers) {
         clearTimeout(timer);
       }

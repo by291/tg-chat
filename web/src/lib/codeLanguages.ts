@@ -62,17 +62,20 @@ export function resolveCodeLanguage(language?: string): string | undefined {
   if (!language) {
     return undefined;
   }
+
   const normalized = language.toLowerCase();
   for (const [name, definition] of Object.entries(languageDefinitions)) {
     if (name === 'meta') {
       continue;
     }
+
     const aliases = definition.alias;
     const hasAlias = Array.isArray(aliases) ? aliases.includes(normalized) : aliases === normalized;
     if (name === normalized || hasAlias) {
       return name;
     }
   }
+
   return undefined;
 }
 
@@ -88,6 +91,7 @@ export function getCodeLanguageDependencies(language: string): string[] {
   if (!required) {
     return [];
   }
+
   return typeof required === 'string' ? [required] : required;
 }
 

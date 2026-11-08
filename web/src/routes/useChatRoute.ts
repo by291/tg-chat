@@ -21,15 +21,16 @@ export function useChatRoute({ chatId, isReady, state, dispatch }: ChatRouteOpti
       if (!isReady) {
         return;
       }
+
       // Explicit selections may commit before Router's transition. Only a changed route should
       // apply URL selection, or the old URL would immediately undo the user's selection.
       dispatch({ type: 'select-chat', chatId: nextChatId });
     },
     // prettier-ignore
     [
-    isReady,
-    nextChatId,
-    dispatch,
-  ],
+      isReady,
+      nextChatId,
+      dispatch,
+    ],
   );
 }

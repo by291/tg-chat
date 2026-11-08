@@ -22,8 +22,11 @@ it('waits for restoration before selecting a linked chat and clearing its unread
   const view = renderHook(useRoutedConversation, {
     initialProps: { chatId: 'dev', isReady: false },
   });
+
   expect(view.result.current.state.activeChatId).toBe('');
+
   view.rerender({ chatId: 'dev', isReady: true });
+
   expect(view.result.current.state.activeChatId).toBe('dev');
   expect(view.result.current.state.conversationPreferences?.dev.unreadCount).toBe(0);
 });
@@ -40,6 +43,7 @@ it('clears the selected chat for an unknown destination while preserving the dra
     });
   });
   view.rerender({ chatId: 'missing', isReady: true });
+
   expect(view.result.current.state.activeChatId).toBe('');
   expect(view.result.current.state.drafts.dev).toBe('Keep this draft');
 });
@@ -55,6 +59,7 @@ it('does not reopen a deleted conversation when its URL remains in browser histo
       changes: { isDeleted: true },
     });
   });
+
   expect(view.result.current.state.activeChatId).toBe('');
   expect(view.result.current.state.conversationPreferences?.dev.isDeleted).toBe(true);
 });
@@ -64,7 +69,10 @@ it('keeps an explicit selection while its URL transition is pending', () => {
     initialProps: { chatId: 'dev', isReady: true },
   });
   act(() => view.result.current.dispatch({ type: 'select-chat', chatId: 'design' }));
+
   expect(view.result.current.state.activeChatId).toBe('design');
+
   view.rerender({ chatId: 'design', isReady: true });
+
   expect(view.result.current.state.activeChatId).toBe('design');
 });

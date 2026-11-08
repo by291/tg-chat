@@ -15,6 +15,7 @@ export function useAppNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
+
   const chatId = searchParams.get('chat') ?? '';
   const isSettingsOpen = searchParams.has('settings');
   const settingsDestination = SETTINGS_SEARCH_ITEMS.find((item) => {
@@ -35,16 +36,19 @@ export function useAppNavigation() {
         nextParams.delete(key);
       }
     }
+
     const nextSearch = nextParams.toString();
     const currentSearch = searchParams.toString();
     if (nextSearch === currentSearch) {
       return;
     }
+
     // Only traverse entries created by this navigation owner; a deep link has no known parent.
     if (isReturning && location.state?.previousSearch === nextSearch) {
       navigate(-1);
       return;
     }
+
     setSearchParams(nextParams, {
       replace: isReturning,
       preventScrollReset: true,

@@ -12,6 +12,7 @@ test('archive search receives focus and can broaden its scope', async ({ page })
   const designChat = page.getByRole('button', { name: /^Design conversations/ });
   await designChat.click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Archive', exact: true }).click();
+
   await expect(designChat).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Main menu', exact: true }).click();
@@ -20,13 +21,17 @@ test('archive search receives focus and can broaden its scope', async ({ page })
   await page.getByRole('menuitem', { name: 'Search', exact: true }).click();
 
   const search = page.getByRole('textbox', { name: 'Search conversations' });
+
   await expect(search).toBeFocused();
   await expect(designChat).toBeVisible();
   await expect(page.getByRole('button', { name: /^Alex Morgan/ })).toHaveCount(0);
+
   await page.getByRole('button', { name: 'Search all chats' }).click();
+
   await expect(page.getByRole('button', { name: /^Alex Morgan/ })).toBeVisible();
 
   await search.press('Escape');
+
   await expect(page.getByRole('navigation', { name: 'Conversations' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Main menu', exact: true })).toBeFocused();
 });
@@ -38,7 +43,9 @@ test('formatting dialogs preserve the selected text on cancel and apply', async 
   await editor.press('ControlOrMeta+a');
   await page.getByRole('button', { name: 'Edit link', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit link', exact: true });
+
   await expect(dialog.getByRole('textbox', { name: 'URL', exact: true })).toBeFocused();
+
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 
   await expect(dialog).toBeHidden();
@@ -48,6 +55,7 @@ test('formatting dialogs preserve the selected text on cancel and apply', async 
   await page.getByRole('button', { name: 'Edit link', exact: true }).click();
   await dialog.getByRole('textbox', { name: 'URL', exact: true }).fill(LINK_URL);
   await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+
   await expect(editor.getByRole('link')).toHaveAttribute('href', LINK_URL);
   await expect(editor.getByRole('link')).toHaveText(EDITOR_TEXT);
   await expect(editor).toBeFocused();
@@ -57,19 +65,27 @@ test('cancelling image forwarding restores an interactive viewer', async ({ page
   await page.goto('/?chat=dev');
   await page.getByRole('button', { name: 'Open image: Quiet hills.svg', exact: true }).click();
   const viewer = page.getByRole('dialog', { name: 'Mia', exact: true });
+
   await expect(viewer.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+
   await viewer.getByRole('button', { name: 'Forward', exact: true }).click();
 
   const forwarding = page.getByRole('dialog', { name: 'Share with', exact: true });
+
   await expect(forwarding).toBeVisible();
+
   await forwarding.getByRole('button', { name: 'Close forwarding' }).click();
 
   await expect(forwarding).toBeHidden();
   await expect(viewer).toBeVisible();
   await expect(viewer.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+
   await viewer.getByRole('button', { name: 'Zoom in', exact: true }).click();
+
   await expect(viewer.getByRole('button', { name: 'Reset zoom', exact: true })).toBeVisible();
+
   await viewer.getByRole('button', { name: 'Close image' }).click();
+
   await expect(viewer).toBeHidden();
   await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
 });
@@ -77,6 +93,7 @@ test('cancelling image forwarding restores an interactive viewer', async ({ page
 test('resizing the history preserves the message being read', async ({ page }) => {
   await page.goto('/?chat=lab');
   const history = page.getByLabel('Message history', { exact: true });
+
   await expect(history).toBeVisible();
   await expect(history.getByRole('group').last()).toContainText('Scroll up to explore');
   await expect
@@ -86,9 +103,11 @@ test('resizing the history preserves the message being read', async ({ page }) =
       }),
     )
     .toBeLessThanOrEqual(ANCHOR_TOLERANCE);
+
   const initialOffset = await history.evaluate((viewport) => viewport.scrollTop);
   await history.hover();
   await page.mouse.wheel(0, HISTORY_SCROLL_DISTANCE);
+
   await expect
     .poll(() => history.evaluate((viewport) => viewport.scrollTop))
     .toBeLessThan(initialOffset);
@@ -111,6 +130,7 @@ test('resizing the history preserves the message being read', async ({ page }) =
   await page.setViewportSize(RESIZED_VIEWPORT);
   await waitForHistoryLayout(history);
   const anchoredRow = history.locator(`[data-message-id="${anchor.id}"]`);
+
   await expect(anchoredRow).toBeVisible();
   await expect
     .poll(() => anchoredRow.evaluate((row) => row.getBoundingClientRect().width))

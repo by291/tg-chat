@@ -5,14 +5,17 @@ import { findSticker, STICKER_PACKS } from './stickerCatalog';
 export function getOrderedStickerPacks(order: string[]) {
   const remaining = new Map(STICKER_PACKS.map((pack) => [pack.id, pack]));
   const ordered: typeof STICKER_PACKS = [];
+
   for (const id of order) {
     const pack = remaining.get(id);
     if (!pack) {
       continue;
     }
+
     ordered.push(pack);
     remaining.delete(id);
   }
+
   return [...ordered, ...remaining.values()];
 }
 
@@ -23,6 +26,7 @@ export function rememberSentSticker(id: string) {
   if (!preferences.shouldUseDynamicPackOrder || !sticker) {
     return;
   }
+
   const remaining = preferences.stickerPackOrder.filter((packId) => packId !== sticker.packId);
   setAppPreferences({ stickerPackOrder: [sticker.packId, ...remaining] });
 }

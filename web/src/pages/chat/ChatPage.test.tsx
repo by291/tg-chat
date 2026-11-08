@@ -56,6 +56,7 @@ it('keeps the wallpaper and sidebar frame visible while restoring conversations'
   );
   const view = render(<ChatPage />, { wrapper: BrowserRouter });
   const wallpaper = view.container.querySelector('[data-pattern]');
+
   expect(wallpaper).not.toBeNull();
   expect(screen.getByLabelText('Chat list').getAttribute('aria-busy')).toBe('true');
   expect(screen.queryByRole('button', { name: /This feels familiar/ })).toBeNull();
@@ -91,10 +92,13 @@ it('clears a manual unread marker when reselecting the active chat without addin
   const row = await screen.findByRole('button', { name: /This feels familiar/ });
   fireEvent.contextMenu(row);
   await user.click(await screen.findByRole('menuitem', { name: 'Mark as unread' }));
+
   expect(screen.getByLabelText('Marked as unread')).toBeTruthy();
+
   const historyLength = window.history.length;
 
   await user.click(row);
+
   await waitFor(() => expect(screen.queryByLabelText('Marked as unread')).toBeNull());
   expect(window.history.length).toBe(historyLength);
 });
@@ -111,7 +115,9 @@ it('enters selection without replacing the conversation viewport or its focused 
   expect(screen.getByRole('navigation', { name: 'Conversations' })).toBe(viewport);
   expect(row.isConnected).toBe(true);
   expect(row.getAttribute('aria-pressed')).toBe('true');
+
   await user.click(screen.getByRole('button', { name: 'Cancel selection' }));
+
   expect(screen.getByRole('navigation', { name: 'Conversations' })).toBe(viewport);
   expect(row.isConnected).toBe(true);
 });

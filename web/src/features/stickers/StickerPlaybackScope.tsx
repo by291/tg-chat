@@ -19,6 +19,7 @@ export function StickerPlaybackScope({
     if (!isActive) {
       return;
     }
+
     return reserveAnimationPlayback(group);
   }, [group, isActive]);
 

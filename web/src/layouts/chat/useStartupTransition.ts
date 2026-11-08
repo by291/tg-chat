@@ -48,6 +48,7 @@ function startTransition(frame: HTMLElement) {
       },
     ),
   );
+
   // The cover never takes focus or pointer input; ready controls work during its exit.
   const frameAnimation = animate(
     frame,
@@ -68,7 +69,7 @@ function startTransition(frame: HTMLElement) {
   };
 }
 
-/** Reveal ready content with a frame crossfade and a one-time stagger of visible conversation rows. */
+/** Reveal ready content with a frame crossfade and one-time visible-row stagger. */
 export function useStartupTransition({ isReady, shouldReduceMotion }: StartupTransitionOptions) {
   useLayoutEffect(() => {
     if (!isReady) {
@@ -79,12 +80,14 @@ export function useStartupTransition({ isReady, shouldReduceMotion }: StartupTra
     if (!frame) {
       return;
     }
+
     if (shouldReduceMotion) {
       frame.remove();
       return;
     }
 
     let stopTransition: (() => void) | undefined;
+
     // The virtualizer measures its viewport in layout effects; read rows after that render settles.
     const animationFrame = requestAnimationFrame(() => {
       stopTransition = startTransition(frame);

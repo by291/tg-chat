@@ -11,6 +11,7 @@ export async function waitForHistoryLayout(history: Locator) {
 
     while (performance.now() - stableSince < stableDuration) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
       const rows = Array.from(viewport.querySelectorAll<HTMLElement>('[data-row-key]'));
       const rowGeometry = rows.map((row) => {
         const rectangle = row.getBoundingClientRect();
@@ -21,6 +22,7 @@ export async function waitForHistoryLayout(history: Locator) {
           height: rectangle.height,
         };
       });
+
       const geometry = JSON.stringify({
         scrollTop: viewport.scrollTop,
         scrollHeight: viewport.scrollHeight,
@@ -28,6 +30,7 @@ export async function waitForHistoryLayout(history: Locator) {
         height: viewport.clientHeight,
         rows: rowGeometry,
       });
+
       if (geometry !== previousGeometry) {
         previousGeometry = geometry;
         stableSince = performance.now();

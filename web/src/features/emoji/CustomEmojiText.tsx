@@ -10,6 +10,7 @@ export function CustomEmojiText(value: EmojiText) {
     if (!emoji) {
       return part.text;
     }
+
     return (
       <span key={part.offset} className={styles.emoji} data-custom-emoji={emoji.id}>
         <StickerArtwork sticker={emoji} />

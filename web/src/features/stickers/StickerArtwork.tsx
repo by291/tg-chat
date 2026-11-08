@@ -18,137 +18,157 @@ export function StickerArtwork({
   const [hasFailed, setHasFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-    setHasFailed(false);
-    setIsReady(false);
-
-    let animation: AnimationItem | undefined;
-    let isVisible = false;
-    let isDisposed = false;
-    let hasStartedLoading = false;
-    let hasCompleted = false;
-    let playbackFrame: number | undefined;
-
-    function pausePlayback() {
-      if (playbackFrame !== undefined) {
-        cancelAnimationFrame(playbackFrame);
-        playbackFrame = undefined;
-      }
-      animation?.pause();
-    }
-
-    function synchronizePlayback() {
-      if (!animation) {
-        return;
-      }
-      const policy = getStickerPlaybackState();
-      const preferences = getAppPreferences();
-      const shouldAutoplay =
-        playbackGroup === 'default'
-          ? preferences.shouldAutoplayStickersInChat
-          : preferences.shouldAutoplayStickersInPanel;
-      // A held preview is an explicit playback request, not panel autoplay.
-      const isAutoplayAllowed = shouldAutoplay || playbackGroup === 'preview';
-      const isGroupAllowed = !policy.exclusiveGroup || policy.exclusiveGroup === playbackGroup;
-      const shouldPlay =
-        isVisible &&
-        policy.isWindowActive &&
-        !policy.isReducedMotion &&
-        isGroupAllowed &&
-        preferences.shouldAnimateStickers &&
-        isAutoplayAllowed;
-
-      // Disabling looping finishes the current lap; re-enabling it releases a completed player.
-      animation.loop = policy.shouldLoop;
-      if (hasCompleted && policy.shouldLoop) {
-        hasCompleted = false;
-        animation.goToAndStop(0, true);
-      }
-      if (!shouldPlay || hasCompleted) {
-        pausePlayback();
-        return;
-      }
-      if (!animation.isPaused || playbackFrame !== undefined) {
+  useEffect(
+    () => {
+      const container = containerRef.current;
+      if (!container) {
         return;
       }
 
-      // A hidden tab may retain Lottie's pending tick. Let it run while paused so its shared
-      // clock settles before playing; otherwise the hidden time can jump or wrap the frame.
-      playbackFrame = requestAnimationFrame(() => {
-        playbackFrame = undefined;
-        animation?.play();
-      });
-    }
+      setHasFailed(false);
+      setIsReady(false);
 
-    async function initializeAnimation() {
-      if (hasStartedLoading) {
-        return;
+      let animation: AnimationItem | undefined;
+      let isVisible = false;
+      let isDisposed = false;
+      let hasStartedLoading = false;
+      let hasCompleted = false;
+      let playbackFrame: number | undefined;
+
+      function pausePlayback() {
+        if (playbackFrame !== undefined) {
+          cancelAnimationFrame(playbackFrame);
+          playbackFrame = undefined;
+        }
+
+        animation?.pause();
       }
-      hasStartedLoading = true;
-      try {
-        const [playerModule, animationData] = await Promise.all([
-          sticker.renderer === 'svg'
-            ? import('lottie-web/build/player/lottie_light')
-            : import('lottie-web/build/player/lottie_light_canvas'),
-          loadStickerAnimation(sticker.source),
-        ]);
-        if (isDisposed || !container) {
+
+      function synchronizePlayback() {
+        if (!animation) {
           return;
         }
-        // Lottie completes and mutates animation data; each player needs its own copy.
-        animation = playerModule.default.loadAnimation({
-          container,
-          renderer: sticker.renderer,
-          loop: getStickerPlaybackState().shouldLoop,
-          autoplay: false,
-          animationData: structuredClone(animationData),
-          rendererSettings: { progressiveLoad: true },
+
+        const policy = getStickerPlaybackState();
+        const preferences = getAppPreferences();
+        const shouldAutoplay =
+          playbackGroup === 'default'
+            ? preferences.shouldAutoplayStickersInChat
+            : preferences.shouldAutoplayStickersInPanel;
+
+        // A held preview is an explicit playback request, not panel autoplay.
+        const isAutoplayAllowed = shouldAutoplay || playbackGroup === 'preview';
+        const isGroupAllowed = !policy.exclusiveGroup || policy.exclusiveGroup === playbackGroup;
+        const shouldPlay =
+          isVisible &&
+          policy.isWindowActive &&
+          !policy.isReducedMotion &&
+          isGroupAllowed &&
+          preferences.shouldAnimateStickers &&
+          isAutoplayAllowed;
+
+        // Disabling looping finishes the current lap; re-enabling it releases a completed player.
+        animation.loop = policy.shouldLoop;
+        if (hasCompleted && policy.shouldLoop) {
+          hasCompleted = false;
+          animation.goToAndStop(0, true);
+        }
+
+        if (!shouldPlay || hasCompleted) {
+          pausePlayback();
+          return;
+        }
+        if (!animation.isPaused || playbackFrame !== undefined) {
+          return;
+        }
+
+        // A hidden tab may retain Lottie's pending tick. Let it run while paused so its shared
+        // clock settles before playing; otherwise the hidden time can jump or wrap the frame.
+        playbackFrame = requestAnimationFrame(() => {
+          playbackFrame = undefined;
+          animation?.play();
         });
-        animation.addEventListener('DOMLoaded', () => {
-          setIsReady(true);
+      }
+
+      async function initializeAnimation() {
+        if (hasStartedLoading) {
+          return;
+        }
+
+        hasStartedLoading = true;
+
+        try {
+          const [playerModule, animationData] = await Promise.all([
+            sticker.renderer === 'svg'
+              ? import('lottie-web/build/player/lottie_light')
+              : import('lottie-web/build/player/lottie_light_canvas'),
+            loadStickerAnimation(sticker.source),
+          ]);
+          if (isDisposed || !container) {
+            return;
+          }
+
+          // Lottie completes and mutates animation data; each player needs its own copy.
+          animation = playerModule.default.loadAnimation({
+            container,
+            renderer: sticker.renderer,
+            loop: getStickerPlaybackState().shouldLoop,
+            autoplay: false,
+            animationData: structuredClone(animationData),
+            rendererSettings: { progressiveLoad: true },
+          });
+          animation.addEventListener('DOMLoaded', () => {
+            setIsReady(true);
+            synchronizePlayback();
+          });
+          animation.addEventListener('data_failed', () => setHasFailed(true));
+          animation.addEventListener('error', () => setHasFailed(true));
+          animation.addEventListener('complete', () => {
+            // Focus and overlay changes must not replay a sticker that already finished once.
+            hasCompleted = true;
+          });
           synchronizePlayback();
-        });
-        animation.addEventListener('data_failed', () => setHasFailed(true));
-        animation.addEventListener('error', () => setHasFailed(true));
-        animation.addEventListener('complete', () => {
-          // Focus and overlay changes must not replay a sticker that already finished once.
-          hasCompleted = true;
-        });
-        synchronizePlayback();
-      } catch {
-        if (!isDisposed) {
-          setHasFailed(true);
+        } catch {
+          if (!isDisposed) {
+            setHasFailed(true);
+          }
         }
       }
-    }
 
-    const observer = new IntersectionObserver((entries) => {
-      const entry = entries.at(-1);
-      if (!entry) {
-        return;
-      }
-      isVisible = entry.isIntersecting;
-      if (isVisible) {
-        void initializeAnimation();
-      }
-      synchronizePlayback();
-    });
-    const unsubscribePlayback = subscribeStickerPlayback(synchronizePlayback);
-    const unsubscribePreferences = subscribeAppPreferences(synchronizePlayback);
-    observer.observe(container);
-    return () => {
-      isDisposed = true;
-      observer.disconnect();
-      unsubscribePlayback();
-      unsubscribePreferences();
-      pausePlayback();
-      animation?.destroy();
-    };
-  }, [sticker.source, sticker.renderer, playbackGroup]);
+      const observer = new IntersectionObserver((entries) => {
+        const entry = entries.at(-1);
+        if (!entry) {
+          return;
+        }
+
+        isVisible = entry.isIntersecting;
+        if (isVisible) {
+          void initializeAnimation();
+        }
+
+        synchronizePlayback();
+      });
+      const unsubscribePlayback = subscribeStickerPlayback(synchronizePlayback);
+      const unsubscribePreferences = subscribeAppPreferences(synchronizePlayback);
+      observer.observe(container);
+
+      return () => {
+        // Mark disposal before releasing listeners so pending imports cannot mount a new player.
+        isDisposed = true;
+        observer.disconnect();
+        unsubscribePlayback();
+        unsubscribePreferences();
+        pausePlayback();
+        animation?.destroy();
+      };
+    },
+    // prettier-ignore
+    [
+      sticker.source,
+      sticker.renderer,
+      playbackGroup,
+    ],
+  );
 
   return (
     <span className={styles.artwork} role="img" aria-label={sticker.name}>

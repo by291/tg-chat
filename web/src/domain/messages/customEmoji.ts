@@ -33,9 +33,11 @@ export function splitEmojiText({ text, customEmoji = [] }: EmojiText): EmojiText
     if (!isValid) {
       continue;
     }
+
     if (entity.offset > offset) {
       parts.push({ text: text.slice(offset, entity.offset), offset });
     }
+
     parts.push({
       text: text.slice(entity.offset, end),
       offset: entity.offset,
@@ -47,6 +49,7 @@ export function splitEmojiText({ text, customEmoji = [] }: EmojiText): EmojiText
   if (offset < text.length) {
     parts.push({ text: text.slice(offset), offset });
   }
+
   return parts;
 }
 
@@ -59,6 +62,7 @@ export function trimEmojiText(value: EmojiText): EmojiText {
       entity.offset >= leadingLength && entity.offset + entity.length <= leadingLength + text.length
     );
   });
+
   return {
     text,
     richText: value.richText ? sanitizeRichText(value.richText) : undefined,

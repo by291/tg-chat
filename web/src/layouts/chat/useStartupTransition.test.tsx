@@ -48,6 +48,7 @@ it('retains the initial frame until content is ready, then fades it out and remo
     initialProps: { isReady: false, shouldReduceMotion: false },
     wrapper: StrictMode,
   });
+
   expect(startupFrame.isConnected).toBe(true);
 
   view.rerender({ isReady: true, shouldReduceMotion: false });
@@ -61,6 +62,7 @@ it('retains the initial frame until content is ready, then fades it out and remo
   await waitFor(() => expect(startupFrame.isConnected).toBe(false));
 
   view.rerender({ isReady: true, shouldReduceMotion: false });
+
   expect(document.getElementById('startup-frame')).toBeNull();
 });
 
@@ -91,7 +93,9 @@ it('reveals visible rows in order while keeping them clickable and skipping offs
     expect(firstOpacity).toBeGreaterThan(0);
     expect(firstOpacity).toBeGreaterThan(lastOpacity);
   });
+
   lastVisibleRow.click();
+
   expect(selectConversation).toHaveBeenCalledOnce();
   expect(offscreenRow.style.opacity).toBe('');
 
@@ -99,7 +103,9 @@ it('reveals visible rows in order while keeping them clickable and skipping offs
     expect(startupFrame.isConnected).toBe(false);
     expect(lastVisibleRow.style.opacity).toBe('');
   });
+
   view.rerender({ isReady: true, shouldReduceMotion: false });
+
   expect(firstRow.style.opacity).toBe('');
 });
 
@@ -109,11 +115,13 @@ it('restores row visibility when reduced motion is enabled during the entrance',
     initialProps: { isReady: true, shouldReduceMotion: false },
     wrapper: StrictMode,
   });
+
   await waitFor(() => expect(rows[0].style.opacity).not.toBe(''));
 
   view.rerender({ isReady: true, shouldReduceMotion: true });
 
   expect(startupFrame.isConnected).toBe(false);
+
   for (const row of rows) {
     expect(row.style.opacity).toBe('');
   }

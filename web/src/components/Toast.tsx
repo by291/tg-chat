@@ -18,11 +18,13 @@ export function ToastViewport() {
       if (event.target instanceof Node && toastRef.current?.contains(event.target)) {
         return;
       }
+
       // Pointer dismissal consumes the click; keyboard activation still reaches its control.
       if (event.detail > 0) {
         event.preventDefault();
         event.stopPropagation();
       }
+
       hideToast();
     }
 
@@ -30,6 +32,7 @@ export function ToastViewport() {
       if (event.key !== 'Escape') {
         return;
       }
+
       event.preventDefault();
       event.stopPropagation();
       hideToast();
@@ -38,6 +41,7 @@ export function ToastViewport() {
     document.addEventListener('click', dismissOnClick, { capture: true });
     document.addEventListener('contextmenu', dismissOnClick, { capture: true });
     document.addEventListener('keydown', dismissOnEscape, { capture: true });
+
     return () => {
       document.removeEventListener('click', dismissOnClick, { capture: true });
       document.removeEventListener('contextmenu', dismissOnClick, { capture: true });

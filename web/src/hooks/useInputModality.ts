@@ -38,6 +38,7 @@ export function useInputModality() {
       if (isEditingText && event.key !== 'Tab') {
         return;
       }
+
       root.dataset.inputMethod = 'keyboard';
     }
 
