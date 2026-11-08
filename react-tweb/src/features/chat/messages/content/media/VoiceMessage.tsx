@@ -1,4 +1,5 @@
-import { pauseOtherMedia, useVisiblePlayback } from './useVisiblePlayback';
+import { pauseOtherMedia } from '@/lib/media/playback';
+import { useVisiblePlayback } from './useVisiblePlayback';
 import { Pause, Play } from 'lucide-react';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import type { MessageMedia } from '@/domain/messages/media';

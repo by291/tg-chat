@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { Maximize, Minimize, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import type { MessageMedia } from '@/domain/messages/media';
-import { pauseOtherMedia } from '@/features/chat/messages/content/media/useVisiblePlayback';
+import { pauseOtherMedia } from '@/lib/media/playback';
 import styles from './VideoPlayer.module.css';
 
 const SECONDS_PER_MINUTE = 60;
