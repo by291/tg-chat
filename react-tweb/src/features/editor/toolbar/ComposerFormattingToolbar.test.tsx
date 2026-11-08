@@ -64,6 +64,17 @@ function renderToolbar() {
   return { editor, onError };
 }
 
+function selectSubstring(editor: LexicalEditor) {
+  return act(async () => {
+    editor.update(
+      () => {
+        $getRoot().getAllTextNodes()[0].select(7, 15);
+      },
+      { discrete: true },
+    );
+  });
+}
+
 afterEach(() => {
   cleanup();
   Range.prototype.getBoundingClientRect = originalRangeRectangle;
@@ -105,14 +116,7 @@ describe('composer formatting controls', () => {
 
   it('formats the saved substring through the platform keyboard shortcut', async () => {
     const { editor } = renderToolbar();
-    await act(async () => {
-      editor.update(
-        () => {
-          $getRoot().getAllTextNodes()[0].select(7, 15);
-        },
-        { discrete: true },
-      );
-    });
+    await selectSubstring(editor);
 
     await act(async () => {
       fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message' }), {
@@ -132,14 +136,7 @@ describe('composer formatting controls', () => {
 
   it('applies a link to the original selection after typing in a dialog', async () => {
     const { editor } = renderToolbar();
-    await act(async () => {
-      editor.update(
-        () => {
-          $getRoot().getAllTextNodes()[0].select(7, 15);
-        },
-        { discrete: true },
-      );
-    });
+    await selectSubstring(editor);
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit link' }));
     const urlInput = await screen.findByLabelText('URL');
@@ -153,5 +150,49 @@ describe('composer formatting controls', () => {
     expect(document.querySelector('a')?.textContent).toBe('selected');
     expect(document.querySelector('a')?.getAttribute('href')).toBe('https://example.com');
     expect(document.body.textContent).toBe('Before selected after');
+  });
+  it('keeps an invalid link dialog open without modifying the selected text', async () => {
+    const { editor, onError } = renderToolbar();
+    await selectSubstring(editor);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit link' }));
+    const urlInput = await screen.findByLabelText('URL');
+    fireEvent.change(urlInput, { target: { value: 'javascript:alert(1)' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    });
+
+    expect(onError).toHaveBeenCalledWith(
+      'Enter a valid https, http, mailto, tel, or Telegram link.',
+    );
+    expect(screen.getByLabelText('URL')).toBe(urlInput);
+    const html = editor.getEditorState().read(() => $generateHtmlFromNodes(editor));
+    const document = new DOMParser().parseFromString(html, 'text/html');
+    expect(document.querySelector('a')).toBeNull();
+    expect(document.body.textContent).toBe('Before selected after');
+  });
+
+  it('returns focus without inserting a link when a keyboard-opened dialog is cancelled', async () => {
+    Range.prototype.getBoundingClientRect = () => new DOMRect();
+    const { editor } = renderToolbar();
+    await selectSubstring(editor);
+
+    await act(async () => {
+      fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message' }), {
+        key: 'k',
+        ctrlKey: true,
+      });
+    });
+    const urlInput = await screen.findByLabelText('URL');
+    fireEvent.change(urlInput, { target: { value: 'https://example.com' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Message' }));
+    const html = editor.getEditorState().read(() => $generateHtmlFromNodes(editor));
+    const parsedDocument = new DOMParser().parseFromString(html, 'text/html');
+    expect(parsedDocument.querySelector('a')).toBeNull();
   });
 });
