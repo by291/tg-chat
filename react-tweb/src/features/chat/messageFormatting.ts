@@ -1,6 +1,6 @@
 import type { AppPreferences } from '@/features/settings/appPreferences';
 import { findSticker } from '@/features/stickers/stickerCatalog';
-import { MESSAGE_GROUP_INTERVAL, type Message } from './model';
+import { MESSAGE_GROUP_INTERVAL, type Message } from '@/domain/messages/message';
 
 const HOURS_PER_HALF_DAY = 12;
 

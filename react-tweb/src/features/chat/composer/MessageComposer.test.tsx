@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageComposer } from './MessageComposer';
 import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '@/features/settings/appPreferences';
-import type { Attachment, Message } from '../model';
+import type { Attachment } from '@/domain/messages/media';
+import type { Message } from '@/domain/messages/message';
 
 const imageDecoders = vi.hoisted(() => new Map<string, (attachment: Attachment) => void>());
 
-vi.mock('./attachments', () => ({
+vi.mock('./attachments/attachments', () => ({
   createAttachment: (file: File) =>
     new Promise<Attachment>((resolve) => {
       imageDecoders.set(file.name, resolve);

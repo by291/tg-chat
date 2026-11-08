@@ -1,7 +1,7 @@
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
-import { CURRENT_USER_ID } from '../model';
+import { CURRENT_USER_ID } from '@/domain/identity';
 import { createHistoryRows, type HistoryRow } from './historyRows';
 import { createHistorySenderGroups } from './historySenderGroups';
 

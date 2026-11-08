@@ -1,5 +1,5 @@
-import type { Message } from '../model';
-import type { PollMedia } from '../messageMedia';
+import type { Message } from '@/domain/messages/message';
+import type { PollMedia } from '@/domain/messages/media';
 
 /** Read both current multi-answer selections and previously saved single-answer polls. */
 export function getSelectedPollOptions(poll: PollMedia): string[] {

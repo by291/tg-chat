@@ -7,7 +7,7 @@ import { createHistoryRows } from './historyRows';
 import type { MessageNavigation } from './MessageTimeline';
 import { useVirtualHistory } from './useVirtualHistory';
 import type { HistoryRow } from './historyRows';
-import { CURRENT_USER_ID } from '../model';
+import { CURRENT_USER_ID } from '@/domain/identity';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 
 const VIEWPORT_WIDTH = 696;

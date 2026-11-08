@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { describeMessage } from './messageFormatting';
-import type { Message } from './model';
+import type { Message } from '@/domain/messages/message';
 import styles from './PinnedMessagePreview.module.css';
 
 const CONTENT_DURATION_MS = 200;

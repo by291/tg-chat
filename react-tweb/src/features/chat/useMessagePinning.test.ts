@@ -2,7 +2,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { useMessagePinning } from './useMessagePinning';
-import type { Message } from './model';
+import type { Message } from '@/domain/messages/message';
 
 const message: Message = {
   id: 'pin-target',

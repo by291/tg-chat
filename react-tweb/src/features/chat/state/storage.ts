@@ -1,6 +1,6 @@
 import { createHistoryMessages } from '../demo/historyFixtures';
 import { get, set } from 'idb-keyval';
-import { chatStateSchema, type ChatState } from '../model';
+import { chatStateSchema, type ChatState } from '@/features/chat/state/chatState';
 import { getConversations } from './conversations';
 
 const STORAGE_KEY = 'react-tweb.conversations.v1';

@@ -1,4 +1,4 @@
-import type { Message } from '@/features/chat/model';
+import type { Message } from '@/domain/messages/message';
 
 const CLIPBOARD_IMAGE_TYPE = 'image/png';
 

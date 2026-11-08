@@ -5,8 +5,9 @@ import { useState } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { Ripple } from '@/components/Ripple';
 import type { ConversationListEntry } from './conversationList';
-import overlays from '@/features/chat/overlays.module.css';
-import styles from './ConversationDialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
+import styles from './ConversationMuteDialog.module.css';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
 
 const MUTE_OPTIONS = [
@@ -46,9 +47,9 @@ export function ConversationMuteDialog({
       unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop className={styles.backdrop} />
+        <Dialog.Backdrop className={dialogs.backdrop} />
         <Dialog.Positioner className={overlays.dialogPositioner}>
-          <Dialog.Content className={styles.muteDialog}>
+          <Dialog.Content className={`${styles.muteDialog} ${dialogs.confirmation}`}>
             <header className={styles.muteHeader}>
               {conversation && (
                 <Avatar initials={conversation.initials} color={conversation.color} size="small" />

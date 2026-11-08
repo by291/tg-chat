@@ -10,28 +10,29 @@ import {
 import { IconButton } from '@/components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
-import { DeferredMessageMedia } from '../messages/deferredMedia';
-import { MessageMenu } from '../messages/MessageMenu';
+import { DeferredMessageMedia } from '../messages/content/media/deferredMedia';
+import { MessageMenu } from '../messages/menu/MessageMenu';
 import { StructuredMessageActionsProvider } from '../messages/StructuredMessageActions';
 import {
   useMessageSelectionGesture,
   type MessageSelectionChange,
-} from '../messages/useMessageSelectionGesture';
-import { useMessageMenu } from '../messages/useMessageMenu';
-import { findMessageRow } from '../messages/messageRowTarget';
+} from '../messages/selection/useMessageSelectionGesture';
+import { useMessageMenu } from '../messages/menu/useMessageMenu';
+import { findMessageRow } from '../messages/selection/messageRowTarget';
 import { describeMessage } from '../messageFormatting';
-import type { Message, MessageCommand } from '../model';
-import type { MessageInteraction } from '../messageInteraction';
+import type { Message } from '@/domain/messages/message';
+import type { MessageCommand } from '@/features/chat/messages/commands';
+import type { MessageInteraction } from '@/domain/messages/interaction';
 import { useHistoryWindow } from './useHistoryWindow';
 import { useVirtualHistory } from './useVirtualHistory';
 import { StickyDateHeaders } from './StickyDateHeaders';
 import { createHistoryDateGroups } from './historyDates';
 import { createHistorySenderGroups } from './historySenderGroups';
 import { StickySenderAvatars } from './StickySenderAvatars';
-import { registerReactionLayoutHistory } from '../messages/reactionLayoutTransition';
+import { registerReactionLayoutHistory } from '../messages/reactions/reactionLayoutTransition';
 import { SearchDateDialog } from '../search/SearchDateDialog';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
-import type { OutgoingMessageMount } from '../messages/outgoingMessageTransition';
+import type { OutgoingMessageMount } from '../messages/transitions/outgoingMessageTransition';
 import styles from './MessageTimeline.module.css';
 
 const HIGHLIGHT_DURATION = 1800;

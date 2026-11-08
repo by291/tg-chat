@@ -9,7 +9,7 @@ import {
   formatConversationTime,
   formatMessageTime,
 } from '@/features/chat/messageFormatting';
-import type { ChatState } from '@/features/chat/model';
+import type { ChatState } from '@/features/chat/state/chatState';
 import { ConversationMenu } from './ConversationMenu';
 import type { ConversationListEntry, ConversationMenuAction } from './conversationList';
 import styles from './ChatSidebar.module.css';

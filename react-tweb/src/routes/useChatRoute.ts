@@ -1,5 +1,6 @@
 import { useEffect, type Dispatch } from 'react';
-import type { ChatAction, ChatState } from '@/features/chat/model';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { ChatState } from '@/features/chat/state/chatState';
 import { getConversations } from '@/features/chat/state/conversations';
 
 interface ChatRouteOptions {

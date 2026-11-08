@@ -1,5 +1,6 @@
 import { useCallback, useState, type Dispatch } from 'react';
-import type { ChatAction, Message } from './model';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { Message } from '@/domain/messages/message';
 
 const PIN_CONFIRMATION_DELAY_MS = 300;
 

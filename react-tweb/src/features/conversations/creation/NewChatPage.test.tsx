@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { useReducer } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createInitialState } from '@/features/chat/demo/fixtures';
-import { ContactActionsProvider } from '@/features/chat/messages/ContactActions';
-import { ContactMessage } from '@/features/chat/messages/ContactMessage';
+import { ContactActionsProvider } from '@/features/chat/messages/content/contact/ContactActions';
+import { ContactMessage } from '@/features/chat/messages/content/contact/ContactMessage';
 import { chatReducer } from '@/features/chat/state/reducer';
 import { getConversations } from '@/features/chat/state/conversations';
 import { NewChatPage } from './NewChatPage';

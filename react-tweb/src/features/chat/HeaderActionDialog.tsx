@@ -1,8 +1,8 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { useState } from 'react';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
-import overlays from './overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
 
 const MIN_AUTO_DELETE_DAYS = 1;

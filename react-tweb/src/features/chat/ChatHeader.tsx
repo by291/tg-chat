@@ -4,7 +4,8 @@ import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { ChatHeaderMenu, type HeaderAction } from './ChatHeaderMenu';
 import { ChatSearch } from './search/ChatSearch';
-import type { Conversation, Message } from './model';
+import type { Conversation } from '@/domain/conversations/conversation';
+import type { Message } from '@/domain/messages/message';
 import styles from './ChatHeader.module.css';
 
 const SEARCH_TRANSITION_DURATION = 0.2;

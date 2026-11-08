@@ -1,9 +1,9 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { useState } from 'react';
-import type { Conversation } from '../model';
-import overlays from '../overlays.module.css';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
+import type { Conversation } from '@/domain/conversations/conversation';
+import overlays from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
 import styles from './ChatDetails.module.css';
 
 interface ChatProfileDialogProps {

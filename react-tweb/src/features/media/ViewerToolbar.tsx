@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 import { IconButton } from '@/components/IconButton';
 import { Avatar } from '@/components/Avatar';
-import { CURRENT_USER_ID, type Message } from '@/features/chat/model';
+import { CURRENT_USER_ID } from '@/domain/identity';
+import { type Message } from '@/domain/messages/message';
 import { formatMessageDate, formatMessageTime } from '@/features/chat/messageFormatting';
 import { copyViewerImage, canCopyViewerImage } from './copyViewerImage';
 import type { MediaViewerCommand } from './mediaViewerCommands';

@@ -24,7 +24,7 @@ import typescript from 'highlight.js/lib/languages/typescript';
 import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
 
-import { getCodeLanguageHint } from './codeLanguageHints';
+import { getCodeLanguageHint } from '@/lib/code/codeLanguageHints';
 
 const DETECTION_SAMPLE_LIMIT = 16_384;
 const languages = {

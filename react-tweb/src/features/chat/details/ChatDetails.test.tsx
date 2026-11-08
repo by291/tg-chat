@@ -5,7 +5,8 @@ import { useReducer } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { conversations, createInitialState } from '../demo/fixtures';
 import { chatReducer } from '../state/reducer';
-import type { ChatState, Message } from '../model';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { Message } from '@/domain/messages/message';
 import { ChatDetails } from './ChatDetails';
 
 beforeEach(() => {

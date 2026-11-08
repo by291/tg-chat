@@ -1,5 +1,5 @@
 import { findCustomEmoji } from './customEmojiCatalog';
-import { splitEmojiText, type EmojiText } from './customEmojiEntities';
+import { splitEmojiText, type EmojiText } from '@/domain/messages/customEmoji';
 import { StickerArtwork } from '@/features/stickers/StickerArtwork';
 import styles from './CustomEmojiText.module.css';
 

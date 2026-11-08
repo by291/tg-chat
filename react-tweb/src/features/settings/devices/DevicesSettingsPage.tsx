@@ -15,8 +15,8 @@ import { SettingsHeader, SettingsSwitch } from '../SettingsControls';
 import { SidebarNavigation } from '@/layouts/sidebar/SidebarNavigation';
 import styles from '../SettingsPage.module.css';
 import devices from './DevicesSettingsPage.module.css';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
-import overlays from '@/features/chat/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
 
 /** Show local device information while keeping server-owned session actions unavailable. */
 export function DevicesSettingsPage({ onBack }: { onBack: () => void }) {

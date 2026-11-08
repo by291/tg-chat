@@ -1,8 +1,8 @@
 import { Copy, Menu } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { copyTextWithToast } from '@/components/copyTextWithToast';
-import { getCodeLanguageHint } from './codeLanguageHints';
-import { getCodeLanguageLabel } from './codeLanguageLabels';
+import { getCodeLanguageHint } from '@/lib/code/codeLanguageHints';
+import { getCodeLanguageLabel } from '@/lib/code/codeLanguageLabels';
 import styles from './MessageCode.module.css';
 
 interface MessageCodeProps {

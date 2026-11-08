@@ -10,8 +10,8 @@ import {
 } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
-import overlays from '@/features/chat/overlays.module.css';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
+import overlays from '@/components/overlays/overlays.module.css';
 import styles from '../ChatSidebar.module.css';
 
 export type ArchiveMenuAction = 'search' | 'visibility' | 'read' | 'settings' | 'help';

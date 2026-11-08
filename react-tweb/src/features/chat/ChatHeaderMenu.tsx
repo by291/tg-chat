@@ -14,11 +14,11 @@ import {
 import { useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from './MenuDismissLayer';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
 import { getDeleteConversationLabel } from '@/features/conversations/conversationList';
-import type { Conversation } from './model';
+import type { Conversation } from '@/domain/conversations/conversation';
 import styles from './ChatHeader.module.css';
-import overlays from './overlays.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
 
 const AUTO_DELETE_OPTIONS = [
   { days: 0, label: 'Never' },

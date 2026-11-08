@@ -1,22 +1,27 @@
 import { File, Maximize2, Minimize2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
-import { createAttachment, createDocumentAttachment, createVideoAttachment } from './attachments';
-import { AttachmentMenu, type AttachmentAction } from './AttachmentMenu';
+import {
+  createAttachment,
+  createDocumentAttachment,
+  createVideoAttachment,
+} from './attachments/attachments';
+import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
 import { ComposerSendButton } from './ComposerSendButton';
-import { ComposerListDialog } from './ComposerListDialog';
-import type { MessageMedia } from '../messageMedia';
-import { EmojiEditor, type EmojiEditorControls } from './EmojiEditor';
-import type { EmojiText, CustomEmojiEntity } from '@/features/emoji/customEmojiEntities';
-import { EmojiPicker } from './EmojiPicker';
-import { ComposerContextBar } from './ComposerContextBar';
-import { DiscardEditDialog } from './DiscardEditDialog';
-import { hasMessageEditChanged } from './messageEditing';
-import type { Attachment, Message } from '../model';
+import { ComposerListDialog } from './forms/ComposerListDialog';
+import type { MessageMedia } from '@/domain/messages/media';
+import { EmojiEditor, type EmojiEditorControls } from '@/features/editor/EmojiEditor';
+import type { EmojiText, CustomEmojiEntity } from '@/domain/messages/customEmoji';
+import { EmojiPicker } from './picker/EmojiPicker';
+import { ComposerContextBar } from './context/ComposerContextBar';
+import { DiscardEditDialog } from './context/DiscardEditDialog';
+import { hasMessageEditChanged } from './context/messageEditing';
+import type { Attachment } from '@/domain/messages/media';
+import type { Message } from '@/domain/messages/message';
 import {
   captureOutgoingMessage,
   type OutgoingMessageOrigin,
-} from '../messages/outgoingMessageTransition';
+} from '../messages/transitions/outgoingMessageTransition';
 import styles from './MessageComposer.module.css';
 
 const EXPAND_BUTTON_MIN_HEIGHT = 72;

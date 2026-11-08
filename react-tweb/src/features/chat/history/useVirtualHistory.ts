@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { estimateHistoryRow } from './historyEstimate';
 import { animateHistoryNavigation, getHistoryNavigationWindow } from './animateHistoryNavigation';
 import type { HistoryRow } from './historyRows';
-import { CURRENT_USER_ID } from '../model';
+import { CURRENT_USER_ID } from '@/domain/identity';
 import type { MessageNavigation } from './MessageTimeline';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import { animateHistoryInset } from './animateHistoryInset';

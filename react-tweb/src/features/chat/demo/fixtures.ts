@@ -1,5 +1,8 @@
 import { createHistoryMessages } from './historyFixtures';
-import { DEFAULT_CHAT_ID, type ChatState, type Conversation, type Message } from '../model';
+import { DEFAULT_CHAT_ID } from '@/features/chat/demo/constants';
+import { type ChatState } from '@/features/chat/state/chatState';
+import { type Conversation } from '@/domain/conversations/conversation';
+import { type Message } from '@/domain/messages/message';
 
 export const conversations: Conversation[] = [
   {

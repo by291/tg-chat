@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
-import { messageSchema } from '../model';
+import { messageSchema } from '@/domain/messages/message';
 import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '@/features/settings/appPreferences';
 import { MessageBubble } from './MessageBubble';
 

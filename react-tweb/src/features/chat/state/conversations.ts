@@ -1,5 +1,6 @@
 import { conversations } from '../demo/fixtures';
-import type { ChatState, Conversation } from '../model';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { Conversation } from '@/domain/conversations/conversation';
 
 /** Merge local conversations and profile edits with the original demonstration catalog. */
 export function getConversations(state: ChatState): Conversation[] {

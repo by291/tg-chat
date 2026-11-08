@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { MessageCommand } from '@/features/chat/model';
+import type { MessageCommand } from '@/features/chat/messages/commands';
 import type { MediaViewerCommand } from './mediaViewerCommands';
 
 interface UseMediaViewerCommandOptions {

@@ -14,7 +14,7 @@ import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import { describeMessage } from '../messageFormatting';
-import type { Message } from '../model';
+import type { Message } from '@/domain/messages/message';
 import styles from './ChatSearch.module.css';
 
 interface ChatSearchProps {

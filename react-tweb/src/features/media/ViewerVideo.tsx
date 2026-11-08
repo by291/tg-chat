@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import type { Message } from '@/features/chat/model';
+import type { Message } from '@/domain/messages/message';
 import { useViewerMediaTransition, type ViewerTransitionProps } from './useViewerMediaTransition';
 import { VideoPlayer } from './VideoPlayer';
 import styles from './MediaViewer.module.css';

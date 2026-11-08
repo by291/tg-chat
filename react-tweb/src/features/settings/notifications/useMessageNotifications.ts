@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { CURRENT_USER_ID, type ChatState } from '@/features/chat/model';
+import { CURRENT_USER_ID } from '@/domain/identity';
+import { type ChatState } from '@/features/chat/state/chatState';
 import { useNotificationPreferences } from './notificationPreferences';
 import { resolveMessageNotification } from './notificationPolicy';
 import { playNotificationSound, showMessageNotification } from './notificationDelivery';

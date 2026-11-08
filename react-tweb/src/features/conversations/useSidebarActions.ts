@@ -1,5 +1,6 @@
 import { useState, type Dispatch } from 'react';
-import type { ChatAction, ConversationPreferences } from '@/features/chat/model';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { ConversationPreferences } from '@/domain/conversations/conversation';
 import type { ConversationListEntry, ConversationMenuAction } from './conversationList';
 import type { ConversationPreviewRequest } from './ConversationPreview';
 import type { PreviewAnchor } from './previewPosition';

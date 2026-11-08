@@ -2,10 +2,11 @@
 
 import { createInitialState } from '../demo/fixtures';
 import { describe, expect, it } from 'vitest';
-import { forwardMessages } from '../messages/forwardMessages';
+import { forwardMessages } from '../messages/forwarding/forwardMessages';
 import { parseSavedState } from './storage';
 import { chatReducer } from './reducer';
-import type { ChatState, Message } from '../model';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { Message } from '@/domain/messages/message';
 
 const ownMessage: Message = {
   id: 'message-1',

@@ -3,11 +3,11 @@ import { Portal } from '@ark-ui/react/portal';
 import { Check } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { Ripple } from '@/components/Ripple';
-import type { Conversation } from './model';
+import type { Conversation } from '@/domain/conversations/conversation';
 import type { MessagePinRequest } from './useMessagePinning';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
-import overlays from './overlays.module.css';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
 import styles from './MessagePinDialog.module.css';
 
 interface MessagePinDialogProps {

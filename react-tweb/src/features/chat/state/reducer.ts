@@ -1,5 +1,5 @@
-import { trimEmojiText } from '@/features/emoji/customEmojiEntities';
-import { sanitizeRichText } from '../rich-text/richText';
+import { trimEmojiText } from '@/domain/messages/customEmoji';
+import { sanitizeRichText } from '@/domain/messages/richText';
 import { applyMessageInteraction } from './messageInteractions';
 import { receiveMessage } from './incomingMessages';
 import {
@@ -7,7 +7,10 @@ import {
   reorderPinnedConversations,
   updateConversations,
 } from './conversationActions';
-import { CURRENT_USER_ID, type ChatAction, type ChatState, type Message } from '../model';
+import { CURRENT_USER_ID } from '@/domain/identity';
+import { type ChatAction } from '@/features/chat/state/chatActions';
+import { type ChatState } from '@/features/chat/state/chatState';
+import { type Message } from '@/domain/messages/message';
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 

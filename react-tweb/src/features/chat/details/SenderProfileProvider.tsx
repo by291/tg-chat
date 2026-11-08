@@ -6,8 +6,11 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { ChatAction, ChatState, Conversation, Message } from '../model';
-import { getContactColor } from '../messages/ContactActions';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { Conversation } from '@/domain/conversations/conversation';
+import type { Message } from '@/domain/messages/message';
+import { getContactColor } from '../messages/content/contact/ContactActions';
 import { useConversationList } from '@/features/conversations/conversationList';
 import { getConversations } from '../state/conversations';
 import { SenderProfileDialog } from './SenderProfileDialog';

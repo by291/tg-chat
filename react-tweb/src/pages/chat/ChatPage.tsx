@@ -4,14 +4,14 @@ import { SenderProfileProvider } from '@/features/chat/details/SenderProfileProv
 import { ChatDetails } from '@/features/chat/details/ChatDetails';
 import { ChatSidebar } from '@/features/conversations/ChatSidebar';
 import { ConversationPane } from '@/features/chat/ConversationPane';
-import { ContactActionsProvider } from '@/features/chat/messages/ContactActions';
+import { ContactActionsProvider } from '@/features/chat/messages/content/contact/ContactActions';
 import { MediaViewer } from '@/features/media/MediaViewer';
 import { getGalleryMessages } from '@/features/media/photoGallery';
 import {
   resolveMediaViewerCommand,
   type MediaViewerCommand,
 } from '@/features/media/mediaViewerCommands';
-import type { Message } from '@/features/chat/model';
+import type { Message } from '@/domain/messages/message';
 import { useConversationList } from '@/features/conversations/conversationList';
 import { useChatState } from '@/features/chat/state/useChatState';
 import { useChatRoute } from '@/routes/useChatRoute';

@@ -1,9 +1,7 @@
-import {
-  CURRENT_USER_ID,
-  type ChatState,
-  type Conversation,
-  type Message,
-} from '@/features/chat/model';
+import { CURRENT_USER_ID } from '@/domain/identity';
+import { type ChatState } from '@/features/chat/state/chatState';
+import { type Conversation } from '@/domain/conversations/conversation';
+import { type Message } from '@/domain/messages/message';
 import { getConversations } from '@/features/chat/state/conversations';
 import { describeMessage } from '@/features/chat/messageFormatting';
 import type { NotificationPreferences } from './notificationPreferences';

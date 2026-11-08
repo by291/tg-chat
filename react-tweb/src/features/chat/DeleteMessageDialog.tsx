@@ -1,7 +1,7 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
-import styles from './overlays.module.css';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
+import styles from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
 
 interface DeleteMessageDialogProps {
   isOpen: boolean;

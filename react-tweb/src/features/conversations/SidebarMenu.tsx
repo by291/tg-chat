@@ -4,8 +4,8 @@ import { useRef, useState, type Ref } from 'react';
 import type { ThemeOrigin } from '@/features/settings/appearance/useThemeTransition';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
-import overlays from '@/features/chat/overlays.module.css';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
+import overlays from '@/components/overlays/overlays.module.css';
 import styles from './ChatSidebar.module.css';
 
 interface SidebarMenuProps {

@@ -1,5 +1,5 @@
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { CURRENT_USER_ID } from '../model';
+import { CURRENT_USER_ID } from '@/domain/identity';
 import type { HistoryRow } from './historyRows';
 
 const MESSAGE_GAP = 2;

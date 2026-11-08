@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
 import { createInitialState } from '@/features/chat/demo/fixtures';
-import type { Message } from '@/features/chat/model';
+import type { Message } from '@/domain/messages/message';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from './notificationPreferences';
 import { resolveMessageNotification } from './notificationPolicy';
 

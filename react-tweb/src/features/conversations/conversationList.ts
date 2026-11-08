@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { ChatState, Conversation } from '@/features/chat/model';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { Conversation } from '@/domain/conversations/conversation';
 import { getConversations } from '@/features/chat/state/conversations';
 
 const MAX_TIMEOUT_DELAY = 2_147_483_647;

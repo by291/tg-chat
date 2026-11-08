@@ -16,10 +16,10 @@ import {
 import { useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
-import type { ConversationPreferences } from '@/features/chat/model';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
+import type { ConversationPreferences } from '@/domain/conversations/conversation';
 import type { ConversationListEntry } from './conversationList';
-import overlays from '@/features/chat/overlays.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
 import styles from './ChatSidebar.module.css';
 
 interface SidebarSelectionToolbarProps {

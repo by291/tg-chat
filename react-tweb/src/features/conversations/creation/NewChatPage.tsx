@@ -3,7 +3,8 @@ import { useState, type Dispatch } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
-import type { ChatAction, Conversation } from '@/features/chat/model';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { Conversation } from '@/domain/conversations/conversation';
 import type { NewChatMode } from './NewChatMenu';
 import styles from './NewChat.module.css';
 

@@ -4,7 +4,7 @@ import { Portal } from '@ark-ui/react/portal';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { IconButton } from '@/components/IconButton';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
-import type { Message } from '@/features/chat/model';
+import type { Message } from '@/domain/messages/message';
 import { reserveAnimationPlayback } from '@/features/stickers/stickerPlayback';
 import { getGalleryMessages } from './photoGallery';
 import { ViewerGallery } from './ViewerGallery';

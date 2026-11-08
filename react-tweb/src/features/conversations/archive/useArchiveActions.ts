@@ -1,5 +1,6 @@
 import { useState, type Dispatch } from 'react';
-import type { ChatAction, ChatState } from '@/features/chat/model';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { ChatState } from '@/features/chat/state/chatState';
 import type { ArchiveMenuAction } from './ArchiveMenu';
 import type { ConversationListEntry } from '../conversationList';
 

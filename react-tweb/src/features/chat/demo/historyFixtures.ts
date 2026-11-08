@@ -1,4 +1,5 @@
-import type { Attachment, Message } from '../model';
+import type { Attachment } from '@/domain/messages/media';
+import type { Message } from '@/domain/messages/message';
 
 const HISTORY_MESSAGE_COUNT = 1000;
 const MINUTE = 60 * 1000;

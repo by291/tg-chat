@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type RefObject } from 'react';
-import type { Message } from '@/features/chat/model';
+import type { Message } from '@/domain/messages/message';
 import { ViewerPhoto } from './ViewerPhoto';
 import { ViewerVideo } from './ViewerVideo';
 

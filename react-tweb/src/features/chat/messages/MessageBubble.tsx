@@ -1,18 +1,19 @@
 import { Check, Quote } from 'lucide-react';
 import { memo, useLayoutEffect, useRef } from 'react';
 import { useAppPreferences } from '@/features/settings/appPreferences';
-import { getLargeEmojiSize } from './largeEmoji';
+import { getLargeEmojiSize } from './content/largeEmoji';
 import { Ripple } from '@/components/Ripple';
-import { MessageBody, MessageText } from './MessageBody';
+import { MessageBody, MessageText } from './content/MessageBody';
 import { MessageMetadata } from './MessageMetadata';
-import { MessageReaction } from './MessageReaction';
-import { finishReactionLayout } from './reactionLayoutTransition';
+import { MessageReaction } from './reactions/MessageReaction';
+import { finishReactionLayout } from './reactions/reactionLayoutTransition';
 import { MessageTail } from './MessageTail';
-import { useDeferredMediaSource } from './deferredMedia';
+import { useDeferredMediaSource } from './content/media/deferredMedia';
 import { describeMessage } from '../messageFormatting';
-import { CURRENT_USER_ID, type Message } from '../model';
-import type { MessageInteraction } from '../messageInteraction';
-import type { OutgoingMessageMount } from './outgoingMessageTransition';
+import { CURRENT_USER_ID } from '@/domain/identity';
+import { type Message } from '@/domain/messages/message';
+import type { MessageInteraction } from '@/domain/messages/interaction';
+import type { OutgoingMessageMount } from './transitions/outgoingMessageTransition';
 import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {

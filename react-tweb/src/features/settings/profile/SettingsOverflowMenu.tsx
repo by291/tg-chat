@@ -2,8 +2,8 @@ import { Menu } from '@ark-ui/react/menu';
 import { LogOut, MoreVertical, Pencil, QrCode } from 'lucide-react';
 import { useState } from 'react';
 import { IconButton } from '@/components/IconButton';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
-import overlays from '@/features/chat/overlays.module.css';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
+import overlays from '@/components/overlays/overlays.module.css';
 import styles from './SettingsOverflowMenu.module.css';
 
 /** Keep account-only actions visible without pretending that the demo has authenticated sessions. */

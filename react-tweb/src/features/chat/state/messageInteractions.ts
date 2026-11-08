@@ -3,9 +3,10 @@ import {
   MAX_POLL_OPTION_LENGTH,
   MAX_CHECKLIST_TASKS,
   MAX_CHECKLIST_TEXT_LENGTH,
-} from '../messageMedia';
-import type { MessageInteraction } from '../messageInteraction';
-import { CURRENT_USER_ID, type Message } from '../model';
+} from '@/domain/messages/media';
+import type { MessageInteraction } from '@/domain/messages/interaction';
+import { CURRENT_USER_ID } from '@/domain/identity';
+import { type Message } from '@/domain/messages/message';
 import { applyPollSelection } from './pollVoting';
 
 /** Validate local structured-message operations before storing the resulting message. */

@@ -1,7 +1,7 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { useEffect, useState } from 'react';
-import type { Conversation } from '@/features/chat/model';
+import type { Conversation } from '@/domain/conversations/conversation';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   DEFAULT_NOTIFICATION_VOLUME,
@@ -17,8 +17,8 @@ import { SidebarNavigation } from '@/layouts/sidebar/SidebarNavigation';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
 import styles from '../SettingsPage.module.css';
 import notifications from './NotificationSettingsPage.module.css';
-import overlays from '@/features/chat/overlays.module.css';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
 
 const NOTIFICATION_CATEGORIES = [
   { kind: 'private', title: 'Private Chats', label: 'Notifications for private chats' },

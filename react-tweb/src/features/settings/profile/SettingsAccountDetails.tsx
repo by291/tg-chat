@@ -3,8 +3,8 @@ import { AtSign, Copy, Mail, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { copyTextWithToast } from '@/components/copyTextWithToast';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
-import overlays from '@/features/chat/overlays.module.css';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
+import overlays from '@/components/overlays/overlays.module.css';
 import styles from '../SettingsPage.module.css';
 
 interface SettingsAccountProfile {

@@ -1,5 +1,5 @@
 import { belongsToSameGroup, formatMessageDate } from '../messageFormatting';
-import type { Message } from '../model';
+import type { Message } from '@/domain/messages/message';
 
 export type HistoryRow =
   | {

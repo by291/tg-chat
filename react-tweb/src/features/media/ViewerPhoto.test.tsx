@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createInitialState } from '@/features/chat/demo/fixtures';
 import { ViewerPhoto } from './ViewerPhoto';
 import { rememberPhotoSource } from './mediaViewerTransition';
-import messageStyles from '@/features/chat/messages/MessageBody.module.css?inline';
+import messageStyles from '@/features/chat/messages/content/MessageBody.module.css?inline';
 
 const photoMessage = {
   ...createInitialState().messages[0],

@@ -1,5 +1,7 @@
 import { getConversations } from './conversations';
-import { CURRENT_USER_ID, type ChatState, type Message } from '../model';
+import { CURRENT_USER_ID } from '@/domain/identity';
+import { type ChatState } from '@/features/chat/state/chatState';
+import { type Message } from '@/domain/messages/message';
 import { updateConversations } from './conversationActions';
 
 interface IncomingMessageOptions {

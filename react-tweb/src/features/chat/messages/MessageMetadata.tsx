@@ -1,8 +1,8 @@
 import { useAppPreferences } from '@/features/settings/appPreferences';
 import { Pin } from 'lucide-react';
 import { formatMessageTime } from '../messageFormatting';
-import type { Message } from '../model';
-import { CURRENT_USER_ID } from '../model';
+import type { Message } from '@/domain/messages/message';
+import { CURRENT_USER_ID } from '@/domain/identity';
 import styles from './MessageBubble.module.css';
 
 function SendingStatus() {

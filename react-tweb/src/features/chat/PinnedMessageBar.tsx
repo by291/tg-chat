@@ -3,13 +3,13 @@ import { List, Pin, PinOff, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from './MenuDismissLayer';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
 import { PinnedMessageIndicator } from './PinnedMessageIndicator';
 import { PinnedMessagePreview } from './PinnedMessagePreview';
 import { describeMessage } from './messageFormatting';
-import type { Message } from './model';
+import type { Message } from '@/domain/messages/message';
 import styles from './PinnedMessageBar.module.css';
-import overlays from './overlays.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
 
 interface PinnedMessageBarProps {
   messages: Message[];

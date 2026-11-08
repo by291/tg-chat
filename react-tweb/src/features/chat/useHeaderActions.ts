@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type Dispatch } from 'react';
 import type { HeaderAction } from './ChatHeaderMenu';
-import type { ChatAction, ChatState, Conversation } from './model';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { Conversation } from '@/domain/conversations/conversation';
 import { useConversationList } from '@/features/conversations/conversationList';
 import { useSidebarActions } from '@/features/conversations/useSidebarActions';
 

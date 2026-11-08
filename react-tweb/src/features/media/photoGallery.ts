@@ -1,5 +1,5 @@
-import type { Message } from '@/features/chat/model';
-import type { PhotoAttachment } from '@/features/chat/messageMedia';
+import type { Message } from '@/domain/messages/message';
+import type { PhotoAttachment } from '@/domain/messages/media';
 
 /** Give each album tile its own gallery identity, including repeated images. */
 export function createAlbumPhoto(

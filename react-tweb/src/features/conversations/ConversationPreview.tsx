@@ -6,7 +6,7 @@ import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import { MessageTimeline } from '@/features/chat/history/MessageTimeline';
-import type { ChatState } from '@/features/chat/model';
+import type { ChatState } from '@/features/chat/state/chatState';
 import type { ConversationListEntry } from './conversationList';
 import {
   getPreviewPosition,

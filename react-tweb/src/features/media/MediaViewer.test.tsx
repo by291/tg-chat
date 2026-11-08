@@ -3,8 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createInitialState } from '@/features/chat/demo/fixtures';
-import type { Message } from '@/features/chat/model';
-import { VideoFrame } from '@/features/chat/messages/VideoMessage';
+import type { Message } from '@/domain/messages/message';
+import { VideoFrame } from '@/features/chat/messages/content/media/VideoMessage';
 import { getGalleryMessages } from './photoGallery';
 import { MediaViewer } from './MediaViewer';
 

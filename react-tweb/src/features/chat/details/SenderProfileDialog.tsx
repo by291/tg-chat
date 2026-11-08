@@ -1,8 +1,8 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import type { ComponentProps } from 'react';
-import overlays from '../overlays.module.css';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
 import { ChatDetails } from './ChatDetails';
 import styles from './SenderProfileDialog.module.css';
 

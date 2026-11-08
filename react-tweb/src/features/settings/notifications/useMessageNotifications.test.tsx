@@ -2,7 +2,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createInitialState } from '@/features/chat/demo/fixtures';
-import type { Message } from '@/features/chat/model';
+import type { Message } from '@/domain/messages/message';
 import { useMessageNotifications } from './useMessageNotifications';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,

@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { Ripple } from '@/components/Ripple';
 import { describeMessage } from '../messageFormatting';
-import type { Message } from '../model';
+import type { Message } from '@/domain/messages/message';
 import styles from './ChatSearch.module.css';
 
 const RESULT_HEIGHT = 56;

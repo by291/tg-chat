@@ -17,13 +17,13 @@ import {
 } from 'lucide-react';
 import { useRef, useState, type ReactElement } from 'react';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
 import {
   getDeleteConversationLabel,
   type ConversationListEntry,
   type ConversationMenuAction,
 } from './conversationList';
-import overlays from '@/features/chat/overlays.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
 import styles from './ChatSidebar.module.css';
 import { readPreviewAnchor, type PreviewAnchor } from './previewPosition';
 

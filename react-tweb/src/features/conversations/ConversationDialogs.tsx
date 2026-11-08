@@ -2,8 +2,8 @@ import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { getDeleteConversationLabel } from './conversationList';
 import type { ConversationConfirmation } from './useSidebarActions';
-import overlays from '@/features/chat/overlays.module.css';
-import styles from './ConversationDialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
+import styles from '@/components/overlays/dialogs.module.css';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
 
 interface ConversationConfirmationProps {

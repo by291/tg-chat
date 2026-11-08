@@ -3,8 +3,8 @@ import { Megaphone, MessageCircle, Pencil, Phone, Users, X } from 'lucide-react'
 import { useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
-import overlays from '@/features/chat/overlays.module.css';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
+import overlays from '@/components/overlays/overlays.module.css';
 import styles from './NewChat.module.css';
 
 export type NewChatMode = 'group' | 'channel' | 'private' | 'call';

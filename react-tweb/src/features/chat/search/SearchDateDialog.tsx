@@ -11,8 +11,8 @@ import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { IconButton } from '@/components/IconButton';
-import overlays from '../overlays.module.css';
-import dialogs from '@/features/conversations/ConversationDialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
 import {
   FIRST_CALENDAR_DATE,
   createCalendarMonths,

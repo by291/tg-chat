@@ -3,11 +3,11 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { isAppleKeyboard } from '@/lib/platform/keyboardPlatform';
 import { setAppPreferences, useAppPreferences } from '../appPreferences';
 import { Ripple } from '@/components/Ripple';
-import { MenuDismissLayer } from '@/features/chat/MenuDismissLayer';
+import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
 import { SettingsHeader } from '../SettingsControls';
 import settings from '../SettingsPage.module.css';
 import styles from './KeyboardSettingsPage.module.css';
-import overlays from '@/features/chat/overlays.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
 
 const SHORTCUT_ROW_HEIGHT = 54;
 const SEND_OPTION_HEIGHT = 40;

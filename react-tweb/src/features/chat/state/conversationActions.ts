@@ -1,4 +1,5 @@
-import type { ChatState, ConversationPreferences } from '../model';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { ConversationPreferences } from '@/domain/conversations/conversation';
 
 interface UpdateConversationsOptions {
   state: ChatState;

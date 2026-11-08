@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { PinnedMessageBar } from './PinnedMessageBar';
-import type { Message } from './model';
+import type { Message } from '@/domain/messages/message';
 
 afterEach(cleanup);
 

@@ -9,8 +9,8 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { MessageCode } from './MessageCode';
 import { MessageQuote } from './MessageQuote';
 import { CustomEmojiText } from '@/features/emoji/CustomEmojiText';
-import { sanitizeRichText } from './richText';
-import { renderFormulaHtml } from './renderFormula';
+import { sanitizeRichText } from '@/domain/messages/richText';
+import { renderFormulaHtml } from '@/lib/math/renderFormula';
 import 'katex/dist/katex.min.css';
 import styles from './RichMessageText.module.css';
 

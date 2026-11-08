@@ -5,8 +5,8 @@ import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import type { ArchiveConfirmation } from './useArchiveActions';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
-import overlays from '@/features/chat/overlays.module.css';
-import dialogs from '../ConversationDialogs.module.css';
+import overlays from '@/components/overlays/overlays.module.css';
+import dialogs from '@/components/overlays/dialogs.module.css';
 import styles from './ArchiveDialogs.module.css';
 
 interface ArchiveHelpDialogProps {

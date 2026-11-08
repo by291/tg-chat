@@ -2,10 +2,10 @@ import { File } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { getPhotoMessages } from '@/features/media/photoGallery';
 import { rememberPhotoSource } from '@/features/media/mediaViewerTransition';
-import type { MessageMedia } from '../messageMedia';
-import { useVisiblePlayback } from '../messages/useVisiblePlayback';
-import { VoiceMessage } from '../messages/VoiceMessage';
-import type { Message } from '../model';
+import type { MessageMedia } from '@/domain/messages/media';
+import { useVisiblePlayback } from '../messages/content/media/useVisiblePlayback';
+import { VoiceMessage } from '../messages/content/media/VoiceMessage';
+import type { Message } from '@/domain/messages/message';
 import styles from './ChatDetails.module.css';
 
 interface ChatSharedMediaProps {

@@ -18,7 +18,7 @@ import { SettingsHeader, SettingsSwitch } from './SettingsControls';
 import { useClosingDialogValue } from '@/hooks/useClosingDialogValue';
 import settings from './SettingsPage.module.css';
 import styles from './StickerSettingsPage.module.css';
-import pickerStyles from '@/features/chat/composer/EmojiPicker.module.css';
+import pickerStyles from '@/features/chat/composer/picker/EmojiPicker.module.css';
 
 const INSTALLED_PACKS = [
   ...STICKER_PACKS.map((pack) => ({

@@ -7,8 +7,11 @@ import { useChatOverlayInsets } from './useChatOverlayInsets';
 import { ConversationMuteDialog } from '@/features/conversations/ConversationMuteDialog';
 import { ConversationRemovalDialog } from '@/features/conversations/ConversationDialogs';
 import { ChatHeader } from './ChatHeader';
-import { ForwardMessageDialog, type ForwardRecipients } from './messages/ForwardMessageDialog';
-import { forwardMessages as sendForwardedMessages } from './messages/forwardMessages';
+import {
+  ForwardMessageDialog,
+  type ForwardRecipients,
+} from './messages/forwarding/ForwardMessageDialog';
+import { forwardMessages as sendForwardedMessages } from './messages/forwarding/forwardMessages';
 import { downloadMessageMedia } from './messages/messageDownloads';
 import { Ripple } from '@/components/Ripple';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
@@ -20,9 +23,13 @@ import { MessageTimeline, type MessageNavigation } from './history/MessageTimeli
 import type { MediaViewerCommand } from '@/features/media/mediaViewerCommands';
 import { useMediaViewerCommand } from '@/features/media/useMediaViewerCommand';
 import { describeMessage } from './messageFormatting';
-import type { ChatAction, ChatState, Conversation, Message, MessageCommand } from './model';
-import type { MessageInteraction } from './messageInteraction';
-import { createOutgoingMessageTransitions } from './messages/outgoingMessageTransition';
+import type { ChatAction } from '@/features/chat/state/chatActions';
+import type { ChatState } from '@/features/chat/state/chatState';
+import type { Conversation } from '@/domain/conversations/conversation';
+import type { Message } from '@/domain/messages/message';
+import type { MessageCommand } from '@/features/chat/messages/commands';
+import type { MessageInteraction } from '@/domain/messages/interaction';
+import { createOutgoingMessageTransitions } from './messages/transitions/outgoingMessageTransition';
 import styles from './ConversationPane.module.css';
 
 interface ConversationPaneProps {

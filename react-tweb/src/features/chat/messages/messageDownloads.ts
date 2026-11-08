@@ -1,4 +1,4 @@
-import type { Message } from '../model';
+import type { Message } from '@/domain/messages/message';
 
 interface DownloadableFile {
   name: string;
