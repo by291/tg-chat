@@ -1,10 +1,10 @@
+import { PinnedConversationSorting } from './PinnedConversationSorting';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
-  type DragEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -78,7 +78,6 @@ export function VirtualConversationList({
 }: VirtualConversationListProps) {
   const viewportRef = useRef<HTMLElement>(null);
   const focusFrameRef = useRef<number | undefined>(undefined);
-  const draggedIdRef = useRef<string | undefined>(undefined);
   const previousKeysRef = useRef<string[]>([]);
   const rows: ConversationListRow[] = conversations.map((conversation) => ({
     key: `conversation:${conversation.id}`,
@@ -99,6 +98,9 @@ export function VirtualConversationList({
     initialOffset,
     paddingEnd: COMPOSE_CLEARANCE,
   });
+  const pinnedIds = conversations
+    .filter((conversation) => conversation.isPinned)
+    .map((conversation) => conversation.id);
   const virtualRows = virtualizer.getVirtualItems();
   const scrollTop = virtualizer.scrollOffset ?? initialOffset;
   const viewportHeight = virtualizer.scrollRect?.height ?? 0;
@@ -130,41 +132,12 @@ export function VirtualConversationList({
     };
   }, []);
 
-  function findPinnedDragTarget(event: DragEvent<HTMLElement>) {
-    if (!(event.target instanceof HTMLElement)) {
-      return;
-    }
-    const row = event.target.closest<HTMLElement>('[data-conversation-id]');
-    return conversations.find((conversation) => {
-      return conversation.id === row?.dataset.conversationId && conversation.isPinned;
-    });
-  }
-
-  function finishPinnedReorder(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    const target = findPinnedDragTarget(event);
-    const draggedId = draggedIdRef.current;
-    draggedIdRef.current = undefined;
-    if (!target || !draggedId || target.id === draggedId) {
-      return;
-    }
-
-    const pinnedIds = conversations
-      .filter((conversation) => conversation.isPinned)
-      .map((conversation) => conversation.id);
-    const startIndex = pinnedIds.indexOf(draggedId);
-    const targetIndex = pinnedIds.indexOf(target.id);
-    if (startIndex < 0 || targetIndex < 0) {
-      return;
-    }
-    pinnedIds.splice(startIndex, 1);
-    pinnedIds.splice(targetIndex, 0, draggedId);
-    onReorderPinned(pinnedIds);
-  }
-
   function navigateRows(event: KeyboardEvent<HTMLElement>) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    if (target.closest('[data-sort-handle]')) {
       return;
     }
     const row = target.closest<HTMLElement>('[data-conversation-index]');
@@ -206,31 +179,12 @@ export function VirtualConversationList({
     });
   }
 
-  return (
+  const list = (
     <nav
       ref={viewportRef}
       className={styles.chatList}
       aria-label={label}
       onKeyDown={navigateRows}
-      onDragStart={(event) => {
-        const target = findPinnedDragTarget(event);
-        if (!target) {
-          return;
-        }
-        draggedIdRef.current = target.id;
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', target.id);
-      }}
-      onDragOver={(event) => {
-        if (draggedIdRef.current && findPinnedDragTarget(event)) {
-          event.preventDefault();
-          event.dataTransfer.dropEffect = 'move';
-        }
-      }}
-      onDrop={finishPinnedReorder}
-      onDragEnd={() => {
-        draggedIdRef.current = undefined;
-      }}
       onScroll={(event) => onScrollOffsetChange(event.currentTarget.scrollTop)}
       data-total-rows={rows.length}
       data-rendered-rows={virtualRows.length}
@@ -266,5 +220,10 @@ export function VirtualConversationList({
         {rows.length === 0 && <p className={styles.empty}>No conversations</p>}
       </div>
     </nav>
+  );
+  return (
+    <PinnedConversationSorting pinnedIds={pinnedIds} onReorder={onReorderPinned}>
+      {list}
+    </PinnedConversationSorting>
   );
 }

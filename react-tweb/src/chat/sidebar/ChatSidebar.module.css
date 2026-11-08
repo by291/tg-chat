@@ -647,6 +647,10 @@
   visibility: hidden;
 }
 
+.sortableRow {
+  position: relative;
+}
+
 .reorderGrip {
   position: absolute;
   top: 24px;
@@ -654,10 +658,14 @@
   width: 24px;
   height: 24px;
   color: var(--secondary-color);
-  pointer-events: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  touch-action: none;
+  cursor: grab;
 }
 
-.chatRow[data-active='true'] .reorderGrip {
+.sortableRow[data-active='true'] .reorderGrip {
   color: white;
 }
 

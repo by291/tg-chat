@@ -61,3 +61,20 @@ it('clears a manual unread marker when reselecting the active chat without addin
   await waitFor(() => expect(screen.queryByLabelText('Marked as unread')).toBeNull());
   expect(window.history.length).toBe(historyLength);
 });
+
+it('enters selection without replacing the conversation viewport or its focused row', async () => {
+  const user = userEvent.setup();
+  render(<ChatApp />, { wrapper: BrowserRouter });
+  const row = await screen.findByRole('button', { name: /This feels familiar/ });
+  const viewport = screen.getByRole('navigation', { name: 'Conversations' });
+  fireEvent.contextMenu(row);
+  await user.click(await screen.findByRole('menuitem', { name: 'Select' }));
+
+  expect(screen.getByRole('toolbar', { name: 'Selected conversations' })).toBeTruthy();
+  expect(screen.getByRole('navigation', { name: 'Conversations' })).toBe(viewport);
+  expect(row.isConnected).toBe(true);
+  expect(row.getAttribute('aria-pressed')).toBe('true');
+  await user.click(screen.getByRole('button', { name: 'Cancel selection' }));
+  expect(screen.getByRole('navigation', { name: 'Conversations' })).toBe(viewport);
+  expect(row.isConnected).toBe(true);
+});

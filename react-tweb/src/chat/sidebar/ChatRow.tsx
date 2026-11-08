@@ -1,5 +1,6 @@
+import { SortableChatRow } from './PinnedConversationSorting';
 import { useAppPreferences } from '../../app/settings/appPreferences';
-import { BadgeCheck, Check, CheckCheck, GripVertical, Pin, VolumeX } from 'lucide-react';
+import { BadgeCheck, Check, CheckCheck, Pin, VolumeX } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Avatar } from '../../components/Avatar';
 import { Ripple } from '../../components/Ripple';
@@ -53,7 +54,7 @@ export function ChatRow({
   const badgeDuration = shouldReduceMotion ? 0 : BADGE_SCALE_SECONDS;
   const canReorder = isSelecting && conversation.isPinned;
 
-  return (
+  const row = (
     <ConversationMenu conversation={conversation} isSelecting={isSelecting} onAction={onMenuAction}>
       <button
         type="button"
@@ -62,7 +63,6 @@ export function ChatRow({
         data-selected={isSelected}
         data-selecting={isSelecting}
         data-reorderable={canReorder}
-        draggable={canReorder}
         aria-pressed={isSelecting ? isSelected : undefined}
         aria-current={isActive ? 'page' : undefined}
         onClick={(event) => {
@@ -142,9 +142,18 @@ export function ChatRow({
             </AnimatePresence>
           </span>
         </span>
-        {canReorder && <GripVertical className={styles.reorderGrip} aria-label="Drag to reorder" />}
         <Ripple />
       </button>
     </ConversationMenu>
+  );
+  return (
+    <SortableChatRow
+      id={conversation.id}
+      isDisabled={!canReorder}
+      title={conversation.title}
+      isActive={isActive}
+    >
+      {row}
+    </SortableChatRow>
   );
 }
