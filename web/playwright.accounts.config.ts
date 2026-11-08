@@ -1,0 +1,22 @@
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e-accounts',
+  fullyParallel: false,
+  forbidOnly: Boolean(process.env.CI),
+  retries: 0,
+  workers: 1,
+  timeout: 90_000,
+  reporter: 'list',
+  use: {
+    baseURL: process.env.TG_CHAT_ACCOUNT_TEST_URL ?? 'http://127.0.0.1:65413',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+});

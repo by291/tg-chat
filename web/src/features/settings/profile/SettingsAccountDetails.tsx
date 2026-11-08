@@ -8,7 +8,7 @@ import overlays from '@/components/overlays/overlays.module.css';
 import styles from '../SettingsPage.module.css';
 
 interface SettingsAccountProfile {
-  email: string;
+  email?: string | null;
   username: string;
 }
 
@@ -72,6 +72,7 @@ function AccountDetailRow({ label, value, icon: Icon, color, onCopy }: AccountDe
 
 /** Display account identifiers and copy them with consistent feedback. */
 export function SettingsAccountDetails({ profile }: { profile: SettingsAccountProfile }) {
+  const email = profile.email;
   function copyDetail({ label, text }: { label: string; text: string }) {
     void copyTextWithToast({
       text,
@@ -82,13 +83,17 @@ export function SettingsAccountDetails({ profile }: { profile: SettingsAccountPr
 
   return (
     <section className={styles.section} aria-label="Account details">
-      <AccountDetailRow
-        label="Email"
-        value={profile.email}
-        icon={Mail}
-        color="green"
-        onCopy={() => copyDetail({ label: 'Email', text: profile.email })}
-      />
+      {email ? (
+        <AccountDetailRow
+          label="Email"
+          value={email}
+          icon={Mail}
+          color="green"
+          onCopy={() => copyDetail({ label: 'Email', text: email })}
+        />
+      ) : (
+        <p className={styles.caption}>No verified recovery email</p>
+      )}
       <AccountDetailRow
         label="Username"
         value={profile.username}

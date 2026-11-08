@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:browser": "playwright test",
+    "test:accounts": "playwright test --config playwright.accounts.config.ts",
     "api:generate": "node scripts/generate-api.mjs",
     "api:check": "node scripts/generate-api.mjs --check"
   },
@@ -44,6 +45,7 @@
     "lottie-web": "^5.13.0",
     "lucide-react": "1.68.0",
     "motion": "14.9.1",
+    "openapi-fetch": "0.17.0",
     "prismjs": "1.30.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

@@ -24,6 +24,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      '/api': process.env.TG_CHAT_DEV_API_ORIGIN ?? 'http://127.0.0.1:8080',
+      '/health': process.env.TG_CHAT_DEV_API_ORIGIN ?? 'http://127.0.0.1:8080',
+    },
+  },
   build: {
     rolldownOptions: {
       output: {

@@ -31,10 +31,10 @@ CMD ["api", "serve"]
 FROM node:24.15.0-bookworm-slim AS frontend
 WORKDIR /app/web
 RUN npm install --global pnpm@11.28.0
-COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 COPY web ./
-RUN pnpm build
+RUN VITE_APP_MODE=connected pnpm build
 
 FROM caddy:2.11.7-alpine AS gateway
 COPY deploy/Caddyfile /etc/caddy/Caddyfile

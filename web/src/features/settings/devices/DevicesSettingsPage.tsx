@@ -1,3 +1,5 @@
+import { DevicesPanel } from '@/features/accounts/DevicesPanel';
+import type { SessionOwner } from '@/features/auth/SessionOwner';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { CircleMinus, Globe } from 'lucide-react';
@@ -18,8 +20,22 @@ import devices from './DevicesSettingsPage.module.css';
 import dialogs from '@/components/overlays/dialogs.module.css';
 import overlays from '@/components/overlays/overlays.module.css';
 
-/** Show local device information while keeping server-owned session actions unavailable. */
-export function DevicesSettingsPage({ onBack }: { onBack: () => void }) {
+/** Select authoritative account sessions or the explicitly local demo device view. */
+export function DevicesSettingsPage({
+  onBack,
+  connected,
+}: {
+  onBack: () => void;
+  connected?: { owner: SessionOwner };
+}) {
+  if (connected) {
+    return <DevicesPanel owner={connected.owner} onBack={onBack} />;
+  }
+
+  return <DemoDevicesSettingsPage onBack={onBack} />;
+}
+
+function DemoDevicesSettingsPage({ onBack }: { onBack: () => void }) {
   const [device] = useState(() => describeCurrentDevice(navigator));
   const [deviceName, setDeviceName] = useState(readDeviceName);
   const [draftName, setDraftName] = useState('');
