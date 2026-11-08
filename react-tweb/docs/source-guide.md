@@ -4,15 +4,49 @@
 
 Read these files in order:
 
-1. `src/main.tsx` mounts React and the global design tokens.
-2. `src/app/ChatApp.tsx` connects URL navigation to the selected conversation and secondary panels.
-3. `src/chat/state/useChatState.ts` restores IndexedDB before interaction and persists reducer snapshots.
-4. `src/chat/model.ts` defines the message shape, actions, and persisted-data validation.
-5. `src/chat/state/reducer.ts` makes the permanent state transitions explicit.
-6. `src/chat/ConversationPane.tsx` translates user commands into those actions.
-7. `src/chat/history/MessageTimeline.tsx` owns scrolling and sender grouping.
-8. `src/chat/messages/MessageBubble.tsx` renders a message and its Ark UI action menu.
-9. `src/chat/composer/MessageComposer.tsx` owns editing, image preparation, and submission.
+1. `index.html` paints the initial background and sidebar frame before application modules arrive.
+2. `src/main.tsx` mounts React and the global design tokens.
+3. `src/app/ChatApp.tsx` connects URL navigation to the selected conversation and secondary panels.
+4. `src/chat/state/useChatState.ts` restores IndexedDB before interaction and persists reducer
+   snapshots.
+5. `src/chat/model.ts` defines the message shape, actions, and persisted-data validation.
+6. `src/chat/state/reducer.ts` makes the permanent state transitions explicit.
+7. `src/chat/ConversationPane.tsx` translates user commands into those actions.
+8. `src/chat/history/MessageTimeline.tsx` owns scrolling and sender grouping.
+9. `src/chat/messages/MessageBubble.tsx` renders a message and its Ark UI action menu.
+10. `src/chat/composer/MessageComposer.tsx` owns editing, image preparation, and submission.
+
+## First paint and conversation restoration
+
+`index.html` includes critical frame styles and noninteractive sidebar markup. A small inline script
+reads the existing appearance preference to choose light/dark surfaces and a saved solid background;
+it never writes storage. Other wallpapers use a gradient fallback until React resolves the complete
+palette and retrieves any custom image. Keep the static sidebar dimensions aligned with
+`ChatApp.module.css` and its placeholder markup aligned with `src/app/StartupSidebar.tsx`.
+
+`ChatApp` mounts the real wallpaper and layout before IndexedDB restoration completes. Its sidebar
+placeholder uses the same inline styles as the HTML frame. Only data-dependent conversation controls
+wait for `isReady`; the wallpaper stays mounted across that transition. A storage failure still
+finishes restoration and shows the existing usable demo state with an error notice.
+
+The original HTML frame remains outside the React root until content is ready.
+`useStartupTransition` fades this retained cover out over 150ms, then removes it. The visible
+conversation rows fade in over 150ms each, staggered by 15ms. Only the initial visible rows
+participate;
+hidden sidebar pages and offscreen virtual rows are excluded, and later list updates do not replay
+the entrance. Reduced motion skips both transitions. The cover is inert and pointer-transparent,
+so ready controls work during the fade. Keeping the painted frame through the handoff avoids
+replacing it abruptly.
+
+This separates visible layout from data readiness without adding component lazy loading. Telegram
+Web K follows a related order: `src/index.ts` attaches its background, `pages/bootstrapIm.ts`
+exposes
+the existing HTML frame before loading the app's top level, and `autonomousDialogList/base.ts`
+manages
+list placeholders independently. Its `helpers/dialogsPlaceholder.ts` fades placeholders out, with
+staggered rows at the full animation level and a whole-layer fade at the reduced level. Web K also
+dynamically imports optional features such as poll creation and the media editor, and
+`wrappers/photo.ts` schedules uncached images through a lazy queue.
 
 ## Directory layout
 
