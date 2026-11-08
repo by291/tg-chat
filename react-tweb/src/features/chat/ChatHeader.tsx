@@ -1,5 +1,6 @@
 import { ArrowLeft, Search, Video } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useLayoutEffect, useRef } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { ChatHeaderMenu, type HeaderAction } from './ChatHeaderMenu';
@@ -39,11 +40,21 @@ export function ChatHeader({
   onAutoDelete,
 }: ChatHeaderProps) {
   const shouldReduceMotion = useReducedMotion();
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const wasSearchOpenRef = useRef(isSearchOpen);
   const isPinnedView = pinnedCount !== undefined;
   const transition = {
     duration: shouldReduceMotion ? 0 : SEARCH_TRANSITION_DURATION,
     ease: 'easeInOut' as const,
   };
+
+  useLayoutEffect(() => {
+    // The actions must leave their inert state before the search trigger can receive focus.
+    if (wasSearchOpenRef.current && !isSearchOpen) {
+      searchButtonRef.current?.focus({ preventScroll: true });
+    }
+    wasSearchOpenRef.current = isSearchOpen;
+  }, [isSearchOpen]);
 
   return (
     <div className={styles.headerStack}>
@@ -98,6 +109,7 @@ export function ChatHeader({
             </IconButton>
           )}
           <IconButton
+            ref={searchButtonRef}
             label="Search messages"
             className={`${styles.utilityButton} ${styles.searchButton}`}
             onClick={onToggleSearch}

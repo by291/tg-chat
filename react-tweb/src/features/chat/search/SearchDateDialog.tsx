@@ -20,6 +20,7 @@ import {
   type CalendarMonth,
 } from './calendarMonths';
 import styles from './SearchDateDialog.module.css';
+import { useCalendarKeyboardFocus } from './useCalendarKeyboardFocus';
 
 const MONTH_OVERSCAN = 1;
 // prettier-ignore
@@ -163,6 +164,7 @@ const MonthGrid = memo(function MonthGrid({
                       tabIndex={isFocused ? 0 : -1}
                       data-part="table-cell-trigger"
                       data-view="day"
+                      data-value={dateKey}
                       data-focus={isFocused ? '' : undefined}
                       data-selected={isSelected ? '' : undefined}
                       data-disabled={isDisabled ? '' : undefined}
@@ -237,6 +239,12 @@ function CalendarScroller({
     // One buffered month gives React room to batch updates instead of blocking scroll events.
     useFlushSync: false,
   });
+  const { requestKeyboardFocus, cancelKeyboardFocus } = useCalendarKeyboardFocus({
+    calendar,
+    months,
+    viewportRef,
+    virtualizer,
+  });
 
   useLayoutEffect(() => {
     // Restore before paint; smooth scrolling here would visibly traverse years on open.
@@ -297,6 +305,8 @@ function CalendarScroller({
         ref={viewportRef}
         className={styles.calendar}
         onScroll={updateVisibleMonth}
+        onKeyDownCapture={requestKeyboardFocus}
+        onPointerDownCapture={cancelKeyboardFocus}
         aria-label="Calendar months"
         tabIndex={0}
       >

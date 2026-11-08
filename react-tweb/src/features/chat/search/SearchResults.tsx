@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { Ripple } from '@/components/Ripple';
 import { describeMessage } from '../messageFormatting';
@@ -45,8 +45,21 @@ export function SearchResults({ messages, activeId, query, onSelect }: SearchRes
   });
   const height = Math.min(MAX_RESULTS_HEIGHT, messages.length * RESULT_HEIGHT);
 
+  useLayoutEffect(() => {
+    const activeIndex = messages.findIndex((message) => message.id === activeId);
+    if (activeIndex >= 0) {
+      virtualizer.scrollToIndex(activeIndex, { align: 'auto' });
+    }
+  }, [activeId, messages, virtualizer]);
+
   return (
-    <div ref={viewportRef} className={styles.resultViewport} style={{ height }}>
+    <div
+      ref={viewportRef}
+      role="region"
+      aria-label="Search results"
+      className={styles.resultViewport}
+      style={{ height }}
+    >
       <div className={styles.resultCanvas} style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((item) => {
           const message = messages[item.index];
