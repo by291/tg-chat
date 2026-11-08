@@ -47,7 +47,11 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
   for (const entry of pending) {
     if (!acceptedIds.has(entry.request.message_id)) {
       messages.push(
-        renderPending({ pending: entry, user, conversationId: conversation?.id ?? selectedKey }),
+        renderPending({
+          pending: entry,
+          user,
+          conversationId: conversation?.id ?? selectedKey,
+        }),
       );
     }
   }

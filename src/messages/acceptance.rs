@@ -96,12 +96,11 @@ pub(crate) async fn insert(
     )
     .bind(message.input.message_id)
     .bind(message.conversation.id);
-    insert
+    let insert = insert
         .bind(message.actor.user_id)
         .bind(sequence)
-        .bind(sqlx::types::Json(&message.input.content))
-        .execute(&mut *connection)
-        .await?;
+        .bind(sqlx::types::Json(&message.input.content));
+    insert.execute(&mut *connection).await?;
     sqlx::query(
         "UPDATE conversation_members SET unread_count = unread_count + 1
          WHERE conversation_id = $1 AND user_id != $2",
@@ -110,14 +109,13 @@ pub(crate) async fn insert(
     .bind(message.actor.user_id)
     .execute(&mut *connection)
     .await?;
-    sqlx::query(
+    let receipt_insert = sqlx::query(
         "INSERT INTO operation_receipts (actor_id, operation_id, message_id) VALUES ($1, $2, $3)",
     )
     .bind(message.actor.user_id)
     .bind(message.input.operation_id)
-    .bind(message.input.message_id)
-    .execute(&mut *connection)
-    .await?;
+    .bind(message.input.message_id);
+    receipt_insert.execute(&mut *connection).await?;
     changes::append(
         connection,
         ChangeGroup {

@@ -109,19 +109,15 @@ async fn recipient_policy_and_blocks_reject_without_partial_effects(pool: PgPool
     let count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM conversations").fetch_one(&pool).await.unwrap();
     assert_eq!(count, 0);
-    sqlx::query("INSERT INTO contacts (owner_id, target_id) VALUES ($1, $2)")
+    let contact_insert = sqlx::query("INSERT INTO contacts (owner_id, target_id) VALUES ($1, $2)")
         .bind(bobby.user_id)
-        .bind(alice.user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+        .bind(alice.user_id);
+    contact_insert.execute(&pool).await.unwrap();
     let accepted = service.send(alice.clone(), outgoing.clone()).await.unwrap();
-    sqlx::query("INSERT INTO blocks (owner_id, target_id) VALUES ($1, $2)")
+    let block_insert = sqlx::query("INSERT INTO blocks (owner_id, target_id) VALUES ($1, $2)")
         .bind(bobby.user_id)
-        .bind(alice.user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+        .bind(alice.user_id);
+    block_insert.execute(&pool).await.unwrap();
     // Reconciliation remains possible after a later privacy change; new messages do not.
     assert_eq!(
         service.send(alice.clone(), outgoing).await.unwrap().message.id,

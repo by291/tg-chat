@@ -193,15 +193,13 @@ async fn stalled_feed_allocation_cannot_be_skipped_by_another_commit(pool: PgPoo
     .fetch_one(&mut *stalled)
     .await
     .unwrap();
-    sqlx::query(
+    let change_insert = sqlx::query(
         "INSERT INTO personal_changes (user_id, position, conversation_id) VALUES ($1, $2, $3)",
     )
     .bind(alice.user_id)
     .bind(position)
-    .bind(saved_id)
-    .execute(&mut *stalled)
-    .await
-    .unwrap();
+    .bind(saved_id);
+    change_insert.execute(&mut *stalled).await.unwrap();
     let writer = service.clone();
     let recipient = alice.user_id;
     let send = tokio::spawn(async move {

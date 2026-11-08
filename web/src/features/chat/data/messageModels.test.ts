@@ -23,15 +23,27 @@ describe('bounded canonical projections', () => {
   it('retains exact version ordering and one row per durable identity', () => {
     const latest = message(1);
     const stale = { ...latest, version: '9007199254740992' };
-    expect(mergeMessages({ current: [latest], incoming: [stale], edge: 'latest' })).toEqual([
-      latest,
-    ]);
+    expect(
+      mergeMessages({
+        current: [latest],
+        incoming: [stale],
+        edge: 'latest',
+      }),
+    ).toEqual([latest]);
   });
 
   it('keeps the selected edge within the 200-message memory budget', () => {
     const incoming = Array.from({ length: 250 }, (_, index) => message(index + 1));
-    const latest = mergeMessages({ current: [], incoming, edge: 'latest' });
-    const older = mergeMessages({ current: [], incoming, edge: 'older' });
+    const latest = mergeMessages({
+      current: [],
+      incoming,
+      edge: 'latest',
+    });
+    const older = mergeMessages({
+      current: [],
+      incoming,
+      edge: 'older',
+    });
     expect(latest).toHaveLength(200);
     expect(latest[0].sequence).toBe('51');
     expect(older).toHaveLength(200);

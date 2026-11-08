@@ -104,7 +104,7 @@ impl MessageService {
         })
     }
 
-    /// Return complete committed groups with current authorized entities from one observation point.
+    /// Materialize complete committed groups and current authorized entities in one snapshot.
     pub async fn sync(&self, actor: Actor, query: SyncQuery) -> Result<SyncPage, AccountError> {
         let limit = page_size(query.limit)?;
         let mut transaction = self.snapshot(&actor).await?;

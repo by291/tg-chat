@@ -27,7 +27,7 @@ pub(crate) async fn append(
         .bind(position);
         insert.bind(group.conversation_id).bind(group.message_id).execute(&mut *connection).await?;
 
-        // The Worker deliberately leaves these rows pending until M4 enables authenticated realtime.
+        // Keep these rows pending until M4 enables authenticated realtime publication.
         sqlx::query(
             "INSERT INTO sync_wakeups (user_id, position) VALUES ($1, $2)
              ON CONFLICT (user_id) DO UPDATE SET
