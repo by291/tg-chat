@@ -1,5 +1,6 @@
+import { useGesture, type FullGestureState } from '@use-gesture/react';
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, MouseEvent, PointerEvent, RefObject } from 'react';
+import type { CSSProperties, MouseEvent, RefObject } from 'react';
 import {
   boundViewerTransform,
   createViewerTransform,
@@ -23,7 +24,6 @@ const PAN_IDLE_RESET_DELAY = 500;
 const MIN_GESTURE_DURATION = 1;
 const ZOOM_SETTLE_DELAY = 300;
 const WHEEL_RELEASE_DELAY = 150;
-const PRIMARY_BUTTON = 0;
 const CONTROL_SELECTOR = 'button, input, a, [data-viewer-controls]';
 
 interface ViewerTransformOptions {
@@ -38,7 +38,6 @@ interface ViewerTransformOptions {
 
 interface PointerGesture {
   origin: ViewerPoint;
-  distance: number;
   transform: ViewerTransform;
   pointerType: string;
   hasPinched: boolean;
@@ -52,26 +51,6 @@ export type ViewerTransformController = ReturnType<typeof useViewerTransform>;
 
 function isControl(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(CONTROL_SELECTOR));
-}
-
-function getPointerCenter(points: Map<number, ViewerPoint>): ViewerPoint {
-  let left = 0;
-  let top = 0;
-  for (const point of points.values()) {
-    left += point.left;
-    top += point.top;
-  }
-
-  return { left: left / points.size, top: top / points.size };
-}
-
-function getPointerDistance(points: Map<number, ViewerPoint>) {
-  const [first, second] = [...points.values()];
-  if (!first || !second) {
-    return 0;
-  }
-
-  return Math.hypot(second.left - first.left, second.top - first.top);
 }
 
 function exceedsSwipeThreshold(distance: number, viewportLength: number) {
@@ -90,9 +69,17 @@ export function useViewerTransform(options: ViewerTransformOptions) {
   const geometryRef = useRef<ViewerGeometry | undefined>(undefined);
   const measuredMediaRef = useRef<HTMLElement | null>(null);
   const observerRef = useRef<ResizeObserver | undefined>(undefined);
-  const pointsRef = useRef(new Map<number, ViewerPoint>());
-  const pointerTargetsRef = useRef(new Map<number, Element>());
+  const dragCancelRef = useRef<(() => void) | undefined>(undefined);
+  const pinchCancelRef = useRef<(() => void) | undefined>(undefined);
+  const pinchRef = useRef<{ origin: ViewerPoint; transform: ViewerTransform } | undefined>(
+    undefined,
+  );
   const gestureRef = useRef<PointerGesture | undefined>(undefined);
+  const pointerPositions = useRef(new Map<number, ViewerPoint>());
+  const continuation = useRef<{ pointerId: number; gesture: PointerGesture } | undefined>(
+    undefined,
+  );
+  const hasPinched = useRef(false);
   const shouldIgnoreClickRef = useRef(false);
   const isZoomModifierPressedRef = useRef(false);
   const zoomSettleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -112,15 +99,15 @@ export function useViewerTransform(options: ViewerTransformOptions) {
   }
 
   function cancelGesture() {
-    for (const [pointerId, target] of pointerTargetsRef.current) {
-      if (target.hasPointerCapture?.(pointerId)) {
-        target.releasePointerCapture(pointerId);
-      }
-    }
-
-    pointerTargetsRef.current.clear();
-    pointsRef.current.clear();
+    dragCancelRef.current?.();
+    pinchCancelRef.current?.();
+    dragCancelRef.current = undefined;
+    pinchCancelRef.current = undefined;
+    pinchRef.current = undefined;
     gestureRef.current = undefined;
+    continuation.current = undefined;
+    pointerPositions.current.clear();
+    hasPinched.current = false;
     setIsDragging(false);
     setIsDirectWheelGesture(false);
   }
@@ -281,100 +268,207 @@ export function useViewerTransform(options: ViewerTransformOptions) {
     }
   }
 
-  function startGesture(pointerType: string) {
-    gestureRef.current = {
-      origin: getPointerCenter(pointsRef.current),
-      distance: getPointerDistance(pointsRef.current),
-      transform: transformRef.current,
-      pointerType,
-      hasPinched: pointsRef.current.size > 1 || Boolean(gestureRef.current?.hasPinched),
-      lastDragOffset: { left: 0, top: 0 },
-      lastDragDelta: { left: 0, top: 0 },
-    };
-  }
-
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    const canStartGesture =
-      isEnabled &&
-      (canTransform || event.pointerType === 'touch') &&
-      event.button === PRIMARY_BUTTON &&
-      !isControl(event.target);
-    if (!canStartGesture) {
-      return;
+  function onDrag(state: FullGestureState<'drag'>) {
+    const { event, first, last, canceled, cancel, movement, xy, pinching } = state;
+    if (first) {
+      const pointerType = 'pointerType' in event ? event.pointerType : 'touch';
+      const canStart =
+        isEnabled &&
+        !isControl(event.target) &&
+        (pointerType === 'touch' ||
+          (canTransform && transformRef.current.scale !== VIEWER_ZOOM_INITIAL));
+      if (!canStart) {
+        cancel();
+        return;
+      }
+      shouldIgnoreClickRef.current = false;
+      cancelZoomSettle();
+      setIsDirectWheelGesture(false);
+      dragCancelRef.current = cancel;
+      gestureRef.current = {
+        origin: { left: xy[0], top: xy[1] },
+        transform: transformRef.current,
+        pointerType,
+        hasPinched: false,
+        lastDragOffset: { left: 0, top: 0 },
+        lastDragDelta: { left: 0, top: 0 },
+      };
     }
-
-    shouldIgnoreClickRef.current = false;
-    const isFittedMousePress =
-      event.pointerType !== 'touch' && transformRef.current.scale === VIEWER_ZOOM_INITIAL;
-    // Fitted photos have no mouse-pan action. Small pointer movement must remain a click.
-    if (isFittedMousePress) {
-      return;
-    }
-
-    cancelZoomSettle();
-    setIsDirectWheelGesture(false);
-    pointsRef.current.set(event.pointerId, { left: event.clientX, top: event.clientY });
-    // Capture on the media target so a stationary tap keeps its original click destination.
-    if (event.target instanceof Element) {
-      event.target.setPointerCapture?.(event.pointerId);
-      pointerTargetsRef.current.set(event.pointerId, event.target);
-    }
-    startGesture(event.pointerType);
-  }
-
-  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     const gesture = gestureRef.current;
-    const currentGeometry = geometryRef.current;
-    if (!isEnabled || !gesture || !pointsRef.current.has(event.pointerId)) {
+    if (!gesture || !isEnabled) {
+      return;
+    }
+    if (canceled || event.type === 'pointercancel' || event.type === 'touchcancel') {
+      gestureRef.current = undefined;
+      setIsDragging(false);
+      return;
+    }
+    if (pinching || pinchRef.current) {
+      gesture.hasPinched = true;
+      gesture.lastDragOffset = { left: movement[0], top: movement[1] };
       return;
     }
 
-    pointsRef.current.set(event.pointerId, { left: event.clientX, top: event.clientY });
-    const center = getPointerCenter(pointsRef.current);
-    const offsetX = center.left - gesture.origin.left;
-    const offsetY = center.top - gesture.origin.top;
-    const hasDragged = offsetX !== 0 || offsetY !== 0;
-    const isPinching = pointsRef.current.size > 1 && gesture.distance > 0;
-    shouldIgnoreClickRef.current ||= hasDragged || isPinching;
-    if (!hasDragged && !isPinching) {
-      return;
-    }
-
-    event.preventDefault();
-    setIsDragging(true);
-    if (dispatchTouchSwipe(event, gesture)) {
+    const point =
+      'clientX' in event
+        ? { left: event.clientX, top: event.clientY }
+        : { left: xy[0], top: xy[1] };
+    if (dispatchTouchSwipe(point, gesture)) {
+      shouldIgnoreClickRef.current = true;
       cancelGesture();
       return;
     }
-
-    if (!canTransform || !currentGeometry) {
+    if (last) {
+      settlePointerTransform(gesture);
+      gestureRef.current = undefined;
+      dragCancelRef.current = undefined;
+      setIsDragging(false);
       return;
     }
-
-    if (isPinching) {
-      const scale =
-        (gesture.transform.scale * getPointerDistance(pointsRef.current)) / gesture.distance;
-      const zoomed = zoomViewerAtPoint({
-        geometry: currentGeometry,
-        transform: gesture.transform,
-        scale,
-        point: gesture.origin,
-      });
-      updateTransform(
-        boundViewerTransform({
-          geometry: currentGeometry,
-          transform: {
-            ...zoomed,
-            offsetX: zoomed.offsetX + offsetX,
-            offsetY: zoomed.offsetY + offsetY,
-          },
-        }),
-      );
-      return;
+    const hasMoved = movement[0] !== 0 || movement[1] !== 0;
+    if (hasMoved) {
+      event.preventDefault();
+      shouldIgnoreClickRef.current = true;
+      setIsDragging(true);
+      if (canTransform) {
+        panPointerGesture(gesture, { left: movement[0], top: movement[1] });
+      }
     }
-
-    panPointerGesture(gesture, { left: offsetX, top: offsetY });
   }
+
+  function onPinch(state: FullGestureState<'pinch'>) {
+    const { event, first, last, canceled, cancel, origin, movement } = state;
+    if (first) {
+      if (!isEnabled || !canTransform || isControl(event.target)) {
+        cancel();
+        return;
+      }
+      cancelZoomSettle();
+      pinchCancelRef.current = cancel;
+      hasPinched.current = true;
+      continuation.current = undefined;
+      pinchRef.current = {
+        origin: { left: origin[0], top: origin[1] },
+        transform: transformRef.current,
+      };
+      if (gestureRef.current) {
+        gestureRef.current.hasPinched = true;
+      }
+    }
+    const pinch = pinchRef.current;
+    const currentGeometry = geometryRef.current;
+    if (!pinch || !currentGeometry || !isEnabled || !canTransform) {
+      return;
+    }
+    if (last || canceled) {
+      pinchRef.current = undefined;
+      pinchCancelRef.current = undefined;
+      setIsDragging(false);
+      if (!canceled && transformRef.current.scale < VIEWER_ZOOM_INITIAL) {
+        resetZoom();
+      }
+      return;
+    }
+    event.preventDefault();
+    shouldIgnoreClickRef.current = true;
+    setIsDragging(true);
+    const zoomed = zoomViewerAtPoint({
+      geometry: currentGeometry,
+      transform: pinch.transform,
+      scale: pinch.transform.scale * movement[0],
+      point: pinch.origin,
+    });
+    updateTransform(
+      boundViewerTransform({
+        geometry: currentGeometry,
+        transform: {
+          ...zoomed,
+          offsetX: zoomed.offsetX + origin[0] - pinch.origin.left,
+          offsetY: zoomed.offsetY + origin[1] - pinch.origin.top,
+        },
+      }),
+    );
+  }
+
+  function trackPointer(event: PointerEvent) {
+    if (isEnabled && !isControl(event.target)) {
+      pointerPositions.current.set(event.pointerId, { left: event.clientX, top: event.clientY });
+    }
+  }
+
+  function continuePointerPan(event: PointerEvent) {
+    if (!pointerPositions.current.has(event.pointerId)) {
+      return;
+    }
+    trackPointer(event);
+    const remaining = continuation.current;
+    if (!isEnabled || !canTransform || remaining?.pointerId !== event.pointerId) {
+      return;
+    }
+    event.preventDefault();
+    shouldIgnoreClickRef.current = true;
+    setIsDragging(true);
+    panPointerGesture(remaining.gesture, {
+      left: event.clientX - remaining.gesture.origin.left,
+      top: event.clientY - remaining.gesture.origin.top,
+    });
+  }
+
+  function finishPointer(event: PointerEvent) {
+    pointerPositions.current.delete(event.pointerId);
+    if (event.type === 'pointercancel') {
+      cancelGesture();
+      return;
+    }
+    if (pointerPositions.current.size === 0) {
+      if (continuation.current) {
+        settlePointerTransform(continuation.current.gesture);
+      }
+      continuation.current = undefined;
+      hasPinched.current = false;
+      setIsDragging(false);
+      return;
+    }
+    if (!hasPinched.current || pointerPositions.current.size !== 1 || !isEnabled || !canTransform) {
+      return;
+    }
+
+    // use-gesture keeps the first pointer as drag owner. Transfer only post-pinch continuation
+    // here, so either finger may lift first without creating a new swipe or a position jump.
+    dragCancelRef.current?.();
+    gestureRef.current = undefined;
+    const [pointerId, origin] = [...pointerPositions.current][0];
+    continuation.current = {
+      pointerId,
+      gesture: {
+        origin,
+        transform: transformRef.current,
+        pointerType: event.pointerType,
+        hasPinched: true,
+        lastDragOffset: { left: 0, top: 0 },
+        lastDragDelta: { left: 0, top: 0 },
+      },
+    };
+  }
+
+  const bindGestures = useGesture(
+    {
+      onDrag,
+      onPinch,
+      onPointerDown: ({ event }) => trackPointer(event),
+      onPointerMove: ({ event }) => continuePointerPan(event),
+      onPointerUp: ({ event }) => finishPointer(event),
+      onPointerCancel: ({ event }) => finishPointer(event),
+    },
+    {
+      eventOptions: { passive: false },
+      drag: {
+        threshold: 0,
+        pointer: { capture: true, keys: false },
+      },
+      pinch: { pinchOnWheel: false },
+    },
+  );
 
   function panPointerGesture(gesture: PointerGesture, offset: ViewerPoint) {
     const currentGeometry = geometryRef.current;
@@ -461,17 +555,17 @@ export function useViewerTransform(options: ViewerTransformOptions) {
     );
   }
 
-  function dispatchTouchSwipe(event: PointerEvent<HTMLDivElement>, gesture: PointerGesture) {
+  function dispatchTouchSwipe(point: ViewerPoint, gesture: PointerGesture) {
     const canSwipe =
       gesture.pointerType === 'touch' &&
       gesture.transform.scale === VIEWER_ZOOM_INITIAL &&
       !gesture.hasPinched;
-    if (!isEnabled || !canSwipe || event.type === 'pointercancel') {
+    if (!isEnabled || !canSwipe) {
       return false;
     }
 
-    const offsetX = event.clientX - gesture.origin.left;
-    const offsetY = event.clientY - gesture.origin.top;
+    const offsetX = point.left - gesture.origin.left;
+    const offsetY = point.top - gesture.origin.top;
     if (exceedsSwipeThreshold(offsetX, window.innerWidth)) {
       shouldIgnoreClickRef.current = true;
       optionsRef.current.onNavigate?.(offsetX < 0 ? 1 : -1);
@@ -485,37 +579,6 @@ export function useViewerTransform(options: ViewerTransformOptions) {
     }
 
     return false;
-  }
-
-  function onPointerUp(event: PointerEvent<HTMLDivElement>) {
-    const gesture = gestureRef.current;
-    pointsRef.current.delete(event.pointerId);
-    pointerTargetsRef.current.delete(event.pointerId);
-    const target = event.target;
-    if (target instanceof Element && target.hasPointerCapture?.(event.pointerId)) {
-      target.releasePointerCapture(event.pointerId);
-    }
-
-    if (event.type === 'pointercancel') {
-      cancelGesture();
-      return;
-    }
-
-    if (gesture) {
-      settlePointerTransform(gesture);
-    }
-
-    if (pointsRef.current.size > 0) {
-      startGesture(event.pointerType);
-      return;
-    }
-
-    gestureRef.current = undefined;
-    setIsDragging(false);
-    setIsDirectWheelGesture(false);
-    if (gesture) {
-      dispatchTouchSwipe(event, gesture);
-    }
   }
 
   function onWheel(event: WheelEvent) {
@@ -568,6 +631,7 @@ export function useViewerTransform(options: ViewerTransformOptions) {
     };
     const clearZoomModifier = () => {
       isZoomModifierPressedRef.current = false;
+      cancelGesture();
     };
     window.addEventListener('keydown', updateZoomModifier);
     window.addEventListener('keyup', updateZoomModifier);
@@ -642,10 +706,7 @@ export function useViewerTransform(options: ViewerTransformOptions) {
     isZooming: transform.scale !== VIEWER_ZOOM_INITIAL,
     isDragging,
     gestureProps: {
-      onPointerDown,
-      onPointerMove,
-      onPointerUp,
-      onPointerCancel: onPointerUp,
+      ...bindGestures(),
       onDoubleClick,
       onClickCapture,
     },

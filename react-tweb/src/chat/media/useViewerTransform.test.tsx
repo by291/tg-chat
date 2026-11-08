@@ -4,6 +4,10 @@ import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useViewerTransform } from './useViewerTransform';
 
+vi.hoisted(() => {
+  window.PointerEvent = MouseEvent as typeof PointerEvent;
+});
+
 interface TransformScreenProps {
   mediaId?: string;
   isEnabled?: boolean;
@@ -77,6 +81,7 @@ function sendPointer({ type, pointerId = 1, pointerType = 'mouse', left, top }: 
     clientX: left,
     clientY: top,
     button: 0,
+    buttons: type === 'pointerup' ? 0 : 1,
   });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
   Object.defineProperty(event, 'pointerType', { value: pointerType });
@@ -88,6 +93,9 @@ function readTransform() {
 }
 
 beforeEach(() => {
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+  Element.prototype.hasPointerCapture = () => false;
   vi.stubGlobal('innerWidth', 1000);
   vi.stubGlobal('innerHeight', 800);
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(
@@ -108,6 +116,104 @@ afterEach(() => {
 });
 
 describe('viewer gesture controls', () => {
+  it('returns from one-finger continuation to pinch without applying a second pan', () => {
+    render(<TransformScreen />);
+    const sendTouch = (type: string, pointerId: number, left: number) => {
+      sendPointer({
+        type,
+        pointerId,
+        pointerType: 'touch',
+        left,
+        top: 400,
+      });
+    };
+    sendTouch('pointerdown', 1, 300);
+    sendTouch('pointerdown', 2, 700);
+    sendTouch('pointermove', 2, 900);
+    sendTouch('pointerup', 2, 900);
+    sendTouch('pointermove', 1, 250);
+    sendTouch('pointerdown', 2, 850);
+    const beforeMove = readTransform();
+
+    sendTouch('pointermove', 2, 800);
+    sendTouch('pointermove', 1, 200);
+
+    expect(readTransform().scale).toBeCloseTo(beforeMove.scale);
+    expect(readTransform().offsetX).toBeCloseTo(beforeMove.offsetX - 50);
+  });
+
+  it.each([1, 2])('continues panning after pinch pointer %i is lifted first', (liftedId) => {
+    const onNavigate = vi.fn();
+    render(<TransformScreen onNavigate={onNavigate} />);
+    sendPointer({
+      type: 'pointerdown',
+      pointerId: 1,
+      pointerType: 'touch',
+      left: 300,
+      top: 400,
+    });
+    sendPointer({
+      type: 'pointerdown',
+      pointerId: 2,
+      pointerType: 'touch',
+      left: 700,
+      top: 400,
+    });
+    sendPointer({
+      type: 'pointermove',
+      pointerId: 2,
+      pointerType: 'touch',
+      left: 900,
+      top: 400,
+    });
+    const beforeRelease = readTransform();
+    const liftedLeft = liftedId === 1 ? 300 : 900;
+    sendPointer({
+      type: 'pointerup',
+      pointerId: liftedId,
+      pointerType: 'touch',
+      left: liftedLeft,
+      top: 400,
+    });
+    const remainingId = liftedId === 1 ? 2 : 1;
+    const remainingLeft = liftedId === 1 ? 900 : 300;
+    sendPointer({
+      type: 'pointermove',
+      pointerId: remainingId,
+      pointerType: 'touch',
+      left: remainingLeft - 50,
+      top: 400,
+    });
+    expect(readTransform().offsetX).toBeCloseTo(beforeRelease.offsetX - 50);
+    expect(readTransform().scale).toBe(beforeRelease.scale);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('cancels touch navigation when the window loses focus', () => {
+    const onNavigate = vi.fn();
+    render(<TransformScreen onNavigate={onNavigate} />);
+    sendPointer({
+      type: 'pointerdown',
+      pointerType: 'touch',
+      left: 500,
+      top: 400,
+    });
+    fireEvent.blur(window);
+    sendPointer({
+      type: 'pointermove',
+      pointerType: 'touch',
+      left: 300,
+      top: 400,
+    });
+    sendPointer({
+      type: 'pointerup',
+      pointerType: 'touch',
+      left: 300,
+      top: 400,
+    });
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
   it('preserves a click with slight mouse movement while the photo is fitted', () => {
     const onClick = vi.fn();
     render(<TransformScreen onClick={onClick} />);
