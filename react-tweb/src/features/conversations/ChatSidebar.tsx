@@ -2,7 +2,7 @@ import { useAppNavigation } from '@/routes/useAppNavigation';
 import type { NewChatMode } from './creation/NewChatMenu';
 import { NewChatPage } from './creation/NewChatPage';
 import type { ThemeOrigin } from '@/features/settings/appearance/useThemeTransition';
-import { useRef, useState, type Dispatch } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type Dispatch } from 'react';
 import type { ChatAction } from '@/features/chat/state/chatActions';
 import type { ChatState } from '@/features/chat/state/chatState';
 import { ConversationRemovalDialog } from './ConversationDialogs';
@@ -11,12 +11,10 @@ import { ConversationMuteDialog } from './ConversationMuteDialog';
 import type { PreviewAnchor } from './previewPosition';
 import { SidebarSelectionToolbar } from './SidebarSelectionToolbar';
 import { useSidebarActions } from './useSidebarActions';
-import {
-  useConversationList,
-  type ConversationListEntry,
-  type ConversationMenuAction,
-} from './conversationList';
+import { type ConversationListEntry, type ConversationMenuAction } from './conversationList';
 import { ChatRow } from './ChatRow';
+import { useConversationDirectory } from './ConversationDirectory';
+import type { ConversationMessageIndex } from './conversationMessages';
 import { SidebarMenu } from './SidebarMenu';
 import { SidebarNavigation } from '@/layouts/sidebar/SidebarNavigation';
 import { SidebarPageHeader } from './SidebarPageHeader';
@@ -36,6 +34,7 @@ import styles from './ChatSidebar.module.css';
 interface ChatSidebarProps {
   isDark?: boolean;
   state: ChatState;
+  messageIndex: ConversationMessageIndex;
   dispatch: Dispatch<ChatAction>;
   onSelectChat: (chatId: string) => void;
   onToggleTheme: (origin?: ThemeOrigin) => void;
@@ -44,6 +43,7 @@ interface ChatSidebarProps {
 /** Display local conversations and switch to search without losing list position. */
 export function ChatSidebar({
   state,
+  messageIndex,
   dispatch,
   onSelectChat,
   onToggleTheme,
@@ -54,12 +54,16 @@ export function ChatSidebar({
   const [newChatMode, setNewChatMode] = useState<NewChatMode>();
   const [creationSession, setCreationSession] = useState(0);
   const closingNewChatMode = useClosingDialogValue(newChatMode);
-  const conversations = useConversationList(state);
+  const { entries: conversations } = useConversationDirectory();
   const scrollOffsets = useRef({ inbox: 0, archive: 0 });
   const actions = useSidebarActions({ conversations, dispatch });
   const isSelecting = actions.selectedIds.length > 0;
-  const archivedConversations = conversations.filter((conversation) => conversation.isArchived);
-  const inboxConversations = conversations.filter((conversation) => !conversation.isArchived);
+  const archivedConversations = useMemo(() => {
+    return conversations.filter((conversation) => conversation.isArchived);
+  }, [conversations]);
+  const inboxConversations = useMemo(() => {
+    return conversations.filter((conversation) => !conversation.isArchived);
+  }, [conversations]);
   const search = useSidebarSearch({
     conversations,
     isArchiveOpen,
@@ -119,21 +123,51 @@ export function ChatSidebar({
     navigation.closeArchive();
   }
 
+  const rowActionsRef = useRef({
+    runMenuAction,
+    selectChat,
+    actions,
+    isSelecting,
+  });
+  useLayoutEffect(() => {
+    // Rows retain stable callbacks while commands always read the latest selection and route.
+    rowActionsRef.current = {
+      runMenuAction,
+      selectChat,
+      actions,
+      isSelecting,
+    };
+  });
+  const runRowMenuAction = useCallback(
+    (
+      conversation: ConversationListEntry,
+      action: ConversationMenuAction,
+      anchor?: PreviewAnchor,
+    ) => {
+      rowActionsRef.current.runMenuAction(conversation, action, anchor);
+    },
+    [],
+  );
+  const selectRow = useCallback((chatId: string) => {
+    const current = rowActionsRef.current;
+    if (current.isSelecting) {
+      current.actions.toggleSelection(chatId);
+      return;
+    }
+    current.selectChat(chatId);
+  }, []);
+
   function renderConversationRow(conversation: ConversationListEntry) {
     return (
       <ChatRow
         conversation={conversation}
-        state={state}
+        lastMessage={messageIndex.lastMessageByChatId.get(conversation.id)}
+        draft={state.drafts[conversation.id]}
+        isActive={state.activeChatId === conversation.id}
         isSelecting={isSelecting}
         isSelected={actions.selectedIds.includes(conversation.id)}
-        onMenuAction={(action, anchor) => runMenuAction(conversation, action, anchor)}
-        onSelect={() => {
-          if (isSelecting) {
-            actions.toggleSelection(conversation.id);
-            return;
-          }
-          selectChat(conversation.id);
-        }}
+        onMenuAction={runRowMenuAction}
+        onSelect={selectRow}
       />
     );
   }
@@ -342,7 +376,7 @@ export function ChatSidebar({
         conversation={conversations.find(
           (conversation) => conversation.id === actions.preview?.chatId,
         )}
-        state={state}
+        messagesByChatId={messageIndex.messagesByChatId}
         onClose={actions.closePreview}
         onToggleRead={() => {
           const conversation = conversations.find((entry) => entry.id === actions.preview?.chatId);

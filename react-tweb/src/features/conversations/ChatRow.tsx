@@ -9,7 +9,8 @@ import {
   formatConversationTime,
   formatMessageTime,
 } from '@/features/chat/messageFormatting';
-import type { ChatState } from '@/features/chat/state/chatState';
+import { memo } from 'react';
+import type { Message } from '@/domain/messages/message';
 import { ConversationMenu } from './ConversationMenu';
 import type { ConversationListEntry, ConversationMenuAction } from './conversationList';
 import styles from './ChatSidebar.module.css';
@@ -29,24 +30,28 @@ interface ChatRowProps {
   conversation: ConversationListEntry;
   isSelecting: boolean;
   isSelected: boolean;
-  onMenuAction: (action: ConversationMenuAction, anchor?: PreviewAnchor) => void;
-  state: ChatState;
-  onSelect: () => void;
+  onMenuAction: (
+    conversation: ConversationListEntry,
+    action: ConversationMenuAction,
+    anchor?: PreviewAnchor,
+  ) => void;
+  lastMessage?: Message;
+  draft?: string;
+  isActive: boolean;
+  onSelect: (chatId: string) => void;
 }
 
 /** Render a conversation preview with independent metadata and unread alignment. */
-export function ChatRow({
+export const ChatRow = memo(function ChatRow({
   conversation,
-  state,
+  lastMessage,
+  draft,
+  isActive,
   onSelect,
   isSelecting,
   isSelected,
   onMenuAction,
 }: ChatRowProps) {
-  const messages = state.messages.filter((message) => message.chatId === conversation.id);
-  const lastMessage = messages.at(-1);
-  const draft = state.drafts[conversation.id];
-  const isActive = state.activeChatId === conversation.id;
   const hasUnread = conversation.hasUnread;
   const fallbackPreview = conversation.hasClearedHistory ? '' : conversation.preview;
   const preview = lastMessage ? describeMessage(lastMessage) : fallbackPreview;
@@ -59,7 +64,11 @@ export function ChatRow({
   const canReorder = isSelecting && conversation.isPinned;
 
   const row = (
-    <ConversationMenu conversation={conversation} isSelecting={isSelecting} onAction={onMenuAction}>
+    <ConversationMenu
+      conversation={conversation}
+      isSelecting={isSelecting}
+      onAction={(action, anchor) => onMenuAction(conversation, action, anchor)}
+    >
       <button
         type="button"
         className={styles.chatRow}
@@ -71,10 +80,10 @@ export function ChatRow({
         aria-current={isActive ? 'page' : undefined}
         onClick={(event) => {
           if (event.shiftKey && !isSelecting) {
-            onMenuAction('preview', readPreviewAnchor(event.currentTarget));
+            onMenuAction(conversation, 'preview', readPreviewAnchor(event.currentTarget));
             return;
           }
-          onSelect();
+          onSelect(conversation.id);
         }}
       >
         <span className={styles.selectionCheck} data-checked={isSelected} aria-hidden="true">
@@ -160,4 +169,4 @@ export function ChatRow({
       {row}
     </SortableChatRow>
   );
-}
+});

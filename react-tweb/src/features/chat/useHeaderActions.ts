@@ -3,7 +3,7 @@ import type { HeaderAction } from './ChatHeaderMenu';
 import type { ChatAction } from '@/features/chat/state/chatActions';
 import type { ChatState } from '@/features/chat/state/chatState';
 import type { Conversation } from '@/domain/conversations/conversation';
-import { useConversationList } from '@/features/conversations/conversationList';
+import { useConversationDirectory } from '@/features/conversations/ConversationDirectory';
 import { useSidebarActions } from '@/features/conversations/useSidebarActions';
 
 const EMPTY_SELECTION: string[] = [];
@@ -16,14 +16,9 @@ interface HeaderActionsOptions {
 }
 
 /** Share persisted conversation actions with the list, keeping message selection local. */
-export function useHeaderActions({
-  conversation,
-  state,
-  dispatch,
-  onNotify,
-}: HeaderActionsOptions) {
-  const conversations = useConversationList(state);
-  const entry = conversations.find((item) => item.id === conversation.id);
+export function useHeaderActions({ conversation, dispatch, onNotify }: HeaderActionsOptions) {
+  const { entries: conversations, entriesById } = useConversationDirectory();
+  const entry = entriesById.get(conversation.id);
   const actions = useSidebarActions({ conversations, dispatch });
   const [selection, setSelection] = useState<string[]>();
   const isSelecting = selection !== undefined;

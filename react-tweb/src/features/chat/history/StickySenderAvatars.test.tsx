@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import { ConversationDirectoryProvider } from '@/features/conversations/ConversationDirectory';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
+import { indexConversationMessages } from '@/features/conversations/conversationMessages';
 import { SenderProfileProvider } from '../details/SenderProfileProvider';
 import { chatReducer } from '../state/reducer';
 import { StickySenderAvatars } from './StickySenderAvatars';
@@ -29,20 +31,23 @@ function SenderHistory({
 }) {
   const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
   return (
-    <SenderProfileProvider
-      state={state}
-      dispatch={dispatch}
-      onSelectConversation={(chatId) => dispatch({ type: 'select-chat', chatId })}
-      onOpenMedia={vi.fn()}
-    >
-      <StickySenderAvatars
-        groups={[{ ...group, authorId }]}
-        isSelecting={isSelecting}
-        isPreview={isPreview}
-      />
-      <output aria-label="Active chat">{state.activeChatId}</output>
-      <output aria-label="Local peers">{state.localConversations?.length ?? 0}</output>
-    </SenderProfileProvider>
+    <ConversationDirectoryProvider state={state}>
+      <SenderProfileProvider
+        messagesByChatId={indexConversationMessages(state.messages).messagesByChatId}
+        state={state}
+        dispatch={dispatch}
+        onSelectConversation={(chatId) => dispatch({ type: 'select-chat', chatId })}
+        onOpenMedia={vi.fn()}
+      >
+        <StickySenderAvatars
+          groups={[{ ...group, authorId }]}
+          isSelecting={isSelecting}
+          isPreview={isPreview}
+        />
+        <output aria-label="Active chat">{state.activeChatId}</output>
+        <output aria-label="Local peers">{state.localConversations?.length ?? 0}</output>
+      </SenderProfileProvider>
+    </ConversationDirectoryProvider>
   );
 }
 

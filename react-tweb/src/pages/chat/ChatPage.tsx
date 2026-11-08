@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { SenderProfileProvider } from '@/features/chat/details/SenderProfileProvider';
 import { ChatDetails } from '@/features/chat/details/ChatDetails';
@@ -12,7 +12,14 @@ import {
   type MediaViewerCommand,
 } from '@/features/media/mediaViewerCommands';
 import type { Message } from '@/domain/messages/message';
-import { useConversationList } from '@/features/conversations/conversationList';
+import {
+  ConversationDirectoryProvider,
+  useConversationDirectory,
+} from '@/features/conversations/ConversationDirectory';
+import {
+  EMPTY_CONVERSATION_MESSAGES,
+  indexConversationMessages,
+} from '@/features/conversations/conversationMessages';
 import { useChatState } from '@/features/chat/state/useChatState';
 import { useChatRoute } from '@/routes/useChatRoute';
 import { useAppNavigation } from '@/routes/useAppNavigation';
@@ -29,16 +36,24 @@ import styles from './ChatPage.module.css';
 
 const MOBILE_CHAT_BREAKPOINT = 760;
 
-/** Coordinate the chat workspace, persistent conversation state, and transient feature panels. */
-export function ChatPage() {
+function ChatWorkspace({
+  state,
+  dispatch,
+  isReady,
+  storageError,
+}: ReturnType<typeof useChatState>) {
   const messageTextSize = useAppPreferences((preferences) => preferences.messageTextSize);
-  const { state, dispatch, isReady, storageError } = useChatState();
   const shouldReduceMotion = useReducedMotion() ?? false;
   useStartupTransition({ isReady, shouldReduceMotion });
-  const conversationEntries = useConversationList(state);
+  const { entriesById } = useConversationDirectory();
+  const messageIndex = useMemo(() => indexConversationMessages(state.messages), [state.messages]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
   const navigation = useAppNavigation();
+  const navigationRef = useRef(navigation);
+  useLayoutEffect(() => {
+    navigationRef.current = navigation;
+  }, [navigation]);
   const previousChatId = useRef(navigation.chatId);
   const isMobileChatOpen = Boolean(navigation.chatId);
   const [mediaMessage, setMediaMessage] = useState<Message>();
@@ -48,11 +63,12 @@ export function ChatPage() {
 
   const isConversationDeleted =
     state.conversationPreferences?.[state.activeChatId]?.isDeleted ?? false;
-  const conversation = conversationEntries.find((entry) => entry.id === state.activeChatId);
+  const conversation = entriesById.get(state.activeChatId);
   const hasConversation = isReady && Boolean(conversation) && !isConversationDeleted;
   const hasDetails = isDetailsOpen && hasConversation;
-  const activeEntry = conversationEntries.find((entry) => entry.id === conversation?.id);
-  const messages = state.messages.filter((message) => message.chatId === conversation?.id);
+  const activeEntry = conversation;
+  const messages =
+    messageIndex.messagesByChatId.get(conversation?.id ?? '') ?? EMPTY_CONVERSATION_MESSAGES;
   const { variant, choice, isDark, toggleTheme } = useAppearanceTheme({
     isReady,
     isLegacyDark: state.isDark,
@@ -77,15 +93,18 @@ export function ChatPage() {
     }
   }, [navigation.chatId, navigation.navigationType]);
 
-  function selectConversation(chatId: string) {
-    // Explicit selection also clears manual unread marks, even when the URL is unchanged.
-    dispatch({ type: 'select-chat', chatId });
-    navigation.openChat(chatId);
-    setIsDetailsOpen(false);
-    setMediaMessage(undefined);
-    setRequestedMediaCommand(undefined);
-    setMediaReturnMessage(undefined);
-  }
+  const selectConversation = useCallback(
+    (chatId: string) => {
+      // Explicit selection also clears manual unread marks, even when the URL is unchanged.
+      dispatch({ type: 'select-chat', chatId });
+      navigationRef.current.openChat(chatId);
+      setIsDetailsOpen(false);
+      setMediaMessage(undefined);
+      setRequestedMediaCommand(undefined);
+      setMediaReturnMessage(undefined);
+    },
+    [dispatch],
+  );
 
   useMessageNotifications({
     state,
@@ -142,13 +161,10 @@ export function ChatPage() {
   }, [conversation?.id]);
 
   return (
-    <ContactActionsProvider
-      state={state}
-      dispatch={dispatch}
-      onSelectConversation={selectConversation}
-    >
+    <ContactActionsProvider dispatch={dispatch} onSelectConversation={selectConversation}>
       <SenderProfileProvider
         state={state}
+        messagesByChatId={messageIndex.messagesByChatId}
         dispatch={dispatch}
         onSelectConversation={selectConversation}
         onOpenMedia={setMediaMessage}
@@ -161,6 +177,7 @@ export function ChatPage() {
           sidebar={
             isReady ? (
               <ChatSidebar
+                messageIndex={messageIndex}
                 state={state}
                 dispatch={dispatch}
                 onSelectChat={selectConversation}
@@ -226,7 +243,10 @@ export function ChatPage() {
         >
           <MediaViewer
             message={mediaMessage}
-            messages={state.messages.filter((message) => message.chatId === mediaMessage?.chatId)}
+            messages={
+              messageIndex.messagesByChatId.get(mediaMessage?.chatId ?? '') ??
+              EMPTY_CONVERSATION_MESSAGES
+            }
             onClose={() => setMediaMessage(undefined)}
             onNavigate={setMediaMessage}
             onCommand={runMediaViewerCommand}
@@ -241,5 +261,15 @@ export function ChatPage() {
         </ChatLayout>
       </SenderProfileProvider>
     </ContactActionsProvider>
+  );
+}
+
+/** Own persisted state and provide shared conversation metadata to the entire workspace. */
+export function ChatPage() {
+  const chat = useChatState();
+  return (
+    <ConversationDirectoryProvider state={chat.state}>
+      <ChatWorkspace {...chat} />
+    </ConversationDirectoryProvider>
   );
 }

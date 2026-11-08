@@ -1,6 +1,8 @@
 import {
   createContext,
   useContext,
+  useCallback,
+  useMemo,
   useEffect,
   useState,
   type Dispatch,
@@ -11,8 +13,8 @@ import type { ChatState } from '@/features/chat/state/chatState';
 import type { Conversation } from '@/domain/conversations/conversation';
 import type { Message } from '@/domain/messages/message';
 import { getContactColor } from '../messages/content/contact/ContactActions';
-import { useConversationList } from '@/features/conversations/conversationList';
-import { getConversations } from '../state/conversations';
+import { useConversationDirectory } from '@/features/conversations/ConversationDirectory';
+import { EMPTY_CONVERSATION_MESSAGES } from '@/features/conversations/conversationMessages';
 import { SenderProfileDialog } from './SenderProfileDialog';
 
 export type SenderIdentity = Pick<Message, 'authorId' | 'authorName'>;
@@ -24,6 +26,7 @@ interface SenderProfileActions {
 
 interface SenderProfileProviderProps {
   state: ChatState;
+  messagesByChatId: ReadonlyMap<string, Message[]>;
   dispatch: Dispatch<ChatAction>;
   onSelectConversation: (chatId: string) => void;
   onOpenMedia: (message: Message) => void;
@@ -35,6 +38,7 @@ const SenderProfileContext = createContext<SenderProfileActions | undefined>(und
 /** Route sender avatars to user profiles or directly to broadcast channels. */
 export function SenderProfileProvider({
   state,
+  messagesByChatId,
   dispatch,
   onSelectConversation,
   onOpenMedia,
@@ -42,52 +46,59 @@ export function SenderProfileProvider({
 }: SenderProfileProviderProps) {
   const [sender, setSender] = useState<SenderIdentity>();
   const [isOpen, setIsOpen] = useState(false);
-  const conversations = getConversations(state);
-  const entries = useConversationList(state);
+  const { conversations, entriesById, now } = useConversationDirectory();
 
   useEffect(() => {
     setIsOpen(false);
   }, [state.activeChatId]);
 
-  function getPeer(identity: SenderIdentity): Conversation {
-    const peer = conversations.find((candidate) => {
-      return candidate.id === identity.authorId || candidate.id === `contact:${identity.authorId}`;
-    });
-    if (peer) {
-      return peer;
-    }
+  const getPeer = useCallback(
+    (identity: SenderIdentity): Conversation => {
+      const peer = conversations.find((candidate) => {
+        return (
+          candidate.id === identity.authorId || candidate.id === `contact:${identity.authorId}`
+        );
+      });
+      if (peer) {
+        return peer;
+      }
 
-    // Reading a profile must not create a chat or invent server-owned presence information.
-    return {
-      id: `contact:${identity.authorId}`,
-      title: identity.authorName,
-      subtitle: '',
-      initials: identity.authorName.slice(0, 1).toUpperCase(),
-      color: getContactColor(identity.authorId),
-      kind: 'private',
-      preview: '',
-      time: '',
-      isContact: false,
-    };
-  }
+      // Reading a profile must not create a chat or invent server-owned presence information.
+      return {
+        id: `contact:${identity.authorId}`,
+        title: identity.authorName,
+        subtitle: '',
+        initials: identity.authorName.slice(0, 1).toUpperCase(),
+        color: getContactColor(identity.authorId),
+        kind: 'private',
+        preview: '',
+        time: '',
+        isContact: false,
+      };
+    },
+    [conversations],
+  );
 
-  function openProfile(identity: SenderIdentity) {
-    const peer = getPeer(identity);
-    if (peer.kind === 'channel') {
-      setIsOpen(false);
-      onSelectConversation(peer.id);
-      return;
-    }
-    setSender(identity);
-    setIsOpen(true);
-  }
+  const openProfile = useCallback(
+    (identity: SenderIdentity) => {
+      const peer = getPeer(identity);
+      if (peer.kind === 'channel') {
+        setIsOpen(false);
+        onSelectConversation(peer.id);
+        return;
+      }
+      setSender(identity);
+      setIsOpen(true);
+    },
+    [getPeer, onSelectConversation],
+  );
+  const profileActions = useMemo(() => ({ getPeer, openProfile }), [getPeer, openProfile]);
 
   const peer = sender ? getPeer(sender) : undefined;
   const preferences = peer ? state.conversationPreferences?.[peer.id] : undefined;
-  const hasMuteExpired = Boolean(preferences?.mutedUntil && preferences.mutedUntil <= Date.now());
+  const hasMuteExpired = Boolean(preferences?.mutedUntil && preferences.mutedUntil <= now);
   const isMuted =
-    entries.find((entry) => entry.id === peer?.id)?.isMuted ??
-    (Boolean(preferences?.isMuted) && !hasMuteExpired);
+    entriesById.get(peer?.id ?? '')?.isMuted ?? (Boolean(preferences?.isMuted) && !hasMuteExpired);
 
   function openConversation() {
     if (!peer) {
@@ -102,11 +113,12 @@ export function SenderProfileProvider({
   }
 
   return (
-    <SenderProfileContext.Provider value={{ getPeer, openProfile }}>
+    <SenderProfileContext.Provider value={profileActions}>
       {children}
       {peer && (
         <SenderProfileDialog
           conversation={peer}
+          messages={messagesByChatId.get(peer.id) ?? EMPTY_CONVERSATION_MESSAGES}
           state={state}
           dispatch={dispatch}
           isOpen={isOpen}

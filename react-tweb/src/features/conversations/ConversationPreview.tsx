@@ -6,7 +6,8 @@ import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import { MessageTimeline } from '@/features/chat/history/MessageTimeline';
-import type { ChatState } from '@/features/chat/state/chatState';
+import type { Message } from '@/domain/messages/message';
+import { EMPTY_CONVERSATION_MESSAGES } from './conversationMessages';
 import type { ConversationListEntry } from './conversationList';
 import {
   getPreviewPosition,
@@ -24,7 +25,7 @@ export interface ConversationPreviewRequest {
 interface ConversationPreviewProps {
   request?: ConversationPreviewRequest;
   conversation?: ConversationListEntry;
-  state: ChatState;
+  messagesByChatId: ReadonlyMap<string, Message[]>;
   onClose: () => void;
   onToggleRead: () => void;
 }
@@ -37,7 +38,7 @@ function ignorePreviewCommand() {
 export function ConversationPreview({
   request: openRequest,
   conversation: openConversation,
-  state,
+  messagesByChatId,
   onClose,
   onToggleRead,
 }: ConversationPreviewProps) {
@@ -46,9 +47,7 @@ export function ConversationPreview({
   const position = useMemo(() => {
     return request ? getPreviewPosition(request.anchor) : undefined;
   }, [request]);
-  const messages = useMemo(() => {
-    return state.messages.filter((message) => message.chatId === request?.chatId);
-  }, [state.messages, request?.chatId]);
+  const messages = messagesByChatId.get(request?.chatId ?? '') ?? EMPTY_CONVERSATION_MESSAGES;
 
   useEffect(() => {
     if (!openRequest) {

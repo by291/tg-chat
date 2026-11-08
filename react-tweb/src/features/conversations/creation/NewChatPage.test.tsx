@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ConversationDirectoryProvider } from '@/features/conversations/ConversationDirectory';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useReducer } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -20,20 +21,21 @@ function ContactSelectionScreen({ mode }: { mode: 'private' | 'group' }) {
   };
 
   return (
-    <ContactActionsProvider
-      state={state}
-      dispatch={dispatch}
-      onSelectConversation={(chatId) => dispatch({ type: 'select-chat', chatId })}
-    >
-      <ContactMessage media={media} />
-      <NewChatPage
-        mode={mode}
-        conversations={getConversations(state)}
+    <ConversationDirectoryProvider state={state}>
+      <ContactActionsProvider
         dispatch={dispatch}
-        onBack={() => {}}
-        onSelectChat={(chatId) => dispatch({ type: 'select-chat', chatId })}
-      />
-    </ContactActionsProvider>
+        onSelectConversation={(chatId) => dispatch({ type: 'select-chat', chatId })}
+      >
+        <ContactMessage media={media} />
+        <NewChatPage
+          mode={mode}
+          conversations={getConversations(state)}
+          dispatch={dispatch}
+          onBack={() => {}}
+          onSelectChat={(chatId) => dispatch({ type: 'select-chat', chatId })}
+        />
+      </ContactActionsProvider>
+    </ConversationDirectoryProvider>
   );
 }
 

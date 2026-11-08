@@ -19,11 +19,10 @@ import type { ChatAction } from '@/features/chat/state/chatActions';
 import type { ChatState } from '@/features/chat/state/chatState';
 import type { Conversation } from '@/domain/conversations/conversation';
 import type { Message } from '@/domain/messages/message';
-import { getConversations } from '../state/conversations';
 import { getPhotoMessages } from '@/features/media/photoGallery';
 import { ConversationRemovalDialog } from '@/features/conversations/ConversationDialogs';
 import { useSidebarActions } from '@/features/conversations/useSidebarActions';
-import { useConversationList } from '@/features/conversations/conversationList';
+import { useConversationDirectory } from '@/features/conversations/ConversationDirectory';
 import { ChatSharedMedia } from './ChatSharedMedia';
 import { ChatProfileDialog } from './ChatProfileDialog';
 import styles from './ChatDetails.module.css';
@@ -60,7 +59,6 @@ function getProfileTitle(conversation: Conversation) {
 export function ChatDetails({
   conversation,
   messages,
-  state,
   dispatch,
   isOpen,
   shouldManageFocus = true,
@@ -77,12 +75,9 @@ export function ChatDetails({
   const [isCallOpen, setIsCallOpen] = useState(false);
   const [profileMode, setProfileMode] = useState<'edit' | 'members'>();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const entries = useConversationList(state);
+  const { entries, entriesById, privateConversations } = useConversationDirectory();
   const actions = useSidebarActions({ conversations: entries, dispatch });
-  const entry = entries.find((candidate) => candidate.id === conversation.id);
-  const privateConversations = getConversations(state).filter(
-    (candidate) => candidate.kind === 'private',
-  );
+  const entry = entriesById.get(conversation.id);
   const contacts = privateConversations.filter((candidate) => candidate.isContact !== false);
   // Existing group membership does not depend on whether a peer is in the address book.
   const members = privateConversations.filter((candidate) => {

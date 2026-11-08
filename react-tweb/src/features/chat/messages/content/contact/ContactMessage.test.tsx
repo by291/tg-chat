@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ConversationDirectoryProvider } from '@/features/conversations/ConversationDirectory';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useReducer } from 'react';
@@ -35,32 +36,33 @@ function ContactConversation({
   );
 
   return (
-    <ContactActionsProvider
-      state={state}
-      dispatch={dispatch}
-      onSelectConversation={(chatId) => dispatch({ type: 'select-chat', chatId })}
-    >
-      <ContactCard media={media} />
-      <output aria-label="Active conversation">{activeConversation?.title}</output>
-      <output aria-label="Saved phone">{activeConversation?.phone}</output>
-      <output aria-label="Conversation subtitle">{activeConversation?.subtitle}</output>
-      <output aria-label="Conversation visibility">
-        {state.conversationPreferences?.[state.activeChatId]?.isDeleted ? 'hidden' : 'visible'}
-      </output>
-      <output aria-label="Original group">
-        {getConversations(state).find((conversation) => conversation.id === 'dev')?.kind}
-      </output>
-      <button
-        onClick={() => {
-          const restored = parseSavedState(JSON.parse(JSON.stringify(state)));
-          if (restored) {
-            dispatch({ type: 'restore', state: restored });
-          }
-        }}
+    <ConversationDirectoryProvider state={state}>
+      <ContactActionsProvider
+        dispatch={dispatch}
+        onSelectConversation={(chatId) => dispatch({ type: 'select-chat', chatId })}
       >
-        Restore saved state
-      </button>
-    </ContactActionsProvider>
+        <ContactCard media={media} />
+        <output aria-label="Active conversation">{activeConversation?.title}</output>
+        <output aria-label="Saved phone">{activeConversation?.phone}</output>
+        <output aria-label="Conversation subtitle">{activeConversation?.subtitle}</output>
+        <output aria-label="Conversation visibility">
+          {state.conversationPreferences?.[state.activeChatId]?.isDeleted ? 'hidden' : 'visible'}
+        </output>
+        <output aria-label="Original group">
+          {getConversations(state).find((conversation) => conversation.id === 'dev')?.kind}
+        </output>
+        <button
+          onClick={() => {
+            const restored = parseSavedState(JSON.parse(JSON.stringify(state)));
+            if (restored) {
+              dispatch({ type: 'restore', state: restored });
+            }
+          }}
+        >
+          Restore saved state
+        </button>
+      </ContactActionsProvider>
+    </ConversationDirectoryProvider>
   );
 }
 

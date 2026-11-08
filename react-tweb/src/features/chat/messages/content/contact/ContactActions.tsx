@@ -1,10 +1,16 @@
-import { createContext, useContext, type Dispatch, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  type Dispatch,
+  type ReactNode,
+} from 'react';
 import { CURRENT_USER_ID } from '@/domain/identity';
 import { type ChatAction } from '@/features/chat/state/chatActions';
-import { type ChatState } from '@/features/chat/state/chatState';
 import { type Conversation } from '@/domain/conversations/conversation';
 import type { ContactMedia } from '@/domain/messages/media';
-import { getConversations } from '../../../state/conversations';
+import { useConversationDirectory } from '@/features/conversations/ConversationDirectory';
 
 // prettier-ignore
 const AVATAR_COLORS = [
@@ -30,7 +36,6 @@ interface ContactActions {
 }
 
 interface ContactActionsProviderProps {
-  state: ChatState;
   dispatch: Dispatch<ChatAction>;
   onSelectConversation: (chatId: string) => void;
   children: ReactNode;
@@ -64,67 +69,89 @@ function createContactConversation(media: ContactMedia): Conversation {
 
 /** Connect shared contact controls to the application's persisted local conversations. */
 export function ContactActionsProvider({
-  state,
   dispatch,
   onSelectConversation,
   children,
 }: ContactActionsProviderProps) {
-  const conversations = getConversations(state);
+  const { conversations } = useConversationDirectory();
 
-  function getConversation(userId: string) {
-    if (userId === CURRENT_USER_ID) {
-      return conversations.find((conversation) => conversation.kind === 'saved');
-    }
-    return conversations.find((conversation) => {
-      const isMatchingPeer = conversation.id === userId || conversation.id === `contact:${userId}`;
-      return conversation.kind === 'private' && isMatchingPeer;
-    });
-  }
+  const getConversation = useCallback(
+    (userId: string) => {
+      if (userId === CURRENT_USER_ID) {
+        return conversations.find((conversation) => conversation.kind === 'saved');
+      }
+      return conversations.find((conversation) => {
+        const isMatchingPeer =
+          conversation.id === userId || conversation.id === `contact:${userId}`;
+        return conversation.kind === 'private' && isMatchingPeer;
+      });
+    },
+    [conversations],
+  );
 
-  function openConversation(media: ContactMedia) {
-    if (!media.userId) {
-      return;
-    }
-    let conversation = getConversation(media.userId);
-    if (!conversation) {
-      // Create before selecting so the next render can resolve the selected conversation.
-      conversation = createContactConversation(media);
-      dispatch({ type: 'save-conversation', conversation });
-    }
-    onSelectConversation(conversation.id);
-  }
+  const openConversation = useCallback(
+    (media: ContactMedia) => {
+      if (!media.userId) {
+        return;
+      }
+      let conversation = getConversation(media.userId);
+      if (!conversation) {
+        // Create before selecting so the next render can resolve the selected conversation.
+        conversation = createContactConversation(media);
+        dispatch({ type: 'save-conversation', conversation });
+      }
+      onSelectConversation(conversation.id);
+    },
+    // prettier-ignore
+    [
+      getConversation,
+      dispatch,
+      onSelectConversation,
+    ],
+  );
 
-  function saveContact({ media, firstName, lastName, phone }: SaveContactOptions) {
-    if (!media.userId || media.userId === CURRENT_USER_ID) {
-      return;
-    }
-    const conversation = getConversation(media.userId) ?? createContactConversation(media);
-    const title = `${firstName.trim()} ${lastName.trim()}`.trim();
-    const initials = `${firstName.trim().slice(0, 1)}${lastName.trim().slice(0, 1)}`.toUpperCase();
-    const normalizedPhone = phone.trim();
-    const hasPhoneSubtitle = conversation.subtitle === (conversation.phone || 'Contact');
-    const subtitle = hasPhoneSubtitle ? normalizedPhone : conversation.subtitle;
-    dispatch({
-      type: 'save-conversation',
-      conversation: {
-        ...conversation,
-        title,
-        initials,
-        phone: normalizedPhone,
-        subtitle,
-        isContact: true,
-      },
-    });
-  }
+  const saveContact = useCallback(
+    ({ media, firstName, lastName, phone }: SaveContactOptions) => {
+      if (!media.userId || media.userId === CURRENT_USER_ID) {
+        return;
+      }
+      const conversation = getConversation(media.userId) ?? createContactConversation(media);
+      const title = `${firstName.trim()} ${lastName.trim()}`.trim();
+      const initials =
+        `${firstName.trim().slice(0, 1)}${lastName.trim().slice(0, 1)}`.toUpperCase();
+      const normalizedPhone = phone.trim();
+      const hasPhoneSubtitle = conversation.subtitle === (conversation.phone || 'Contact');
+      const subtitle = hasPhoneSubtitle ? normalizedPhone : conversation.subtitle;
+      dispatch({
+        type: 'save-conversation',
+        conversation: {
+          ...conversation,
+          title,
+          initials,
+          phone: normalizedPhone,
+          subtitle,
+          isContact: true,
+        },
+      });
+    },
+    [getConversation, dispatch],
+  );
+  const contactActions = useMemo(
+    () => ({
+      getConversation,
+      openConversation,
+      saveContact,
+    }),
+    // prettier-ignore
+    [
+      getConversation,
+      openConversation,
+      saveContact,
+    ],
+  );
 
   return (
-    <ContactActionsContext.Provider
-      value={{
-        getConversation,
-        openConversation,
-        saveContact,
-      }}
-    >
+    <ContactActionsContext.Provider value={contactActions}>
       {children}
     </ContactActionsContext.Provider>
   );

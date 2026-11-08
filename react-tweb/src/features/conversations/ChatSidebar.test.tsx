@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ConversationDirectoryProvider } from '@/features/conversations/ConversationDirectory';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
@@ -7,6 +8,7 @@ import { chatReducer } from '@/features/chat/state/reducer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '@/features/chat/demo/fixtures';
 import type { ChatState } from '@/features/chat/state/chatState';
+import { indexConversationMessages } from './conversationMessages';
 import { ChatSidebar } from './ChatSidebar';
 
 // Theme artwork requires browser asset decoding, outside sidebar navigation behavior.
@@ -50,13 +52,16 @@ function SidebarTestScreen({ initialState }: SidebarTestScreenProps) {
 
   return (
     <MemoryRouter>
-      <ChatSidebar
-        state={state}
-        dispatch={dispatch}
-        onSelectChat={(chatId) => dispatch({ type: 'select-chat', chatId })}
-        onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
-      />
-      <output aria-label="Selected conversation">{state.activeChatId}</output>
+      <ConversationDirectoryProvider state={state}>
+        <ChatSidebar
+          messageIndex={indexConversationMessages(state.messages)}
+          state={state}
+          dispatch={dispatch}
+          onSelectChat={(chatId) => dispatch({ type: 'select-chat', chatId })}
+          onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
+        />
+        <output aria-label="Selected conversation">{state.activeChatId}</output>
+      </ConversationDirectoryProvider>
     </MemoryRouter>
   );
 }

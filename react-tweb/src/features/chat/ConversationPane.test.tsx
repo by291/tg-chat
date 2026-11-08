@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ConversationDirectoryProvider } from '@/features/conversations/ConversationDirectory';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer, useState } from 'react';
@@ -92,7 +93,7 @@ function ConversationTestScreen({
   });
 
   return (
-    <>
+    <ConversationDirectoryProvider state={state}>
       <ConversationPane
         conversation={conversations.find((conversation) => conversation.id === chatId)!}
         state={state}
@@ -107,7 +108,7 @@ function ConversationTestScreen({
         onNotify={setNotice}
       />
       <output>{notice}</output>
-    </>
+    </ConversationDirectoryProvider>
   );
 }
 

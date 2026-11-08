@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ConversationDirectoryProvider } from '@/features/conversations/ConversationDirectory';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
@@ -41,23 +42,27 @@ function DetailsScreen({
   );
   const conversation = conversations.find((candidate) => candidate.id === conversationId)!;
   return (
-    <ChatDetails
-      conversation={conversation}
-      messages={messages ?? state.messages.filter((message) => message.chatId === conversation.id)}
-      state={state}
-      dispatch={dispatch}
-      isOpen
-      isMuted={state.conversationPreferences?.dev?.isMuted ?? false}
-      onToggleMute={() =>
-        dispatch({
-          type: 'update-conversations',
-          chatIds: ['dev'],
-          changes: { isMuted: !state.conversationPreferences?.dev?.isMuted },
-        })
-      }
-      onClose={() => {}}
-      onOpenMedia={() => {}}
-    />
+    <ConversationDirectoryProvider state={state}>
+      <ChatDetails
+        conversation={conversation}
+        messages={
+          messages ?? state.messages.filter((message) => message.chatId === conversation.id)
+        }
+        state={state}
+        dispatch={dispatch}
+        isOpen
+        isMuted={state.conversationPreferences?.dev?.isMuted ?? false}
+        onToggleMute={() =>
+          dispatch({
+            type: 'update-conversations',
+            chatIds: ['dev'],
+            changes: { isMuted: !state.conversationPreferences?.dev?.isMuted },
+          })
+        }
+        onClose={() => {}}
+        onOpenMedia={() => {}}
+      />
+    </ConversationDirectoryProvider>
   );
 }
 
