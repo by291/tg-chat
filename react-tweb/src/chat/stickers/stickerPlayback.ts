@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'react-tweb.sticker-playback.v1';
 
 export type StickerPlaybackGroup = 'default' | 'panel' | 'pack' | 'preview';
-type AnimationPlaybackGroup = StickerPlaybackGroup | 'viewer';
+type AnimationPlaybackGroup = StickerPlaybackGroup | 'viewer' | 'theme';
 
 interface PlaybackState {
   isWindowActive: boolean;
@@ -69,6 +69,10 @@ function observeEnvironment() {
 
 function synchronizeExclusiveGroup() {
   const groups = Array.from(exclusiveGroups.values());
+  if (groups.includes('theme')) {
+    updatePlaybackState({ exclusiveGroup: 'theme' });
+    return;
+  }
   // The full-screen viewer hides every chat and sticker overlay beneath it.
   if (groups.includes('viewer')) {
     updatePlaybackState({ exclusiveGroup: 'viewer' });

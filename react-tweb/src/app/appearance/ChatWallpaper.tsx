@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { ThemeChoice, ThemeVariant } from './appearanceStore';
 import { getWallpaperAppearance } from './themeCatalog';
-import { readWallpaperImage } from './wallpaperImages';
+import { acquireWallpaperImage, getPreparedWallpaperUrl } from './wallpaperImageResources';
 import { showToast } from '../../components/toastStore';
 import { WallpaperGradient } from './WallpaperGradient';
 import styles from './ChatWallpaper.module.css';
@@ -13,39 +13,31 @@ export function ChatWallpaper({ variant, choice }: { variant: ThemeVariant; choi
   const [image, setImage] = useState<{ id: string; url: string }>();
   const appearance = getWallpaperAppearance({ variant, choice });
   const isBlurred = wallpaper?.kind === 'image' && wallpaper.isBlurred;
-  const imageUrl = image?.id === imageId ? image?.url : undefined;
+  const previousUrl = image?.id === imageId ? image?.url : undefined;
+  const imageUrl = getPreparedWallpaperUrl(imageId) ?? previousUrl;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!imageId) {
       return;
     }
     const requestedImageId = imageId;
+    const resource = acquireWallpaperImage(requestedImageId);
     let isCancelled = false;
-    let objectUrl: string | undefined;
-    async function loadImage() {
-      try {
-        const blob = await readWallpaperImage(requestedImageId);
-        if (isCancelled) {
-          return;
+    void resource.ready
+      .then(() => {
+        const url = getPreparedWallpaperUrl(requestedImageId);
+        if (!isCancelled && url) {
+          setImage({ id: requestedImageId, url });
         }
-        if (!blob) {
-          throw new Error('Wallpaper unavailable');
-        }
-        objectUrl = URL.createObjectURL(blob);
-        setImage({ id: requestedImageId, url: objectUrl });
-      } catch {
+      })
+      .catch(() => {
         if (!isCancelled) {
           showToast('This wallpaper is unavailable. Choose another image or reset the background.');
         }
-      }
-    }
-    void loadImage();
+      });
     return () => {
-      // A late IndexedDB result must not install a stale image after a theme change.
       isCancelled = true;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
+      resource.release();
     };
   }, [imageId]);
 

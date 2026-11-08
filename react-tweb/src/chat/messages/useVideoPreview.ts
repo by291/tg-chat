@@ -109,12 +109,13 @@ export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOpt
       policy.isReducedMotion ||
       Boolean(policy.exclusiveGroup) ||
       isRoundPlaying);
-  const isViewerBlockingPlayback = policy.exclusiveGroup === 'viewer';
+  const isOverlayBlockingPlayback =
+    policy.exclusiveGroup === 'viewer' || policy.exclusiveGroup === 'theme';
   const canPlayAudibly =
     isVisible &&
     policy.isWindowActive &&
     !isViewerOpen &&
-    !isViewerBlockingPlayback &&
+    !isOverlayBlockingPlayback &&
     Boolean(source);
   const canPlay = canPlayAudibly && !isPreviewBlocked;
 

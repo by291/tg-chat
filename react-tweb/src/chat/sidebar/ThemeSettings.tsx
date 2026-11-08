@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from 'react';
-import { updateThemeChoice, type ThemeChoice } from '../../app/appearance/appearanceStore';
+import type { ThemeChoice } from '../../app/appearance/appearanceStore';
+import { selectAppearanceMode, selectThemeChoice } from '../../app/appearance/appearanceActions';
 import {
   ACCENT_COLORS,
   getThemePalette,
@@ -7,11 +8,7 @@ import {
   THEME_CARDS,
   THEME_VARIANTS,
 } from '../../app/appearance/themeCatalog';
-import {
-  selectAppearanceMode,
-  useResolvedAppearance,
-} from '../../app/appearance/useAppearanceTheme';
-import { showToast } from '../../components/toastStore';
+import { useResolvedAppearance } from '../../app/appearance/useAppearanceTheme';
 import { WallpaperGradient } from '../../app/appearance/WallpaperGradient';
 import { SettingsRadio } from './SettingsControls';
 import settings from './SettingsPage.module.css';
@@ -80,7 +77,6 @@ function movePickerFocus(event: KeyboardEvent<HTMLDivElement>) {
 /** Select bundled color themes and brightness modes using Telegram's compact preview strip. */
 export function ThemeSettings() {
   const { appearance, variant, choice } = useResolvedAppearance();
-  const sectionRef = useRef<HTMLElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -92,13 +88,11 @@ export function ThemeSettings() {
   }, [variant]);
 
   function applyChoice(changes: Partial<ThemeChoice>) {
-    if (!updateThemeChoice({ variant, changes })) {
-      showToast('Appearance changed, but could not be saved on this device.');
-    }
+    void selectThemeChoice({ variant, changes });
   }
 
   return (
-    <section ref={sectionRef} className={settings.section} aria-label="Color theme">
+    <section className={settings.section} aria-label="Color theme">
       <h3>Color theme</h3>
       <div
         className={styles.themeStrip}
@@ -130,13 +124,13 @@ export function ThemeSettings() {
               style={previewStyle}
               aria-label={`${theme.label} theme`}
               aria-pressed={isSelected}
-              onClick={() =>
+              onClick={() => {
                 applyChoice({
                   themeId: previewChoice.themeId,
                   accent: null,
                   wallpaper: null,
-                })
-              }
+                });
+              }}
             >
               <WallpaperGradient colors={wallpaper.colors} />
               <span className={styles.previewOutgoing} />
@@ -156,13 +150,7 @@ export function ThemeSettings() {
             name="color-theme"
             value={mode.id}
             isChecked={appearance.mode === mode.id}
-            onChange={() => {
-              const bounds = sectionRef.current?.getBoundingClientRect();
-              const origin = bounds
-                ? { left: bounds.left + bounds.width / 2, top: bounds.top }
-                : undefined;
-              selectAppearanceMode(mode.id, origin);
-            }}
+            onChange={() => void selectAppearanceMode(mode.id)}
           />
         ))}
       </div>

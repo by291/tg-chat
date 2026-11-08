@@ -3,16 +3,13 @@ import {
   getOppositeMode,
   migrateLegacyAppearance,
   resolveThemeVariant,
-  setAppearanceMode,
   useAppearance,
-  type AppearanceMode,
 } from './appearanceStore';
-import { getThemePalette, isDarkVariant } from './themeCatalog';
-import { runThemeTransition, type ThemeOrigin } from '../useThemeTransition';
-import { showToast } from '../../components/toastStore';
+import { getThemePalette } from './themeCatalog';
+import type { ThemeOrigin } from '../useThemeTransition';
+import { selectAppearanceMode } from './appearanceActions';
 
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
-let selectionGeneration = 0;
 
 function subscribeSystemTheme(notify: () => void) {
   const query = window.matchMedia(SYSTEM_DARK_QUERY);
@@ -34,28 +31,6 @@ export function useResolvedAppearance() {
     variant,
     choice: appearance.choices[variant],
   };
-}
-
-/** Apply a mode through the same circular reveal used by the sidebar's dark-mode control. */
-export function selectAppearanceMode(mode: AppearanceMode, origin?: ThemeOrigin) {
-  selectionGeneration += 1;
-  const generation = selectionGeneration;
-  const nextVariant = resolveThemeVariant({ mode, isSystemDark: getSystemTheme() });
-  const isDark = document.documentElement.dataset.theme === 'dark';
-  const apply = () => {
-    // Browser snapshot callbacks can arrive after a newer nonanimated mode selection.
-    if (generation !== selectionGeneration) {
-      return;
-    }
-    if (!setAppearanceMode(mode)) {
-      showToast('Appearance changed, but could not be saved on this device.');
-    }
-  };
-  if (isDark === isDarkVariant(nextVariant)) {
-    apply();
-    return;
-  }
-  void runThemeTransition({ isDark, apply, origin });
 }
 
 /** Own the document palette and migrate the old dark preference after chat hydration. */

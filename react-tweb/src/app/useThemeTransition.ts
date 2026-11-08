@@ -1,4 +1,5 @@
 import { flushSync } from 'react-dom';
+import { reserveAnimationPlayback } from '../chat/stickers/stickerPlayback';
 
 const REVEAL_DURATION = 600;
 const CONCEAL_DURATION = 500;
@@ -14,6 +15,7 @@ export interface ThemeOrigin {
 interface ThemeTransitionOptions {
   isDark: boolean;
   apply: () => void;
+  prepare?: () => Promise<() => void>;
   origin?: ThemeOrigin;
 }
 
@@ -34,47 +36,100 @@ function getRevealFrames(origin: ThemeOrigin): Keyframe[] {
 }
 
 let activeTransition: ViewTransition | undefined;
+let selectionGeneration = 0;
 
-/** Reveal a new dark palette or shrink the old one while applying the requested theme once. */
-export async function runThemeTransition({ isDark, apply, origin }: ThemeTransitionOptions) {
-  if (activeTransition) {
-    activeTransition.skipTransition();
+function animateCircle({ isDark, origin }: { isDark: boolean; origin: ThemeOrigin }) {
+  const frames = getRevealFrames(origin);
+  return document.documentElement.animate(isDark ? frames.reverse() : frames, {
+    duration: isDark ? CONCEAL_DURATION : REVEAL_DURATION,
+    easing: TRANSITION_EASING,
+    pseudoElement: isDark ? '::view-transition-old(root)' : '::view-transition-new(root)',
+    fill: 'forwards',
+  });
+}
+
+async function animateThemeChange({
+  isDark,
+  commit,
+  origin,
+}: {
+  isDark: boolean;
+  commit: () => void;
+  origin?: ThemeOrigin;
+}) {
+  const root = document.documentElement;
+  let effect = 'fade';
+  if (origin) {
+    effect = isDark ? 'conceal' : 'reveal';
   }
-  const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!document.startViewTransition || shouldReduceMotion) {
-    apply();
+  root.dataset.themeTransition = effect;
+  const releasePlayback = reserveAnimationPlayback('theme');
+  let transition: ViewTransition;
+  try {
+    transition = document.startViewTransition(commit);
+  } catch {
+    delete root.dataset.themeTransition;
+    releasePlayback();
+    commit();
     return;
   }
-
-  const root = document.documentElement;
-  const revealOrigin = origin ?? { left: window.innerWidth / 2, top: window.innerHeight / 2 };
-  root.dataset.themeTransition = isDark ? 'conceal' : 'reveal';
-  // React must commit the new document palette before the second browser snapshot.
-  const transition = document.startViewTransition(() => flushSync(apply));
   activeTransition = transition;
   const timeout = window.setTimeout(() => transition.skipTransition(), TRANSITION_TIMEOUT);
   let animation: Animation | undefined;
-
   try {
     await transition.ready;
-    const frames = getRevealFrames(revealOrigin);
-    animation = root.animate(isDark ? frames.reverse() : frames, {
-      duration: isDark ? CONCEAL_DURATION : REVEAL_DURATION,
-      easing: TRANSITION_EASING,
-      pseudoElement: isDark ? '::view-transition-old(root)' : '::view-transition-new(root)',
-      fill: 'forwards',
-    });
+    if (origin && activeTransition === transition) {
+      animation = animateCircle({ isDark, origin });
+    }
     await transition.finished;
   } catch {
-    // Hidden documents and interrupted transitions still commit their requested theme.
     transition.skipTransition();
     await transition.finished.catch(() => {});
   } finally {
     window.clearTimeout(timeout);
     animation?.cancel();
+    releasePlayback();
     if (activeTransition === transition) {
       delete root.dataset.themeTransition;
       activeTransition = undefined;
     }
+  }
+}
+
+/** Coordinate one prepared appearance change with a fade or an explicit circular reveal. */
+export async function runThemeTransition({
+  isDark,
+  apply,
+  prepare,
+  origin,
+}: ThemeTransitionOptions) {
+  selectionGeneration += 1;
+  const generation = selectionGeneration;
+  activeTransition?.skipTransition();
+
+  let releasePrepared: (() => void) | undefined;
+  try {
+    // Keep the old view interactive while a new image loads; never snapshot a placeholder.
+    if (prepare) {
+      releasePrepared = await prepare();
+    }
+    if (generation !== selectionGeneration) {
+      return;
+    }
+
+    const commit = () => {
+      // Skipped browser transitions can still invoke their update callbacks later.
+      if (generation === selectionGeneration) {
+        flushSync(apply);
+      }
+    };
+    const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!document.startViewTransition || shouldReduceMotion) {
+      commit();
+      return;
+    }
+    await animateThemeChange({ isDark, commit, origin });
+  } finally {
+    releasePrepared?.();
   }
 }

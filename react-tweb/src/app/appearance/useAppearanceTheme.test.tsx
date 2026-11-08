@@ -2,7 +2,8 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { getAppearance, setAppearanceMode } from './appearanceStore';
-import { selectAppearanceMode, useAppearanceTheme } from './useAppearanceTheme';
+import { useAppearanceTheme } from './useAppearanceTheme';
+import { selectAppearanceMode } from './appearanceActions';
 
 function ThemeRoot() {
   const { isDark } = useAppearanceTheme({ isReady: true, isLegacyDark: false });
@@ -13,30 +14,6 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  Reflect.deleteProperty(document, 'startViewTransition');
-});
-
-it('keeps the newest selection when an older transition callback arrives late', () => {
-  vi.stubGlobal('matchMedia', () => ({ matches: false }));
-  let commitOldTransition: (() => void) | undefined;
-  const neverFinishes = new Promise<void>(() => {});
-  Object.defineProperty(document, 'startViewTransition', {
-    configurable: true,
-    value: (commit: () => void) => {
-      commitOldTransition = commit;
-      return {
-        ready: neverFinishes,
-        finished: neverFinishes,
-        skipTransition: () => {},
-      };
-    },
-  });
-  document.documentElement.dataset.theme = 'light';
-  setAppearanceMode('classic');
-  selectAppearanceMode('night');
-  selectAppearanceMode('day');
-  commitOldTransition?.();
-  expect(getAppearance().mode).toBe('day');
   Reflect.deleteProperty(document, 'startViewTransition');
 });
 

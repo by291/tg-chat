@@ -160,8 +160,8 @@ textarea::placeholder {
   background: rgb(184 90 208 / 25%);
 }
 
-:root[data-theme-transition]::view-transition-old(root),
-:root[data-theme-transition]::view-transition-new(root) {
+:root[data-theme-transition]:not([data-theme-transition='fade'])::view-transition-old(root),
+:root[data-theme-transition]:not([data-theme-transition='fade'])::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
@@ -184,4 +184,9 @@ textarea::placeholder {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+:root[data-theme-transition='fade']::view-transition-group(root) {
+  animation-duration: 250ms;
+  animation-timing-function: ease;
 }

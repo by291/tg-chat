@@ -1,10 +1,7 @@
 import { ImagePlus, Palette, RotateCcw } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
-import {
-  getAppearance,
-  updateThemeChoice,
-  type ThemeChoice,
-} from '../../app/appearance/appearanceStore';
+import { getAppearance, type ThemeChoice } from '../../app/appearance/appearanceStore';
+import { selectThemeChoice } from '../../app/appearance/appearanceActions';
 import { WallpaperGradient } from '../../app/appearance/WallpaperGradient';
 import {
   getThemePalette,
@@ -44,9 +41,7 @@ export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
   const wallpaper = choice.wallpaper;
 
   function applyWallpaper(next: ThemeChoice['wallpaper']) {
-    if (!updateThemeChoice({ variant, changes: { wallpaper: next } })) {
-      showToast('Background changed, but could not be saved on this device.');
-    }
+    return selectThemeChoice({ variant, changes: { wallpaper: next } });
   }
 
   async function uploadWallpaper(event: ChangeEvent<HTMLInputElement>) {
@@ -63,7 +58,7 @@ export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
         await discardWallpaperImage(imageId);
         return;
       }
-      applyWallpaper({
+      await applyWallpaper({
         kind: 'image',
         imageId,
         isBlurred: false,
@@ -178,9 +173,7 @@ function WallpaperColorPage({ onBack }: { onBack: () => void }) {
     if (!/^#[\da-f]{6}$/i.test(next)) {
       return;
     }
-    if (!updateThemeChoice({ variant, changes: { wallpaper: { kind: 'color', color: next } } })) {
-      showToast('Background changed, but could not be saved on this device.');
-    }
+    void selectThemeChoice({ variant, changes: { wallpaper: { kind: 'color', color: next } } });
   }
 
   return (
