@@ -609,6 +609,13 @@
   position: relative;
 }
 
+.virtualSearchResult {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 56px;
+}
+
 .virtualConversation {
   position: absolute;
   left: 0;

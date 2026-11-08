@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConversationListEntry } from '../conversationList';
 
 type SearchScope = 'all' | 'archive';
@@ -23,12 +23,26 @@ export function useSidebarSearch({
   const shouldRestoreFocus = useRef(false);
   const shouldFocusArchiveSearch = useRef(false);
   const normalizedQuery = query.trim().toLowerCase();
-  const matchingConversations = conversations.filter((conversation) => {
-    if (scope === 'archive' && !conversation.isArchived) {
-      return false;
-    }
-    return conversation.title.toLowerCase().includes(normalizedQuery);
-  });
+  const matchingConversations = useMemo(
+    () => {
+      if (!isSearching) {
+        return [];
+      }
+      return conversations.filter((conversation) => {
+        if (scope === 'archive' && !conversation.isArchived) {
+          return false;
+        }
+        return conversation.title.toLowerCase().includes(normalizedQuery);
+      });
+    },
+    // prettier-ignore
+    [
+      conversations,
+      isSearching,
+      normalizedQuery,
+      scope,
+    ],
+  );
 
   useEffect(() => {
     if (!isSearching && shouldRestoreFocus.current) {
