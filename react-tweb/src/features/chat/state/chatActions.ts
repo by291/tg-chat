@@ -61,6 +61,10 @@ export type ChatAction =
       message: Message;
     }
   | {
+      type: 'forward-messages';
+      messages: Message[];
+    }
+  | {
       type: 'receive';
       message: Message;
     }
@@ -76,6 +80,11 @@ export type ChatAction =
       type: 'delete';
       chatId: string;
       messageId: string;
+    }
+  | {
+      type: 'delete-messages';
+      chatId: string;
+      messageIds: string[];
     }
   | {
       type: 'react';

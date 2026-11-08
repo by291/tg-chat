@@ -106,9 +106,11 @@ export function useHeaderActions({
   }
 
   function deleteSelectedMessages() {
-    for (const messageId of selectedIds) {
-      dispatch({ type: 'delete', chatId: conversation.id, messageId });
-    }
+    dispatch({
+      type: 'delete-messages',
+      chatId: conversation.id,
+      messageIds: selectedIds,
+    });
     clearSelection();
     setDialog(undefined);
   }

@@ -25,6 +25,55 @@ function assignMessageExpiration({ state, message }: { state: ChatState; message
   return { ...message, expiresAt };
 }
 
+function prepareOutgoingMessages({
+  state,
+  messages,
+}: {
+  state: ChatState;
+  messages: Message[];
+}): Message[] {
+  const knownIds = new Set(state.messages.map((message) => message.id));
+  const acceptedMessages: Message[] = [];
+
+  for (const message of messages) {
+    if (knownIds.has(message.id)) {
+      continue;
+    }
+    const content = trimEmojiText(message);
+    const hasContent = Boolean(
+      content.text || content.richText || message.attachment || message.sticker || message.media,
+    );
+    if (!hasContent) {
+      continue;
+    }
+
+    knownIds.add(message.id);
+    acceptedMessages.push({
+      ...assignMessageExpiration({ state, message }),
+      ...content,
+    });
+  }
+
+  return acceptedMessages;
+}
+
+function deleteMessages({
+  state,
+  chatId,
+  messageIds,
+}: {
+  state: ChatState;
+  chatId: string;
+  messageIds: string[];
+}): ChatState {
+  const selectedIds = new Set(messageIds);
+  const messages = state.messages.filter((message) => {
+    return message.chatId !== chatId || !selectedIds.has(message.id);
+  });
+
+  return messages.length === state.messages.length ? state : { ...state, messages };
+}
+
 function updateMessage(message: Message, action: MessageChange): Message {
   const isTarget = message.id === action.messageId && message.chatId === action.chatId;
   if (!isTarget) {
@@ -140,30 +189,28 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           [action.chatId]: action.customEmoji ?? [],
         },
       };
-    case 'forward':
-    case 'send': {
-      const message = assignMessageExpiration({ state, message: action.message });
-      const content = trimEmojiText(message);
-      const hasContent = Boolean(
-        content.text || content.richText || message.attachment || message.sticker || message.media,
-      );
-      const isDuplicate = state.messages.some((entry) => entry.id === message.id);
-      if (!hasContent || isDuplicate) {
+    case 'forward-messages':
+    case 'forward': {
+      const messages = action.type === 'forward-messages' ? action.messages : [action.message];
+      const acceptedMessages = prepareOutgoingMessages({ state, messages });
+      if (!acceptedMessages.length) {
         return state;
       }
 
-      // Forwarding into another conversation must not consume that conversation's saved draft.
-      const shouldPreserveDraft = action.type === 'forward' || Boolean(message.sticker);
+      // The recipient's saved draft belongs to its composer, not the forwarding dialog.
+      return { ...state, messages: [...state.messages, ...acceptedMessages] };
+    }
+    case 'send': {
+      const [message] = prepareOutgoingMessages({ state, messages: [action.message] });
+      if (!message) {
+        return state;
+      }
+
+      const shouldPreserveDraft = Boolean(message.sticker);
       const drafts = shouldPreserveDraft ? state.drafts : { ...state.drafts, [message.chatId]: '' };
       return {
         ...state,
-        messages: [
-          ...state.messages,
-          {
-            ...message,
-            ...content,
-          },
-        ],
+        messages: [...state.messages, message],
         draftCustomEmoji: shouldPreserveDraft
           ? state.draftCustomEmoji
           : { ...state.draftCustomEmoji, [message.chatId]: [] },
@@ -179,12 +226,17 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         message: assignMessageExpiration({ state, message: action.message }),
       });
     case 'delete':
-      return {
-        ...state,
-        messages: state.messages.filter((message) => {
-          return message.id !== action.messageId || message.chatId !== action.chatId;
-        }),
-      };
+      return deleteMessages({
+        state,
+        chatId: action.chatId,
+        messageIds: [action.messageId],
+      });
+    case 'delete-messages':
+      return deleteMessages({
+        state,
+        chatId: action.chatId,
+        messageIds: action.messageIds,
+      });
     case 'edit':
     case 'react':
     case 'pin':

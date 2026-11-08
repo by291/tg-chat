@@ -22,6 +22,7 @@ export function forwardMessages({
   customEmoji,
   dispatch,
 }: ForwardMessagesOptions) {
+  const forwardedMessages: Message[] = [];
   const captionContent = trimEmojiText({
     text: caption ?? '',
     richText,
@@ -29,39 +30,37 @@ export function forwardMessages({
   });
   if (captionContent.text || captionContent.richText) {
     // The recipient's existing draft belongs to its composer, not the share dialog.
-    dispatch({
-      type: 'forward',
-      message: {
-        id: crypto.randomUUID(),
-        chatId,
-        authorId: CURRENT_USER_ID,
-        authorName: 'You',
-        ...captionContent,
-        createdAt: Date.now(),
-        reactions: [],
-      },
+    forwardedMessages.push({
+      id: crypto.randomUUID(),
+      chatId,
+      authorId: CURRENT_USER_ID,
+      authorName: 'You',
+      ...captionContent,
+      createdAt: Date.now(),
+      reactions: [],
     });
   }
 
   for (const source of messages) {
-    dispatch({
-      type: 'forward',
-      message: {
-        id: crypto.randomUUID(),
-        chatId,
-        authorId: CURRENT_USER_ID,
-        authorName: 'You',
-        text: source.text,
-        richText: source.richText,
-        customEmoji: source.customEmoji,
-        attachment: source.attachment,
-        media: source.media,
-        sticker: source.sticker,
-        textStyle: source.textStyle,
-        forwardedFrom: source.forwardedFrom ?? source.authorName,
-        createdAt: Date.now(),
-        reactions: [],
-      },
+    forwardedMessages.push({
+      id: crypto.randomUUID(),
+      chatId,
+      authorId: CURRENT_USER_ID,
+      authorName: 'You',
+      text: source.text,
+      richText: source.richText,
+      customEmoji: source.customEmoji,
+      attachment: source.attachment,
+      media: source.media,
+      sticker: source.sticker,
+      textStyle: source.textStyle,
+      forwardedFrom: source.forwardedFrom ?? source.authorName,
+      createdAt: Date.now(),
+      reactions: [],
     });
+  }
+
+  if (forwardedMessages.length) {
+    dispatch({ type: 'forward-messages', messages: forwardedMessages });
   }
 }
