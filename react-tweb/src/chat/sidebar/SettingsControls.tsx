@@ -13,6 +13,8 @@ interface SettingsRangeProps {
   minimum: number;
   maximum: number;
   onChange: (value: number) => void;
+  onChangeEnd?: (value: number) => void;
+  unit?: string;
 }
 
 interface SettingsRadioProps {
@@ -44,6 +46,7 @@ interface SettingsSwitchProps {
   icon?: LucideIcon;
   color?: string;
   isChecked: boolean;
+  isDisabled?: boolean;
   onChange: (options: { isChecked: boolean }) => void;
 }
 
@@ -80,6 +83,7 @@ export function SettingsSwitch({
   icon: Icon,
   color,
   isChecked,
+  isDisabled = false,
   onChange,
 }: SettingsSwitchProps) {
   return (
@@ -87,6 +91,7 @@ export function SettingsSwitch({
       className={styles.row}
       data-has-icon={Boolean(Icon)}
       checked={isChecked}
+      disabled={isDisabled}
       onCheckedChange={({ checked }) => onChange({ isChecked: checked })}
     >
       {Icon && (
@@ -105,14 +110,25 @@ export function SettingsSwitch({
 }
 
 /** Render a precise slider while the native input owns dragging and keyboard increments. */
-export function SettingsRange({ label, value, minimum, maximum, onChange }: SettingsRangeProps) {
+export function SettingsRange({
+  label,
+  value,
+  minimum,
+  maximum,
+  onChange,
+  onChangeEnd,
+  unit = '',
+}: SettingsRangeProps) {
   const progress = ((value - minimum) / (maximum - minimum)) * PERCENTAGE_SCALE;
   const rangeStyle = { '--range-progress': `${progress}%` } as CSSProperties;
   return (
     <label className={styles.range}>
       <span className={styles.rangeDetails}>
         <span>{label}</span>
-        <output>{value}</output>
+        <output>
+          {value}
+          {unit}
+        </output>
       </span>
       <span className={styles.rangeTrack} style={rangeStyle}>
         <input
@@ -124,6 +140,14 @@ export function SettingsRange({ label, value, minimum, maximum, onChange }: Sett
           step={1}
           value={value}
           onChange={(event) => onChange(event.target.valueAsNumber)}
+          onPointerUp={(event) => onChangeEnd?.(event.currentTarget.valueAsNumber)}
+          onKeyUp={(event) => {
+            const isRangeKey =
+              event.key.startsWith('Arrow') || event.key === 'Home' || event.key === 'End';
+            if (isRangeKey) {
+              onChangeEnd?.(event.currentTarget.valueAsNumber);
+            }
+          }}
         />
         <span className={styles.rangeFilled} aria-hidden="true" />
       </span>

@@ -73,6 +73,11 @@
   cursor: pointer;
 }
 
+.row[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 :global(:where(:root[data-touch-supported='false'])) .row:is(:hover, :active) {
   background: var(--hover-color);
 }
@@ -473,4 +478,8 @@
 }
 .nestedControls {
   padding-inline-start: 20px;
+}
+
+.icon[data-color='red'] {
+  background: linear-gradient(145deg, #ff7775, #ed4249);
 }

@@ -1,4 +1,4 @@
-import { Keyboard, Search, Settings, Sticker, X } from 'lucide-react';
+import { Bell, Keyboard, Search, Settings, Sticker, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -9,9 +9,17 @@ import { useClosingDialogValue } from './useClosingDialogValue';
 import { DEMO_PROFILE } from '../demo/profile';
 import { SettingsAccountDetails } from './SettingsAccountDetails';
 import { SettingsProfile } from './SettingsProfile';
+import { NotificationSettingsPage, type NotificationChatActions } from './NotificationSettingsPage';
 import styles from './SettingsPage.module.css';
 
 const SETTINGS_CATEGORIES = [
+  {
+    id: 'notifications',
+    label: 'Notifications and Sounds',
+    keywords: 'alerts desktop push offline volume sound preview mute exceptions',
+    icon: Bell,
+    color: 'red',
+  },
   {
     id: 'general',
     label: 'General Settings',
@@ -38,12 +46,12 @@ const SETTINGS_CATEGORIES = [
 
 type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number]['id'];
 
-interface SettingsPageProps {
+interface SettingsPageProps extends NotificationChatActions {
   onBack: () => void;
 }
 
 /** Browse supported preferences without replacing the conversation or losing sidebar state. */
-export function SettingsPage({ onBack }: SettingsPageProps) {
+export function SettingsPage({ onBack, ...notificationActions }: SettingsPageProps) {
   const [category, setCategory] = useState<SettingsCategory>();
   const closingCategory = useClosingDialogValue(category);
   const [isSearching, setIsSearching] = useState(false);
@@ -74,7 +82,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   }
 
   let detailPage = <GeneralSettingsPage onBack={() => setCategory(undefined)} />;
-  if (closingCategory === 'stickers') {
+  if (closingCategory === 'notifications') {
+    detailPage = (
+      <NotificationSettingsPage {...notificationActions} onBack={() => setCategory(undefined)} />
+    );
+  } else if (closingCategory === 'stickers') {
     detailPage = <StickerSettingsPage onBack={() => setCategory(undefined)} />;
   } else if (closingCategory === 'shortcuts') {
     detailPage = <KeyboardSettingsPage onBack={() => setCategory(undefined)} />;

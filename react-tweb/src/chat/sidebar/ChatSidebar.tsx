@@ -448,7 +448,24 @@ export function ChatSidebar({
                   onSave={archive.saveSettings}
                 />
               ) : (
-                <SettingsPage onBack={() => setIsSettingsOpen(false)} />
+                <SettingsPage
+                  onBack={() => setIsSettingsOpen(false)}
+                  conversations={conversations}
+                  onSetMuted={({ chatId, isMuted }) =>
+                    dispatch({
+                      type: 'update-conversations',
+                      chatIds: [chatId],
+                      changes: { isMuted, mutedUntil: 0 },
+                    })
+                  }
+                  onResetMutes={() =>
+                    dispatch({
+                      type: 'update-conversations',
+                      chatIds: conversations.map((entry) => entry.id),
+                      changes: { isMuted: false, mutedUntil: 0 },
+                    })
+                  }
+                />
               )
             }
           />
