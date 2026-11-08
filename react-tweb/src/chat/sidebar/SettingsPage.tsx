@@ -1,6 +1,5 @@
 import { Keyboard, Search, Settings, Sticker, X } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Avatar } from '../../components/Avatar';
 import { IconButton } from '../../components/IconButton';
 import { SidebarNavigation } from './SidebarNavigation';
 import { GeneralSettingsPage } from './GeneralSettingsPage';
@@ -9,6 +8,7 @@ import { SettingsHeader, SettingsRow } from './SettingsControls';
 import { useClosingDialogValue } from './useClosingDialogValue';
 import { DEMO_PROFILE } from '../demo/profile';
 import { SettingsAccountDetails } from './SettingsAccountDetails';
+import { SettingsProfile } from './SettingsProfile';
 import styles from './SettingsPage.module.css';
 
 const SETTINGS_CATEGORIES = [
@@ -82,38 +82,38 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   const overview = (
     <section className={styles.page} aria-label="Settings">
-      <SettingsHeader title="Settings" backLabel="Back from settings" onBack={navigateBack}>
-        <IconButton
-          ref={searchButtonRef}
-          label="Search settings"
-          onClick={() => setIsSearching(true)}
-        >
-          <Search />
-        </IconButton>
-      </SettingsHeader>
-      {isSearching && (
-        <div className={styles.search}>
-          <Search aria-hidden="true" />
-          <input
-            autoFocus
-            aria-label="Search settings"
-            placeholder="Search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <IconButton label="Close settings search" onClick={closeSearch}>
-            <X />
-          </IconButton>
-        </div>
-      )}
-      <div className={styles.scrollContent}>
-        {!isSearching && (
-          <div className={styles.profile}>
-            <Avatar initials="Y" color="purple" size="large" />
-            <h3>You</h3>
-            <p>online</p>
-          </div>
-        )}
+      <SettingsProfile
+        identity={DEMO_PROFILE}
+        isSearching={isSearching}
+        header={
+          <SettingsHeader title="Settings" backLabel="Back from settings" onBack={navigateBack}>
+            <IconButton
+              ref={searchButtonRef}
+              label="Search settings"
+              onClick={() => setIsSearching(true)}
+            >
+              <Search />
+            </IconButton>
+          </SettingsHeader>
+        }
+        search={
+          isSearching && (
+            <div className={styles.search}>
+              <Search aria-hidden="true" />
+              <input
+                autoFocus
+                aria-label="Search settings"
+                placeholder="Search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <IconButton label="Close settings search" onClick={closeSearch}>
+                <X />
+              </IconButton>
+            </div>
+          )
+        }
+      >
         {!isSearching && <SettingsAccountDetails profile={DEMO_PROFILE} />}
         {categories.length > 0 ? (
           <div className={styles.section}>
@@ -130,7 +130,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         ) : (
           <p className={styles.empty}>No settings found</p>
         )}
-      </div>
+      </SettingsProfile>
     </section>
   );
 
