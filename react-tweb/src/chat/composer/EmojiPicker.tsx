@@ -9,6 +9,7 @@ import { StickerBrowser } from './emoticons/StickerBrowser';
 import { usePickerPreferences } from './emoticons/pickerPreferences';
 import type { CustomEmoji } from '../emoji/customEmojiCatalog';
 import type { Sticker } from '../stickers/stickerCatalog';
+import { rememberSentSticker } from '../stickers/stickerPackOrder';
 import styles from './EmojiPicker.module.css';
 
 const HOVER_OPEN_DELAY = 200;
@@ -50,6 +51,7 @@ export function EmojiPicker({
 
   function sendSticker(sticker: Sticker) {
     rememberSticker(sticker.id);
+    rememberSentSticker(sticker.id);
     onSelectSticker?.(sticker.id);
     setIsOpen(false);
     isClickOpenedRef.current = false;

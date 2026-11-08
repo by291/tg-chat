@@ -1,8 +1,9 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
-import { Repeat, Smile, X } from 'lucide-react';
+import { Repeat, Smile, ArrowDownUp, X } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 import { setAppPreferences, useAppPreferences } from '../../app/settings/appPreferences';
+import { getOrderedStickerPacks } from '../stickers/stickerPackOrder';
 import { Ripple } from '../../components/Ripple';
 import { CUSTOM_EMOJI_PACKS } from '../emoji/customEmojiCatalog';
 import { STICKERS, STICKER_PACKS } from '../stickers/stickerCatalog';
@@ -42,7 +43,11 @@ export function StickerSettingsPage({ onBack }: { onBack: () => void }) {
   const closingPack = useClosingDialogValue(selectedPack);
 
   function renderPackSection(kind: string, title: string) {
-    const packs = INSTALLED_PACKS.filter((pack) => pack.kind === kind);
+    const packIds =
+      kind === 'stickers'
+        ? getOrderedStickerPacks(preferences.stickerPackOrder).map((pack) => pack.id)
+        : CUSTOM_EMOJI_PACKS.map((pack) => pack.id);
+    const packs = packIds.flatMap((id) => INSTALLED_PACKS.filter((pack) => pack.id === id));
     return (
       <section className={settings.section} aria-label={title}>
         <h3>{title}</h3>
@@ -95,6 +100,19 @@ export function StickerSettingsPage({ onBack }: { onBack: () => void }) {
             onChange={({ isChecked }) => setAppPreferences({ shouldUseLargeEmoji: isChecked })}
           />
         </section>
+        <section className={settings.section} aria-label="Sticker pack order">
+          <h3>Dynamic Pack Order</h3>
+          <SettingsSwitch
+            label="Dynamic Pack Order"
+            icon={ArrowDownUp}
+            color="blue"
+            isChecked={preferences.shouldUseDynamicPackOrder}
+            onChange={({ isChecked }) =>
+              setAppPreferences({ shouldUseDynamicPackOrder: isChecked })
+            }
+          />
+        </section>
+        <p className={settings.caption}>Move recently used sticker sets to the top of the panel.</p>
         {renderPackSection('stickers', 'Stickers')}
         {renderPackSection('emoji', 'Emoji')}
       </div>

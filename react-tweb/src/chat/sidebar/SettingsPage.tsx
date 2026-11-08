@@ -22,7 +22,7 @@ const SETTINGS_CATEGORIES = [
   {
     id: 'stickers',
     label: 'Stickers and Emoji',
-    keywords: 'animation loop packs emoticons large emoji',
+    keywords: 'animation loop packs emoticons large emoji dynamic order sort',
     icon: Sticker,
     color: 'pink',
   },

@@ -42,10 +42,12 @@ it('recovers invalid stored fields while preserving valid preferences from anoth
       timeFormat: 'h23',
       shouldAutoplayVideos: false,
       shouldUseLargeEmoji: false,
+      stickerPackOrder: ['recent-pack'],
     }),
   );
   act(() => window.dispatchEvent(new StorageEvent('storage', { key: APP_PREFERENCES_KEY })));
   expect(screen.getByText('16 / h23')).toBeTruthy();
   expect(getAppPreferences().shouldAutoplayVideos).toBe(false);
   expect(getAppPreferences().shouldUseLargeEmoji).toBe(false);
+  expect(getAppPreferences().stickerPackOrder).toEqual(['recent-pack']);
 });

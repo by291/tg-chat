@@ -10,6 +10,8 @@ export const DEFAULT_APP_PREFERENCES = {
   shouldAutoplayVideos: true,
   shouldAnimateStickers: true,
   shouldUseLargeEmoji: true,
+  shouldUseDynamicPackOrder: true,
+  stickerPackOrder: [] as string[],
 };
 
 const messageTextSizeSchema = z.int().min(MIN_MESSAGE_TEXT_SIZE).max(MAX_MESSAGE_TEXT_SIZE);
@@ -20,6 +22,8 @@ const preferenceSchema = z.object({
   shouldAutoplayVideos: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAutoplayVideos),
   shouldAnimateStickers: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAnimateStickers),
   shouldUseLargeEmoji: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldUseLargeEmoji),
+  shouldUseDynamicPackOrder: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldUseDynamicPackOrder),
+  stickerPackOrder: z.array(z.string()).catch(DEFAULT_APP_PREFERENCES.stickerPackOrder),
 });
 
 export type AppPreferences = z.infer<typeof preferenceSchema>;

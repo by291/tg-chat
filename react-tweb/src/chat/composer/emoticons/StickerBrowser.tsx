@@ -2,6 +2,8 @@ import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { Clock3, Star, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
+import { useAppPreferences } from '../../../app/settings/appPreferences';
+import { getOrderedStickerPacks } from '../../stickers/stickerPackOrder';
 import { STICKERS, STICKER_PACKS, type Sticker } from '../../stickers/stickerCatalog';
 import { StickerPlaybackScope } from '../../stickers/StickerPlaybackScope';
 import { PickerGrid, type PickerGridControls, type PickerSection } from './PickerGrid';
@@ -28,6 +30,8 @@ export function StickerBrowser({
   onSelect,
   onToggleFavorite,
 }: StickerBrowserProps) {
+  const { stickerPackOrder } = useAppPreferences();
+  const orderedPacks = useMemo(() => getOrderedStickerPacks(stickerPackOrder), [stickerPackOrder]);
   const [query, setQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<EmojiSearchGroup>();
@@ -82,7 +86,7 @@ export function StickerBrowser({
         items: recent,
       });
     }
-    for (const pack of STICKER_PACKS) {
+    for (const pack of orderedPacks) {
       groups.push({
         id: pack.id,
         title: pack.name,
@@ -90,7 +94,7 @@ export function StickerBrowser({
       });
     }
     return groups;
-  }, [query, selectedGroup, recentStickers, favoriteStickers]);
+  }, [query, selectedGroup, recentStickers, favoriteStickers, orderedPacks]);
   const hasResults = sections.some((section) => section.items.length > 0);
 
   function renderSticker(sticker: Sticker) {
@@ -127,7 +131,7 @@ export function StickerBrowser({
             <Clock3 size={24} />
           </button>
         )}
-        {STICKER_PACKS.map((pack) => (
+        {orderedPacks.map((pack) => (
           <button
             key={pack.id}
             aria-label={pack.name}
