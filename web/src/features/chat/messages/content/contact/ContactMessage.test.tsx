@@ -232,6 +232,7 @@ describe('shared contacts', () => {
     if (detailedContact.kind !== 'contact') {
       throw new Error('Expected a shared contact');
     }
+
     render(<ContactCard media={detailedContact} />);
 
     expect(screen.getByText('+1 202 555 0199')).toBeTruthy();

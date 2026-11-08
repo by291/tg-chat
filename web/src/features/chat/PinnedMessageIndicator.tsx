@@ -24,6 +24,7 @@ function getSegmentHeight(count: number) {
   if (count === 3) {
     return THREE_PIN_HEIGHT;
   }
+
   return MANY_PIN_HEIGHT;
 }
 
@@ -52,7 +53,11 @@ export function PinnedMessageIndicator({ count, index }: PinnedMessageIndicatorP
   const segmentStride = segmentHeight + SEGMENT_GAP;
   const trackHeight =
     count <= 3 ? INDICATOR_HEIGHT : segmentHeight * count + SEGMENT_GAP * (count - 1);
-  const trackOffset = getTrackOffset({ count, index, trackHeight });
+  const trackOffset = getTrackOffset({
+    count,
+    index,
+    trackHeight,
+  });
   // These offsets preserve the upstream two-pin gap and three-pin bottom alignment.
   const clipStride = count === 2 ? segmentHeight + SEGMENT_GAP * 2 : segmentStride;
   const markOffset = count === 3 && index === 2 ? segmentStride * index + 1 : segmentStride * index;

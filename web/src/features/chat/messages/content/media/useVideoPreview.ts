@@ -13,11 +13,13 @@ interface VideoPreviewOptions {
 
 function hasAudibleRoundVideo() {
   const videos = document.querySelectorAll<HTMLVideoElement>('video[data-round-video]');
+
   for (const video of videos) {
     if (!video.muted && !video.paused && !video.ended) {
       return true;
     }
   }
+
   return false;
 }
 
@@ -56,11 +58,13 @@ export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOpt
       if (!entry) {
         return;
       }
+
       setIsVisible(entry.isIntersecting);
       if (entry.isIntersecting) {
         setHasBeenVisible(true);
         return;
       }
+
       canPlayRef.current = false;
       canPlayAudiblyRef.current = false;
       enforcePlaybackVisibility();
@@ -69,9 +73,11 @@ export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOpt
     video.addEventListener('play', enforcePlaybackVisibility);
 
     const frame = video.closest('[data-photo-id]');
+
     function synchronizeViewer() {
       setIsViewerOpen(frame?.getAttribute('data-viewer-source') === 'true');
     }
+
     const viewerObserver = new MutationObserver(synchronizeViewer);
     if (frame) {
       viewerObserver.observe(frame, { attributes: true, attributeFilter: ['data-viewer-source'] });
@@ -84,6 +90,7 @@ export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOpt
         setIsRoundPlaying(hasAudibleRoundVideo());
       }
     }
+
     const captureOptions = { capture: true };
     document.addEventListener('play', synchronizeRoundPlayback, captureOptions);
     document.addEventListener('pause', synchronizeRoundPlayback, captureOptions);
@@ -100,6 +107,7 @@ export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOpt
       document.removeEventListener('pause', synchronizeRoundPlayback, captureOptions);
       document.removeEventListener('ended', synchronizeRoundPlayback, captureOptions);
       document.removeEventListener('volumechange', synchronizeRoundPlayback, captureOptions);
+
       if (!video.paused) {
         video.pause();
       }

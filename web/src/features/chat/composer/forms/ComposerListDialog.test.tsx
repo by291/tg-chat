@@ -163,7 +163,13 @@ describe('structured message composition', () => {
       media: {
         kind: 'checklist',
         title: 'Release',
-        items: [{ id: expect.any(String), text: 'Ship', isCompleted: false }],
+        items: [
+          {
+            id: expect.any(String),
+            text: 'Ship',
+            isCompleted: false,
+          },
+        ],
         canOthersComplete: false,
         canOthersAppend: true,
       },

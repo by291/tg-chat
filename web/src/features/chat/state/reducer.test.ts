@@ -409,6 +409,7 @@ describe('custom emoji message identity', () => {
     if (!source) {
       throw new Error('Expected the edited message to remain available.');
     }
+
     let forwarded = edited;
     forwardMessages({
       messages: [source],

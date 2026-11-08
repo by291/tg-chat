@@ -62,7 +62,11 @@ function createScene() {
     target.getBoundingClientRect = () => DOMRect.fromRect(options?.rectangle ?? TARGET_RECTANGLE);
     button.append(target);
     targetRow.append(button);
-    launchReactionFlight({ target, emoji: EMOJI, messageId: MESSAGE_ID });
+    launchReactionFlight({
+      target,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     return target;
   }
 
@@ -99,6 +103,7 @@ beforeEach(() => {
       finish,
       cancel,
     } as RecordedAnimation);
+
     return { finished, cancel } as unknown as Animation;
   });
 });
@@ -121,7 +126,11 @@ describe('reaction flight ownership', () => {
     const preview = document.createElement('img');
     preview.src = custom.preview;
     scene.source.replaceChildren(preview);
-    holdReactionFlight({ ...scene, emoji, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji,
+      messageId: MESSAGE_ID,
+    });
 
     const flight = document.querySelector<HTMLElement>('[data-reaction-flight]')!;
     const capturedPreview = flight.querySelector('img')!;
@@ -143,7 +152,11 @@ describe('reaction flight ownership', () => {
     const canvas = document.createElement('canvas');
     scene.source.replaceChildren(canvas);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
-    holdReactionFlight({ ...scene, emoji, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji,
+      messageId: MESSAGE_ID,
+    });
 
     const flight = document.querySelector<HTMLElement>('[data-reaction-flight]')!;
     expect(flight.querySelector('img')?.getAttribute('src')).toBe(custom.preview);
@@ -161,7 +174,11 @@ describe('reaction flight ownership', () => {
       height: SOURCE_RECTANGLE.height * SOURCE_HOVER_SCALE,
     };
     scene.source.getBoundingClientRect = () => DOMRect.fromRect(hoveredRectangle);
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
 
     const flight = document.querySelector<HTMLElement>('[data-reaction-flight]')!;
     const picture = flight.firstElementChild as HTMLElement;
@@ -174,7 +191,11 @@ describe('reaction flight ownership', () => {
 
   it('holds the chosen emoji until its message renders and reveals it after landing', async () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     expect(scene.source.style.visibility).toBe('hidden');
     expect(document.querySelector('[data-reaction-flight]')).not.toBeNull();
 
@@ -194,7 +215,11 @@ describe('reaction flight ownership', () => {
 
   it('follows history scrolling and restores visibility when the target disappears', async () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     const target = scene.addReaction();
     vi.advanceTimersByTime(FRAME_DURATION_MS);
     scene.history.scrollTop = SCROLL_DISTANCE_PX;
@@ -212,7 +237,11 @@ describe('reaction flight ownership', () => {
 
   it('expires an unconsumed selection and never animates restored history', () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     vi.advanceTimersByTime(EXPIRED_HOLD_MS);
     const target = scene.addReaction();
 
@@ -224,10 +253,18 @@ describe('reaction flight ownership', () => {
 
   it('ignores another rendering of the message until its owning row mounts the reaction', () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     const preview = document.createElement('span');
     document.body.append(preview);
-    launchReactionFlight({ target: preview, emoji: EMOJI, messageId: MESSAGE_ID });
+    launchReactionFlight({
+      target: preview,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     expect(preview.style.visibility).toBe('');
     expect(animations).toHaveLength(0);
 
@@ -239,25 +276,41 @@ describe('reaction flight ownership', () => {
   it('skips reduced motion and already selected reactions', () => {
     const scene = createScene();
     scene.addReaction();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     expect(document.querySelector('[data-reaction-flight]')).toBeNull();
 
     scene.targetRow.replaceChildren();
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     expect(document.querySelector('[data-reaction-flight]')).toBeNull();
     expect(scene.source.style.visibility).toBe('');
   });
 
   it('keeps a new selection intact when the interrupted flight finishes', async () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     const previousTarget = scene.addReaction();
     vi.advanceTimersByTime(FRAME_DURATION_MS);
     const previousAnimations = [...animations];
     dropReactionFlights(scene.targetRow);
     previousTarget.remove();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     const currentTarget = scene.addReaction();
     for (const animation of previousAnimations) {
       animation.finish();
@@ -276,7 +329,11 @@ describe('reaction flight ownership', () => {
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(() => {
       return DOMRect.fromRect(TARGET_RECTANGLE);
     });
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     const reaction = (
       <StrictMode>
         <MessageReaction emoji={EMOJI} messageId={MESSAGE_ID} onReact={() => {}} />
@@ -300,7 +357,11 @@ describe('reaction flight ownership', () => {
 
   it('follows a rising arc and lands at the target position and size', () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     scene.addReaction();
     vi.advanceTimersByTime(FRAME_DURATION_MS);
 
@@ -328,7 +389,11 @@ describe('reaction flight ownership', () => {
 
   it('uses the settled destination after history anchoring before the first flight frame', () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     const target = scene.addReaction({
       rectangle: {
         ...TARGET_RECTANGLE,
@@ -359,7 +424,11 @@ describe('reaction flight ownership', () => {
 
   it('grows and reveals a newly selected chip without changing its layout dimensions', async () => {
     const scene = createScene();
-    holdReactionFlight({ ...scene, emoji: EMOJI, messageId: MESSAGE_ID });
+    holdReactionFlight({
+      ...scene,
+      emoji: EMOJI,
+      messageId: MESSAGE_ID,
+    });
     const target = scene.addReaction();
     const button = target.parentElement!;
     vi.advanceTimersByTime(FRAME_DURATION_MS);

@@ -117,6 +117,7 @@ export function MessageComposer({
 
     // The menu restores message-row focus first; editing takes focus on the following frame.
     const frame = requestAnimationFrame(() => editorRef.current?.focus());
+
     return () => cancelAnimationFrame(frame);
   }, [contextMessage, forwardMessages]);
 
@@ -163,6 +164,7 @@ export function MessageComposer({
       setIsDiscardOpen(true);
       return;
     }
+
     onCancelContext();
   }
 
@@ -175,6 +177,7 @@ export function MessageComposer({
       requestCancelContext();
       return;
     }
+
     attachments.removeAttachment();
   }
 
@@ -189,6 +192,7 @@ export function MessageComposer({
       setListDialog(action);
       return;
     }
+
     attachments.selectFile(action);
   }
 

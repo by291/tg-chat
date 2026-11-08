@@ -93,11 +93,11 @@ export function usePollResultAnimation({
     },
     // prettier-ignore
     [
-    hasResults,
-    percentage,
-    animatedPercentage,
-    progress,
-  ],
+      hasResults,
+      percentage,
+      animatedPercentage,
+      progress,
+    ],
   );
 
   return {

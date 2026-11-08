@@ -50,6 +50,7 @@ export function PollMessage({
       if (!hasVoted || isClosed || poll.canRevote === false) {
         return;
       }
+
       setPendingIds(selectedIds);
       setIsEditingVote(true);
     },
@@ -60,8 +61,10 @@ export function PollMessage({
     if (!poll.closesAt || isClosed) {
       return;
     }
+
     const remaining = Math.min(MAX_TIMEOUT, Math.max(0, poll.closesAt - Date.now()));
     const timer = setTimeout(() => setNow(Date.now()), remaining);
+
     return () => clearTimeout(timer);
   }, [
     poll.closesAt,
@@ -78,6 +81,7 @@ export function PollMessage({
       setIsEditingVote(false);
       return;
     }
+
     setPendingIds((current) => {
       return current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id];
     });
@@ -88,6 +92,7 @@ export function PollMessage({
     if (!text) {
       return;
     }
+
     onInteract({
       type: 'add-option',
       id: crypto.randomUUID(),
@@ -107,6 +112,7 @@ export function PollMessage({
       <div className={styles.options}>
         {poll.options.map((option, index) => {
           const displayedIds = canVote && poll.canChooseMultiple ? pendingIds : selectedIds;
+
           return (
             <PollOption
               key={option.id}

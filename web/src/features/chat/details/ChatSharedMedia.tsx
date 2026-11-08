@@ -27,6 +27,7 @@ function pauseSharedMedia(container: HTMLDivElement | null) {
 function SharedVideo({ media }: { media: Extract<MessageMedia, { kind: 'video' }> }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   useVisiblePlayback(videoRef);
+
   return (
     <video
       ref={videoRef}
@@ -54,12 +55,14 @@ export function ChatSharedMedia({
     if (!isActive) {
       pauseSharedMedia(container);
     }
+
     return () => pauseSharedMedia(container);
   }, [isActive]);
 
   if (category === 'media') {
     const photos = getPhotoMessages(messages);
     const videos = messages.filter((message) => message.media?.kind === 'video');
+
     return (
       <div ref={containerRef}>
         <div className={styles.gallery}>
@@ -90,6 +93,7 @@ export function ChatSharedMedia({
   const matchingMessages = messages.filter((message) => {
     return message.media?.kind === (category === 'files' ? 'document' : 'voice');
   });
+
   return (
     <div ref={containerRef} className={styles.sharedList}>
       {matchingMessages.map((message) => {
@@ -109,6 +113,7 @@ export function ChatSharedMedia({
             </a>
           );
         }
+
         return null;
       })}
       {matchingMessages.length === 0 && (

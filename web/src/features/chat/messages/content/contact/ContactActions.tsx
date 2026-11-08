@@ -94,6 +94,7 @@ export function ContactActionsProvider({
       if (!media.userId) {
         return;
       }
+
       let conversation = getConversation(media.userId);
       if (!conversation) {
         // Create before selecting so the next render can resolve the selected conversation.
@@ -115,6 +116,7 @@ export function ContactActionsProvider({
       if (!media.userId || media.userId === CURRENT_USER_ID) {
         return;
       }
+
       const conversation = getConversation(media.userId) ?? createContactConversation(media);
       const title = `${firstName.trim()} ${lastName.trim()}`.trim();
       const initials =

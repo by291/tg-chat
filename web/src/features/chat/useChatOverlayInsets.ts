@@ -42,11 +42,13 @@ export function useChatOverlayInsets() {
         if (!(animation?.effect instanceof KeyframeEffect)) {
           continue;
         }
+
         const frames = animation.effect.getKeyframes();
         const targetHeight = Number.parseFloat(String(frames.at(-1)?.height));
         if (!Number.isFinite(targetHeight)) {
           continue;
         }
+
         const currentHeight = element.getBoundingClientRect().height;
         // A single-line editor sits inside a 40px control row; only surplus height grows it.
         const minimum = element.hasAttribute('data-composer') ? EDITOR_ROW_CONTENT_HEIGHT : 0;
@@ -69,6 +71,7 @@ export function useChatOverlayInsets() {
       if (event.propertyName !== 'height' || !(event.target instanceof Element)) {
         return;
       }
+
       activeTransitions.add(event.target);
       cancelAnimationFrame(settleFrame);
       const duration =
@@ -82,6 +85,7 @@ export function useChatOverlayInsets() {
       if (event.propertyName !== 'height' || !(event.target instanceof Element)) {
         return;
       }
+
       activeTransitions.delete(event.target);
       cancelAnimationFrame(settleFrame);
       settleFrame = requestAnimationFrame(() => {
@@ -103,6 +107,7 @@ export function useChatOverlayInsets() {
     observer.observe(header);
     observer.observe(footer);
     measureOverlays();
+
     return () => {
       observer.disconnect();
       cancelAnimationFrame(settleFrame);

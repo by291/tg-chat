@@ -48,6 +48,7 @@ export function useMessageSelectionGesture({
     window.addEventListener('pointerup', finishDrag);
     window.addEventListener('pointercancel', finishDrag);
     window.addEventListener('blur', finishDrag);
+
     return () => {
       window.removeEventListener('pointerup', finishDrag);
       window.removeEventListener('pointercancel', finishDrag);
@@ -61,12 +62,14 @@ export function useMessageSelectionGesture({
     if (isDisabled || event.button !== PRIMARY_MOUSE_BUTTON || event.pointerType !== 'mouse') {
       return;
     }
+
     const messageId = findMessageRow(event.target)?.dataset.messageId;
     const target = event.target as Element;
     const isBubbleContent = target.closest('[data-message-content], button, a');
     if (!messageId || (selectedIds === undefined && isBubbleContent)) {
       return;
     }
+
     dragRef.current = {
       lastId: messageId,
       shouldSelect: !selectedIds?.includes(messageId),
@@ -83,15 +86,18 @@ export function useMessageSelectionGesture({
       dragRef.current = undefined;
       return;
     }
+
     const drag = dragRef.current;
     const messageId = findMessageRow(event.target)?.dataset.messageId;
     if (!drag || !messageId) {
       return;
     }
+
     const isSameRow = drag.lastId === messageId;
     if (isSameRow && (drag.hasMoved || !drag.hadSelection)) {
       return;
     }
+
     const previousIndex = messages.findIndex((message) => message.id === drag.lastId);
     const currentIndex = messages.findIndex((message) => message.id === messageId);
     if (previousIndex < 0 || currentIndex < 0) {
@@ -127,6 +133,7 @@ export function useMessageSelectionGesture({
     if (selectedIds === undefined) {
       return;
     }
+
     const messageId = findMessageRow(event.target)?.dataset.messageId;
     if (messageId) {
       event.preventDefault();
@@ -135,5 +142,9 @@ export function useMessageSelectionGesture({
     }
   }
 
-  return { onPointerDown, onPointerMove, onClick };
+  return {
+    onPointerDown,
+    onPointerMove,
+    onClick,
+  };
 }

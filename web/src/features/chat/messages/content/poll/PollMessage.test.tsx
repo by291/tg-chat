@@ -28,6 +28,7 @@ const poll: PollMedia = {
 
 function VotingPoll() {
   const [currentPoll, setCurrentPoll] = useState(poll);
+
   return (
     <PollMessage
       poll={currentPoll}
@@ -35,6 +36,7 @@ function VotingPoll() {
         if (interaction.type !== 'vote') {
           return;
         }
+
         setCurrentPoll({
           ...poll,
           selectedOptionIds: interaction.optionIds,

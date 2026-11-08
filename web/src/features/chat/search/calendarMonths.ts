@@ -27,7 +27,13 @@ export interface CalendarMonth {
   weeks: (CalendarDay | null)[][];
 }
 
-function createMonthWeeks(options: { date: DateValue; leadingDays: number; daysInMonth: number }) {
+interface MonthWeeksOptions {
+  date: DateValue;
+  leadingDays: number;
+  daysInMonth: number;
+}
+
+function createMonthWeeks(options: MonthWeeksOptions) {
   const { date, leadingDays, daysInMonth } = options;
   const weeks: (CalendarDay | null)[][] = [];
   const weekCount = Math.ceil((leadingDays + daysInMonth) / DAYS_PER_WEEK);
@@ -41,6 +47,7 @@ function createMonthWeeks(options: { date: DateValue; leadingDays: number; daysI
         week.push(null);
         continue;
       }
+
       week.push({
         date: date.set({ day }),
         label: DAY_LABEL_FORMATTER.format(new Date(date.year, date.month - 1, day)),
@@ -71,7 +78,11 @@ export function createCalendarMonths(lastDate: DateValue): CalendarMonth[] {
       label: firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       height,
       offset,
-      weeks: createMonthWeeks({ date, leadingDays, daysInMonth }),
+      weeks: createMonthWeeks({
+        date,
+        leadingDays,
+        daysInMonth,
+      }),
     });
     offset += height;
     date = date.add({ months: 1 });

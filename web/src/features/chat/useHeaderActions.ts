@@ -34,6 +34,7 @@ export function useHeaderActions({ conversation, dispatch, onNotify }: HeaderAct
       if (!current.includes(messageId)) {
         return [...current, messageId];
       }
+
       const remaining = current.filter((id) => id !== messageId);
       return remaining.length ? remaining : undefined;
     });
@@ -66,6 +67,7 @@ export function useHeaderActions({ conversation, dispatch, onNotify }: HeaderAct
     if (!isSelecting) {
       return;
     }
+
     function exitWithEscape(event: KeyboardEvent) {
       // Nested menus and dialogs consume Escape before the selection layer.
       if (event.key === 'Escape' && !event.defaultPrevented) {
@@ -73,6 +75,7 @@ export function useHeaderActions({ conversation, dispatch, onNotify }: HeaderAct
       }
     }
     window.addEventListener('keydown', exitWithEscape);
+
     return () => window.removeEventListener('keydown', exitWithEscape);
   }, [isSelecting, clearSelection]);
 

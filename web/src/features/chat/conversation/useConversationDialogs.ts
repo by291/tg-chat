@@ -43,11 +43,14 @@ export function useConversationDialogs({
     if (requestedMediaCommand?.action !== options.action) {
       return;
     }
+
     const pendingMessage = options.action === 'delete' ? pendingDelete : pendingForward?.[0];
+
     // Only the dialog opened by this exact viewer command may complete or restore that viewer.
     if (pendingMessage !== requestedMediaCommand.message) {
       return;
     }
+
     onFinishMediaCommand?.({ shouldRestoreViewer: options.shouldRestoreViewer });
   }
 
@@ -55,6 +58,7 @@ export function useConversationDialogs({
     if (!pendingForward) {
       return;
     }
+
     for (const recipient of recipients) {
       sendForwardedMessages({
         messages: pendingForward,
@@ -65,6 +69,7 @@ export function useConversationDialogs({
         dispatch,
       });
     }
+
     finishMediaDialog({ action: 'forward', shouldRestoreViewer: false });
     setPendingForward(undefined);
     onClearSelection();
@@ -90,6 +95,7 @@ export function useConversationDialogs({
     if (!pendingDelete) {
       return;
     }
+
     dispatch({
       type: 'delete',
       chatId,

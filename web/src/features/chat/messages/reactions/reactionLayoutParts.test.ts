@@ -5,8 +5,18 @@ import { animateReactionLayoutParts, captureReactionLayoutParts } from './reacti
 const DURATION_MS = 250;
 const HORIZONTAL_EASING = 'cubic-bezier(0.23, 1, 0.32, 1)';
 const VERTICAL_EASING = 'cubic-bezier(0.1992, 0.0106, 0.2792, 0.9103)';
-const METADATA_RECTANGLE = DOMRect.fromRect({ x: 130, y: 124, width: 42, height: 12 });
-const CHIP_RECTANGLE = DOMRect.fromRect({ x: 70, y: 100, width: 50, height: 30 });
+const METADATA_RECTANGLE = DOMRect.fromRect({
+  x: 130,
+  y: 124,
+  width: 42,
+  height: 12,
+});
+const CHIP_RECTANGLE = DOMRect.fromRect({
+  x: 70,
+  y: 100,
+  width: 50,
+  height: 30,
+});
 
 interface RecordedAnimation {
   element: Element;
@@ -123,7 +133,12 @@ describe('reaction layout content', () => {
     const { position } = addReaction(bubble);
     const previous = captureReactionLayoutParts(bubble);
     vi.spyOn(position, 'getBoundingClientRect').mockReturnValue(
-      DOMRect.fromRect({ x: 100, y: 136, width: 50, height: 30 }),
+      DOMRect.fromRect({
+        x: 100,
+        y: 136,
+        width: 50,
+        height: 30,
+      }),
     );
     animateReactionLayoutParts({
       bubble,

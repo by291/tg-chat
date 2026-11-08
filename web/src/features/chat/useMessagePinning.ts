@@ -26,6 +26,7 @@ export function useMessagePinning(dispatch: Dispatch<ChatAction>) {
     if (!request) {
       return;
     }
+
     const confirmedRequest = request;
     setRequest(undefined);
     // Match Telegram: let the popup leave before changing the underlying message and topbar.

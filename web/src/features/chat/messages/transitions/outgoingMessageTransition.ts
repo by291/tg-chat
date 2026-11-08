@@ -81,6 +81,7 @@ function readTextStart(element: HTMLElement) {
     if (start < 0 || node.parentElement?.closest('[data-message-metadata]')) {
       continue;
     }
+
     const range = document.createRange();
     range.setStart(node, start);
     range.setEnd(node, start + 1);
@@ -88,6 +89,7 @@ function readTextStart(element: HTMLElement) {
     return { left: rectangle.left, top: rectangle.top };
   }
   const rectangle = element.getBoundingClientRect();
+
   return { left: rectangle.left, top: rectangle.top };
 }
 
@@ -108,6 +110,7 @@ export function captureOutgoingMessage(options: {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     return undefined;
   }
+
   const { field, editor } = options;
   const content = editor.cloneNode(true) as HTMLElement;
   removeCloneIdentity(content);
@@ -122,6 +125,7 @@ export function captureOutgoingMessage(options: {
   content.style.overflow = 'visible';
   content.style.margin = '0';
   content.style.transform = `translateY(${-editor.scrollTop}px)`;
+
   return {
     field: readRectangle(field),
     editor: readRectangle(editor),
@@ -145,6 +149,7 @@ function readDestination(element: HTMLElement) {
   const scrollDistance = history
     ? Math.max(0, history.scrollHeight - history.clientHeight - history.scrollTop)
     : 0;
+
   return {
     ...rectangle,
     top: rectangle.top - scrollDistance - revealOffset,
@@ -182,8 +187,10 @@ function startFlight({ origin, element, container, onFinish }: FlightOptions): (
   const target = element.querySelector<HTMLElement>('[data-message-content]');
   if (!target) {
     onFinish();
+
     return () => {};
   }
+
   const bubble = target;
   const history = element.closest<HTMLElement>('[aria-label="Message history"]');
   const root = createLayer(styles.flight);
@@ -248,6 +255,7 @@ function startFlight({ origin, element, container, onFinish }: FlightOptions): (
     if (isFinished) {
       return;
     }
+
     isFinished = true;
     cancelAnimationFrame(frame);
     bubble.style.opacity = originalOpacity;
@@ -264,6 +272,7 @@ function startFlight({ origin, element, container, onFinish }: FlightOptions): (
       finish();
       return;
     }
+
     startedAt ??= timestamp;
     const elapsed = timestamp - startedAt;
     const progress = Math.min(1, elapsed / FLIGHT_DURATION_MS);
@@ -297,7 +306,11 @@ function startFlight({ origin, element, container, onFinish }: FlightOptions): (
       horizontalStep,
       verticalStep,
     });
-    positionLayer({ element: root, rectangle: current, container: containerRectangle });
+    positionLayer({
+      element: root,
+      rectangle: current,
+      container: containerRectangle,
+    });
     const sourceLeft =
       currentContent.left - current.left + origin.editor.left - origin.textStart.left;
     const sourceTop = currentContent.top - current.top + origin.editor.top - origin.textStart.top;
@@ -327,11 +340,16 @@ function startFlight({ origin, element, container, onFinish }: FlightOptions): (
       finish();
       return;
     }
+
     frame = requestAnimationFrame(draw);
   }
 
   // The first frame uses the captured input geometry, before scrolling and editor collapse settle.
-  positionLayer({ element: root, rectangle: current, container: readRectangle(container) });
+  positionLayer({
+    element: root,
+    rectangle: current,
+    container: readRectangle(container),
+  });
   source.style.left = `${origin.editor.left - origin.field.left}px`;
   source.style.top = `${origin.editor.top - origin.field.top}px`;
   destination.style.opacity = '0';
@@ -344,6 +362,7 @@ function startFlight({ origin, element, container, onFinish }: FlightOptions): (
   history?.addEventListener('pointerdown', finish);
   history?.addEventListener('keydown', finish);
   frame = requestAnimationFrame(draw);
+
   return finish;
 }
 
@@ -364,6 +383,7 @@ export function createOutgoingMessageTransitions(options: {
     if (!origin || !container) {
       return;
     }
+
     origins.delete(messageId);
     const cancel = startFlight({
       origin,
@@ -372,6 +392,7 @@ export function createOutgoingMessageTransitions(options: {
       onFinish: () => flights.delete(messageId),
     });
     flights.set(messageId, cancel);
+
     return cancel;
   }
 

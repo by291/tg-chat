@@ -19,7 +19,11 @@ export function MessageReaction({ emoji, messageId, onReact }: MessageReactionPr
     const target = emojiRef.current;
     if (target) {
       // The flight owns cleanup: Strict Mode effect replay must not reveal it before landing.
-      launchReactionFlight({ messageId, emoji, target });
+      launchReactionFlight({
+        messageId,
+        emoji,
+        target,
+      });
     }
   }, [emoji, messageId]);
 

@@ -243,7 +243,13 @@ export function getSearchCategoryIcon(group: EmojiSearchGroup) {
   if (!icon) {
     return undefined;
   }
+
   const path = `/assets/emoji/SearchCategories/${icon.id}`;
   const renderer: 'canvas' | 'svg' = icon.renderer === 'svg' ? 'svg' : 'canvas';
-  return { name: group.label, source: `${path}.tgs`, preview: `${path}.webp`, renderer };
+  return {
+    name: group.label,
+    source: `${path}.tgs`,
+    preview: `${path}.webp`,
+    renderer,
+  };
 }

@@ -96,6 +96,7 @@ export function useConversationComposer({
         onRequestDelete(editingMessage);
         return;
       }
+
       dispatch({
         type: 'edit',
         chatId,
@@ -104,6 +105,7 @@ export function useConversationComposer({
         customEmoji: composed.customEmoji,
         richText: composed.richText,
       });
+
       clearContext();
       return;
     }
@@ -121,6 +123,7 @@ export function useConversationComposer({
         // Capture the flight before dispatching clears the draft and mounts the outgoing row.
         onPrepareOutgoing({ messageId, origin: composed.sendOrigin });
       }
+
       dispatch({
         type: 'send',
         message: {
@@ -140,6 +143,8 @@ export function useConversationComposer({
         },
       });
     }
+
+    // A typed caption is sent before the pending forwards, preserving the visible composer order.
     if (forwardMessages?.length) {
       sendForwardedMessages({
         messages: forwardMessages,
@@ -147,6 +152,7 @@ export function useConversationComposer({
         dispatch,
       });
     }
+
     clearContext();
     onSent();
   }

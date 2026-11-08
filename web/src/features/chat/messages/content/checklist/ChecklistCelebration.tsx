@@ -84,6 +84,7 @@ function celebrate(canvas: HTMLCanvasElement) {
   if (!context) {
     return;
   }
+
   const bounds = canvas.getBoundingClientRect();
   const pixelRatio = window.devicePixelRatio || 1;
   canvas.width = bounds.width * pixelRatio;
@@ -114,6 +115,7 @@ function celebrate(canvas: HTMLCanvasElement) {
   }
 
   animationFrame = requestAnimationFrame(advance);
+
   return () => {
     cancelAnimationFrame(animationFrame);
     context.clearRect(0, 0, bounds.width, bounds.height);

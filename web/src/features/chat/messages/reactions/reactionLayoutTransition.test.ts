@@ -36,6 +36,7 @@ beforeEach(() => {
       isCancelled: false,
     };
     animations.push(animation);
+
     return {
       cancel: () => {
         animation.isCancelled = true;
@@ -85,7 +86,11 @@ function createHistory() {
     return DOMRect.fromRect({ width: 200, height: bubbleHeight });
   });
   vi.spyOn(neighbor, 'getBoundingClientRect').mockImplementation(() => {
-    return DOMRect.fromRect({ y: neighborTop, width: 400, height: ORIGINAL_HEIGHT });
+    return DOMRect.fromRect({
+      y: neighborTop,
+      width: 400,
+      height: ORIGINAL_HEIGHT,
+    });
   });
 
   const measureRow = () => {
@@ -94,7 +99,12 @@ function createHistory() {
   const scrollToEnd = () => {
     viewport.scrollTop = viewport.scrollHeight - viewport.clientHeight;
   };
-  const dispose = registerReactionLayoutHistory({ viewport, measureRow, scrollToEnd });
+  const dispose = registerReactionLayoutHistory({
+    viewport,
+    measureRow,
+    scrollToEnd,
+  });
+
   return {
     viewport,
     row,
@@ -262,7 +272,11 @@ describe('reaction layout transition', () => {
   it('keeps the flight destination when a new chip cancels its parent row displacement', async () => {
     const history = createHistory();
     vi.spyOn(history.content, 'getBoundingClientRect').mockReturnValue(
-      DOMRect.fromRect({ y: REACTION_HEIGHT, width: 400, height: ORIGINAL_HEIGHT }),
+      DOMRect.fromRect({
+        y: REACTION_HEIGHT,
+        width: 400,
+        height: ORIGINAL_HEIGHT,
+      }),
     );
     prepareReactionLayout({ row: history.row });
     const button = document.createElement('button');
@@ -270,7 +284,11 @@ describe('reaction layout transition', () => {
     emoji.dataset.reactionEmoji = '❤️';
     button.append(emoji);
     history.bubble.append(button);
-    const destination = DOMRect.fromRect({ y: ORIGINAL_HEIGHT, width: 30, height: 30 });
+    const destination = DOMRect.fromRect({
+      y: ORIGINAL_HEIGHT,
+      width: 30,
+      height: 30,
+    });
     vi.spyOn(button, 'getBoundingClientRect').mockReturnValue(destination);
     vi.spyOn(emoji, 'getBoundingClientRect').mockReturnValue(destination);
     vi.spyOn(history.content, 'getBoundingClientRect').mockReturnValue(

@@ -41,6 +41,7 @@ function DetailsScreen({
     (savedState) => savedState ?? createInitialState(),
   );
   const conversation = conversations.find((candidate) => candidate.id === conversationId)!;
+
   return (
     <ConversationDirectoryProvider state={state}>
       <ChatDetails

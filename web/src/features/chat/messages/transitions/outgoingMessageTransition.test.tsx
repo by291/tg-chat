@@ -87,6 +87,7 @@ function renderOutgoingMessage() {
     { container },
   );
   const bubble = container.querySelector<HTMLElement>('[data-message-content]')!;
+
   return {
     container,
     transitions,

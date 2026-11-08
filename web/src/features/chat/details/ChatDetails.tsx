@@ -91,6 +91,7 @@ export function ChatDetails({
     if (tab.value === 'media') {
       return hasPhotos || messages.some((message) => message.media?.kind === 'video');
     }
+
     const mediaKind = tab.value === 'files' ? 'document' : 'voice';
     return messages.some((message) => message.media?.kind === mediaKind);
   });
@@ -111,8 +112,10 @@ export function ChatDetails({
     if (!isOpen || !shouldManageFocus) {
       return;
     }
+
     const previousFocus = document.activeElement;
     closeButtonRef.current?.focus({ preventScroll: true });
+
     return () => {
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
         previousFocus.focus({ preventScroll: true });

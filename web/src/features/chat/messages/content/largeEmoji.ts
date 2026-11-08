@@ -36,12 +36,14 @@ export function getLargeEmojiSize(message: EmojiMessage) {
       count += 1;
       continue;
     }
+
     const pattern = emojiRegex();
     const matches = [...part.text.matchAll(pattern)];
     const remainder = part.text.replace(pattern, '').replace(INVISIBLE_TEXT, '');
     if (remainder) {
       return undefined;
     }
+
     count += matches.length;
   }
   return count ? EMOJI_SIZES[Math.min(count, EMOJI_SIZES.length) - 1] : undefined;

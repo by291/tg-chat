@@ -79,12 +79,14 @@ function RoundVideo({ media }: Pick<VideoFrameProps, 'media'>) {
     if (!isAudiblePlayback) {
       return;
     }
+
     let animationFrame: number;
     function updateProgress() {
       setPosition(videoRef.current?.currentTime ?? 0);
       animationFrame = requestAnimationFrame(updateProgress);
     }
     animationFrame = requestAnimationFrame(updateProgress);
+
     return () => cancelAnimationFrame(animationFrame);
   }, [isAudiblePlayback]);
 
@@ -99,6 +101,7 @@ function RoundVideo({ media }: Pick<VideoFrameProps, 'media'>) {
       }
     }
     document.addEventListener('play', pauseForOtherMedia, true);
+
     return () => document.removeEventListener('play', pauseForOtherMedia, true);
   }, []);
 

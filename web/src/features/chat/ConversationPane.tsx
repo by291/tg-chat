@@ -87,6 +87,7 @@ export function ConversationPane({
       if (unreadCount === 0) {
         return;
       }
+
       dispatch({
         type: 'update-conversations',
         chatIds: [conversation.id],

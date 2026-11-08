@@ -15,6 +15,7 @@ export function applyPollSelection(message: Message, optionIds: string[]): Messa
   if (poll?.kind !== 'poll') {
     return message;
   }
+
   const previousIds = getSelectedPollOptions(poll);
   const selectedIds = [...new Set(optionIds)];
   const isClosed = poll.closesAt !== undefined && poll.closesAt <= Date.now();
@@ -26,20 +27,25 @@ export function applyPollSelection(message: Message, optionIds: string[]): Messa
   if (isClosed || cannotRevote || hasUnknownOption || hasTooManyAnswers || !selectedIds.length) {
     return message;
   }
+
   const isUnchanged =
     selectedIds.length === previousIds.length &&
     selectedIds.every((id) => previousIds.includes(id));
   if (isUnchanged) {
     return message;
   }
+
+  // Replace only this device's contribution so revoting does not accumulate extra votes.
   const options = poll.options.map((option) => {
     const previousVote = previousIds.includes(option.id) ? 1 : 0;
     const nextVote = selectedIds.includes(option.id) ? 1 : 0;
     return { ...option, votes: Math.max(0, option.votes - previousVote + nextVote) };
   });
+
   const previousVoterCount =
     poll.voterCount ?? poll.options.reduce((total, option) => total + option.votes, 0);
   const voterCount = previousVoterCount + (previousIds.length ? 0 : 1);
+
   return {
     ...message,
     media: {

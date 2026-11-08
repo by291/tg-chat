@@ -15,7 +15,7 @@ interface FormListRowProps {
   onRevealComplete: () => void;
 }
 
-/** Animate row space and contents together while keeping departing fields out of keyboard navigation. */
+/** Animate row removal while excluding departing fields from keyboard navigation. */
 export function FormListRow({
   children,
   id,

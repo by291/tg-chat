@@ -54,19 +54,28 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
     }
     return Array.from(names, ([id, name]) => ({ id, name }));
   }, [messages]);
-  const results = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery && !senderId) {
-      return [];
-    }
-    return messages
-      .filter((message) => {
-        const matchesSender = !senderId || message.authorId === senderId;
-        const matchesText = describeMessage(message).toLowerCase().includes(normalizedQuery);
-        return !message.isService && matchesSender && matchesText;
-      })
-      .reverse();
-  }, [messages, query, senderId]);
+  const results = useMemo(
+    () => {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (!normalizedQuery && !senderId) {
+        return [];
+      }
+
+      return messages
+        .filter((message) => {
+          const matchesSender = !senderId || message.authorId === senderId;
+          const matchesText = describeMessage(message).toLowerCase().includes(normalizedQuery);
+          return !message.isService && matchesSender && matchesText;
+        })
+        .reverse();
+    },
+    // prettier-ignore
+    [
+      messages,
+      query,
+      senderId,
+    ],
+  );
   const activeIndex = results.findIndex((message) => message.id === activeId);
   const hasQuery = Boolean(query.trim() || senderId);
   const shouldShowResults = isFocused && (hasQuery || isChoosingSender);
@@ -75,6 +84,7 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
     if (hasClosedRef.current) {
       return;
     }
+
     hasClosedRef.current = true;
     onClose();
   }, [onClose]);
@@ -101,6 +111,7 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
       }
     }
     document.addEventListener('keydown', closeFromKeyboard);
+
     return () => document.removeEventListener('keydown', closeFromKeyboard);
   }, [closeSearch, isChoosingDate]);
 
@@ -179,6 +190,7 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
       inputRef.current?.focus();
       return;
     }
+
     closeSearch();
   }
 

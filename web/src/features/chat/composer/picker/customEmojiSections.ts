@@ -37,6 +37,7 @@ export function createCustomEmojiSections(
   if (options.shouldIncludeCustomEmoji === false) {
     return sections;
   }
+
   const recent = sections.find((section) => section.id === 'recent');
   if (recent) {
     const nativeById = new Map(recent.items.map((item) => [item.emoji.id, item]));
@@ -45,6 +46,7 @@ export function createCustomEmojiSections(
       if (custom) {
         return [{ kind: 'custom', emoji: custom }];
       }
+
       const native = nativeById.get(id);
       return native ? [native] : [];
     });
@@ -62,6 +64,7 @@ export function createCustomEmojiSections(
       if (!query) {
         return true;
       }
+
       return (
         emoji.name.toLowerCase().includes(query) ||
         emoji.emoji.includes(query) ||

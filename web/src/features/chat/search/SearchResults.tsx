@@ -23,7 +23,9 @@ function MatchedText({ text, query }: { text: string; query: string }) {
   if (!normalizedQuery || start < 0) {
     return text;
   }
+
   const end = start + normalizedQuery.length;
+
   return (
     <>
       {text.slice(0, start)}
@@ -45,12 +47,20 @@ export function SearchResults({ messages, activeId, query, onSelect }: SearchRes
   });
   const height = Math.min(MAX_RESULTS_HEIGHT, messages.length * RESULT_HEIGHT);
 
-  useLayoutEffect(() => {
-    const activeIndex = messages.findIndex((message) => message.id === activeId);
-    if (activeIndex >= 0) {
-      virtualizer.scrollToIndex(activeIndex, { align: 'auto' });
-    }
-  }, [activeId, messages, virtualizer]);
+  useLayoutEffect(
+    () => {
+      const activeIndex = messages.findIndex((message) => message.id === activeId);
+      if (activeIndex >= 0) {
+        virtualizer.scrollToIndex(activeIndex, { align: 'auto' });
+      }
+    },
+    // prettier-ignore
+    [
+      activeId,
+      messages,
+      virtualizer,
+    ],
+  );
 
   return (
     <div
@@ -63,6 +73,7 @@ export function SearchResults({ messages, activeId, query, onSelect }: SearchRes
       <div className={styles.resultCanvas} style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((item) => {
           const message = messages[item.index];
+
           return (
             <button
               key={message.id}

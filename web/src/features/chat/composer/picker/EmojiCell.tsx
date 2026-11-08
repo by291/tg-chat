@@ -65,6 +65,7 @@ export function EmojiCell({ emoji, tone, onSelect, onToneChange }: EmojiCellProp
             if (event.button !== 0 || !hasTones) {
               return;
             }
+
             timerRef.current = setTimeout(() => {
               didHoldRef.current = true;
               setIsToneOpen(true);

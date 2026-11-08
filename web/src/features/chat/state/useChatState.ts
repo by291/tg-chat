@@ -17,6 +17,8 @@ export function useChatState() {
     async function restoreConversations() {
       try {
         const savedState = await loadChatState();
+
+        // Strict Mode can replace this effect while the IndexedDB request is still pending.
         if (isActive && savedState) {
           dispatch({ type: 'restore', state: savedState });
         }
@@ -32,6 +34,7 @@ export function useChatState() {
     }
 
     void restoreConversations();
+
     return () => {
       isActive = false;
     };
@@ -52,17 +55,25 @@ export function useChatState() {
     if (!isReady) {
       return;
     }
+
     function expireMessages() {
       dispatch({ type: 'expire-messages', now: Date.now() });
     }
+
     expireMessages();
     const timer = window.setInterval(expireMessages, EXPIRATION_CHECK_INTERVAL);
     window.addEventListener('focus', expireMessages);
+
     return () => {
       window.clearInterval(timer);
       window.removeEventListener('focus', expireMessages);
     };
   }, [isReady]);
 
-  return { state, dispatch, isReady, storageError };
+  return {
+    state,
+    dispatch,
+    isReady,
+    storageError,
+  };
 }

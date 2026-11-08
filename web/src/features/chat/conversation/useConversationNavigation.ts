@@ -38,6 +38,7 @@ export function useConversationNavigation(onBack: () => void) {
       setIsSearchOpen(false);
       return;
     }
+
     onBack();
   }
 

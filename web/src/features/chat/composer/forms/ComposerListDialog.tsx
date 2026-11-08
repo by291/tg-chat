@@ -54,6 +54,7 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
     if (hasSubmitted.current) {
       return;
     }
+
     const validCorrectIds = submitted.correctOptionIds.filter((id) => {
       return submitted.entries.some((entry) => entry.id === id && entry.text.trim());
     });
@@ -214,12 +215,12 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                     <ListSetting
                       title="Allow Others to Mark as Done"
                       isChecked={canOthersComplete}
-                      onChange={(value) => changeField('canOthersComplete', value)}
+                      onChange={({ isChecked }) => changeField('canOthersComplete', isChecked)}
                     />
                     <ListSetting
                       title="Allow Others to Add Tasks"
                       isChecked={canOthersAppend}
-                      onChange={(value) => changeField('canOthersAppend', value)}
+                      onChange={({ isChecked }) => changeField('canOthersAppend', isChecked)}
                     />
                   </section>
                 )}

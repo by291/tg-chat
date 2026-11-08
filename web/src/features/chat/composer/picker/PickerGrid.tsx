@@ -60,11 +60,13 @@ function getSectionOffset<Item>(options: {
   if (!options.sectionId) {
     return 0;
   }
+
   let offset = 0;
   for (const row of options.rows) {
     if (row.sectionId === options.sectionId) {
       return offset;
     }
+
     offset += row.title ? SECTION_TITLE_HEIGHT : options.rowHeight;
   }
   return 0;
@@ -88,7 +90,12 @@ export function PickerGrid<Item>({
     estimateSize: (index) => (rows[index].title ? SECTION_TITLE_HEIGHT : rowHeight),
     getItemKey: (index) => rows[index].key,
     // A replacement grid must begin at its requested category, before native scrolling starts.
-    initialOffset: () => getSectionOffset({ rows, sectionId: initialSectionId, rowHeight }),
+    initialOffset: () =>
+      getSectionOffset({
+        rows,
+        sectionId: initialSectionId,
+        rowHeight,
+      }),
     overscan: OVERSCAN_ROWS,
     onChange: (instance) => {
       const offset = instance.scrollOffset ?? 0;
@@ -113,6 +120,7 @@ export function PickerGrid<Item>({
       <div className={styles.gridSurface} style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const row = rows[virtualRow.index];
+
           return (
             <div
               key={row.key}

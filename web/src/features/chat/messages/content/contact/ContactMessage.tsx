@@ -102,6 +102,7 @@ function ContactDetailsDialog({ details, isOpen, onOpenChange }: ContactDetailsD
             <div className={styles.detailList}>
               {details.map((detail, index) => {
                 const Icon = DETAIL_ICONS[detail.type];
+
                 return (
                   <button
                     key={`${detail.type}-${index}`}

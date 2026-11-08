@@ -23,6 +23,7 @@ function ProfileFields({ mode, conversation, contacts, onSave }: ChatProfileDial
     if (!title.trim()) {
       return;
     }
+
     let subtitle = conversation.subtitle;
     if (conversation.kind === 'group' && mode === 'members') {
       subtitle = memberIds.length === 1 ? '1 member' : `${memberIds.length} members`;

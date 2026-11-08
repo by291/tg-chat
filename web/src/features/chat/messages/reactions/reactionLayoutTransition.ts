@@ -64,6 +64,7 @@ function captureNeighbors(viewport: HTMLElement) {
   const elements = viewport.querySelectorAll<HTMLElement>(
     '[data-message-row-content], [data-sender-group] > span',
   );
+
   for (const element of elements) {
     const rectangle = element.getBoundingClientRect();
     const isVisible =
@@ -72,6 +73,7 @@ function captureNeighbors(viewport: HTMLElement) {
       neighbors.push({ element, rectangle });
     }
   }
+
   return neighbors;
 }
 
@@ -84,16 +86,21 @@ function watchCapture(history: ReactionLayoutHistory, capture: ReactionLayoutCap
     }
   });
   let isCancelled = false;
+
   function cancel() {
+    // Several event sources can cancel the same capture; restore its presentation only once.
     if (isCancelled) {
       return;
     }
+
     isCancelled = true;
     window.clearTimeout(capture.timeout);
+
     for (const animation of capture.animations) {
       animation.cancel();
     }
     capture.restoreShape?.();
+
     observer.disconnect();
     viewport.removeEventListener('wheel', cancel);
     viewport.removeEventListener('touchstart', cancel);
@@ -103,10 +110,12 @@ function watchCapture(history: ReactionLayoutHistory, capture: ReactionLayoutCap
     preference.removeEventListener?.('change', cancel);
     window.removeEventListener('resize', cancel);
     window.removeEventListener('pagehide', cancel);
+
     if (history.capture === capture) {
       history.capture = undefined;
     }
   }
+
   function onScroll() {
     if (capture.isPlaying && viewport.scrollTop !== capture.settledScrollTop) {
       cancel();
@@ -136,6 +145,7 @@ function animateNeighbor(options: {
   if (!element.isConnected) {
     return;
   }
+
   const destination = element.getBoundingClientRect();
   capture.settledPositions.set(element, destination);
   const verticalOffset = rectangle.top - destination.top;
@@ -146,7 +156,11 @@ function animateNeighbor(options: {
     capture.animations.push(
       element.animate(
         [{ transform: `translateY(${verticalOffset}px)` }, { transform: 'translateY(0px)' }],
-        { duration: TRANSITION_DURATION_MS, easing: VERTICAL_EASING, fill: 'both' },
+        {
+          duration: TRANSITION_DURATION_MS,
+          easing: VERTICAL_EASING,
+          fill: 'both',
+        },
       ),
     );
   }
@@ -171,6 +185,7 @@ function playCapture(history: ReactionLayoutHistory, capture: ReactionLayoutCapt
     left: owner ? capture.rectangle.left - destination.left : 0,
     top: owner ? owner.rectangle.top - owner.element.getBoundingClientRect().top : 0,
   };
+
   // Read and position parts before the parent's inversion affects their viewport rectangles.
   capture.settledPositions = animateReactionLayoutParts({
     bubble: capture.bubble,
@@ -181,9 +196,15 @@ function playCapture(history: ReactionLayoutHistory, capture: ReactionLayoutCapt
     verticalEasing: VERTICAL_EASING,
     animations: capture.animations,
   });
+
   for (const neighbor of capture.neighbors) {
-    animateNeighbor({ capture, neighbor, bubbleRectangle: destination });
+    animateNeighbor({
+      capture,
+      neighbor,
+      bubbleRectangle: destination,
+    });
   }
+
   if (hasChangedSize && destination.width > 0 && destination.height > 0) {
     capture.restoreShape = animateReactionLayoutShape({
       bubble: capture.bubble,
@@ -195,6 +216,7 @@ function playCapture(history: ReactionLayoutHistory, capture: ReactionLayoutCapt
       animations: capture.animations,
     });
   }
+
   capture.settledScrollTop = history.viewport.scrollTop;
   capture.isPlaying = true;
   window.clearTimeout(capture.timeout);
@@ -202,6 +224,7 @@ function playCapture(history: ReactionLayoutHistory, capture: ReactionLayoutCapt
     capture.cancel();
     return;
   }
+
   capture.timeout = window.setTimeout(capture.cancel, FINISH_TIMEOUT_MS);
   Promise.allSettled(capture.animations.map((animation) => animation.finished)).then(
     capture.cancel,
@@ -212,10 +235,14 @@ function playCapture(history: ReactionLayoutHistory, capture: ReactionLayoutCapt
 export function registerReactionLayoutHistory(options: HistoryRegistration) {
   const previous = histories.get(options.viewport);
   previous?.capture?.cancel();
+
   const history: ReactionLayoutHistory = { ...options };
   histories.set(options.viewport, history);
+
   return () => {
     history.capture?.cancel();
+
+    // A stale teardown must not unregister a newer owner of the same viewport.
     if (histories.get(options.viewport) === history) {
       histories.delete(options.viewport);
     }
@@ -227,17 +254,21 @@ export function prepareReactionLayout(options: { row: HTMLElement }) {
   const row = normalizeRow(options.row);
   const history = row ? getHistory(row) : undefined;
   history?.capture?.cancel();
+
   if (!row || !history || window.matchMedia(REDUCED_MOTION_QUERY).matches) {
     return;
   }
+
   const bubble = row.querySelector<HTMLElement>('[data-message-content]');
   if (!bubble || typeof bubble.animate !== 'function') {
     return;
   }
+
   const rectangle = bubble.getBoundingClientRect();
   if (!rectangle.width || !rectangle.height) {
     return;
   }
+
   const { viewport } = history;
   const distanceFromEnd = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop;
   const capture: ReactionLayoutCapture = {
@@ -255,6 +286,7 @@ export function prepareReactionLayout(options: { row: HTMLElement }) {
     timeout: 0,
     cancel: () => {},
   };
+
   history.capture = capture;
   watchCapture(history, capture);
 }
@@ -267,6 +299,7 @@ export function finishReactionLayout(options: { row: HTMLElement }) {
   if (!row || !history || !capture || capture.row !== row || capture.isQueued) {
     return;
   }
+
   capture.isQueued = true;
   // Child layout effects run before the virtual row's ref. Leave React's commit first, then flush
   // the one final measurement before paint; no intermediate animation height enters TanStack.
@@ -275,10 +308,12 @@ export function finishReactionLayout(options: { row: HTMLElement }) {
       capture.cancel();
       return;
     }
+
     flushSync(() => history.measureRow(row));
     if (capture.shouldFollowLatest) {
       history.scrollToEnd();
     }
+
     playCapture(history, capture);
   });
 }
@@ -298,8 +333,10 @@ export function readReactionLayoutDestination(options: { element: HTMLElement })
   if (!owner || !history || !capture?.isPlaying || !destination) {
     return rectangle;
   }
+
   const current = owner.getBoundingClientRect();
   const scrollChange = history.viewport.scrollTop - capture.settledScrollTop;
+
   return DOMRect.fromRect({
     x: rectangle.left - current.left + destination.left,
     y: rectangle.top - current.top + destination.top - scrollChange,

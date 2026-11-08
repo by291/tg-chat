@@ -45,6 +45,7 @@ export function useFilterScroll(containerRef: RefObject<HTMLDivElement | null>) 
       if (!container) {
         return;
       }
+
       const progress = Math.min((now - startTime) / duration, 1);
       const easedProgress = 1 - (1 - progress) ** SHORT_SCROLL_EXPONENT;
       container.scrollLeft = Math.round(start + distance * easedProgress);

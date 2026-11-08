@@ -68,6 +68,7 @@ export function EmojiBrowser({
           setError('Could not load emoji. Close the panel and try again.');
         }
       });
+
     return () => {
       isCancelled = true;
     };
@@ -81,6 +82,7 @@ export function EmojiBrowser({
         setMatches([]);
         return;
       }
+
       searchEmoji(query)
         .then((found) => {
           if (!isCancelled) {
@@ -95,59 +97,72 @@ export function EmojiBrowser({
           }
         });
     }, SEARCH_DEBOUNCE);
+
     return () => {
       isCancelled = true;
       clearTimeout(timer);
     };
   }, [query]);
 
-  const sections = useMemo(() => {
-    if (!catalog) {
-      return [];
-    }
-    if (selectedGroup) {
-      const emojiByNative = new Map(
-        Object.values(catalog.emojis).map((emoji) => [
-          normalizeGroupEmoji(emoji.skins[0].native),
-          emoji,
-        ]),
-      );
-      const items = selectedGroup.emoticons.flatMap((emoticon) => {
-        const emoji = emojiByNative.get(emoticon);
-        return emoji ? [emoji] : [];
-      });
+  const sections = useMemo(
+    () => {
+      if (!catalog) {
+        return [];
+      }
+      if (selectedGroup) {
+        const emojiByNative = new Map(
+          Object.values(catalog.emojis).map((emoji) => [
+            normalizeGroupEmoji(emoji.skins[0].native),
+            emoji,
+          ]),
+        );
+        const items = selectedGroup.emoticons.flatMap((emoticon) => {
+          const emoji = emojiByNative.get(emoticon);
+          return emoji ? [emoji] : [];
+        });
+
+        return [
+          {
+            id: selectedGroup.id,
+            title: selectedGroup.label,
+            items,
+          },
+        ];
+      }
+      if (query.trim()) {
+        return [
+          {
+            id: 'results',
+            title: 'Search Results',
+            items: matches,
+          },
+        ];
+      }
+
       return [
         {
-          id: selectedGroup.id,
-          title: selectedGroup.label,
-          items,
+          id: 'recent',
+          title: 'Frequently Used',
+          items: sessionRecents.map((id) => catalog.emojis[id]).filter(Boolean),
         },
+        ...catalog.categories
+          .filter((category) => category.id !== 'frequent')
+          .map((category) => ({
+            id: category.id,
+            title: EMOJI_CATEGORY_NAMES[category.id] ?? category.id,
+            items: category.emojis.map((id) => catalog.emojis[id]).filter(Boolean),
+          })),
       ];
-    }
-    if (query.trim()) {
-      return [
-        {
-          id: 'results',
-          title: 'Search Results',
-          items: matches,
-        },
-      ];
-    }
-    return [
-      {
-        id: 'recent',
-        title: 'Frequently Used',
-        items: sessionRecents.map((id) => catalog.emojis[id]).filter(Boolean),
-      },
-      ...catalog.categories
-        .filter((category) => category.id !== 'frequent')
-        .map((category) => ({
-          id: category.id,
-          title: EMOJI_CATEGORY_NAMES[category.id] ?? category.id,
-          items: category.emojis.map((id) => catalog.emojis[id]).filter(Boolean),
-        })),
-    ];
-  }, [catalog, matches, query, selectedGroup, sessionRecents]);
+    },
+    // prettier-ignore
+    [
+      catalog,
+      matches,
+      query,
+      selectedGroup,
+      sessionRecents,
+    ],
+  );
 
   const combinedSections = useMemo(
     () =>
@@ -159,7 +174,15 @@ export function EmojiBrowser({
         matches,
         shouldIncludeCustomEmoji: Boolean(onSelectCustomEmoji),
       }),
-    [sections, sessionRecents, query, selectedGroup, matches, onSelectCustomEmoji],
+    // prettier-ignore
+    [
+      sections,
+      sessionRecents,
+      query,
+      selectedGroup,
+      matches,
+      onSelectCustomEmoji,
+    ],
   );
   const hasResults = combinedSections.some((section) => section.items.length > 0);
   const isCustomSection = CUSTOM_EMOJI_PACKS.some((pack) => pack.id === activeSection);
@@ -220,6 +243,7 @@ export function EmojiBrowser({
                 if (!onSelectCustomEmoji) {
                   return null;
                 }
+
                 return (
                   <CustomEmojiCell
                     key={item.emoji.id}
@@ -228,6 +252,7 @@ export function EmojiBrowser({
                   />
                 );
               }
+
               return (
                 <EmojiCell
                   key={item.emoji.id}

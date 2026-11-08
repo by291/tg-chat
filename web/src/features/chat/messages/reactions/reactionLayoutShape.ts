@@ -23,7 +23,13 @@ interface ShapeRectangle extends ShapeSize {
   top: number;
 }
 
-function getAxisSegment(options: { size: number; corner: number; index: number }) {
+interface AxisSegmentOptions {
+  size: number;
+  corner: number;
+  index: number;
+}
+
+function getAxisSegment(options: AxisSegmentOptions) {
   const { size, corner, index } = options;
   if (index === 0) {
     return { start: 0, size: corner };
@@ -61,8 +67,16 @@ function getPieceRectangle(options: {
   row: number;
 }): ShapeRectangle {
   const { size, corner, column, row } = options;
-  const horizontal = getAxisSegment({ size: size.width, corner, index: column });
-  const vertical = getAxisSegment({ size: size.height, corner, index: row });
+  const horizontal = getAxisSegment({
+    size: size.width,
+    corner,
+    index: column,
+  });
+  const vertical = getAxisSegment({
+    size: size.height,
+    corner,
+    index: row,
+  });
   return {
     left: horizontal.start,
     top: vertical.start,
@@ -112,6 +126,7 @@ function createShapePiece(options: {
       fill: 'both',
     }),
   );
+
   return { across, piece };
 }
 
@@ -121,6 +136,7 @@ function animateShapeTail(options: ShapeOptions) {
   if (!tail) {
     return;
   }
+
   const isOwn = bubble.closest('[data-own="true"]') !== null;
   const horizontalOffset = isOwn ? before.width - after.width : 0;
   const verticalOffset = before.height - after.height;
@@ -143,7 +159,11 @@ function animateShapeTail(options: ShapeOptions) {
           { transform: `translateY(${verticalOffset}px) ${baseTransform}`.trim() },
           { transform: originalTransform },
         ],
-        { duration: options.duration, easing: options.verticalEasing, fill: 'both' },
+        {
+          duration: options.duration,
+          easing: options.verticalEasing,
+          fill: 'both',
+        },
       ),
     );
   }
@@ -176,8 +196,18 @@ export function animateReactionLayoutShape(options: ShapeOptions): () => void {
   for (let row = 0; row < GRID_SIDE_COUNT; row += 1) {
     for (let column = 0; column < GRID_SIDE_COUNT; column += 1) {
       const { across, piece } = createShapePiece({
-        before: getPieceRectangle({ size: before, corner, column, row }),
-        after: getPieceRectangle({ size: after, corner, column, row }),
+        before: getPieceRectangle({
+          size: before,
+          corner,
+          column,
+          row,
+        }),
+        after: getPieceRectangle({
+          size: after,
+          corner,
+          column,
+          row,
+        }),
         background: computedStyle.background,
         duration: options.duration,
         horizontalEasing: options.horizontalEasing,
@@ -204,6 +234,7 @@ export function animateReactionLayoutShape(options: ShapeOptions): () => void {
   bubble.style.boxShadow = 'none';
   bubble.prepend(shell);
   animateShapeTail(options);
+
   return () => {
     bubble.style.background = background;
     bubble.style.boxShadow = shadow;

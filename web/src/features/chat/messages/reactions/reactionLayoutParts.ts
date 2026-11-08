@@ -64,7 +64,11 @@ function animatePart(options: {
           { transform: `translateY(${verticalOffset}px) ${baseTransform}`.trim() },
           { transform: originalTransform },
         ],
-        { duration: animation.duration, easing: animation.verticalEasing, fill: 'both' },
+        {
+          duration: animation.duration,
+          easing: animation.verticalEasing,
+          fill: 'both',
+        },
       ),
     );
   }

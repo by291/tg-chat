@@ -68,6 +68,7 @@ beforeAll(() => {
     if (!options || typeof options === 'number') {
       return;
     }
+
     const nextScrollTop = Math.max(0, options.top ?? 0);
     if (nextScrollTop !== this.scrollTop) {
       this.scrollTop = nextScrollTop;

@@ -66,6 +66,7 @@ export function ChecklistFields({ entries, onUpdate, onAppend, onRemove }: Check
     if (entries.length >= MAX_CHECKLIST_TASKS) {
       return;
     }
+
     const entry = createListEntry();
     onAppend(entry);
     // Telegram focuses the new row after it is mounted, revealing it in the scroll container.

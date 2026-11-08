@@ -88,7 +88,11 @@ export function composePoll({
 }): MessageMedia {
   const options = entries
     .filter((entry) => entry.text.trim())
-    .map((entry) => ({ id: entry.id, text: entry.text.trim(), votes: 0 }));
+    .map((entry) => ({
+      id: entry.id,
+      text: entry.text.trim(),
+      votes: 0,
+    }));
   // This demo has one voter. Persist their shuffled order across virtual row remounts.
   if (settings.shouldShuffleOptions) {
     shuffleAnswers(options);
@@ -96,6 +100,7 @@ export function composePoll({
   const closesAt = settings.hasTimeLimit
     ? Date.now() + settings.durationHours * MILLISECONDS_PER_HOUR
     : undefined;
+
   return {
     kind: 'poll',
     question: title.trim(),

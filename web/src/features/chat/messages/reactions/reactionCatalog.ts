@@ -15,6 +15,7 @@ export interface ReactionOption {
 
 function createNativeSections(catalog: EmojiMartData): PickerSection<ReactionOption>[] {
   const categories = catalog.categories.filter((category) => category.id !== 'frequent');
+
   return categories.map((category) => {
     const items: ReactionOption[] = [];
     for (const id of category.emojis) {
@@ -22,6 +23,7 @@ function createNativeSections(catalog: EmojiMartData): PickerSection<ReactionOpt
       if (!emoji) {
         continue;
       }
+
       const searchText = `${emoji.name} ${emoji.keywords.join(' ')}`.toLocaleLowerCase();
       for (const skin of emoji.skins) {
         items.push({
@@ -103,5 +105,11 @@ export function searchReactionCatalog(options: {
       }
     }
   }
-  return [{ id: 'results', title: 'Search Results', items: Array.from(matches.values()) }];
+  return [
+    {
+      id: 'results',
+      title: 'Search Results',
+      items: Array.from(matches.values()),
+    },
+  ];
 }

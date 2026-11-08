@@ -16,6 +16,7 @@ export function getMessageDownloads(message: Message): DownloadableFile[] {
   if (message.attachment) {
     return [message.attachment];
   }
+
   const media = message.media;
   if (!media) {
     return [];
@@ -29,6 +30,7 @@ export function getMessageDownloads(message: Message): DownloadableFile[] {
   if (media.kind === 'video' || media.kind === 'voice') {
     return [{ name: getMediaFileName({ url: media.url, fallback: message.id }), url: media.url }];
   }
+
   return [];
 }
 

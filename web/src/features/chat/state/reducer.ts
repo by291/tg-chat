@@ -39,6 +39,7 @@ function prepareOutgoingMessages({
     if (knownIds.has(message.id)) {
       continue;
     }
+
     const content = trimEmojiText(message);
     const hasContent = Boolean(
       content.text || content.richText || message.attachment || message.sticker || message.media,
@@ -163,6 +164,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       if (!action.chatId) {
         return { ...state, activeChatId: '' };
       }
+
       const nextState = updateConversations({
         state,
         chatIds: [action.chatId],
@@ -172,6 +174,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           isDeleted: false,
         },
       });
+
       return { ...nextState, activeChatId: action.chatId };
     }
     case 'toggle-theme':
@@ -208,6 +211,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
       const shouldPreserveDraft = Boolean(message.sticker);
       const drafts = shouldPreserveDraft ? state.drafts : { ...state.drafts, [message.chatId]: '' };
+
       return {
         ...state,
         messages: [...state.messages, message],

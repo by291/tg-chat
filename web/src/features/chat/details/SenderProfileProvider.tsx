@@ -87,6 +87,7 @@ export function SenderProfileProvider({
         onSelectConversation(peer.id);
         return;
       }
+
       setSender(identity);
       setIsOpen(true);
     },

@@ -31,6 +31,7 @@ function getThumbnail(message: Message) {
   if (message.attachment) {
     return message.attachment.url;
   }
+
   switch (message.media?.kind) {
     case 'album':
       return message.media.photos[0].url;
@@ -100,6 +101,7 @@ export function PinnedMessagePreview({ message, index, count }: PinnedMessagePre
     const timeout = window.setTimeout(() => {
       setTransition((previous) => ({ ...previous, thumbnail: undefined }));
     }, CONTENT_DURATION_MS);
+
     return () => window.clearTimeout(timeout);
   }, [thumbnail]);
 

@@ -11,6 +11,8 @@ import {
   MIN_POLL_OPTIONS,
 } from './listComposition';
 
+const requiredTitleSchema = z.string().trim().min(1, 'Enter a title.');
+
 const pollSettingsSchema = z.object({
   shouldShowVoters: z.boolean(),
   canChooseMultiple: z.boolean(),
@@ -26,7 +28,7 @@ const pollSettingsSchema = z.object({
 export const listFormSchema = z
   .object({
     kind: z.enum(['poll', 'checklist']),
-    title: z.string().trim().min(1, 'Enter a title.').max(MAX_TITLE_LENGTH),
+    title: requiredTitleSchema.max(MAX_TITLE_LENGTH),
     description: z.string().max(MAX_DESCRIPTION_LENGTH),
     entries: z.array(z.object({ id: z.string(), text: z.string() })),
     settings: pollSettingsSchema,
@@ -44,6 +46,7 @@ export const listFormSchema = z
     const hasBlankTask = !isPoll && filledEntries.length !== values.entries.length;
     const hasInvalidLength = filledEntries.some((entry) => entry.text.length > maximumLength);
     const hasInvalidCount = filledEntries.length < minimum || values.entries.length > maximum;
+
     if (hasBlankTask || hasInvalidCount || hasInvalidLength) {
       context.addIssue({
         code: 'custom',
@@ -63,6 +66,8 @@ export const listFormSchema = z
         message: 'Each option must have a different answer.',
       });
     }
+
+    // Correct answers must reference non-empty rows that remain in the submitted poll.
     const validCorrectIds = values.correctOptionIds.filter((id) => {
       return filledEntries.some((entry) => entry.id === id);
     });

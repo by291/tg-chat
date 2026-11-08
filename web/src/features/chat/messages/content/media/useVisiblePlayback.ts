@@ -7,6 +7,7 @@ export function useVisiblePlayback(mediaRef: RefObject<HTMLMediaElement | null>)
     if (!media) {
       return;
     }
+
     const observer = new IntersectionObserver((entries) => {
       const entry = entries[0];
       if (!entry.isIntersecting && !media.paused) {
@@ -15,6 +16,7 @@ export function useVisiblePlayback(mediaRef: RefObject<HTMLMediaElement | null>)
     });
     // Audio without native controls has no box; observe its visible message shell.
     observer.observe(media.closest('article') || media);
+
     return () => {
       observer.disconnect();
       if (!media.paused) {

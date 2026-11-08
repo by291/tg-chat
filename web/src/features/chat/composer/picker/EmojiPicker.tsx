@@ -107,7 +107,7 @@ export function EmojiPicker({
       persistentElements={[() => triggerRef.current]}
       positioning={{
         placement: variant === 'field' ? 'bottom-start' : 'top-end',
-        // Standalone Telegram pickers slide inside the viewport instead of flipping above the field.
+        // Field pickers slide within the viewport instead of flipping above the input.
         flip: variant !== 'field',
         overlap: variant === 'field',
         gutter: 8,
@@ -116,6 +116,7 @@ export function EmojiPicker({
           if (variant === 'field') {
             return triggerRef.current?.getBoundingClientRect() ?? null;
           }
+
           const composer = triggerRef.current?.closest('[data-message-composer]');
           return (
             composer?.getBoundingClientRect() ?? triggerRef.current?.getBoundingClientRect() ?? null
@@ -172,6 +173,7 @@ export function EmojiPicker({
                 if (isPickerOverlay || event.buttons > 0) {
                   return;
                 }
+
                 scheduleHoverClose();
               }}
               onPointerDownCapture={(event) => {

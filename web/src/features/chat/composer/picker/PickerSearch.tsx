@@ -61,6 +61,7 @@ export function PickerSearch({
     }
 
     container.addEventListener('wheel', scrollFilters, { passive: false });
+
     return () => container.removeEventListener('wheel', scrollFilters);
   }, []);
 
@@ -125,6 +126,7 @@ export function PickerSearch({
             if (event.pointerType !== 'mouse' || event.button !== 0) {
               return;
             }
+
             dragRef.current = {
               startX: event.clientX,
               scrollLeft: event.currentTarget.scrollLeft,
@@ -135,10 +137,12 @@ export function PickerSearch({
             if (!drag || event.buttons !== 1) {
               return;
             }
+
             const distance = event.clientX - drag.startX;
             if (Math.abs(distance) < DRAG_THRESHOLD && !didDragRef.current) {
               return;
             }
+
             didDragRef.current = true;
             event.currentTarget.setPointerCapture(event.pointerId);
             event.currentTarget.scrollLeft = drag.scrollLeft - distance;
@@ -164,6 +168,7 @@ export function PickerSearch({
           <div className={styles.searchCategories} role="group" aria-label="Emotion filters">
             {EMOJI_SEARCH_GROUPS.map((group) => {
               const icon = getSearchCategoryIcon(group);
+
               return (
                 <button
                   key={group.id}

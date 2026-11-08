@@ -45,6 +45,7 @@ export async function createDocumentAttachment(file: File) {
   if (file.size > MAX_ATTACHMENT_BYTES) {
     throw new Error('Choose a file smaller than 8 MB.');
   }
+
   return {
     kind: 'document' as const,
     name: file.name,
@@ -59,6 +60,7 @@ export async function createVideoAttachment(file: File) {
   if (file.size > MAX_ATTACHMENT_BYTES) {
     throw new Error('Choose a video smaller than 8 MB.');
   }
+
   const url = await readFileUrl(file);
   const video = document.createElement('video');
   try {
@@ -73,6 +75,7 @@ export async function createVideoAttachment(file: File) {
     if (!hasValidDimensions || !hasValidDuration) {
       throw new Error('This video has no usable dimensions or duration.');
     }
+
     return {
       kind: 'video' as const,
       url,

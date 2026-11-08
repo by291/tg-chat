@@ -21,18 +21,21 @@ interface ReorderPinnedConversationsOptions {
 /** Persist the visible pinned order without changing other conversation preferences. */
 export function reorderPinnedConversations({ state, chatIds }: ReorderPinnedConversationsOptions) {
   const conversationPreferences = { ...state.conversationPreferences };
+
   for (const [pinnedOrder, chatId] of chatIds.entries()) {
     conversationPreferences[chatId] = {
       ...conversationPreferences[chatId],
       pinnedOrder,
     };
   }
+
   return { ...state, conversationPreferences };
 }
 
 /** Apply list preferences without losing existing overrides for the same conversation. */
 export function updateConversations({ state, chatIds, changes }: UpdateConversationsOptions) {
   const conversationPreferences = { ...state.conversationPreferences };
+
   for (const chatId of chatIds) {
     conversationPreferences[chatId] = { ...conversationPreferences[chatId], ...changes };
   }
@@ -46,6 +49,7 @@ export function clearConversations({ state, chatIds, mode }: ClearConversationsO
   const drafts = { ...state.drafts };
   const draftCustomEmoji = { ...state.draftCustomEmoji };
   const draftRichText = { ...state.draftRichText };
+
   for (const chatId of chatIds) {
     delete drafts[chatId];
     delete draftCustomEmoji[chatId];

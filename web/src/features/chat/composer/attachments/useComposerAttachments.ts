@@ -56,6 +56,7 @@ export function useComposerAttachments({ isEditing, onNotify }: ComposerAttachme
 
   useEffect(() => {
     isMountedRef.current = true;
+
     return () => {
       isMountedRef.current = false;
     };
@@ -115,6 +116,8 @@ export function useComposerAttachments({ isEditing, onNotify }: ComposerAttachme
     if (file) {
       void attachFile({ file, mode: fileModeRef.current });
     }
+
+    // The same file must emit another change event after removal or a failed decode.
     event.target.value = '';
   }
 
@@ -130,6 +133,7 @@ export function useComposerAttachments({ isEditing, onNotify }: ComposerAttachme
   function dropFile(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDragging(false);
+
     const file = event.dataTransfer.files[0];
     if (file) {
       void attachFile({ file, mode: 'media' });

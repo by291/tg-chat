@@ -30,6 +30,7 @@ export function ComposerSendButton({
   let mode = 'voice';
   let label = 'Record voice message';
   let Icon = Mic;
+
   if (hasContent) {
     mode = 'send';
     label = 'Send message';
@@ -40,13 +41,19 @@ export function ComposerSendButton({
     label = 'Save message';
     Icon = Check;
   }
+
   const isDisabled = mode === 'voice' || isPreparingAttachment;
   const initialScale = shouldReduceMotion ? 1 : ICON_TRANSITION.initialScale;
   const duration = shouldReduceMotion ? ICON_TRANSITION.reducedDuration : ICON_TRANSITION.duration;
   const exitOpacity = shouldReduceMotion ? 0 : [ICON_TRANSITION.exitOpacity, 0];
+  // prettier-ignore
   const scale = shouldReduceMotion
     ? 1
-    : [ICON_TRANSITION.initialScale, ICON_TRANSITION.overshootScale, 1];
+    : [
+        ICON_TRANSITION.initialScale,
+        ICON_TRANSITION.overshootScale,
+        1,
+      ];
 
   return (
     <IconButton

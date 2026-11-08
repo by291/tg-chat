@@ -46,6 +46,7 @@ export function ReactionBrowser({ selected, onSelect }: ReactionBrowserProps) {
           setError('Could not load all emoji. Close the panel and try again.');
         }
       });
+
     return () => {
       isCancelled = true;
     };
@@ -57,6 +58,7 @@ export function ReactionBrowser({ selected, onSelect }: ReactionBrowserProps) {
       setQuery('');
       return;
     }
+
     gridRef.current?.scrollToSection(id);
   }
 

@@ -28,6 +28,7 @@ function AddContactForm({ media, onClose }: Pick<AddContactDialogProps, 'media' 
         if (!canSave) {
           return;
         }
+
         actions?.saveContact({
           media,
           firstName,

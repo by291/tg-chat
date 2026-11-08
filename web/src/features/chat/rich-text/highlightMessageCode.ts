@@ -27,6 +27,7 @@ function loadGrammar(language: string): Promise<void> {
   if (Prism.languages[language]) {
     return Promise.resolve();
   }
+
   const pending = pendingGrammars.get(language);
   if (pending) {
     return pending;
@@ -35,6 +36,7 @@ function loadGrammar(language: string): Promise<void> {
   const loading = importGrammar(language);
   pendingGrammars.set(language, loading);
   void loading.catch(() => pendingGrammars.delete(language));
+
   return loading;
 }
 
@@ -45,11 +47,13 @@ export async function highlightMessageCode({ source, language }: HighlightOption
   if (!canonical) {
     return undefined;
   }
+
   await loadGrammar(canonical);
   const grammar = Prism.languages[canonical];
   if (!grammar) {
     return undefined;
   }
+
   return {
     html: Prism.highlight(source, grammar, canonical),
     language: canonical,

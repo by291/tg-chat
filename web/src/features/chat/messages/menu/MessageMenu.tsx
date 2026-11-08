@@ -135,6 +135,7 @@ function getMessageItems(message: Message): MessageMenuItem[] {
     label: 'Delete',
     icon: Trash2,
   });
+
   return items;
 }
 
@@ -183,6 +184,7 @@ function getSelectionItems(options: {
     label: 'Delete selected',
     icon: Trash2,
   });
+
   return items;
 }
 
@@ -248,6 +250,7 @@ export function MessageMenu({
       setPickerBounds(reactionBarRef.current?.getBoundingClientRect());
       return;
     }
+
     const reactionPrefix = 'react-';
     if (value.startsWith(reactionPrefix)) {
       const emoji = value.slice(reactionPrefix.length);
@@ -257,6 +260,7 @@ export function MessageMenu({
       selectReaction({ emoji, source });
       return;
     }
+
     restoreRowFocus();
     onClose();
     const item = items.find((entry) => entry.action === value);
@@ -290,6 +294,7 @@ export function MessageMenu({
             if (!menu || !itemsElement || !target) {
               return;
             }
+
             const bounds = menu.getBoundingClientRect();
             const top = bounds.top + itemsElement.offsetTop;
             const left = bounds.left + itemsElement.offsetLeft;
@@ -301,7 +306,7 @@ export function MessageMenu({
             if (!target) {
               return null;
             }
-            // Position the combined bounds so both the separate capsule and menu avoid screen edges.
+            // Keep the reaction capsule and action menu inside the viewport together.
             return {
               x: target.point.x - (isSelecting ? 0 : REACTION_MENU_OFFSET),
               y: target.point.y - (isSelecting ? 0 : REACTION_BAR_OFFSET),

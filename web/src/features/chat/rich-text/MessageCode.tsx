@@ -44,6 +44,7 @@ export function MessageCode({ source, language }: MessageCodeProps) {
       .catch(() => {
         // Unsupported grammars or unavailable chunks leave the original source readable.
       });
+
     return () => {
       isCurrent = false;
     };
@@ -99,7 +100,7 @@ export function MessageCode({ source, language }: MessageCodeProps) {
       </div>
       <pre className={styles.content} dir="ltr">
         {html ? (
-          // Prism escapes the source before adding token spans; message HTML never reaches this sink.
+          // Prism escapes source before adding spans; saved HTML never reaches this sink.
           <code dangerouslySetInnerHTML={{ __html: html }} />
         ) : (
           <code>{source}</code>

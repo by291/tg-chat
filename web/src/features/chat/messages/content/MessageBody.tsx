@@ -105,6 +105,7 @@ export function MessageText({ message }: { message: Message }) {
       </MessageQuote>
     );
   }
+
   return (
     <span className={styles.text}>
       <CustomEmojiText {...message} />

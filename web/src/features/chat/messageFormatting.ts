@@ -39,6 +39,7 @@ export function formatConversationTime(
   if (!clock || options.timeFormat === 'h12') {
     return label;
   }
+
   const periodHours = clock[3] === 'PM' ? HOURS_PER_HALF_DAY : 0;
   const hours = (Number(clock[1]) % HOURS_PER_HALF_DAY) + periodHours;
   return `${String(hours).padStart(2, '0')}:${clock[2]}`;

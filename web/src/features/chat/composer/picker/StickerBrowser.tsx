@@ -45,56 +45,71 @@ export function StickerBrowser({
   const hasFavorites = STICKERS.some((sticker) => favoriteStickers.includes(sticker.id));
   const hasRecentStickers = STICKERS.some((sticker) => recentStickers.includes(sticker.id));
 
-  const sections = useMemo(() => {
-    if (selectedGroup) {
-      return [
-        {
-          id: selectedGroup.id,
-          title: selectedGroup.label,
-          items: STICKERS.filter((sticker) => matchesEmojiGroup(sticker.emoji, selectedGroup)),
-        },
-      ];
-    }
-    const normalizedQuery = query.trim().toLowerCase();
-    if (normalizedQuery) {
-      const items = STICKERS.filter((sticker) => {
-        const searchableText = `${sticker.name} ${sticker.keywords} ${sticker.emoji}`.toLowerCase();
-        return searchableText.includes(normalizedQuery);
-      });
-      return [
-        {
-          id: 'results',
-          title: 'Search Results',
-          items,
-        },
-      ];
-    }
-    const groups: PickerSection<Sticker>[] = [];
-    const favorites = STICKERS.filter((sticker) => favoriteStickers.includes(sticker.id));
-    const recent = recentStickers.flatMap((id) => STICKERS.filter((sticker) => sticker.id === id));
-    if (favorites.length) {
-      groups.push({
-        id: 'favorites',
-        title: 'Favorites',
-        items: favorites,
-      });
-    }
-    if (recent.length) {
-      groups.push({
-        id: 'recent',
-        title: 'Recently Used',
-        items: recent,
-      });
-    }
-    for (const pack of orderedPacks) {
-      groups.push({
-        id: pack.id,
-        title: pack.name,
-        items: STICKERS.filter((sticker) => sticker.packId === pack.id),
-      });
-    }
-    return groups;
-  }, [query, selectedGroup, recentStickers, favoriteStickers, orderedPacks]);
+  const sections = useMemo(
+    () => {
+      if (selectedGroup) {
+        return [
+          {
+            id: selectedGroup.id,
+            title: selectedGroup.label,
+            items: STICKERS.filter((sticker) => matchesEmojiGroup(sticker.emoji, selectedGroup)),
+          },
+        ];
+      }
+
+      const normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery) {
+        const items = STICKERS.filter((sticker) => {
+          const searchableText =
+            `${sticker.name} ${sticker.keywords} ${sticker.emoji}`.toLowerCase();
+          return searchableText.includes(normalizedQuery);
+        });
+        return [
+          {
+            id: 'results',
+            title: 'Search Results',
+            items,
+          },
+        ];
+      }
+
+      const groups: PickerSection<Sticker>[] = [];
+      const favorites = STICKERS.filter((sticker) => favoriteStickers.includes(sticker.id));
+      const recent = recentStickers.flatMap((id) =>
+        STICKERS.filter((sticker) => sticker.id === id),
+      );
+      if (favorites.length) {
+        groups.push({
+          id: 'favorites',
+          title: 'Favorites',
+          items: favorites,
+        });
+      }
+      if (recent.length) {
+        groups.push({
+          id: 'recent',
+          title: 'Recently Used',
+          items: recent,
+        });
+      }
+      for (const pack of orderedPacks) {
+        groups.push({
+          id: pack.id,
+          title: pack.name,
+          items: STICKERS.filter((sticker) => sticker.packId === pack.id),
+        });
+      }
+      return groups;
+    },
+    // prettier-ignore
+    [
+      query,
+      selectedGroup,
+      recentStickers,
+      favoriteStickers,
+      orderedPacks,
+    ],
+  );
   const hasResults = sections.some((section) => section.items.length > 0);
 
   function renderSticker(sticker: Sticker) {

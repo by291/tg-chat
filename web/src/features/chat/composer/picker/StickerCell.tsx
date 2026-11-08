@@ -99,6 +99,7 @@ export function StickerCell({
             if (event.button !== 0) {
               return;
             }
+
             pointerOriginRef.current = { clientX: event.clientX, clientY: event.clientY };
             event.currentTarget.setPointerCapture(event.pointerId);
             timerRef.current = setTimeout(() => {
@@ -118,6 +119,7 @@ export function StickerCell({
               }
               return;
             }
+
             const distance = Math.hypot(
               event.clientX - pointerOriginRef.current.clientX,
               event.clientY - pointerOriginRef.current.clientY,

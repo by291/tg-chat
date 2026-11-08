@@ -24,6 +24,7 @@ function getElementText(element: Element): string {
   if (element.name === 'br') {
     return '\n';
   }
+
   return getContentNodes(element)
     .map((child) => {
       if (child instanceof Text) {
@@ -151,6 +152,7 @@ function renderRichElement(node: DOMNode) {
       if (checked === undefined) {
         return;
       }
+
       return (
         <li className={styles.checkItem}>
           <span

@@ -35,6 +35,7 @@ export function PollTextField({
         if (event.target !== event.currentTarget) {
           return;
         }
+
         const input = isMultiline ? multilineRef.current : resolvedInputRef.current;
         input?.focus();
       }}

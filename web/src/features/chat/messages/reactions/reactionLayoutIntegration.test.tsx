@@ -46,6 +46,7 @@ beforeEach(() => {
     if (this.getAttribute('aria-label') === 'Message history') {
       return DOMRect.fromRect({ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT });
     }
+
     const row = this.closest<HTMLElement>('[data-index]');
     const rowOffset = Number.parseFloat(
       row?.style.transform.match(/translateY\(([-\d.]+)/)?.[1] ?? '0',
@@ -53,7 +54,11 @@ beforeEach(() => {
     const viewport = row?.closest<HTMLElement>('[aria-label="Message history"]');
     const top = rowOffset - (viewport?.scrollTop ?? 0);
     const height = getRowHeight(row ?? this);
-    return DOMRect.fromRect({ y: top, width: VIEWPORT_WIDTH, height });
+    return DOMRect.fromRect({
+      y: top,
+      width: VIEWPORT_WIDTH,
+      height,
+    });
   });
   Element.prototype.scrollTo = function (options?: ScrollToOptions | number) {
     if (typeof options === 'object') {
@@ -77,8 +82,16 @@ afterEach(() => {
 
 function Conversation({ hasReaction = false }: { hasReaction?: boolean }) {
   const [messages, setMessages] = useState([
-    { ...initialMessage, id: 'reaction-target', reactions: hasReaction ? ['❤️'] : [] },
-    { ...initialMessage, id: 'neighbor', reactions: [] as string[] },
+    {
+      ...initialMessage,
+      id: 'reaction-target',
+      reactions: hasReaction ? ['❤️'] : [],
+    },
+    {
+      ...initialMessage,
+      id: 'neighbor',
+      reactions: [] as string[],
+    },
     ...Array.from({ length: ADDITIONAL_MESSAGE_COUNT }, (_, index) => ({
       ...initialMessage,
       id: `additional-message-${index}`,
@@ -100,6 +113,7 @@ function Conversation({ hasReaction = false }: { hasReaction?: boolean }) {
           if (!row) {
             return;
           }
+
           prepareReactionLayout({ row });
           toggleReaction();
         }}

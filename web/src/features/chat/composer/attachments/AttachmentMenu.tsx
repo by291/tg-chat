@@ -15,12 +15,36 @@ import overlays from '@/components/overlays/overlays.module.css';
 import styles from './AttachmentMenu.module.css';
 
 const ACTIONS = [
-  { value: 'media', label: 'Photo or Video', icon: Image },
-  { value: 'document', label: 'Document', icon: File },
-  { value: 'article', label: 'Article', icon: TextCursorInput },
-  { value: 'poll', label: 'Poll', icon: ChartNoAxesColumn },
-  { value: 'checklist', label: 'Checklist', icon: CircleCheck },
-] satisfies { value: AttachmentAction; label: string; icon: typeof Image }[];
+  {
+    value: 'media',
+    label: 'Photo or Video',
+    icon: Image,
+  },
+  {
+    value: 'document',
+    label: 'Document',
+    icon: File,
+  },
+  {
+    value: 'article',
+    label: 'Article',
+    icon: TextCursorInput,
+  },
+  {
+    value: 'poll',
+    label: 'Poll',
+    icon: ChartNoAxesColumn,
+  },
+  {
+    value: 'checklist',
+    label: 'Checklist',
+    icon: CircleCheck,
+  },
+] satisfies {
+  value: AttachmentAction;
+  label: string;
+  icon: typeof Image;
+}[];
 
 export type AttachmentAction = 'media' | 'document' | 'article' | 'poll' | 'checklist';
 

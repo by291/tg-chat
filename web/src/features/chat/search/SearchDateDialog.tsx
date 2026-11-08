@@ -97,6 +97,7 @@ function MonthHeading({
       { root: viewport, threshold: 1 },
     );
     observer.observe(heading);
+
     return () => observer.disconnect();
   }, [viewportRef]);
 
@@ -246,16 +247,25 @@ function CalendarScroller({
     virtualizer,
   });
 
-  useLayoutEffect(() => {
-    // Restore before paint; smooth scrolling here would visibly traverse years on open.
-    virtualizer.scrollToOffset(months[initialMonthIndex].offset);
-  }, [virtualizer, months, initialMonthIndex]);
+  useLayoutEffect(
+    () => {
+      // Restore before paint; smooth scrolling here would visibly traverse years on open.
+      virtualizer.scrollToOffset(months[initialMonthIndex].offset);
+    },
+    // prettier-ignore
+    [
+      virtualizer,
+      months,
+      initialMonthIndex,
+    ],
+  );
 
   function updateVisibleMonth() {
     const viewport = viewportRef.current;
     if (!viewport) {
       return;
     }
+
     setVisibleMonthIndex(
       findVisibleCalendarMonth({
         months,
@@ -270,6 +280,7 @@ function CalendarScroller({
     if (!month) {
       return;
     }
+
     virtualizer.scrollToOffset(month.offset, {
       behavior: shouldReduceMotion ? 'auto' : 'smooth',
     });
@@ -344,6 +355,7 @@ export function SearchDateDialog({
     if (!selected) {
       return;
     }
+
     onSelect(new Date(selected.year, selected.month - 1, selected.day).getTime());
     onClose();
   }

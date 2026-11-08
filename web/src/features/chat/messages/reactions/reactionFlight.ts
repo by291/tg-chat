@@ -99,6 +99,7 @@ function copyReactionCanvas(source: HTMLCanvasElement) {
     if (!context) {
       return;
     }
+
     context.drawImage(source, 0, 0);
     return snapshot;
   } catch {
@@ -129,6 +130,7 @@ function copyCustomReactionPicture(options: { source: HTMLElement; custom: Custo
     () => preview.replaceWith(document.createTextNode(options.custom.emoji)),
     { once: true },
   );
+
   return preview;
 }
 
@@ -171,6 +173,7 @@ function createPicture(options: HoldOptions) {
   }
   element.append(picture);
   document.body.append(element);
+
   return {
     element,
     picture,
@@ -217,6 +220,7 @@ export function holdReactionFlight(options: HoldOptions) {
     if (!flight.animation) {
       return;
     }
+
     const scrollDistance = flight.historyScrollTop - history.scrollTop;
     flight.element.style.translate = `0px ${scrollDistance}px`;
   };
@@ -242,6 +246,7 @@ export function holdReactionFlight(options: HoldOptions) {
   heldFlight = flight;
   capture.source.style.visibility = 'hidden';
   watchFlight(flight);
+
   return cancel;
 }
 
@@ -347,6 +352,7 @@ export function launchReactionFlight({ messageId, emoji, target }: LaunchOptions
       flight.cancel();
       return;
     }
+
     flight.historyScrollTop = flight.history.scrollTop;
     flight.element.style.translate = '';
     const keyframes = createFlightKeyframes(flight.origin, settledDestination);

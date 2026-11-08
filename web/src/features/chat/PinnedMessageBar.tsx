@@ -22,6 +22,7 @@ function resolvePinnedPreview(messages: Message[], anchor?: Message) {
   if (!anchor) {
     return messages.at(-1);
   }
+
   const selected = messages.find((message) => message.id === anchor.id);
   if (selected) {
     return selected;
@@ -31,7 +32,7 @@ function resolvePinnedPreview(messages: Message[], anchor?: Message) {
   return olderMessages.at(-1) ?? messages[0];
 }
 
-/** Show a compact pinned preview with navigation, a pin menu, and requests for confirmed unpinning. */
+/** Present pinned-message navigation and request confirmation before unpinning. */
 export function PinnedMessageBar({ messages, onJump, onOpenList, onUnpin }: PinnedMessageBarProps) {
   const [selectedAnchor, setSelectedAnchor] = useState<Message>();
   const [isMenuOpen, setIsMenuOpen] = useState(false);

@@ -104,6 +104,7 @@ export function ForwardRecipientSearch({
     measureHeight();
     const observer = new ResizeObserver(measureHeight);
     observer.observe(content);
+
     return () => observer.disconnect();
   }, []);
 

@@ -38,7 +38,9 @@ function getContext(options: ComposerContextBarProps): ComposerContext | undefin
   if (!forwarded?.length) {
     return undefined;
   }
+
   const authors = [...new Set(forwarded.map((entry) => entry.authorName))];
+
   return {
     kind: 'forward',
     title: `Forward ${forwarded.length} ${forwarded.length === 1 ? 'message' : 'messages'}`,
@@ -53,6 +55,7 @@ function getThumbnail(message: Message) {
   if (message.attachment) {
     return message.attachment.url;
   }
+
   switch (message.media?.kind) {
     case 'album':
       return message.media.photos[0]?.url;

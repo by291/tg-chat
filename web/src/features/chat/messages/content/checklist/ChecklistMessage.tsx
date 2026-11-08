@@ -104,6 +104,7 @@ export function ChecklistMessage({
             if (!text) {
               return;
             }
+
             onInteract({
               type: 'add-task',
               id: crypto.randomUUID(),

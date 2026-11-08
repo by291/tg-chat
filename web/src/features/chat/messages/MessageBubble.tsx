@@ -44,6 +44,7 @@ function getReplyThumbnailUrl(message?: Message) {
   if (message?.media?.kind === 'video') {
     return message.media.poster;
   }
+
   return undefined;
 }
 

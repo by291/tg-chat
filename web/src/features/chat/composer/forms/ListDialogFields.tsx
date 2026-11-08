@@ -57,6 +57,7 @@ export function ListEntryFields({
     if (!hasAddedEntry || !lastEntry) {
       return;
     }
+
     pendingRevealId.current = lastEntry.id;
   }, [entries]);
 
@@ -65,11 +66,13 @@ export function ListEntryFields({
     if (pendingRevealId.current !== id || !scrollContainer) {
       return;
     }
+
     pendingRevealId.current = undefined;
     const input = inputs.current.get(id);
     if (!input || scrollContainer.clientHeight === 0) {
       return;
     }
+
     const inputBottom = input.getBoundingClientRect().bottom;
     const viewportBottom = scrollContainer.getBoundingClientRect().bottom;
     const overflow = inputBottom + NEW_OPTION_BOTTOM_GAP - viewportBottom;
@@ -96,6 +99,7 @@ export function ListEntryFields({
     if (entries.length >= maximum) {
       return;
     }
+
     const entry = createListEntry();
     onAppend(entry);
     // Wait for React to mount the new input before moving the caret into it.
@@ -107,6 +111,7 @@ export function ListEntryFields({
     if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= entries.length) {
       return;
     }
+
     onMove(sourceIndex, targetIndex);
   }
 
@@ -134,6 +139,7 @@ export function ListEntryFields({
                 return other.id !== entry.id && other.text.trim() === entry.text.trim();
               });
             const fieldName = `Option ${index + 1}`;
+
             return (
               <FormListRow
                 key={entry.id}
@@ -219,6 +225,7 @@ export function ListEntryFields({
                           if (event.key !== 'Enter') {
                             return;
                           }
+
                           event.preventDefault();
                           const nextEntry = entries[index + 1];
                           if (nextEntry) {
@@ -263,14 +270,14 @@ export function ListSetting({
   color?: string;
   isChecked: boolean;
   isDisabled?: boolean;
-  onChange: (isChecked: boolean) => void;
+  onChange: (options: { isChecked: boolean }) => void;
 }) {
   return (
     <Switch.Root
       className={styles.setting}
       checked={isChecked}
       disabled={isDisabled}
-      onCheckedChange={({ checked }) => onChange(checked)}
+      onCheckedChange={({ checked }) => onChange({ isChecked: checked })}
     >
       {icon && (
         <span className={styles.settingIcon} style={{ background: color }}>

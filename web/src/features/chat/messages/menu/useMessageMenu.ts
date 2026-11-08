@@ -27,6 +27,7 @@ function findMessageTarget(element: EventTarget | null): MessageMenuTarget | und
   if (!(element instanceof Element)) {
     return undefined;
   }
+
   const row = findMessageRow(element);
   const messageId = row?.dataset.messageId;
   if (!row || !messageId) {
@@ -35,6 +36,7 @@ function findMessageTarget(element: EventTarget | null): MessageMenuTarget | und
   // Keyboard menus anchor to the content; pointer menus use the actual press coordinates.
   const content = row.querySelector<HTMLElement>('[data-message-content]');
   const rectangle = (content ?? row).getBoundingClientRect();
+
   return {
     messageId,
     row,
@@ -88,10 +90,12 @@ export function useMessageMenu({
     if (!nextTarget || isDisabled) {
       return;
     }
+
     event.preventDefault();
     if (lastPointerTypeRef.current === 'touch') {
       return;
     }
+
     cancelLongPress();
     openMenu({ ...nextTarget, point: { x: event.clientX, y: event.clientY } });
   }
@@ -103,10 +107,12 @@ export function useMessageMenu({
       event.stopPropagation();
       return;
     }
+
     const element = event.target;
     if (!(element instanceof Element)) {
       return;
     }
+
     const isTouchTap = lastPointerTypeRef.current === 'touch' && selectedIds === undefined;
     const isInteractiveContent = Boolean(
       element.closest('button, a, input, video, audio, [data-message-media]'),
@@ -114,6 +120,7 @@ export function useMessageMenu({
     if (!isTouchTap || isInteractiveContent) {
       return;
     }
+
     const nextTarget = findMessageTarget(element);
     if (nextTarget) {
       event.preventDefault();
@@ -129,6 +136,7 @@ export function useMessageMenu({
     if (!isContextShortcut) {
       return;
     }
+
     const nextTarget = findMessageTarget(event.target);
     if (nextTarget) {
       event.preventDefault();
@@ -143,10 +151,12 @@ export function useMessageMenu({
     if (isDisabled || event.pointerType !== 'touch' || selectedIds !== undefined) {
       return;
     }
+
     const nextTarget = findMessageTarget(event.target);
     if (!nextTarget) {
       return;
     }
+
     const point = { x: event.clientX, y: event.clientY };
     pointerStartRef.current = point;
     longPressTimerRef.current = setTimeout(() => {
@@ -162,6 +172,7 @@ export function useMessageMenu({
     if (!start) {
       return;
     }
+
     const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
     if (distance > LONG_PRESS_MOVE_TOLERANCE) {
       cancelLongPress();
@@ -175,19 +186,28 @@ export function useMessageMenu({
     }
   });
 
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) {
-      return;
-    }
-    // A point-anchored menu must close as the underlying messages move, including programmatic
-    // jumps.
-    viewport.addEventListener('scroll', closeMenu, { passive: true });
-    return () => {
-      viewport.removeEventListener('scroll', closeMenu);
-      cancelLongPress();
-    };
-  }, [viewportRef, closeMenu, cancelLongPress]);
+  useEffect(
+    () => {
+      const viewport = viewportRef.current;
+      if (!viewport) {
+        return;
+      }
+      // A point-anchored menu must close as the underlying messages move, including programmatic
+      // jumps.
+      viewport.addEventListener('scroll', closeMenu, { passive: true });
+
+      return () => {
+        viewport.removeEventListener('scroll', closeMenu);
+        cancelLongPress();
+      };
+    },
+    // prettier-ignore
+    [
+      viewportRef,
+      closeMenu,
+      cancelLongPress,
+    ],
+  );
 
   return {
     contentId,

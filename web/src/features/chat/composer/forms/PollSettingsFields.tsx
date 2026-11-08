@@ -84,6 +84,7 @@ export function PollSettingsFields({
       {SETTINGS.map(({ name, title, description, Icon, color }) => {
         const isAddingDisabled =
           name === 'canAddOptions' && (!settings.shouldShowVoters || settings.hasCorrectAnswer);
+
         return (
           <ListSetting
             key={name}
@@ -93,7 +94,15 @@ export function PollSettingsFields({
             color={color}
             isChecked={settings[name]}
             isDisabled={isAddingDisabled}
-            onChange={(isEnabled) => onChange(changePollSetting({ settings, name, isEnabled }))}
+            onChange={({ isChecked }) =>
+              onChange(
+                changePollSetting({
+                  settings,
+                  name,
+                  isEnabled: isChecked,
+                }),
+              )
+            }
           />
         );
       })}
@@ -120,7 +129,7 @@ export function PollSettingsFields({
               title="Hide Results"
               description="Show results only after the poll closes"
               isChecked={settings.shouldHideResults}
-              onChange={(shouldHideResults) => onChange({ ...settings, shouldHideResults })}
+              onChange={({ isChecked }) => onChange({ ...settings, shouldHideResults: isChecked })}
             />
           )}
         </div>

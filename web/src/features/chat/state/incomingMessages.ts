@@ -9,7 +9,7 @@ interface IncomingMessageOptions {
   message: Message;
 }
 
-/** Apply a local incoming message and the archive policy without changing the active conversation. */
+/** Apply incoming-message and archive rules without changing the active chat. */
 export function receiveMessage({ state, message }: IncomingMessageOptions): ChatState {
   const conversation = getConversations(state).find((entry) => entry.id === message.chatId);
   const isDuplicate = state.messages.some((entry) => entry.id === message.id);
@@ -24,6 +24,7 @@ export function receiveMessage({ state, message }: IncomingMessageOptions): Chat
   if (preferences?.isDeleted) {
     return state;
   }
+
   const hasMuteExpired = Boolean(preferences?.mutedUntil && preferences.mutedUntil <= Date.now());
   const isMuted = (preferences?.isMuted ?? conversation.isMuted ?? false) && !hasMuteExpired;
   const shouldLeaveArchive =

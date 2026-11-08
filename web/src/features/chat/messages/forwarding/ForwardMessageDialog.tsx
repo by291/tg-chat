@@ -83,6 +83,7 @@ export function ForwardMessageDialog({
       closeWithAction(() => onChooseRecipient(conversation));
       return;
     }
+
     setRecipientIds((current) => {
       if (current.includes(conversation.id)) {
         return current.filter((id) => id !== conversation.id);

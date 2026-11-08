@@ -29,5 +29,6 @@ export function useDeferredMediaSource(source?: string) {
   if (isDeferred && displayedSourceRef.current !== source) {
     return undefined;
   }
+
   return source;
 }

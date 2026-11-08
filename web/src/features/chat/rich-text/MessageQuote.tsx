@@ -33,6 +33,7 @@ export function MessageQuote({ children, isCollapsible = false }: MessageQuotePr
     // Observe the natural content height, not the animated clipping box, to avoid feedback loops.
     const observer = new ResizeObserver(measureContent);
     observer.observe(content);
+
     return () => observer.disconnect();
   }, [children, isCollapsible]);
 

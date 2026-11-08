@@ -42,6 +42,7 @@ export function useStructuredMessageAction({
     if (!request || request.messageId !== messageId || request.action !== action) {
       return;
     }
+
     dispatch(undefined);
     onAction();
   }, [

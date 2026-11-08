@@ -49,6 +49,7 @@ function createBubble({ isOwn }: { isOwn: boolean }) {
   bubble.append(tail);
   row.append(bubble);
   document.body.append(row);
+
   return { bubble, tail };
 }
 
@@ -77,10 +78,26 @@ describe('reaction bubble shape', () => {
   });
 
   it.each([
-    { isOwn: true, before: SMALL_BUBBLE, after: LARGE_BUBBLE },
-    { isOwn: true, before: LARGE_BUBBLE, after: SMALL_BUBBLE },
-    { isOwn: false, before: SMALL_BUBBLE, after: LARGE_BUBBLE },
-    { isOwn: false, before: LARGE_BUBBLE, after: SMALL_BUBBLE },
+    {
+      isOwn: true,
+      before: SMALL_BUBBLE,
+      after: LARGE_BUBBLE,
+    },
+    {
+      isOwn: true,
+      before: LARGE_BUBBLE,
+      after: SMALL_BUBBLE,
+    },
+    {
+      isOwn: false,
+      before: SMALL_BUBBLE,
+      after: LARGE_BUBBLE,
+    },
+    {
+      isOwn: false,
+      before: LARGE_BUBBLE,
+      after: SMALL_BUBBLE,
+    },
   ])('keeps the tail on its bubble edge as dimensions change: %j', (scenario) => {
     const { bubble, tail } = createBubble({ isOwn: scenario.isOwn });
     const originalTransform = tail.style.transform;

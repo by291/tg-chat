@@ -4,12 +4,16 @@ import { z } from 'zod';
 const STORAGE_KEY = 'react-tweb.emoticons.v1';
 const MAX_RECENT_EMOJI = 32;
 const MAX_RECENT_STICKERS = 20;
+const MIN_SKIN_TONE = 0;
+const MAX_SKIN_TONE = 5;
+const integerToneSchema = z.number().int();
 const preferencesSchema = z.object({
   recentEmoji: z.array(z.string()).default([]),
-  tones: z.record(z.string(), z.number().int().min(0).max(5)).default({}),
+  tones: z.record(z.string(), integerToneSchema.min(MIN_SKIN_TONE).max(MAX_SKIN_TONE)).default({}),
   recentStickers: z.array(z.string()).default([]),
   favoriteStickers: z.array(z.string()).default([]),
 });
+
 type PickerPreferences = z.infer<typeof preferencesSchema>;
 
 function readPreferences(): PickerPreferences {
@@ -27,6 +31,7 @@ export function usePickerPreferences() {
 
   function save(next: PickerPreferences) {
     setPreferences(next);
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {

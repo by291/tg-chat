@@ -28,6 +28,7 @@ function encodePhotoThumbnail(image: HTMLImageElement) {
 
   context.imageSmoothingQuality = 'high';
   context.drawImage(image, 0, 0, thumbnail.width, thumbnail.height);
+
   return thumbnail.toDataURL('image/jpeg', THUMBNAIL_JPEG_QUALITY);
 }
 
@@ -58,6 +59,7 @@ export function PhotoBackdrop({ source }: { source?: string }) {
     if (!source || !canvas) {
       return;
     }
+
     let isDisposed = false;
 
     async function renderBackdrop() {

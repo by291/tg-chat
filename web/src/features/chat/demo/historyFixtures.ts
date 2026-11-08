@@ -75,7 +75,15 @@ function createShowcase(): Message[] {
     { text: 'A narrow photo needs room for a readable caption.', attachment: portrait },
     {
       text: 'A small album, one caption, one timestamp.',
-      media: { kind: 'album', photos: [landscape, portrait, landscape] },
+      media: {
+        kind: 'album',
+        // prettier-ignore
+        photos: [
+          landscape,
+          portrait,
+          landscape,
+        ],
+      },
     },
     {
       text: 'An ordinary video has a reserved frame and native playback controls.',
@@ -142,9 +150,21 @@ function createShowcase(): Message[] {
         kind: 'poll',
         question: 'Which detail should we explore next?',
         options: [
-          { id: 'scroll', text: 'Scroll anchoring', votes: 8 },
-          { id: 'media', text: 'Media layouts', votes: 5 },
-          { id: 'motion', text: 'Message animation', votes: 3 },
+          {
+            id: 'scroll',
+            text: 'Scroll anchoring',
+            votes: 8,
+          },
+          {
+            id: 'media',
+            text: 'Media layouts',
+            votes: 5,
+          },
+          {
+            id: 'motion',
+            text: 'Message animation',
+            votes: 3,
+          },
         ],
       },
     },

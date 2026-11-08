@@ -46,6 +46,8 @@ export function useListForm(kind: ListFormValues['kind']) {
   function removeEntry(index: number) {
     const removedId = form.getValues(`entries.${index}.id`);
     const nextCorrectIds = form.getValues('correctOptionIds').filter((id) => id !== removedId);
+
+    // Remove the answer identity too; a different row can occupy the same index after deletion.
     entryFields.remove(index);
     changeField('correctOptionIds', nextCorrectIds);
   }
@@ -54,6 +56,7 @@ export function useListForm(kind: ListFormValues['kind']) {
     if (!settings.canChooseMultiple) {
       changeField('correctOptionIds', form.getValues('correctOptionIds').slice(0, 1));
     }
+
     changeField('settings', settings);
   }
 
@@ -63,9 +66,11 @@ export function useListForm(kind: ListFormValues['kind']) {
       changeField('correctOptionIds', [id]);
       return;
     }
+
     const nextIds = currentIds.includes(id)
       ? currentIds.filter((selectedId) => selectedId !== id)
       : [...currentIds, id];
+
     changeField('correctOptionIds', nextIds);
   }
 

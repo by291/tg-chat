@@ -14,7 +14,7 @@ export function getCustomReactionKey(id: string) {
   return `${CUSTOM_REACTION_PREFIX}${id}`;
 }
 
-/** Resolve native or custom stored reactions without requiring their original picker to remain open. */
+/** Resolve stored reactions independently of their original picker. */
 export function resolveReactionEmoji(value: string): ReactionEmoji {
   if (!value.startsWith(CUSTOM_REACTION_PREFIX)) {
     return { label: value, native: value };
