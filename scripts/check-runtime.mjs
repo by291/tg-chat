@@ -231,7 +231,13 @@ function configurePublicOrigin(origin) {
 
 function verifyAccountBrowsers(origin) {
   const mailpitOrigin = endpoint('mailpit', '8025');
-  const output = execute('pnpm', ['--dir', 'web', 'test:accounts'], {
+  // prettier-ignore
+  const browserArguments = [
+    '--dir',
+    'web',
+    'test:accounts',
+  ];
+  const output = execute('pnpm', browserArguments, {
     env: {
       ...process.env,
       TG_CHAT_ACCOUNT_TEST_URL: origin,

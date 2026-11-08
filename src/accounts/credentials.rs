@@ -16,8 +16,17 @@ const TOKEN_BYTES: usize = 32;
 const MIN_USERNAME_LENGTH: usize = 3;
 const MAX_USERNAME_LENGTH: usize = 32;
 const HASH_LANES: u32 = 1;
-const RESERVED_USERNAMES: &[&str] =
-    &["admin", "administrator", "root", "system", "support", "deleted", "api", "worker"];
+#[rustfmt::skip]
+const RESERVED_USERNAMES: &[&str] = &[
+    "admin",
+    "administrator",
+    "root",
+    "system",
+    "support",
+    "deleted",
+    "api",
+    "worker",
+];
 
 #[derive(Clone)]
 pub(crate) struct PasswordEngine {

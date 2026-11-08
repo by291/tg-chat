@@ -15,7 +15,9 @@ const REGISTRATION_LIMIT: u64 = 5;
 const REGISTRATION_WINDOW_SECONDS: u64 = 600;
 const COUNTER_SCRIPT: &str = "
 local count = redis.call('INCR', KEYS[1])
-if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+if count == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
 return count
 ";
 
