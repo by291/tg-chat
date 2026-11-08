@@ -62,14 +62,15 @@
 
 .emptyConversation {
   align-self: center;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-radius: 16px;
   color: white;
   text-align: center;
-  background: var(--service-color);
-  font-size: 14px;
+  background: var(--message-highlighting-color);
+  font-size: calc(var(--message-text-size, 16px) - 1px);
   font-weight: 500;
-  line-height: 20px;
+  line-height: calc(var(--message-text-size, 16px) + 4px);
+  user-select: none;
 }
 
 .emptyConversation p {
