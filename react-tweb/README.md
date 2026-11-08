@@ -21,6 +21,17 @@ pnpm build
 pnpm format:check
 ```
 
+Run the Chromium interaction regressions with:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:browser
+```
+
+The browser suite builds production assets and starts a dedicated preview on port 5193. Each test
+uses an isolated browser context, so archive changes and editor drafts do not touch your regular
+development data. Failed cases save screenshots and traces under `test-results/`.
+
 ## What works
 
 - Floating conversation list, centered toolbar and composer, pastel patterned wallpaper.
@@ -108,6 +119,7 @@ alias. See the [directory layout](./docs/source-guide.md#directory-layout) for o
 | DOMPurify and HTML React Parser | Safe semantic message content and React rendering                    |
 | KaTeX                           | Bounded formula rendering in composition and messages                |
 | Vitest and Testing Library      | State, keyboard, menu, and attachment regression tests               |
+| Playwright                      | Browser focus, selection, viewer handoff, and history anchor tests   |
 
 The lockfile pins the installed dependency graph. See [the source guide](./docs/source-guide.md)
 for a reading order and a map back to the original tweb sources.

@@ -98,8 +98,18 @@ hooks separately own composer submission, dialog transitions, message commands, 
 `ChatSidebar` coordinates sidebar destinations; list/archive views render their pages, while
 `useSidebarSearch` owns search scope and focus handoff. `ComposerFormattingToolbar` renders controls;
 its selection, dialogs, keyboard shortcuts, and command definitions have separate owners.
-`useViewerTransform` coordinates input listeners and animation; `viewerGeometry` measures layout
-and `viewerGesture` calculates pan, inertia, and swipe decisions.
+`MessageComposer` owns submission and edit context; `attachments/useComposerAttachments` owns file
+selection, decoding, preview state, and cancellation across file input, drop, and paste.
+`EmojiEditor` retains one shared selection reference while `useEditorValueSynchronization`,
+`useEditorInputCommands`, and `useEditorControls` own value synchronization, keyboard/paste commands,
+and imperative palette operations respectively.
+
+`useViewerTransform` owns transform state, geometry, and settling. `useViewerPointerInput` adapts
+drag/pinch/pointer continuation and `useViewerWheelInput` adapts wheel/modifier input to that owner.
+`viewerGeometry` measures layout and `viewerGesture` calculates pan, inertia, and swipe decisions.
+`lib/media/playback` arbitrates audible playback across messages and the viewer; message visibility
+observation stays with message rendering. `historyViewportPolicy` defines read and prefetch decisions;
+`useVirtualHistory` retains scroll scheduling, request deduplication, navigation, and anchor recovery.
 
 Use `@/` for cross-owner imports and relative paths within an owner. Import the owning module
 directly; old paths do not retain compatibility barrels. The domain modules do not import features,
@@ -498,6 +508,19 @@ have an independent scroll viewport; tweb's larger emoji and sticker catalogs us
 `MessageComposer.test.tsx` controls the asynchronous image decoder boundary to reproduce completion
 out of order. `composerKeyboard.test.ts` protects input-method composition. `storage.test.ts`
 rejects malformed saved state and out-of-range timestamps before rendering.
+
+`historyViewportPolicy.test.ts` covers foreground/read boundaries and older-history prefetch gates.
+`EmojiEditor.test.tsx` checks that external draft replacement preserves the mounted editor and does
+not publish the previous draft again. Attachment tests also cover cancellation during replacement,
+editing-mode draft retention, unmounts, sending, and input-mode changes.
+
+`e2e/interactions.spec.ts` runs against a fresh production build in Chromium. It verifies archive
+search focus, formatting-dialog selection restoration, forwarding cancellation back to the viewer,
+and reading-anchor preservation after a viewport resize. It waits for stable row geometry before
+comparing offsets, including deferred resize correction. Run `pnpm test:browser` after installing
+Chromium with `pnpm exec playwright install chromium`. The dedicated server uses port 5193 and is
+never reused; each test receives a clean browser context. Failure traces and screenshots are saved
+under `test-results/`. Vitest discovery remains limited to colocated `src/**/*.test.{ts,tsx}` files.
 
 ## Extending the study
 
