@@ -8,6 +8,7 @@ use tg_chat::{
     accounts::{AccountService, AccountSettings, http::AccountHttpState, transport::HttpSettings},
     config::ServiceKind,
     http::{ApplicationState, router_with_api},
+    jobs::{MailQueue, MailSettings},
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -34,7 +35,9 @@ fn application(pool: PgPool, valkey_url: &str) -> Router {
     values.insert("TG_CHAT_RATE_NAMESPACE".to_owned(), Uuid::new_v4().to_string());
     let settings = HttpSettings::from_values(&values).unwrap();
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let account_routes = tg_chat::accounts::http::router(AccountHttpState::new(accounts, settings));
+    let mail = MailQueue::new(pool.clone(), MailSettings::from_values(&values).unwrap()).unwrap();
+    let account_routes =
+        tg_chat::accounts::http::router(AccountHttpState::new(accounts, settings, mail));
 
     router_with_api(
         ApplicationState {

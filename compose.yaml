@@ -10,8 +10,15 @@ x-application: &application
     TG_CHAT_PUBLIC_ORIGIN: ${TG_CHAT_PUBLIC_ORIGIN:-http://localhost:8080}
     TG_CHAT_VALKEY_URL: redis://valkey:6379
     TG_CHAT_TRUST_GATEWAY: 'true'
+    TG_CHAT_SMTP_HOST: ${TG_CHAT_SMTP_HOST:-}
+    TG_CHAT_SMTP_PORT: ${TG_CHAT_SMTP_PORT:-587}
+    TG_CHAT_SMTP_MODE: ${TG_CHAT_SMTP_MODE:-starttls}
+    TG_CHAT_MAIL_FROM: ${TG_CHAT_MAIL_FROM:-}
+    TG_CHAT_MAIL_KEY: ${TG_CHAT_MAIL_KEY:-}
+    TG_CHAT_SMTP_USERNAME: ${TG_CHAT_SMTP_USERNAME:-}
+    TG_CHAT_SMTP_PASSWORD: ${TG_CHAT_SMTP_PASSWORD:-}
   init: true
-  stop_grace_period: 20s
+  stop_grace_period: 45s
 
 services:
   postgres:
@@ -168,6 +175,17 @@ services:
       timeout: 3s
       retries: 30
 
+  mailpit:
+    profiles: [mail]
+    image: axllent/mailpit:v1.33.1
+    ports:
+      - '127.0.0.1:${TG_CHAT_MAILPIT_PORT:-8025}:8025'
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   verification:
     profiles: [verification]
     build:
@@ -175,6 +193,9 @@ services:
       dockerfile: deploy/Dockerfile
       target: verification
     environment:
+      TG_CHAT_TEST_VALKEY_URL: redis://valkey:6379
+      TG_CHAT_TEST_SMTP_HOST: mailpit
+      TG_CHAT_TEST_SMTP_PORT: '1025'
       DATABASE_URL: >-
         postgres://tg_chat:${TG_CHAT_DATABASE_PASSWORD:?Generate .env first}@postgres:5432/tg_chat
     depends_on:

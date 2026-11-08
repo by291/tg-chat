@@ -46,6 +46,26 @@
         "responses": { "204": { "description": "" } }
       }
     },
+    "/api/v1/account/email": {
+      "delete": {
+        "tags": [],
+        "operationId": "remove",
+        "responses": { "204": { "description": "" } }
+      }
+    },
+    "/api/v1/account/email/verification": {
+      "post": {
+        "tags": [],
+        "operationId": "request_verification",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EmailAddress" } }
+          },
+          "required": true
+        },
+        "responses": { "202": { "description": "" } }
+      }
+    },
     "/api/v1/account/password": {
       "post": {
         "tags": [],
@@ -130,6 +150,19 @@
         }
       }
     },
+    "/api/v1/auth/email/confirm": {
+      "post": {
+        "tags": [],
+        "operationId": "confirm",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EmailConfirmation" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [],
@@ -158,6 +191,32 @@
         "requestBody": {
           "content": {
             "application/json": { "schema": { "$ref": "#/components/schemas/PasswordProof" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" } }
+      }
+    },
+    "/api/v1/auth/recovery": {
+      "post": {
+        "tags": [],
+        "operationId": "request_recovery",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EmailAddress" } }
+          },
+          "required": true
+        },
+        "responses": { "202": { "description": "" } }
+      }
+    },
+    "/api/v1/auth/recovery/reset": {
+      "post": {
+        "tags": [],
+        "operationId": "reset_password",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PasswordReset" } }
           },
           "required": true
         },
@@ -434,6 +493,18 @@
           "users": { "type": "array", "items": { "$ref": "#/components/schemas/PublicProfile" } }
         }
       },
+      "EmailAddress": {
+        "type": "object",
+        "required": ["email"],
+        "properties": { "email": { "type": "string" } },
+        "additionalProperties": false
+      },
+      "EmailConfirmation": {
+        "type": "object",
+        "required": ["token"],
+        "properties": { "token": { "type": "string" } },
+        "additionalProperties": false
+      },
       "ErrorDetails": {
         "type": "object",
         "required": ["code", "message", "request_id"],
@@ -482,6 +553,12 @@
         },
         "additionalProperties": false
       },
+      "PasswordReset": {
+        "type": "object",
+        "required": ["token", "new_password"],
+        "properties": { "new_password": { "type": "string" }, "token": { "type": "string" } },
+        "additionalProperties": false
+      },
       "PrivacySettings": {
         "type": "object",
         "required": ["direct_messages", "calls", "presence"],
@@ -498,6 +575,7 @@
         "properties": {
           "biography": { "type": "string" },
           "display_name": { "type": "string" },
+          "email": { "type": ["string", "null"] },
           "id": { "type": "string", "format": "uuid" },
           "is_operator": { "type": "boolean" },
           "phone": { "type": ["string", "null"] },

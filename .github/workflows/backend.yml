@@ -30,7 +30,28 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 30
+      valkey:
+        image: valkey/valkey:9.1.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+      mailpit:
+        image: axllent/mailpit:v1.33.1
+        ports:
+          - 1025:1025
+        options: >-
+          --health-cmd "/mailpit readyz"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     env:
+      TG_CHAT_TEST_VALKEY_URL: redis://localhost:6379
+      TG_CHAT_TEST_SMTP_HOST: localhost
+      TG_CHAT_TEST_SMTP_PORT: '1025'
       DATABASE_URL: postgres://postgres:isolated-ci-password@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v6
@@ -61,7 +82,7 @@ jobs:
             ../docs/development.md ../docs/operations.md ../openapi/api.json
       - name: Lint Rust
         run: cargo clippy --locked --all-targets -- -D warnings
-      - name: Test runtime with real PostgreSQL
+      - name: Test accounts and jobs with real services
         run: cargo test --locked --all-targets -- --include-ignored
       - name: Verify generated API contracts
         run: pnpm --dir web api:check

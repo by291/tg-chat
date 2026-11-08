@@ -31,6 +31,12 @@ pub enum AccountError {
     RegistrationClosed,
     #[error("too many requests; try again later")]
     RateLimited,
+    #[error("email delivery is not configured")]
+    EmailUnavailable,
+    #[error("the email address cannot be assigned to this account")]
+    EmailUnavailableForAccount,
+    #[error("the link is invalid or has expired")]
+    InvalidChallenge,
 }
 
 impl From<sqlx::Error> for AccountError {
@@ -81,6 +87,7 @@ pub struct PrivateProfile {
     pub display_name: String,
     pub biography: String,
     pub phone: Option<String>,
+    pub email: Option<String>,
     pub is_operator: bool,
     pub version: String,
 }
@@ -115,6 +122,8 @@ pub(crate) struct UserRecord {
     pub is_operator: bool,
     pub is_suspended: bool,
     pub profile_version: i64,
+    pub verified_email: Option<String>,
+    pub email_version: i64,
 }
 
 impl UserRecord {
@@ -126,6 +135,7 @@ impl UserRecord {
             display_name: self.display_name.clone(),
             biography: self.biography.clone(),
             phone: self.phone.clone(),
+            email: self.verified_email.clone(),
             is_operator: self.is_operator,
             version: self.profile_version.to_string(),
         }

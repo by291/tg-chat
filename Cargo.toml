@@ -7,6 +7,14 @@ license = "GPL-3.0-only"
 publish = false
 
 [dependencies]
+aes-gcm = "=0.10.3"
+email_address = "=0.2.9"
+lettre = { version = "=0.11.23", default-features = false, features = [
+    "builder",
+    "smtp-transport",
+    "pool",
+    "tokio1-rustls-tls",
+] }
 argon2 = { version = "=0.6.0", features = ["getrandom"] }
 base64 = "=0.22.1"
 chrono = { version = "=0.4.45", features = ["serde"] }

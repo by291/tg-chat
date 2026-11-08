@@ -15,9 +15,11 @@ use crate::{
     config::{ServiceKind, Settings},
     database::connect_pool,
     http::{ApplicationState, router_with_api},
+    jobs::{MailQueue, MailSettings},
 };
 
 const GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+const WORKER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 const POOL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Error)]
@@ -50,20 +52,44 @@ async fn shutdown_signal() -> Result<(), RuntimeError> {
     tokio::signal::ctrl_c().await.map_err(|_| RuntimeError::SignalFailed)
 }
 
+async fn drain_worker(worker: Option<tokio::task::JoinHandle<()>>) {
+    let Some(mut worker) = worker else {
+        return;
+    };
+    if timeout(WORKER_SHUTDOWN_TIMEOUT, &mut worker).await.is_ok() {
+        return;
+    }
+
+    worker.abort();
+    let _ = worker.await;
+    tracing::warn!("mail_drain_deadline_reached");
+}
+
 /// Serve one process until shutdown, bounding both HTTP draining and pool cleanup.
 pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), RuntimeError> {
     let pool = connect_pool(&settings.database);
     let listener =
         TcpListener::bind(settings.bind_address).await.map_err(|_| RuntimeError::BindFailed)?;
     let shutdown = CancellationToken::new();
+    let values: HashMap<String, String> = std::env::vars().collect();
+    let mail_settings =
+        MailSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
+    let mail = MailQueue::new(pool.clone(), mail_settings)
+        .map_err(|_| RuntimeError::AccountConfiguration)?;
+    let worker = if matches!(service, ServiceKind::Worker) {
+        let queue = mail.clone();
+        let stop = shutdown.clone();
+        Some(tokio::spawn(async move { queue.run(stop).await }))
+    } else {
+        None
+    };
     let account_routes = if matches!(service, ServiceKind::Api) {
-        let values: HashMap<String, String> = std::env::vars().collect();
         let account_settings = AccountSettings::from_values(&values)
             .map_err(|_| RuntimeError::AccountConfiguration)?;
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
-        account_router(AccountHttpState::new(accounts, transport))
+        account_router(AccountHttpState::new(accounts, transport, mail))
     } else {
         axum::Router::new()
     };
@@ -98,6 +124,9 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             }
         }
     };
+
+    shutdown.cancel();
+    drain_worker(worker).await;
 
     if timeout(POOL_SHUTDOWN_TIMEOUT, pool.close()).await.is_err() {
         tracing::warn!(?service, "database_drain_deadline_reached");

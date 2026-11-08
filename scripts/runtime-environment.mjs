@@ -6,6 +6,7 @@ const ACCESS_KEY_BYTES = 16;
 /** Generate isolated local credentials without embedding usable secrets in repository files. */
 export function createRuntimeEnvironment({ httpPort = '8080', s3Port = '8333' } = {}) {
   return {
+    TG_CHAT_MAIL_KEY: randomBytes(SECRET_BYTES).toString('base64'),
     TG_CHAT_DATABASE_PASSWORD: randomBytes(SECRET_BYTES).toString('hex'),
     TG_CHAT_CENTRIFUGO_TOKEN_KEY: randomBytes(SECRET_BYTES).toString('hex'),
     TG_CHAT_CENTRIFUGO_API_KEY: randomBytes(SECRET_BYTES).toString('hex'),

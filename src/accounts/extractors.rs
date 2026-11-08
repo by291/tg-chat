@@ -60,6 +60,13 @@ impl IntoResponse for ApiFailure {
             }
             AccountError::RegistrationClosed => (StatusCode::FORBIDDEN, "registration_closed"),
             AccountError::RateLimited => (StatusCode::TOO_MANY_REQUESTS, "rate_limited"),
+            AccountError::EmailUnavailable => {
+                (StatusCode::SERVICE_UNAVAILABLE, "email_unavailable")
+            }
+            AccountError::EmailUnavailableForAccount => {
+                (StatusCode::CONFLICT, "email_unavailable_for_account")
+            }
+            AccountError::InvalidChallenge => (StatusCode::BAD_REQUEST, "invalid_challenge"),
         };
 
         error_response(

@@ -1,6 +1,8 @@
 //! Account identity and authoritative session ownership.
 
 mod credentials;
+pub mod email;
+pub(crate) mod email_http;
 pub(crate) mod extractors;
 pub mod http;
 mod model;

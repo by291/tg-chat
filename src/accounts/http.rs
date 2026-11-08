@@ -12,6 +12,7 @@ use uuid::Uuid;
 use super::{
     AccountError, AccountService, Login, PasswordChange, PrivateProfile, Registration,
     RevokeSession, SessionGrant, SessionView,
+    email::EmailService,
     extractors::{ActorContext, ApiFailure, PublicContext, SafeJson},
     rate_limit::RateLimiter,
     transport::HttpSettings,
@@ -24,6 +25,7 @@ pub struct AccountHttpState {
     pub(crate) accounts: AccountService,
     pub(crate) settings: HttpSettings,
     pub(crate) limiter: RateLimiter,
+    pub(crate) email: EmailService,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -78,13 +80,19 @@ pub struct AccountDocument;
 
 impl AccountHttpState {
     /// Combine account transactions with browser transport and sensitive admission limits.
-    pub fn new(accounts: AccountService, settings: HttpSettings) -> Self {
+    pub fn new(
+        accounts: AccountService,
+        settings: HttpSettings,
+        mail: crate::jobs::MailQueue,
+    ) -> Self {
         let limiter = RateLimiter::new(&settings);
+        let email = EmailService::new(accounts.clone(), mail);
 
         Self {
             accounts,
             settings,
             limiter,
+            email,
         }
     }
 }
@@ -131,7 +139,7 @@ async fn capabilities(
 
     Ok(Json(Capabilities {
         registration_open,
-        email_recovery_available: false,
+        email_recovery_available: state.email.is_enabled(),
         avatars_available: false,
         messaging_available: false,
     }))
@@ -392,6 +400,7 @@ pub fn router(state: AccountHttpState) -> Router {
         .route("/account/devices/revoke", post(revoke_device));
     let routes = routes.route("/account/devices/revoke-others", post(revoke_other_devices));
     let routes = routes.merge(crate::contacts::http::router());
+    let routes = routes.merge(super::email_http::router());
     let routes = routes
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(axum::middleware::from_fn(prevent_caching));

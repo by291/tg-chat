@@ -20,11 +20,14 @@ const MISSING_CREDENTIALS_CLOSE_CODE = 3501;
 const INVALID_TOKEN_CLOSE_CODE = 3500;
 const OBJECT_CONTENT = 'Object storage survives service restarts.\n';
 const environment = createRuntimeEnvironment({ httpPort: '0', s3Port: '0' });
+environment.TG_CHAT_MAILPIT_PORT = '0';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'tg-chat-runtime-'));
 const environmentPath = join(temporaryDirectory, '.env');
 const project = `tg-chat-check-${randomUUID()}`;
 const composeArguments = [
   'compose',
+  '--profile',
+  'mail',
   '--project-name',
   project,
   '--env-file',
