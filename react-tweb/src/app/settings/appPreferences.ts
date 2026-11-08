@@ -9,6 +9,7 @@ export const DEFAULT_APP_PREFERENCES = {
   timeFormat: 'h12' as const,
   shouldAutoplayVideos: true,
   shouldAnimateStickers: true,
+  shouldUseLargeEmoji: true,
 };
 
 const messageTextSizeSchema = z.int().min(MIN_MESSAGE_TEXT_SIZE).max(MAX_MESSAGE_TEXT_SIZE);
@@ -18,6 +19,7 @@ const preferenceSchema = z.object({
   timeFormat: z.enum(['h12', 'h23']).catch(DEFAULT_APP_PREFERENCES.timeFormat),
   shouldAutoplayVideos: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAutoplayVideos),
   shouldAnimateStickers: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldAnimateStickers),
+  shouldUseLargeEmoji: z.boolean().catch(DEFAULT_APP_PREFERENCES.shouldUseLargeEmoji),
 });
 
 export type AppPreferences = z.infer<typeof preferenceSchema>;

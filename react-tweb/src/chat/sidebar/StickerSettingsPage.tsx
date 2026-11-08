@@ -1,7 +1,8 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
-import { Repeat, X } from 'lucide-react';
+import { Repeat, Smile, X } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
+import { setAppPreferences, useAppPreferences } from '../../app/settings/appPreferences';
 import { Ripple } from '../../components/Ripple';
 import { CUSTOM_EMOJI_PACKS } from '../emoji/customEmojiCatalog';
 import { STICKERS, STICKER_PACKS } from '../stickers/stickerCatalog';
@@ -34,6 +35,7 @@ const INSTALLED_PACKS = [
 
 /** Apply playback preferences and browse the same installed packs used by the composer. */
 export function StickerSettingsPage({ onBack }: { onBack: () => void }) {
+  const preferences = useAppPreferences();
   const { shouldLoop } = useSyncExternalStore(subscribeStickerPlayback, getStickerPlaybackState);
   const [selectedPackId, setSelectedPackId] = useState<string>();
   const selectedPack = INSTALLED_PACKS.find((pack) => pack.id === selectedPackId);
@@ -83,6 +85,16 @@ export function StickerSettingsPage({ onBack }: { onBack: () => void }) {
           />
         </div>
         <p className={settings.caption}>Animated stickers will play continuously in chats.</p>
+        <section className={settings.section} aria-label="Emoji appearance">
+          <h3>Emoji</h3>
+          <SettingsSwitch
+            label="Large Emoji"
+            icon={Smile}
+            color="orange"
+            isChecked={preferences.shouldUseLargeEmoji}
+            onChange={({ isChecked }) => setAppPreferences({ shouldUseLargeEmoji: isChecked })}
+          />
+        </section>
         {renderPackSection('stickers', 'Stickers')}
         {renderPackSection('emoji', 'Emoji')}
       </div>

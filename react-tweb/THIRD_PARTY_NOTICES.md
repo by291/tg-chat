@@ -12,6 +12,8 @@
 - Adapted album layout: `src/components/groupedLayout.ts`, used in
   `src/chat/media/albumLayout.ts`; upstream credits the Telegram Desktop grouped layout
   implementation at https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+- Emoji-only size steps: `BIG_EMOJI_SIZES` in `src/components/chat/bubbles.ts`, used in
+  `src/chat/messages/largeEmoji.ts`
 - License: GNU General Public License, version 3
 
 The full license text is included in `LICENSE`. Conversation data, account credentials, private
@@ -33,8 +35,9 @@ These fonts are served locally so text metrics do not depend on an installed sys
 
 ## Package dependencies
 
-React, Vite, Ark UI, TanStack Virtual, Lucide, Motion, idb-keyval, Zod, and development dependencies retain their
-respective licenses in the installed packages. Exact versions are recorded in `pnpm-lock.yaml`.
+React, Vite, Ark UI, TanStack Virtual, Lucide, Motion, idb-keyval, Zod, emoji-regex, and development
+dependencies retain their respective licenses in the installed packages. Exact versions are recorded
+in `pnpm-lock.yaml`.
 
 ## MDN sample video
 

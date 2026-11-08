@@ -472,6 +472,15 @@
   background: var(--overlay-color);
 }
 
+.largeEmoji {
+  --custom-emoji-size: 1em;
+
+  padding: 4px 0 20px;
+  line-height: 1;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .forwarded {
   display: flex;
   flex-direction: column;

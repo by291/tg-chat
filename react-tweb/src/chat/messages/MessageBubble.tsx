@@ -1,5 +1,7 @@
 import { Check, Quote } from 'lucide-react';
 import { memo, useLayoutEffect, useRef } from 'react';
+import { useAppPreferences } from '../../app/settings/appPreferences';
+import { getLargeEmojiSize } from './largeEmoji';
 import { Ripple } from '../../components/Ripple';
 import { MessageBody, MessageText } from './MessageBody';
 import { MessageMetadata } from './MessageMetadata';
@@ -67,6 +69,8 @@ export const MessageBubble = memo(function MessageBubble({
   onOpenMedia,
   onJumpToMessage,
 }: MessageBubbleProps) {
+  const preferences = useAppPreferences();
+  const largeEmojiSize = preferences.shouldUseLargeEmoji ? getLargeEmojiSize(message) : undefined;
   const rowRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const row = rowRef.current;
@@ -84,7 +88,7 @@ export const MessageBubble = memo(function MessageBubble({
   }, [message.id, onMount]);
   const isOwn = message.authorId === CURRENT_USER_ID;
   const isRoundVideo = message.media?.kind === 'video' && message.media.isRound;
-  const isStandalone = Boolean(message.sticker || isRoundVideo);
+  const isStandalone = Boolean(message.sticker || isRoundVideo || largeEmojiSize);
   const hasVisualMedia = Boolean(
     message.attachment || message.media?.kind === 'album' || message.media?.kind === 'video',
   );
@@ -191,6 +195,11 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
         <div className={styles.mediaContent} data-message-media>
+          {largeEmojiSize && (
+            <div className={styles.largeEmoji} style={{ fontSize: largeEmojiSize }}>
+              <MessageText message={message} />
+            </div>
+          )}
           <MessageBody
             message={message}
             onOpenMedia={onOpenMedia}
@@ -200,7 +209,7 @@ export const MessageBubble = memo(function MessageBubble({
           {hasOverlayTime && <MessageMetadata message={message} />}
         </div>
         <div className={styles.messageContent} data-message-text>
-          {!isLinkPreview && <MessageText message={message} />}
+          {!isLinkPreview && !largeEmojiSize && <MessageText message={message} />}
           {!hasOverlayTime && !hasReactions && !hasInlineMediaMetadata && (
             <MessageMetadata message={message} />
           )}

@@ -66,6 +66,25 @@ function renderReplyBubble({
 }
 
 describe('text message senders', () => {
+  it('restores the ordinary bubble when large emoji is turned off', () => {
+    const { container } = render(
+      <MessageBubble
+        message={{ ...message, text: '😀😀' }}
+        isGroupStart
+        isGroupEnd
+        isHighlighted={false}
+        onInteract={() => {}}
+        onReact={() => {}}
+        onOpenMedia={() => {}}
+        onJumpToMessage={() => {}}
+      />,
+    );
+    expect(container.querySelector('[data-standalone="true"]')).toBeTruthy();
+    act(() => setAppPreferences({ shouldUseLargeEmoji: false }));
+    expect(container.querySelector('[data-standalone="true"]')).toBeNull();
+    expect(screen.getByText('😀😀')).toBeTruthy();
+  });
+
   it('shows the sender name for a group message', () => {
     renderTextBubble({ shouldShowSender: true });
     expect(screen.getByText('Alex')).toBeTruthy();
