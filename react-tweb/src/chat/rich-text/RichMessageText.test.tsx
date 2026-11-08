@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RichMessageText } from './RichMessageText';
+import { ToastViewport } from '../../components/Toast';
+import { hideToast } from '../../components/toastStore';
+
+beforeEach(() => render(<ToastViewport />));
 
 afterEach(() => {
   cleanup();
+  hideToast();
   vi.unstubAllGlobals();
 });
 

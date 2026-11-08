@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useReducer } from 'react';
 import { messageMediaSchema, type ContactMedia } from '../messageMedia';
 import { createInitialState } from '../demo/fixtures';
@@ -10,6 +10,10 @@ import { getConversations } from '../state/conversations';
 import { parseSavedState } from '../state/storage';
 import { ContactActionsProvider } from './ContactActions';
 import { ContactCard } from './MessageCards';
+import { ToastViewport } from '../../components/Toast';
+import { hideToast } from '../../components/toastStore';
+
+beforeEach(() => render(<ToastViewport />));
 
 const contact = {
   kind: 'contact' as const,
@@ -62,6 +66,7 @@ function ContactConversation({
 
 afterEach(() => {
   cleanup();
+  hideToast();
   vi.unstubAllGlobals();
 });
 

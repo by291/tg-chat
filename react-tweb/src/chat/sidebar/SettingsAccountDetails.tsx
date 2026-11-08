@@ -1,7 +1,7 @@
 import { Menu } from '@ark-ui/react/menu';
 import { AtSign, Copy, Mail, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
-import { ClipboardNotice, useClipboardNotice } from '../../components/ClipboardNotice';
+import { copyTextWithToast } from '../../components/copyTextWithToast';
 import { Ripple } from '../../components/Ripple';
 import { MenuDismissLayer } from '../MenuDismissLayer';
 import overlays from '../overlays.module.css';
@@ -72,10 +72,8 @@ function AccountDetailRow({ label, value, icon: Icon, color, onCopy }: AccountDe
 
 /** Display account identifiers and copy them with the same feedback as other Telegram-style rows. */
 export function SettingsAccountDetails({ profile }: { profile: SettingsAccountProfile }) {
-  const { notice, copyText } = useClipboardNotice();
-
   function copyDetail({ label, text }: { label: string; text: string }) {
-    void copyText({
+    void copyTextWithToast({
       text,
       successMessage: `${label} copied to clipboard`,
       errorMessage: `Could not copy ${label.toLowerCase()}`,
@@ -98,7 +96,6 @@ export function SettingsAccountDetails({ profile }: { profile: SettingsAccountPr
         color="blue"
         onCopy={() => copyDetail({ label: 'Username', text: `@${profile.username}` })}
       />
-      <ClipboardNotice message={notice} />
     </section>
   );
 }

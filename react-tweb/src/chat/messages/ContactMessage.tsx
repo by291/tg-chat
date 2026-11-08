@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Avatar } from '../../components/Avatar';
-import { ClipboardNotice, useClipboardNotice } from '../../components/ClipboardNotice';
+import { copyTextWithToast } from '../../components/copyTextWithToast';
 import { Ripple } from '../../components/Ripple';
 import type { ContactDetail, ContactMedia } from '../messageMedia';
 import { CURRENT_USER_ID } from '../model';
@@ -50,19 +50,13 @@ interface ContactDetailsDialogProps {
   onOpenChange: (options: { isOpen: boolean }) => void;
 }
 
-function useCopyFeedback() {
-  const { notice, copyText } = useClipboardNotice();
-
-  function copyDetail(detail: ContactDetail) {
-    const isPhone = detail.type === 'phone';
-    return copyText({
-      text: detail.value,
-      successMessage: isPhone ? 'Phone number copied' : 'Text copied',
-      errorMessage: isPhone ? 'Could not copy phone number' : 'Could not copy text',
-    });
-  }
-
-  return { notice, copyDetail };
+function copyDetail(detail: ContactDetail) {
+  const isPhone = detail.type === 'phone';
+  return copyTextWithToast({
+    text: detail.value,
+    successMessage: isPhone ? 'Phone number copied' : 'Text copied',
+    errorMessage: isPhone ? 'Could not copy phone number' : 'Could not copy text',
+  });
 }
 
 function getContactPreview(media: ContactMedia) {
@@ -90,8 +84,6 @@ function getContactPreview(media: ContactMedia) {
 }
 
 function ContactDetailsDialog({ details, isOpen, onOpenChange }: ContactDetailsDialogProps) {
-  const { notice, copyDetail } = useCopyFeedback();
-
   return (
     <Dialog.Root
       open={isOpen}
@@ -129,7 +121,6 @@ function ContactDetailsDialog({ details, isOpen, onOpenChange }: ContactDetailsD
             <div className={overlays.dialogActions}>
               <Dialog.CloseTrigger className={overlays.textButton}>Close</Dialog.CloseTrigger>
             </div>
-            <ClipboardNotice message={notice} />
           </Dialog.Content>
         </Dialog.Positioner>
       </Portal>
@@ -147,7 +138,6 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
   const isSavedContact = Boolean(conversation && conversation.isContact !== false);
   const canAdd = canMessage && media.userId !== CURRENT_USER_ID && !isSavedContact;
   const avatarColor = conversation?.color || getContactColor(media.userId || media.name);
-  const { notice, copyDetail } = useCopyFeedback();
   const { details, displayName, lines } = getContactPreview({
     ...media,
     phone: conversation?.phone || media.phone,
@@ -231,7 +221,6 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
           </button>
         )}
       </div>
-      <ClipboardNotice message={notice} />
       <ContactDetailsDialog
         details={details}
         isOpen={isDetailsOpen}

@@ -1,6 +1,6 @@
 import { Copy, Menu } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { ClipboardNotice, useClipboardNotice } from '../../components/ClipboardNotice';
+import { copyTextWithToast } from '../../components/copyTextWithToast';
 import { getCodeLanguageHint } from './codeLanguageHints';
 import { getCodeLanguageLabel } from './codeLanguageLabels';
 import styles from './MessageCode.module.css';
@@ -20,7 +20,6 @@ interface HighlightedSource {
 /** Render one code source with syntax highlighting, wrapping, and lossless copying. */
 export function MessageCode({ source, language }: MessageCodeProps) {
   const [shouldWrap, setShouldWrap] = useState(true);
-  const { notice, copyText } = useClipboardNotice();
   const [highlighted, setHighlighted] = useState<HighlightedSource>();
   const hasCurrentHighlight = highlighted?.source === source && highlighted.language === language;
   const html = hasCurrentHighlight ? highlighted.html : undefined;
@@ -52,7 +51,7 @@ export function MessageCode({ source, language }: MessageCodeProps) {
   }, [source, language]);
 
   function copyCode() {
-    return copyText({
+    return copyTextWithToast({
       text: source,
       successMessage: 'Code copied to clipboard',
       errorMessage: 'Could not copy code',
@@ -107,7 +106,6 @@ export function MessageCode({ source, language }: MessageCodeProps) {
           <code>{source}</code>
         )}
       </pre>
-      <ClipboardNotice message={notice} />
     </div>
   );
 }
