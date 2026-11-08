@@ -7,11 +7,13 @@ import { ConversationPane } from './ConversationPane';
 import { conversations, createInitialState } from './demo/fixtures';
 import { chatReducer } from './state/reducer';
 import type { MediaViewerCommand } from '@/features/media/mediaViewerCommands';
+import type { Message } from '@/domain/messages/message';
 
 interface ConversationTestScreenProps {
   chatId?: string;
   mediaAction?: MediaViewerCommand['action'];
   onFinishMediaCommand?: (options: { shouldRestoreViewer: boolean }) => void;
+  onPrepareForward?: (options: { chatId: string; messages: Message[] }) => void;
 }
 
 beforeAll(() => {
@@ -80,6 +82,7 @@ function ConversationTestScreen({
   chatId = 'dev',
   mediaAction,
   onFinishMediaCommand,
+  onPrepareForward = () => {},
 }: ConversationTestScreenProps) {
   const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
   const [notice, setNotice] = useState('');
@@ -96,7 +99,7 @@ function ConversationTestScreen({
         dispatch={dispatch}
         requestedMediaCommand={requestedMediaCommand}
         onFinishMediaCommand={onFinishMediaCommand}
-        onPrepareForward={() => {}}
+        onPrepareForward={onPrepareForward}
         onClearForward={() => {}}
         onOpenDetails={() => {}}
         onOpenMedia={() => {}}
@@ -234,6 +237,60 @@ describe('conversation interaction', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Share with' })).toBeNull());
   });
 
+  it('finishes a viewer forward immediately when Saved is chosen', async () => {
+    const user = userEvent.setup();
+    const onFinishMediaCommand = vi.fn();
+    const onPrepareForward = vi.fn();
+    render(
+      <ConversationTestScreen
+        mediaAction="forward"
+        onFinishMediaCommand={onFinishMediaCommand}
+        onPrepareForward={onPrepareForward}
+      />,
+    );
+
+    const picker = await screen.findByRole('dialog', { name: 'Share with' });
+    await user.click(within(picker).getByRole('button', { name: /^Saved$/ }));
+
+    await waitFor(() => {
+      expect(onFinishMediaCommand).toHaveBeenCalledWith({ shouldRestoreViewer: false });
+    });
+    expect(onPrepareForward).not.toHaveBeenCalled();
+    expect(screen.getByText('Messages forwarded')).toBeTruthy();
+  });
+
+  it('clears reply context and selection when handing a forward draft to another chat', async () => {
+    const user = userEvent.setup();
+    const onPrepareForward = vi.fn();
+    render(<ConversationTestScreen onPrepareForward={onPrepareForward} />);
+    const originalText = 'The floating layout is so nice.';
+    await replaceComposerText({ user, text: 'Keep this draft' });
+    await openMessageAction({
+      user,
+      text: originalText,
+      action: 'Reply',
+    });
+    await openMessageAction({
+      user,
+      text: originalText,
+      action: 'Select',
+    });
+    await user.click(screen.getByRole('button', { name: 'Forward selected messages' }));
+    const picker = await screen.findByRole('dialog', { name: 'Share with' });
+    await user.click(within(picker).getByRole('button', { name: /Alex Morgan/ }));
+
+    await waitFor(() => {
+      expect(onPrepareForward).toHaveBeenCalledWith({
+        chatId: 'alex',
+        messages: [expect.objectContaining({ text: originalText })],
+      });
+    });
+    expect(screen.queryByRole('button', { name: 'Jump to replied message' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Forward selected messages' })).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('Keep this draft');
+    expect(screen.queryByText('Messages forwarded')).toBeNull();
+  });
+
   it('keeps accepting input after applying a link to the controlled draft', async () => {
     const user = userEvent.setup();
     render(<ConversationTestScreen />);
@@ -275,7 +332,11 @@ describe('conversation interaction', () => {
       expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('');
     });
 
-    await openMessageAction({ user, text: 'A formatted message', action: 'Edit' });
+    await openMessageAction({
+      user,
+      text: 'A formatted message',
+      action: 'Edit',
+    });
     const editor = screen.getByRole('textbox', { name: 'Message' });
     expect(editor.querySelector('strong')?.textContent).toBe('A formatted message');
     await user.click(editor);
@@ -386,6 +447,37 @@ describe('conversation interaction', () => {
     expect(screen.queryByRole('button', { name: 'Jump to replied message' })).toBeNull();
     expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('A reply draft');
   });
+
+  it.each(['Reply', 'Edit'])(
+    'restores the draft when the %s target is removed through selection',
+    async (action) => {
+      const user = userEvent.setup();
+      render(<ConversationTestScreen />);
+      const originalText = 'The floating layout is so nice.';
+      await replaceComposerText({ user, text: 'Keep this draft' });
+      await openMessageAction({
+        user,
+        text: originalText,
+        action,
+      });
+      await openMessageAction({
+        user,
+        text: originalText,
+        action: 'Select',
+      });
+      await user.click(screen.getByRole('button', { name: 'Delete selected messages' }));
+      const confirmation = await screen.findByRole('dialog', { name: 'Delete Messages' });
+      await user.click(within(confirmation).getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Delete Messages' })).toBeNull();
+      });
+      expect(screen.queryByRole('group', { name: `Message: ${originalText}` })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Save message' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Jump to replied message' })).toBeNull();
+      expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('Keep this draft');
+    },
+  );
 
   it('opens the editor through keyboard menu selection and saves the changed message', async () => {
     const user = userEvent.setup();
