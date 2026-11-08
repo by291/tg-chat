@@ -31,6 +31,13 @@ export const messageSchema = z.object({
     'quote',
   ]).optional(),
   reactions: z.array(z.string()),
+  // prettier-ignore
+  deliveryStatus: z.enum([
+    'queued',
+    'sending',
+    'accepted',
+    'failed',
+  ]).optional(),
   isEdited: z.boolean().optional(),
   isPinned: z.boolean().optional(),
 });

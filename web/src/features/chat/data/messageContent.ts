@@ -3,16 +3,9 @@ import type { EmojiText } from '@/domain/messages/customEmoji';
 import { sanitizeRichText } from '@/domain/messages/richText';
 import { findCustomEmoji } from '@/features/emoji/customEmojiCatalog';
 
-export interface MessageContent {
-  schema_version: number;
-  text: string;
-  rich_text: string | null;
-  custom_emoji: Array<{
-    document_id: string;
-    offset: number;
-    length: number;
-  }>;
-}
+import type { components } from '@/api/schema';
+
+export type MessageContent = components['schemas']['MessageContent'];
 
 const BLOCKS = new Set(policy.blocks);
 
