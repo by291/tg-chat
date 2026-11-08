@@ -79,3 +79,15 @@ state and navigation result.
 
 See [architecture](./architecture.md) for durable state and backend boundaries, and
 [development](./development.md) for validation.
+
+## Connected remote history
+
+The connected owner retains a bounded older/latest sequence window. The timeline accepts a remote
+history source and delegates loading when the viewport reaches the older edge. It still uses the
+existing TanStack Virtual measurements and anchors; remote availability does not create a second
+scroll owner. A preceding-message projection preserves sender grouping at a fetched page boundary.
+
+A pending message keeps its client UUID when accepted, preventing an optimistic row from becoming
+a second canonical row. Connected metadata distinguishes queued/sending/failed states from server
+acceptance. The acceptance indicator makes no delivered/read claim. Message actions and attachments
+remain disabled until their backend milestones provide authoritative commands.

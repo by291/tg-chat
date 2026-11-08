@@ -79,7 +79,7 @@ Vite proxies `/api` and `/health` to `http://127.0.0.1:8080`; override
 Unset `VITE_APP_MODE` for the standalone demo. Docker builds connected mode automatically.
 
 Migration is explicit and serialized by PostgreSQL advisory locking. API and Worker never migrate on
-startup. The catalogue owns account, relationship, audit, challenge, and mail-job tables.
+startup. The catalogue owns account, relationship, audit, challenge, mail-job, conversation, message, and personal-sync tables.
 Never edit applied SQL.
 
 ## Repeatable verification
@@ -91,7 +91,7 @@ cargo test --locked --all-targets
 ```
 
 The default tests run without PostgreSQL and report the real database tests as ignored. To include
-migration serialization, account races, and durable jobs, set `DATABASE_URL` to an
+migration serialization, account/message races, snapshot sync, and durable jobs, set `DATABASE_URL` to an
 **isolated test PostgreSQL instance** whose user can create databases. Set
 `TG_CHAT_TEST_VALKEY_URL`, `TG_CHAT_TEST_SMTP_HOST`, and `TG_CHAT_TEST_SMTP_PORT` to isolated
 Valkey and local SMTP capture services, then run:
@@ -108,8 +108,10 @@ node scripts/check-runtime.mjs
 ```
 
 This runner builds images, generates ephemeral credentials and a unique Compose project, runs the
-real Rust tests inside a Linux container, and runs account browsers against the built frontend and
-Mailpit. It checks routing, private ports, S3 authentication, PG/Valkey outage behavior, graceful
+real Rust tests inside a Linux container, and runs account/messaging browsers against the built
+frontend and Mailpit. It drops a real committed message response, restarts API, and verifies replay
+and recipient visibility. Independent fixture phases reset only the isolated project’s Valkey cache
+to avoid sharing registration rate limits through one loopback address. It checks routing, private ports, S3 authentication, PG/Valkey outage behavior, graceful
 API/Worker termination, and persistence through service restarts. It
 removes only its own containers and volumes. It requires Docker, Node.js, and curl with AWS SigV4
 support, installed frontend dependencies, and Chromium (`pnpm --dir web exec playwright install

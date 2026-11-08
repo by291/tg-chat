@@ -19,8 +19,8 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Product design approved on 2026-11-08. M1 and M2 are implemented and locally verified,
-including real Compose acceptance and independent review with findings resolved. M3 through M10
+**Status:** Product design approved on 2026-11-08. M1 through M3 are implemented and locally verified,
+including real Compose acceptance and independent review with findings resolved. M4 through M10
 remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes
 have not been pushed.
 
@@ -214,21 +214,21 @@ retrieve authoritative history. The first vertical flow works without Centrifugo
 sequence and version contracts; operation receipts; committed personal change groups; bootstrap,
 incremental sync, and keyset history APIs; persistent pending text sends and canonical cache models.
 
-- [ ] Deliver canonical direct-pair/Saved uniqueness, first-message visibility, both-account
+- [x] Deliver canonical direct-pair/Saved uniqueness, first-message visibility, both-account
       capacity checks, personal settings records, and shared query/mutation authorization
       predicates.
-- [ ] Deliver send transactions containing message, summary/unread state, operation receipt, change
+- [x] Deliver send transactions containing message, summary/unread state, operation receipt, change
       groups, and job intent. Use transactionally locked per-account sync counters and stable lock
       order. General receipt cleanup cannot permit reuse of a deleted message identity.
-- [ ] Deliver versioned text/semantic-HTML/custom-emoji validation with canonical server text and
+- [x] Deliver versioned text/semantic-HTML/custom-emoji validation with canonical server text and
       explicit UTF-16 ranges. Preserve the supported rich-editor structures before exposing sends.
-- [ ] Deliver snapshot-consistent bootstrap and paged sync/history; connect the existing composer
+- [x] Deliver snapshot-consistent bootstrap and paged sync/history; connect the existing composer
       and timeline through the new data owner. Persist pending sends before network submission and
       show queued/sending/accepted/failed accurately. Use HTTP polling as the initial live adapter.
-- [ ] Extend M2's durable jobs with committed message-change wakeup intent. Keep intent coalesced
+- [x] Extend M2's durable jobs with committed message-change wakeup intent. Keep intent coalesced
       while realtime is disabled; M4 adds its delivery adapter. Do not claim empty worker runs
       published notifications, and do not accumulate one undeliverable job per message.
-- [ ] Verify lost responses after commit, same-operation replay after restart, conflicting payload
+- [x] Verify lost responses after commit, same-operation replay after restart, conflicting payload
       reuse, duplicate first-chat creation, capacity rejection without partial changes, and rollback
       without partial recipient feeds. Test stalled concurrent cursor allocation and rich-text
       parity for tables, lists, formulas, dates, and custom emoji.
@@ -238,8 +238,14 @@ users can recover accepted messages after reload/restart, and unknown or unautho
 not leak content. Connected mode does not load all message history into memory.
 
 **Verification ownership:** `tests/messages.rs`, `tests/sync.rs`, rich-text contract fixtures, and
-`web/e2e/direct-messaging.spec.ts`. A real HTTP/PostgreSQL fault harness is required for
+`web/e2e-accounts/direct-messaging.spec.ts`. A real HTTP/PostgreSQL fault harness is required for
 commit/response ambiguity; mocked dispatch success is insufficient.
+
+**Implemented:** The connected account workspace now owns durable pending text sends and a bounded
+remote history projection. Existing rich composition and rendering use authenticated identities.
+Runtime guarantees and M4 boundaries are documented in [durable messaging](../../messaging.md).
+Repeatable verification includes real PostgreSQL/Valkey tests, shared rich-content fixtures, frontend
+unit/demo/connected browser suites, and the Compose committed-response-loss/API-restart gate.
 
 ## M4: Realtime, multiple devices, and message lifecycle
 

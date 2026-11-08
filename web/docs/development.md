@@ -23,12 +23,13 @@ The build runs TypeScript checks before bundling. The browser suite builds produ
 starts an isolated preview, with a fresh browser context per test. It does not reuse the regular
 development server or its saved data. Failed cases retain traces and screenshots in `test-results/`.
 
-Account browser tests use a separately running connected frontend, API, Worker, Valkey, and SMTP
+Connected browser tests use a separately running frontend, API, Worker, Valkey, and SMTP
 capture. Set `TG_CHAT_ACCOUNT_TEST_URL` and `TG_CHAT_MAILPIT_TEST_URL`, then run `pnpm test:accounts`.
 They create isolated test identities and exercise private profiles, contacts, device revocation,
-cross-tab logout, verification, and single-use recovery. Use a disposable deployment with available
+cross-tab logout, verification, single-use recovery, direct/Saved rich messaging, pending reload,
+and history paging. Use a disposable deployment with available
 registration rate budget. The root `node scripts/check-runtime.mjs` command provisions that complete
-environment and runs both Rust and account browser checks; see
+environment and runs Rust, account/messaging browser checks, and committed-response-loss recovery; see
 [backend development](../../docs/development.md).
 
 Use the existing Prettier configuration. Text files use LF on Windows, macOS, and Linux through

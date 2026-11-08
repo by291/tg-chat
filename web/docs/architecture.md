@@ -2,7 +2,7 @@
 
 ## Design direction
 
-The application has a connected account workspace and an explicit local conversation demo. React
+The application has a connected account and messaging workspace and an explicit local conversation demo. React
 owns rendering and lifecycle. Domain values, durable state changes, and temporary UI state have
 separate owners so changes to one do not require rebuilding the others.
 
@@ -78,9 +78,9 @@ The current persistence unit is a conversation snapshot. Bounding rendered rows 
 stored data, and preference storage events do not provide concurrent conversation editing. Keep
 this local model until backend requirements justify changing it.
 
-M3 will connect conversation history and server identities; later milestones add delivery state,
-permissions, and synchronization. Those concerns enter through domain commands and data
-boundaries, rather than through individual message components. Rendering and scroll measurement
+Connected mode now supplies server identities, durable direct messages, and HTTP catch-up through
+its data owner. Later milestones extend delivery, lifecycle commands, and durable cache coordination
+through that boundary. Rendering and scroll measurement
 remain frontend responsibilities.
 
 ## Related designs
@@ -89,3 +89,14 @@ remain frontend responsibilities.
 [Messages and history](./message-history.md) explains the rendering and scrolling model.
 [Editing and interactions](./editing-and-interactions.md) explains input ownership.
 [Development](./development.md) describes how those contracts are verified.
+
+## Connected message ownership
+
+The authenticated workspace owns a `ChatOwner` for its session lifetime, including while account
+settings are open. It supplies bounded canonical projections to the existing composer and timeline;
+it never mounts the demo reducer or demo conversation persistence. A React identity provider gives
+shared renderers the authenticated user while preserving the demo default outside connected mode.
+
+Pending operations and drafts use transactional IndexedDB ownership. Canonical message projections
+remain in memory in M3; future durable cache/checkpoint work belongs to M4. See
+[durable messaging](../../docs/messaging.md) for acceptance, cursor, and recovery guarantees.

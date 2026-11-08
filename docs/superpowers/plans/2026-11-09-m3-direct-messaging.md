@@ -18,6 +18,11 @@ TanStack Virtual, IndexedDB, generated OpenAPI, Vitest/Playwright, PostgreSQL an
 **Spec:** [Approved product design](../specs/2026-11-08-complete-product-design.md), sections 2,
 4-8, 12-16; [M3 milestone](./2026-11-08-product-milestones.md#m3-first-durable-direct-message-flow).
 
+**Status:** Implemented and locally verified on 2026-11-09. The independent whole-change review
+identified four frontend ownership races; failing regressions were added and fixed. The final
+continuous-window audit additionally covers old sync backlog, sequence jumps, and predecessor context.
+Current design and repeatable verification live in [durable messaging](../../messaging.md).
+
 ## Global constraints
 
 - Keep root Rust ownership and the existing branch. Commit each tested responsibility separately.
@@ -86,12 +91,12 @@ TanStack Virtual, IndexedDB, generated OpenAPI, Vitest/Playwright, PostgreSQL an
 `validate_content(MessageContent) -> Result<MessageContent, AccountError>`;
 frontend `canonicalMessageContent(EmojiText)` returns the generated-compatible transport shape.
 
-- [ ] Add shared fixtures for plain/astral text, lists, tables, quotes/spoilers, formula/date markup,
+- [x] Add shared fixtures for plain/astral text, lists, tables, quotes/spoilers, formula/date markup,
       unsafe attributes/scripts/URLs, and bundled custom emoji; assert text/range parity and rejection
       of mismatched ranges, unsupported versions, nesting, table, formula, and size limits.
-- [ ] Run focused Rust/frontend tests first; expect missing interfaces, then implement library-owned
+- [x] Run focused Rust/frontend tests first; expect missing interfaces, then implement library-owned
       sanitization/HTML parsing with explicit attribute and resource bounds. No hand-written tokenizer.
-- [ ] Verify `cargo test --test message_content`, focused frontend fixtures, Rustfmt/Clippy, and
+- [x] Verify `cargo test --test message_content`, focused frontend fixtures, Rustfmt/Clippy, and
       frontend type checking. Commit the transport contract separately.
 
 ## Task 2: Atomic direct/Saved send and durable identities
@@ -104,16 +109,16 @@ frontend `canonicalMessageContent(EmojiText)` returns the generated-compatible t
 `Destination` selects recipient, existing conversation, or Saved; `ensure_saved(Actor)` is idempotent.
 DTOs include canonical message identity/sequence/version/time/author and personal conversation state.
 
-- [ ] Write real-PG tests for duplicate/reciprocal first sends, Saved privacy, matching replay,
+- [x] Write real-PG tests for duplicate/reciprocal first sends, Saved privacy, matching replay,
       conflicting operation/message identities, contact-only/nobody/block/suspension rejection, capacity
       races, and complete rollback of message/membership/feed/receipt/wakeup effects.
-- [ ] Observe failures, then implement migration and bounded transaction retry. Lock the conversation
+- [x] Observe failures, then implement migration and bounded transaction retry. Lock the conversation
       before ordered participant rows; recheck actor/session and recipient policy under those locks.
       Keep permanent message identity records separate from prunable operation receipts.
-- [ ] Commit sequence, summaries/unread, receipt, one grouped feed position per participant, and
+- [x] Commit sequence, summaries/unread, receipt, one grouped feed position per participant, and
       coalesced wakeup intent together. Saved stays in its reserved slot; existing direct memberships
       retain access to old history when new sends are blocked.
-- [ ] Verify `cargo test --test messages -- --include-ignored` with real PG; all previous Rust tests,
+- [x] Verify `cargo test --test messages -- --include-ignored` with real PG; all previous Rust tests,
       Rustfmt/Clippy must remain green. Commit this transaction boundary.
 
 ## Task 3: Authorized snapshot reads and HTTP contracts
@@ -128,12 +133,12 @@ Routes: `GET /api/v1/chat/bootstrap`, `GET /api/v1/chat/sync`,
 `POST /api/v1/messages`, `GET /api/v1/messages/{message_id}`,
 `GET /api/v1/conversations/{conversation_id}/history`. Use existing cookie/CSRF/Origin boundaries.
 
-- [ ] Add tests for snapshot consistency, stalled feed allocation, bounded complete-group paging,
+- [x] Add tests for snapshot consistency, stalled feed allocation, bounded complete-group paging,
       foreign/malformed/future cursors, history keysets, missing/unauthorized IDs, and exact HTTP replay.
-- [ ] Observe failures; implement repeatable-read materialization and deployment/account-bound
+- [x] Observe failures; implement repeatable-read materialization and deployment/account-bound
       cursors. Include grouping context in history without loading intervening history. Keep response
       schemas decimal-counter safe and requests bounded; expose messaging capability and limits.
-- [ ] Verify sync/HTTP suites with real PG/Valkey, regenerate OpenAPI/TypeScript, and run contract
+- [x] Verify sync/HTTP suites with real PG/Valkey, regenerate OpenAPI/TypeScript, and run contract
       drift checks. Commit public messaging APIs independently.
 
 ## Task 4: Connected message ownership and durable pending sends
@@ -145,13 +150,13 @@ focused colocated tests, and necessary IndexedDB library dependency.
 generations, and observable snapshots. `queueSend` persists its stable message/operation identity
 before HTTP. Pending-store transactions check session ownership before every write or removal.
 
-- [ ] Write behavior tests for storage failure before submission, lost response retry, accepted/pending
+- [x] Write behavior tests for storage failure before submission, lost response retry, accepted/pending
       reconciliation, reload recovery, seven-day retry expiry, owner invalidation, late view results,
       monotonic projection merging, and the 200-message/100-pending budgets.
-- [ ] Observe failures, then implement pending storage and canonical models separately. Poll/catch-up
+- [x] Observe failures, then implement pending storage and canonical models separately. Poll/catch-up
       serially, fence ownership at asynchronous boundaries, and show queued/sending/accepted/failed
       accurately. Preserve new draft edits when an earlier send finishes.
-- [ ] Verify focused tests, all frontend units, type checking/build, and commit the connected owner.
+- [x] Verify focused tests, all frontend units, type checking/build, and commit the connected owner.
 
 ## Task 5: Existing composer/timeline integration
 
@@ -164,12 +169,12 @@ and virtual history, opens discovered recipients or Saved, and preserves stable 
 Optional component inputs retain unchanged demo defaults; remote history loads through an explicit
 page source. Unavailable actions never dispatch into demo reducers.
 
-- [ ] Add tests for real identity alignment, honest acceptance statuses, disabled unsupported
+- [x] Add tests for real identity alignment, honest acceptance statuses, disabled unsupported
       attachment/actions, retained composer edits, and remote history page triggers/grouping.
-- [ ] Observe failures; implement connected directory/chat routes within the authenticated workspace,
+- [x] Observe failures; implement connected directory/chat routes within the authenticated workspace,
       responsive navigation, older/latest paging, pending retry/discard feedback, and account settings
       return. Do not mount `useChatState` or fixed-user demo storage.
-- [ ] Verify frontend units/build and existing demo browser suite; inspect desktop/mobile connected
+- [x] Verify frontend units/build and existing demo browser suite; inspect desktop/mobile connected
       layouts. Commit UI integration separately.
 
 ## Task 6: Fault acceptance, documentation, and completion
@@ -177,14 +182,14 @@ page source. Unavailable actions never dispatch into demo reducers.
 **Files:** `web/e2e-accounts/direct-messaging.spec.ts`, `scripts/check-runtime.mjs`, fault harness,
 backend/frontend topic docs, CI settings, milestone/implementation status.
 
-- [ ] Add real two-user browser flows for first send, rich content, reload/restart recovery, Saved,
+- [x] Add real two-user browser flows for first send, rich content, reload/restart recovery, Saved,
       unauthorized access, older paging, and pending reload. Drop a real HTTP response after the real
       PostgreSQL commit, restart API, and replay the same operation; assert exactly one message and
       complete recipient change visibility. Do not replace this with mocked dispatch success.
-- [ ] Run all real-service Rust suites, Rustfmt/Clippy, generated-contract drift, frontend
+- [x] Run all real-service Rust suites, Rustfmt/Clippy, generated-contract drift, frontend
       formatting/unit/build, demo and connected browsers, and complete isolated Compose acceptance.
-- [ ] Run one independent whole-change review, re-grade findings by user impact, and fix required
+- [x] Run one independent whole-change review, re-grade findings by user impact, and fix required
       issues with failing regressions before the final green run. No per-task implementation agents.
-- [ ] Document implemented guarantees, limits, pending/retry policy, storage cleanup, and M4 boundary;
+- [x] Document implemented guarantees, limits, pending/retry policy, storage cleanup, and M4 boundary;
       mark only observed completion. Remove task-owned resources and scratch, preserve grouped local
       commits, and do not push or begin M4.

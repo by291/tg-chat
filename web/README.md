@@ -2,7 +2,8 @@
 
 TG Chat Web is the React frontend for TG Chat. It provides a Telegram-inspired conversation
 interface with local data, persistent drafts, rich composition, media playback, and appearance
-settings. Connected mode also provides real account, privacy, device, contact, and recovery screens.
+settings. Connected mode provides real accounts, privacy, devices, contacts, recovery, and durable
+direct/Saved rich-text messages with pending-send recovery and bounded history.
 The package is named `tg-chat-web`.
 
 ## Run
@@ -19,7 +20,7 @@ Open the address printed by Vite. For build and test commands, see
 
 This command opens the standalone demo. To use real accounts, start the Rust services and run
 `VITE_APP_MODE=connected pnpm dev --port 5173`. Match the backend's `TG_CHAT_PUBLIC_ORIGIN` to
-`http://127.0.0.1:5173`; Vite proxies account requests to the API. Docker builds connected mode
+`http://127.0.0.1:5173`; Vite proxies API requests to the backend. Docker builds connected mode
 automatically. [Backend development](../docs/development.md) documents the complete setup and SMTP.
 
 ## Capabilities
@@ -42,8 +43,7 @@ Connected accounts use server-owned profiles, privacy, device sessions, directio
 and optional verified-email recovery. Private account results stay in memory, with ownership fences
 and cross-tab invalidation. The explicit `/demo` route does not import that account into sample data.
 
-Demo conversations use sample content and changes stay on this device. There is no Telegram login,
-connected messaging backend, or remote push service. Delivery
+Demo conversations use sample content and changes stay on this device. There is no Telegram login or remote push service. Delivery
 marks, poll participation, checklist permissions, and profile edits represent local state.
 Calls, microphone recording, and remote media discovery are not connected.
 
@@ -55,8 +55,9 @@ Messages and drafts persist in IndexedDB; application preferences use validated 
 values. Unsent attachment previews are temporary. One browser tab is the supported editing owner;
 conversation snapshots do not merge concurrent edits from multiple tabs. Storage failures are
 reported in the interface. The current storage design remains sufficient for frontend development;
-real messaging integration is a later milestone. These demo persistence rules do not apply to
-connected account data. See [accounts and recovery](../docs/accounts.md) for that boundary.
+connected pending recovery has its own ownership boundary. These demo persistence rules do not apply to
+connected account data. See [accounts and recovery](../docs/accounts.md) and
+[durable messaging](../docs/messaging.md) for the connected ownership boundaries.
 
 ## Design documents
 
