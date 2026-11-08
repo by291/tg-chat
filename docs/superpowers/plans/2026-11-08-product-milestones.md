@@ -19,9 +19,10 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Product design approved on 2026-11-08. M1 is implemented and locally verified, including
-real Compose acceptance and independent review. M2 through M10 remain planned. Backend CI is
-configured; no remote CI outcome is claimed because the changes have not been pushed.
+**Status:** Product design approved on 2026-11-08. M1 and M2 are implemented and locally verified,
+including real Compose acceptance and independent review with findings resolved. M3 through M10
+remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes
+have not been pushed.
 
 ## Global constraints
 
@@ -175,29 +176,32 @@ middleware, privacy/contact/block state, session revocation, optional SMTP chall
 delivery with job leases/fencing, and account capability responses. Later modules consume stable
 user IDs, not display names or fixed demo IDs.
 
-- [ ] Deliver username/password registration, Argon2id verification, cookie sessions, CSRF/Origin
+- [x] Deliver username/password registration, Argon2id verification, cookie sessions, CSRF/Origin
       checks, expiry, password change/reset, and recent-authentication checks.
-- [ ] Deliver profile text fields, bounded discovery, contacts, blocks, privacy preferences, device
+- [x] Deliver profile text fields, bounded discovery, contacts, blocks, privacy preferences, device
       listing/revocation, email verification/change/removal, and single-use recovery challenges.
       Avatar upload is explicitly unavailable until M6 rather than stored as a fake remote file.
-- [ ] Deliver transactional mail-job creation, bounded retry, lease/fencing recovery, and protected
+- [x] Deliver transactional mail-job creation, bounded retry, lease/fencing recovery, and protected
       challenge payloads. Recheck challenge expiry before delivery; tolerate repeated email delivery
       without permitting repeated token consumption. This is the first real Worker job consumer.
-- [ ] Deliver login/account routes and cache clearing on logout/switch. Preserve an explicit demo
+- [x] Deliver login/account routes and cache clearing on logout/switch. Preserve an explicit demo
       mode and remove fixed-user assumptions from connected-mode entry points.
-- [ ] Enforce account suspension, registration policy, and sensitive endpoint rate limits from the
+- [x] Enforce account suspension, registration policy, and sensitive endpoint rate limits from the
       first account release. Bootstrap an operator identity without a public default password; the
       administration UI follows in M8. Report SMTP-disabled recovery accurately.
-- [ ] Verify normalized-username races, credential failures, CSRF rejection, revoked-session reads,
+- [x] Verify normalized-username races, credential failures, CSRF rejection, revoked-session reads,
       one-time recovery, long/Unicode passwords, optional-email absence, and cross-account
       isolation.
 
 **Exit gate:** Two independent real accounts can sign in and revoke devices; a revoked session
 cannot access authenticated endpoints. No private settings are transferred between accounts.
 
-**Verification ownership:** `tests/accounts.rs`, `tests/contacts.rs`, and
-`web/e2e/accounts.spec.ts`, plus existing device/profile component tests. These suites run against
-real PostgreSQL and a development mail capture service for email flows.
+**Verification ownership:** Account/session and HTTP tests under `tests/accounts.rs` and
+`tests/account_http.rs`; relationship, operator, recovery, and queue tests in their corresponding
+root test files; ownership/component tests beside the frontend features; and
+`web/e2e-accounts/accounts.spec.ts`. Real PostgreSQL, Valkey, Mailpit, and built-browser workflows run
+through `node scripts/check-runtime.mjs`. Repeatable commands and limits are documented in
+[backend development](../../development.md) and [frontend development](../../../web/docs/development.md).
 
 ## M3: First durable direct-message flow
 

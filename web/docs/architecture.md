@@ -2,9 +2,9 @@
 
 ## Design direction
 
-The application is a frontend that can demonstrate complete local interactions before a backend
-exists. React owns rendering and lifecycle. Domain values, durable state changes, and temporary UI
-state have separate owners so changes to one do not require rebuilding the others.
+The application has a connected account workspace and an explicit local conversation demo. React
+owns rendering and lifecycle. Domain values, durable state changes, and temporary UI state have
+separate owners so changes to one do not require rebuilding the others.
 
 The structure follows responsibilities rather than uniform folder templates or file-size limits.
 Code that changes together stays together. A module is split when it contains independent concepts,
@@ -12,8 +12,9 @@ not merely because it has grown long.
 
 ## Module boundaries
 
-`App.tsx` installs application-wide navigation and input policy. The chat page coordinates features;
-layouts arrange their rendered slots without deciding business behavior.
+`App.tsx` installs application-wide input policy and selects the configured mode. Connected mode
+loads the account application; `/demo` lazy-loads the existing chat page and its navigation.
+Layouts arrange their rendered slots without deciding business behavior.
 
 The domain layer defines messages, conversations, media, and validated content. It does not depend
 on React, feature components, or persistence. Features implement user capabilities such as chat,
@@ -32,7 +33,10 @@ The main entry points are `src/App.tsx`, `src/pages/chat/ChatPage.tsx`, and `src
 
 State is divided by lifetime and authority:
 
-- The conversation reducer owns messages, drafts, conversation preferences, and business actions.
+- The connected session owner holds server account state in memory and fences asynchronous work
+  across logout, revocation, and account changes. Account pages consume generated HTTP contracts.
+  [Accounts and recovery](../../docs/accounts.md) owns this boundary and its security constraints.
+- The demo conversation reducer owns messages, drafts, conversation preferences, and business actions.
   A single action can update related values consistently, such as sending a message and clearing
   its draft or forwarding a selected batch.
 - React Router owns navigable destinations. Chat, archive, and settings URLs support direct links
@@ -52,7 +56,7 @@ identity resets conversation-specific editing context, preventing it from leakin
 
 ## Data flow and derived views
 
-User input produces a domain-level command. The conversation layer supplies identity and context,
+In the demo, user input produces a domain-level command. The conversation layer supplies identity and context,
 the reducer applies the durable change, and the persistence layer saves the resulting snapshot.
 Rendering subscribes to that state; persistence does not drive individual UI interactions.
 
@@ -65,7 +69,7 @@ policy, so changing a preference does not replay messages that were intentionall
 
 ## Persistence and backend boundary
 
-Storage input is validated before it becomes application state. A failed restore leaves a usable
+Demo storage input is validated before it becomes application state. A failed restore leaves a usable
 local interface; a failed write reports the problem while allowing the current session to continue.
 Existing storage keys and serialized shapes are compatibility contracts. Fixture upgrades preserve
 user changes and do not recreate content the user already removed.
@@ -74,8 +78,8 @@ The current persistence unit is a conversation snapshot. Bounding rendered rows 
 stored data, and preference storage events do not provide concurrent conversation editing. Keep
 this local model until backend requirements justify changing it.
 
-A backend can replace local history availability and introduce server identities, delivery state,
-permissions, and synchronization. Those concerns should enter through domain commands and data
+M3 will connect conversation history and server identities; later milestones add delivery state,
+permissions, and synchronization. Those concerns enter through domain commands and data
 boundaries, rather than through individual message components. Rendering and scroll measurement
 remain frontend responsibilities.
 
