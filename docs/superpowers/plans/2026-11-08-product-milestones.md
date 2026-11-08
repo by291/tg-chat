@@ -100,7 +100,7 @@ paths below anchor detailed plans. A module can split by responsibility when its
 requires it; this is not a required identical directory template for every feature.
 
 - M1 creates root `Cargo.toml`, `Cargo.lock`, `src/lib.rs`, `src/bin/api.rs`, `src/bin/worker.rs`,
-  `src/config.rs`, `src/http.rs`, `src/infrastructure/postgres.rs`, `compose.yaml`, `.env.example`,
+  `src/config.rs`, `src/http.rs`, `src/database.rs`, `compose.yaml`, `.env.example`,
   deployment assets under `deploy/`, and `.github/workflows/backend.yml`.
 - M2 owns `src/accounts/`, `src/contacts/`, the first durable mail jobs under `src/jobs/`,
   authentication/session middleware, and new frontend account routes under `web/src/features/auth/`.
@@ -112,7 +112,7 @@ requires it; this is not a required identical directory template for every featu
   `web/src/features/chat/state/useChatState.ts`, `web/src/features/chat/state/storage.ts`,
   `web/src/features/chat/conversation/useConversationComposer.ts`, and
   `web/src/features/chat/history/useHistoryWindow.ts` through explicit data boundaries.
-- M4 adds the Centrifugo adapter under `src/infrastructure/` and extends sync/jobs and chat data.
+- M4 adds the Centrifugo adapter in `src/sync/realtime.rs` and extends sync/jobs and chat data.
   Integrate `web/src/features/chat/conversation/useConversationMessageCommands.ts`, message
   metadata, drafts, and `web/src/routes/useChatRoute.ts`; preserve existing viewport/editor
   ownership.
