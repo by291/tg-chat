@@ -12,7 +12,8 @@ the application's boundary.
 ## Organization
 
 Use the root README as the documentation entry point and `web/README.md` for frontend setup and
-capabilities. Keep design documents under `web/docs/`, organized by architecture, startup and
+capabilities. Keep backend development and operational guidance under `docs/`.
+Keep frontend design documents under `web/docs/`, organized by architecture, startup and
 appearance, messages and history, editing and interactions, and development.
 
 Explain the problem a design solves, its responsibilities, how the parts collaborate, and the
