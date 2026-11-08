@@ -13,6 +13,8 @@ import { downloadMessageMedia } from './messages/messageDownloads';
 import { Ripple } from '../components/Ripple';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
 import { PinnedMessageBar } from './PinnedMessageBar';
+import { MessagePinDialog } from './MessagePinDialog';
+import { useMessagePinning } from './useMessagePinning';
 import { MessageComposer, type ComposedMessage } from './composer/MessageComposer';
 import { MessageTimeline, type MessageNavigation } from './history/MessageTimeline';
 import type { MediaViewerCommand } from './media/mediaViewerCommands';
@@ -61,6 +63,7 @@ export function ConversationPane({
   const [replyMessage, setReplyMessage] = useState<Message>();
   const [editingMessage, setEditingMessage] = useState<Message>();
   const [pendingDelete, setPendingDelete] = useState<Message>();
+  const pinning = useMessagePinning(dispatch);
   const [pendingForward, setPendingForward] = useState<Message[]>();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPinnedView, setIsPinnedView] = useState(false);
@@ -236,11 +239,7 @@ export function ConversationPane({
           setPendingForward([message]);
           return;
         case 'pin':
-          dispatch({
-            type: 'pin',
-            chatId: conversation.id,
-            messageId: message.id,
-          });
+          pinning.requestChange(message);
       }
     },
     [
@@ -255,6 +254,7 @@ export function ConversationPane({
       headerActions.setDialog,
       messages,
       onNotify,
+      pinning.requestChange,
     ],
   );
 
@@ -436,7 +436,7 @@ export function ConversationPane({
             messages={pinnedMessages}
             onJump={jumpToMessage}
             onOpenList={openPinnedMessages}
-            onUnpin={(message) => applyMessageCommand({ action: 'pin', message })}
+            onUnpin={pinning.requestChange}
           />
         </div>
       </div>
@@ -533,6 +533,12 @@ export function ConversationPane({
           onSend={sendToRecipients}
         />
       )}
+      <MessagePinDialog
+        request={pinning.request}
+        conversation={conversation}
+        onCancel={pinning.cancelChange}
+        onConfirm={pinning.confirmChange}
+      />
       <DeleteMessageDialog
         isOpen={Boolean(pendingDelete)}
         finalFocusEl={() => {

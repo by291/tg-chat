@@ -31,6 +31,20 @@ function createState(): ChatState {
 }
 
 describe('conversation changes', () => {
+  it('applies an explicit pin state without reversing an already confirmed change', () => {
+    const pinAction = {
+      type: 'pin' as const,
+      chatId: 'dev',
+      messageId: ownMessage.id,
+      isPinned: true,
+    };
+    const pinned = chatReducer(createState(), pinAction);
+    const repeated = chatReducer(pinned, pinAction);
+    expect(repeated.messages[0].isPinned).toBe(true);
+    const unpinned = chatReducer(repeated, { ...pinAction, isPinned: false });
+    expect(unpinned.messages[0].isPinned).toBe(false);
+  });
+
   it('accepts structural rich messages and structural edits without plain fallback text', () => {
     const sent = chatReducer(createState(), {
       type: 'send',

@@ -141,6 +141,55 @@ async function waitForInitialHistoryPosition() {
 }
 
 describe('conversation interaction', () => {
+  it('keeps a message unpinned when the pin confirmation is cancelled', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen />);
+    await openMessageAction({
+      user,
+      text: 'This feels familiar ✨',
+      action: 'Pin',
+    });
+    const confirmation = await screen.findByRole('alertdialog', { name: 'Pin message' });
+    expect(screen.queryByRole('button', { name: /^Pinned Message:/ })).toBeNull();
+    await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.queryByRole('button', { name: /^Pinned Message:/ })).toBeNull();
+  });
+
+  it('confirms pinning and unpinning from both message and topbar actions', async () => {
+    const user = userEvent.setup();
+    render(<ConversationTestScreen />);
+    const text = 'This feels familiar ✨';
+    // prettier-ignore
+    await openMessageAction({
+      user,
+      text,
+      action: 'Pin',
+    });
+    const pinDialog = await screen.findByRole('alertdialog', { name: 'Pin message' });
+    await user.click(within(pinDialog).getByRole('button', { name: 'Pin' }));
+    await screen.findByRole('button', { name: `Pinned Message: ${text}` });
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+
+    // prettier-ignore
+    await openMessageAction({
+      user,
+      text,
+      action: 'Unpin',
+    });
+    const unpinDialog = await screen.findByRole('alertdialog', { name: 'Unpin message' });
+    await user.click(within(unpinDialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.getByRole('button', { name: `Pinned Message: ${text}` })).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Unpin message' }));
+    const topbarDialog = await screen.findByRole('alertdialog', { name: 'Unpin message' });
+    await user.click(within(topbarDialog).getByRole('button', { name: 'Unpin' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Pinned Message:/ })).toBeNull();
+    });
+  });
+
   it('returns to the viewer when its deletion confirmation is cancelled', async () => {
     const user = userEvent.setup();
     const onFinishMediaCommand = vi.fn();

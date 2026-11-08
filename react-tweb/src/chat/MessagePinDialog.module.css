@@ -1,0 +1,114 @@
+.dialog {
+  width: min(312px, 100%);
+  padding: 12px 8px;
+  border-radius: 40px;
+  background: var(--surface-color);
+  color: var(--text-color);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 40px;
+  padding: 0 16px;
+}
+
+.header > span[aria-hidden='true'] {
+  flex-basis: 32px;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.description {
+  margin: 0;
+  padding: 10px 16px 8px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  min-height: 48px;
+  padding: 0 16px;
+  opacity: 0.5;
+}
+
+.option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.checkbox {
+  display: grid;
+  flex: 0 0 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 4px;
+  color: white;
+  background: var(--accent-color);
+}
+
+.checkbox svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+}
+
+.notice {
+  margin: 0;
+  padding: 0 16px 8px;
+  color: var(--secondary-color);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px;
+}
+
+.button {
+  position: relative;
+  min-height: 36px;
+  padding: 0 16px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--accent-color);
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.button[data-danger='true'] {
+  color: #dc5563;
+}
+
+:global(:where(:root[data-touch-supported='false'])) .button:hover {
+  background: var(--hover-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog[data-state] {
+    animation: none;
+  }
+}

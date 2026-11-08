@@ -183,6 +183,7 @@ export type ChatAction =
       type: 'pin';
       chatId: string;
       messageId: string;
+      isPinned: boolean;
     }
   | {
       type: 'toggle-theme';

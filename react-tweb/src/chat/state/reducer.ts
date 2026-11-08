@@ -50,7 +50,7 @@ function updateMessage(message: Message, action: MessageChange): Message {
   }
 
   if (action.type === 'pin') {
-    return { ...message, isPinned: !message.isPinned };
+    return { ...message, isPinned: action.isPinned };
   }
 
   if (action.type === 'react') {

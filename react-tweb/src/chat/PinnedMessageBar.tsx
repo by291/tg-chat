@@ -1,8 +1,6 @@
-import { Dialog } from '@ark-ui/react/dialog';
 import { Menu } from '@ark-ui/react/menu';
-import { Portal } from '@ark-ui/react/portal';
 import { List, Pin, PinOff, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import { Ripple } from '../components/Ripple';
 import { MenuDismissLayer } from './MenuDismissLayer';
@@ -20,12 +18,30 @@ interface PinnedMessageBarProps {
   onUnpin: (message: Message) => void;
 }
 
-/** Show a compact pinned preview with navigation, a pin menu, and confirmed unpinning. */
+function resolvePinnedPreview(messages: Message[], anchor?: Message) {
+  if (!anchor) {
+    return messages.at(-1);
+  }
+  const selected = messages.find((message) => message.id === anchor.id);
+  if (selected) {
+    return selected;
+  }
+  // Removing a browsed pin continues toward older messages instead of jumping to the newest.
+  const olderMessages = messages.filter((message) => message.createdAt <= anchor.createdAt);
+  return olderMessages.at(-1) ?? messages[0];
+}
+
+/** Show a compact pinned preview with navigation, a pin menu, and requests for confirmed unpinning. */
 export function PinnedMessageBar({ messages, onJump, onOpenList, onUnpin }: PinnedMessageBarProps) {
-  const [selectedId, setSelectedId] = useState<string>();
+  const [selectedAnchor, setSelectedAnchor] = useState<Message>();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [pendingUnpin, setPendingUnpin] = useState<Message>();
-  const selectedMessage = messages.find((message) => message.id === selectedId) ?? messages.at(-1);
+  useEffect(() => {
+    if (messages.length === 0) {
+      setSelectedAnchor(undefined);
+      setIsMenuOpen(false);
+    }
+  }, [messages.length]);
+  const selectedMessage = resolvePinnedPreview(messages, selectedAnchor);
   if (!selectedMessage) {
     return null;
   }
@@ -37,104 +53,67 @@ export function PinnedMessageBar({ messages, onJump, onOpenList, onUnpin }: Pinn
   function followPinnedMessage(message: Message) {
     onJump(message.id);
     const nextIndex = selectedIndex > 0 ? selectedIndex - 1 : messages.length - 1;
-    setSelectedId(messages[nextIndex].id);
-  }
-
-  function confirmUnpin() {
-    if (!pendingUnpin) {
-      return;
-    }
-    onUnpin(pendingUnpin);
-    setPendingUnpin(undefined);
+    setSelectedAnchor(messages[nextIndex]);
   }
 
   return (
-    <>
-      <div className={styles.plate}>
-        <Menu.Root
-          open={isMenuOpen}
-          onOpenChange={(details) => setIsMenuOpen(details.open)}
-          onPointerDownOutside={(event) => event.preventDefault()}
-          positioning={{ placement: 'bottom-start', gutter: 4 }}
-          lazyMount
-          unmountOnExit
-        >
-          <Menu.Trigger asChild>
-            <IconButton label="Pinned message options" className={styles.iconButton}>
-              <Pin />
-            </IconButton>
-          </Menu.Trigger>
-          <MenuDismissLayer
-            isOpen={isMenuOpen}
-            label="Dismiss pinned message menu"
-            onDismiss={() => setIsMenuOpen(false)}
-          >
-            <Menu.Positioner>
-              <Menu.Content className={overlays.menu}>
-                <Menu.Item value="list" className={overlays.menuItem} onSelect={onOpenList}>
-                  <List /> Pinned Messages
-                  <Ripple />
-                </Menu.Item>
-                <Menu.Item
-                  value="unpin"
-                  className={overlays.menuItem}
-                  onSelect={() => setPendingUnpin(selectedMessage)}
-                >
-                  <PinOff /> Unpin
-                  <Ripple />
-                </Menu.Item>
-              </Menu.Content>
-            </Menu.Positioner>
-          </MenuDismissLayer>
-        </Menu.Root>
-        <button
-          className={styles.preview}
-          aria-label={`${pinLabel}: ${describeMessage(selectedMessage)}`}
-          onClick={() => followPinnedMessage(selectedMessage)}
-        >
-          <PinnedMessageIndicator count={messages.length} index={selectedIndex} />
-          <PinnedMessagePreview
-            message={selectedMessage}
-            count={messages.length}
-            index={selectedIndex}
-          />
-          <Ripple />
-        </button>
-        <IconButton
-          label="Unpin message"
-          className={styles.iconButton}
-          onClick={() => setPendingUnpin(selectedMessage)}
-        >
-          <X />
-        </IconButton>
-      </div>
-      <Dialog.Root
-        open={Boolean(pendingUnpin)}
-        onOpenChange={(details) => {
-          if (!details.open) {
-            setPendingUnpin(undefined);
-          }
-        }}
-        role="alertdialog"
+    <div className={styles.plate}>
+      <Menu.Root
+        open={isMenuOpen}
+        onOpenChange={(details) => setIsMenuOpen(details.open)}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        positioning={{ placement: 'bottom-start', gutter: 4 }}
         lazyMount
         unmountOnExit
       >
-        <Portal>
-          <Dialog.Backdrop className={overlays.backdrop} />
-          <Dialog.Positioner className={overlays.dialogPositioner}>
-            <Dialog.Content className={overlays.dialog}>
-              <Dialog.Title>Unpin Message</Dialog.Title>
-              <Dialog.Description>Would you like to unpin this message?</Dialog.Description>
-              <div className={overlays.dialogActions}>
-                <Dialog.CloseTrigger className={overlays.textButton}>Cancel</Dialog.CloseTrigger>
-                <button className={overlays.textButton} onClick={confirmUnpin}>
-                  Unpin
-                </button>
-              </div>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
-    </>
+        <Menu.Trigger asChild>
+          <IconButton label="Pinned message options" className={styles.iconButton}>
+            <Pin />
+          </IconButton>
+        </Menu.Trigger>
+        <MenuDismissLayer
+          isOpen={isMenuOpen}
+          label="Dismiss pinned message menu"
+          onDismiss={() => setIsMenuOpen(false)}
+        >
+          <Menu.Positioner>
+            <Menu.Content className={overlays.menu}>
+              <Menu.Item value="list" className={overlays.menuItem} onSelect={onOpenList}>
+                <List /> Pinned Messages
+                <Ripple />
+              </Menu.Item>
+              <Menu.Item
+                value="unpin"
+                className={overlays.menuItem}
+                onSelect={() => onUnpin(selectedMessage)}
+              >
+                <PinOff /> Unpin
+                <Ripple />
+              </Menu.Item>
+            </Menu.Content>
+          </Menu.Positioner>
+        </MenuDismissLayer>
+      </Menu.Root>
+      <button
+        className={styles.preview}
+        aria-label={`${pinLabel}: ${describeMessage(selectedMessage)}`}
+        onClick={() => followPinnedMessage(selectedMessage)}
+      >
+        <PinnedMessageIndicator count={messages.length} index={selectedIndex} />
+        <PinnedMessagePreview
+          message={selectedMessage}
+          count={messages.length}
+          index={selectedIndex}
+        />
+        <Ripple />
+      </button>
+      <IconButton
+        label="Unpin message"
+        className={styles.iconButton}
+        onClick={() => onUnpin(selectedMessage)}
+      >
+        <X />
+      </IconButton>
+    </div>
   );
 }
