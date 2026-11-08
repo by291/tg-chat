@@ -1,0 +1,36 @@
+{
+	admin off
+	auto_https off
+	# Upstream failures can log entire requests even when access logging is disabled.
+	log {
+		format filter {
+			wrap json
+			fields {
+				request delete
+			}
+		}
+	}
+}
+
+:80 {
+	# Keep API failures out of the SPA fallback so clients receive the real JSON error.
+	@backend path /health/* /api /api/*
+	handle @backend {
+		reverse_proxy api:8080 {
+			transport http {
+				dial_timeout 2s
+				response_header_timeout 5s
+			}
+		}
+	}
+
+	handle /connection/websocket {
+		reverse_proxy centrifugo:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

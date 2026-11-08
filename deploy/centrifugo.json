@@ -1,0 +1,14 @@
+{
+  "engine": {
+    "type": "redis",
+    "redis": {
+      "address": ["redis://valkey:6379"]
+    }
+  },
+  "health": {
+    "enabled": true
+  },
+  "usage_stats": {
+    "disabled": true
+  }
+}
