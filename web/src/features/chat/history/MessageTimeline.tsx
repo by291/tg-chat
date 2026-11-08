@@ -44,6 +44,8 @@ export interface MessageNavigation {
 }
 
 interface MessageTimelineProps {
+  allowedActions?: import('../messages/commands').MessageAction[];
+  reactionChoices?: string[];
   onMessageMount?: (options: OutgoingMessageMount) => (() => void) | undefined;
   messages: Message[];
   shouldShowSender?: boolean;
@@ -73,6 +75,8 @@ interface VirtualMessageHistoryProps extends MessageTimelineProps {
 }
 
 function VirtualMessageHistory({
+  allowedActions,
+  reactionChoices,
   messages,
   shouldShowSender,
   onMessageMount,
@@ -357,6 +361,8 @@ function VirtualMessageHistory({
       )}
       {!isPreview && canUseMessageActions && (
         <MessageMenu
+          allowedActions={allowedActions}
+          reactionChoices={reactionChoices}
           contentId={menu.contentId}
           target={menu.target}
           message={menu.target ? messageById.get(menu.target.messageId) : undefined}

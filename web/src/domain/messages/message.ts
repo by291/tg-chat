@@ -17,6 +17,8 @@ export const messageSchema = z.object({
   customEmoji: z.array(customEmojiEntitySchema).optional(),
   expiresAt: z.number().optional(),
   createdAt: z.number().min(-MAX_DATE_TIMESTAMP).max(MAX_DATE_TIMESTAMP),
+  isRead: z.boolean().optional(),
+  isReplyUnavailable: z.boolean().optional(),
   replyToId: z.string().optional(),
   replyQuote: z.object({ text: z.string() }).optional(),
   attachment: attachmentSchema.optional(),
@@ -31,6 +33,15 @@ export const messageSchema = z.object({
     'quote',
   ]).optional(),
   reactions: z.array(z.string()),
+  reactionDetails: z
+    .array(
+      z.object({
+        emoji: z.string(),
+        count: z.string(),
+        isSelected: z.boolean(),
+      }),
+    )
+    .optional(),
   // prettier-ignore
   deliveryStatus: z.enum([
     'queued',

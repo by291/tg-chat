@@ -166,3 +166,59 @@
     display: none;
   }
 }
+
+.folder,
+.preferences {
+  padding: 12px 20px;
+  background: var(--surface-color);
+}
+
+.folder {
+  display: flex;
+  gap: 12px;
+}
+
+.preferences .actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  padding-top: 12px;
+}
+
+.preferences label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pins,
+.conflict {
+  max-height: 180px;
+  overflow: auto;
+  padding: 12px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.pins button {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirmation {
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--surface-color);
+  color: var(--text-color);
+}
+
+.confirmation button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}

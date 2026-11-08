@@ -5,7 +5,13 @@ import type { Message } from '@/domain/messages/message';
 import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import styles from './MessageBubble.module.css';
 
-function SendingStatus({ status }: { status?: Message['deliveryStatus'] }) {
+function SendingStatus({
+  status,
+  isRead,
+}: {
+  status?: Message['deliveryStatus'];
+  isRead?: boolean;
+}) {
   const labels = {
     queued: 'Queued for sending',
     sending: 'Sending',
@@ -30,9 +36,9 @@ function SendingStatus({ status }: { status?: Message['deliveryStatus'] }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       role="img"
-      aria-label={status ? labels[status] : 'Stored locally'}
+      aria-label={isRead ? 'Read' : status ? labels[status] : 'Stored locally'}
     >
-      <path d={status ? 'M2 8L5 11L12 3' : 'M2 8L5 11L12 3M9 10L10 11L17 3'} />
+      <path d={status && !isRead ? 'M2 8L5 11L12 3' : 'M2 8L5 11L12 3M9 10L10 11L17 3'} />
     </svg>
   );
 }
@@ -47,7 +53,9 @@ function MetadataContent({ message }: { message: Message }) {
       <time dateTime={new Date(message.createdAt).toISOString()}>
         {formatMessageTime(message.createdAt, { timeFormat })}
       </time>
-      {message.authorId === currentUserId && <SendingStatus status={message.deliveryStatus} />}
+      {message.authorId === currentUserId && (
+        <SendingStatus status={message.deliveryStatus} isRead={message.isRead} />
+      )}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeMessages, type CanonicalMessage } from './messageModels';
+import { mergeMessages, renderMessage, type CanonicalMessage } from './messageModels';
 
 function message(sequence: number): CanonicalMessage {
   return {
@@ -72,4 +72,18 @@ it('merges content and interaction versions independently when responses cross',
   const merged = mergeMessages({ current: [current], incoming: [delayed], edge: 'latest' });
   expect(merged[0].content.text).toBe('Edited content');
   expect(merged[0].reactions[0].count).toBe('2');
+});
+
+it('renders unavailable replies without exposing their former quote and keeps aggregate reactions', () => {
+  const canonical = message(1);
+  canonical.reply = { message_id: 'removed', is_unavailable: true, quote: 'Old private text' };
+  canonical.reactions = [{ emoji: '👍', count: '2', is_selected: false }];
+  canonical.is_pinned = true;
+  canonical.edited_at = canonical.created_at;
+  const rendered = renderMessage(canonical);
+  expect(rendered.replyQuote).toBeUndefined();
+  expect(rendered.isReplyUnavailable).toBe(true);
+  expect(rendered.reactionDetails?.[0]).toEqual({ emoji: '👍', count: '2', isSelected: false });
+  expect(rendered.isPinned).toBe(true);
+  expect(rendered.isEdited).toBe(true);
 });

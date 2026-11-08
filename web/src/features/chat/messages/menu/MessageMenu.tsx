@@ -21,7 +21,7 @@ import { holdReactionFlight } from '../reactions/reactionFlight';
 import { prepareReactionLayout } from '../reactions/reactionLayoutTransition';
 import { Ripple } from '@/components/Ripple';
 import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
-import { CURRENT_USER_ID } from '@/domain/identity';
+import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { type Message } from '@/domain/messages/message';
 import { type MessageAction, type MessageCommand } from '@/features/chat/messages/commands';
 import overlays from '@/components/overlays/overlays.module.css';
@@ -46,6 +46,8 @@ export interface MessageMenuTarget {
 }
 
 interface MessageMenuProps {
+  allowedActions?: MessageAction[];
+  reactionChoices?: string[];
   contentId: string;
   target?: MessageMenuTarget;
   message?: Message;
@@ -63,7 +65,7 @@ interface MessageMenuItem {
   icon: LucideIcon;
 }
 
-function getMessageItems(message: Message): MessageMenuItem[] {
+function getMessageItems(message: Message, currentUserId: string): MessageMenuItem[] {
   const items: MessageMenuItem[] = [
     {
       action: 'reply',
@@ -72,7 +74,7 @@ function getMessageItems(message: Message): MessageMenuItem[] {
     },
   ];
   const canEdit =
-    message.authorId === CURRENT_USER_ID &&
+    message.authorId === currentUserId &&
     !message.sticker &&
     message.media?.kind !== 'poll' &&
     message.media?.kind !== 'checklist';
@@ -80,7 +82,7 @@ function getMessageItems(message: Message): MessageMenuItem[] {
   const canAppendTask =
     media?.kind === 'checklist' &&
     !message.forwardedFrom &&
-    (message.authorId === CURRENT_USER_ID || media.canOthersAppend) &&
+    (message.authorId === currentUserId || media.canOthersAppend) &&
     media.items.length < MAX_CHECKLIST_TASKS;
   if (canAppendTask) {
     items.push({
@@ -191,6 +193,8 @@ function getSelectionItems(options: {
 /** Share one Ark UI menu across the mounted messages in a history view. */
 export function MessageMenu({
   contentId,
+  allowedActions,
+  reactionChoices,
   target,
   message,
   selectedMessages,
@@ -200,6 +204,7 @@ export function MessageMenu({
   onCommand,
   onReact,
 }: MessageMenuProps) {
+  const currentUserId = useCurrentUserId();
   const [pickerBounds, setPickerBounds] = useState<DOMRect>();
   const reactionBarRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<HTMLDivElement>(null);
@@ -211,8 +216,16 @@ export function MessageMenu({
   if (message) {
     items = selectedMessages
       ? getSelectionItems({ message, selectedMessages })
-      : getMessageItems(message);
+      : getMessageItems(message, currentUserId);
   }
+  if (allowedActions) {
+    items = items.filter((item) => allowedActions.includes(item.action as MessageAction));
+  }
+  const selectedReactions = message?.reactionDetails
+    ? message.reactionDetails
+        .filter((reaction) => reaction.isSelected)
+        .map((reaction) => reaction.emoji)
+    : (message?.reactions ?? []);
   const menuKey = target
     ? `${target.messageId}:${target.point.x}:${target.point.y}`
     : 'message-menu';
@@ -341,31 +354,33 @@ export function MessageMenu({
               ref={menuRef}
               className={styles.menu}
               aria-label="Message actions"
-              data-own={message?.authorId === CURRENT_USER_ID}
+              data-own={message?.authorId === currentUserId}
               data-selecting={isSelecting}
             >
               {!isSelecting && (
                 <div ref={reactionBarRef} className={styles.reactionBar}>
-                  {QUICK_REACTIONS.map((emoji) => (
+                  {(reactionChoices ?? QUICK_REACTIONS).map((emoji) => (
                     <Menu.Item
                       key={emoji}
                       value={`react-${emoji}`}
                       valueText={`React ${emoji}`}
                       className={styles.reaction}
-                      data-selected={message?.reactions.includes(emoji)}
+                      data-selected={selectedReactions.includes(emoji)}
                       aria-label={`React ${emoji}`}
                     >
                       <span data-reaction-emoji={emoji}>{emoji}</span>
                     </Menu.Item>
                   ))}
-                  <Menu.Item
-                    value="more-reactions"
-                    className={styles.reaction}
-                    closeOnSelect={false}
-                    aria-label="More reactions"
-                  >
-                    <ChevronDown />
-                  </Menu.Item>
+                  {!reactionChoices && (
+                    <Menu.Item
+                      value="more-reactions"
+                      className={styles.reaction}
+                      closeOnSelect={false}
+                      aria-label="More reactions"
+                    >
+                      <ChevronDown />
+                    </Menu.Item>
+                  )}
                 </div>
               )}
               <div ref={itemsRef} className={styles.items}>
@@ -391,7 +406,7 @@ export function MessageMenu({
           anchor={pickerBounds}
           replacedMenuId={contentId}
           isOpen={isOpen}
-          selected={message?.reactions ?? []}
+          selected={selectedReactions}
           onSelect={selectReaction}
           onClose={() => {
             restoreRowFocus();

@@ -1,11 +1,19 @@
 import { ArrowLeft, MessageCircle, Search, Settings } from 'lucide-react';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { isCancelled } from '@/features/auth/SessionOwner';
+import type { Message } from '@/domain/messages/message';
+import type { MessageCommand } from '../messages/commands';
+import { canonicalMessageContent } from '../data/messageContent';
+import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
+import { ConversationControls } from './ConversationControls';
+import { PinnedMessages } from './PinnedMessages';
 import { ChatOwner } from '../data/ChatOwner';
 import {
+  compareCounter,
   destinationKey,
+  type CanonicalMessage,
   renderMessage,
   renderPending,
   type Conversation,
@@ -13,6 +21,28 @@ import {
 import { MessageComposer, type ComposedMessage } from '../composer/MessageComposer';
 import { MessageTimeline } from '../history/MessageTimeline';
 import styles from './ConnectedChat.module.css';
+
+// prettier-ignore
+const CONNECTED_ACTIONS: MessageCommand['action'][] = [
+  'reply',
+  'edit',
+  'delete',
+  'pin',
+  'copy',
+];
+// prettier-ignore
+const REACTIONS = [
+  '👍',
+  '👎',
+  '❤️',
+  '🔥',
+  '🥰',
+  '👏',
+  '😁',
+  '🤔',
+  '😢',
+  '🎉',
+];
 
 interface ConnectedChatProps {
   owner: ChatOwner;
@@ -31,11 +61,55 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
   const [isDirectoryVisible, setIsDirectoryVisible] = useState(!snapshot.selection);
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
+  const [folder, setFolder] = useState('inbox');
+  const [editing, setEditing] = useState<CanonicalMessage>();
+  const [editVersion, setEditVersion] = useState('');
+  const [confirmation, setConfirmation] = useState<Confirmation>();
+  const [isPinsOpen, setIsPinsOpen] = useState(false);
+  // Keep the editor's captured object stable while canonical updates arrive underneath it.
+  const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
   const selection = snapshot.selection;
-  const messages = snapshot.messages.map(renderMessage);
+  const messages = snapshot.messages.map((canonical) => {
+    const message = renderMessage(canonical);
+    message.isRead =
+      conversation?.kind === 'direct' &&
+      canonical.author_id === user.id &&
+      compareCounter(canonical.sequence, conversation.peer_read_through) <= 0;
+    return message;
+  });
+  const directory = snapshot.conversations.filter((entry) => {
+    if (folder === 'hidden') {
+      return entry.is_hidden;
+    }
+    return !entry.is_hidden && entry.is_archived === (folder === 'archived');
+  });
+  directory.sort((first, second) => {
+    const pinDifference = (first.pin_rank ?? Infinity) - (second.pin_rank ?? Infinity);
+    return pinDifference || Date.parse(second.updated_at) - Date.parse(first.updated_at);
+  });
+  const reply = snapshot.draft.reply;
+  let replyMessage: Message | undefined = messages.find(
+    (message) => message.id === reply?.message_id,
+  );
+  if (reply && !replyMessage) {
+    replyMessage = {
+      id: reply.message_id,
+      chatId: conversation?.id ?? '',
+      authorId: '',
+      authorName: 'Reply to message',
+      text: reply.quote ?? 'Open the original message',
+      createdAt: 0,
+      reactions: [],
+    };
+  }
   const acceptedIds = new Set(messages.map((message) => message.id));
   const selectedKey = selection ? destinationKey(selection.destination) : '';
+  useEffect(() => {
+    setEditing(undefined);
+    setIsPinsOpen(false);
+    setConfirmation(undefined);
+  }, [selectedKey]);
   const pending = snapshot.pending.filter((entry) => {
     const destination = entry.request.destination;
     const isCanonical =
@@ -63,6 +137,9 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
   }
 
   function openConversation(entry: Conversation) {
+    setEditing(undefined);
+    setIsPinsOpen(false);
+    setError('');
     const destination =
       entry.kind === 'saved'
         ? { kind: 'saved' as const }
@@ -78,7 +155,92 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
     setIsPersisting(true);
     setError('');
     try {
-      await owner.queueSend(message);
+      if (editing) {
+        await owner.command({
+          kind: 'edit',
+          message_id: editing.id,
+          expected_version: editVersion,
+          content: canonicalMessageContent(message),
+        });
+        setEditing(undefined);
+      } else {
+        await owner.queueSend(message);
+      }
+    } catch (failure) {
+      report(failure);
+    } finally {
+      setIsPersisting(false);
+    }
+  }
+
+  function messageCommand(command: MessageCommand) {
+    const canonical = snapshot.messages.find((message) => message.id === command.message.id);
+    if (!canonical || canonical.is_deleted || canonical.service_kind) {
+      return;
+    }
+    switch (command.action) {
+      case 'reply':
+        setEditing(undefined);
+        void owner.setReply({ message_id: canonical.id }).catch(report);
+        break;
+      case 'edit':
+        setEditing(canonical);
+        setEditVersion(canonical.version);
+        break;
+      case 'copy':
+        void navigator.clipboard.writeText(command.message.text).catch(report);
+        break;
+      case 'pin':
+        void owner
+          .command({ kind: 'pin', message_id: canonical.id, is_pinned: !canonical.is_pinned })
+          .catch(report);
+        break;
+      case 'delete': {
+        const choices: Confirmation['choices'] = [
+          {
+            label: 'Hide for me',
+            action: () => owner.command({ kind: 'hide_message', message_id: canonical.id }),
+          },
+        ];
+        if (canonical.author_id === user.id) {
+          choices.push({
+            label: 'Delete for everyone',
+            action: () => owner.command({ kind: 'delete', message_id: canonical.id }),
+          });
+        }
+        setConfirmation({
+          title: 'Remove message?',
+          description: 'Choose whose history should change. Deletion cannot be undone.',
+          choices,
+        });
+        break;
+      }
+    }
+  }
+
+  function react(messageId: string, emoji: string) {
+    const message = snapshot.messages.find((entry) => entry.id === messageId);
+    if (!message) {
+      return;
+    }
+    const isSelected = message.reactions.some(
+      (reaction) => reaction.emoji === emoji && reaction.is_selected,
+    );
+    void owner
+      .command({
+        kind: 'reaction',
+        message_id: messageId,
+        emoji,
+        is_selected: !isSelected,
+      })
+      .catch(report);
+  }
+
+  async function confirm(action: () => Promise<void>) {
+    setIsPersisting(true);
+    try {
+      await action();
+      setConfirmation(undefined);
     } catch (failure) {
       report(failure);
     } finally {
@@ -100,7 +262,19 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
             </button>
           </header>
           {!snapshot.isReady && <p role="status">Loading conversations…</p>}
-          {snapshot.conversations.map((entry) => (
+          <label className={styles.folder}>
+            Conversations
+            <select
+              aria-label="Conversation folder"
+              value={folder}
+              onChange={(event) => setFolder(event.target.value)}
+            >
+              <option value="inbox">Inbox</option>
+              <option value="archived">Archived</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </label>
+          {directory.map((entry) => (
             <button
               type="button"
               className={styles.conversation}
@@ -113,10 +287,47 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
               </span>
               <span className={styles.summary}>
                 <strong>{title(entry)}</strong>
-                <span>{entry.summary_text || 'Start a conversation'}</span>
+                <span>
+                  {entry.draft.content?.text
+                    ? `Draft: ${entry.draft.content.text}`
+                    : entry.summary_text || 'Start a conversation'}
+                </span>
+                {(entry.unread_count !== '0' || entry.is_manually_unread) && (
+                  <span aria-label="Unread messages">
+                    {entry.unread_count === '0' ? 'Unread' : entry.unread_count}
+                  </span>
+                )}
+                {entry.pin_rank !== null && <span>Pinned</span>}
               </span>
             </button>
           ))}
+          {snapshot.pendingCommands.length > 0 && (
+            <section className={styles.pending} aria-label="Unconfirmed actions">
+              <h2>Unconfirmed actions</h2>
+              <p>Review current state before retrying or dismissing an action.</p>
+              {snapshot.pendingCommands.map((entry) => (
+                <div key={entry.request.operation_id}>
+                  <span>{entry.request.action.kind}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void owner.retryCommand(entry.request.operation_id).catch(report)
+                    }
+                  >
+                    Retry action
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void owner.discardCommand(entry.request.operation_id).catch(report)
+                    }
+                  >
+                    Dismiss action
+                  </button>
+                </div>
+              ))}
+            </section>
+          )}
           {snapshot.pending.length > 0 && (
             <section className={styles.pending} aria-label="Pending messages">
               <h2>Pending messages</h2>
@@ -178,6 +389,24 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
               </button>
             )}
           </header>
+          {conversation && (
+            <ConversationControls
+              conversation={conversation}
+              onCommand={(action) => owner.command(action)}
+              onConfirm={setConfirmation}
+              onError={report}
+              onPins={() => setIsPinsOpen(true)}
+            />
+          )}
+          {isPinsOpen && conversation && (
+            <PinnedMessages
+              key={conversation.id}
+              owner={owner}
+              version={conversation.version}
+              onClose={() => setIsPinsOpen(false)}
+              onError={report}
+            />
+          )}
           {(error || snapshot.error) && (
             <p className={styles.error} role="alert">
               {error || snapshot.error}
@@ -204,31 +433,89 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
                 precedingMessage={
                   snapshot.precedingMessage ? renderMessage(snapshot.precedingMessage) : undefined
                 }
-                canUseMessageActions={false}
+                allowedActions={CONNECTED_ACTIONS}
+                reactionChoices={REACTIONS}
+                navigation={snapshot.navigation}
+                onReachLatest={() => {
+                  const reached = snapshot.messages.at(-1);
+                  if (reached && !isDirectoryVisible && !editing) {
+                    void owner.markReached(reached.id).catch(report);
+                  }
+                }}
                 remoteHistory={{
                   hasOlder: snapshot.hasOlder,
                   isLoading: snapshot.isLoading,
                   loadOlder: () => void owner.loadHistory('older'),
                 }}
                 searchQuery=""
-                onCommand={() => undefined}
-                onReact={() => undefined}
+                onCommand={messageCommand}
+                onReact={react}
                 onInteract={() => undefined}
                 onOpenMedia={() => undefined}
-                onJumpToMessage={() => undefined}
+                onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
               />
               <footer className={styles.composer}>
+                {snapshot.draftConflict && (
+                  <div className={styles.conflict} role="status">
+                    <p>
+                      Another device changed this draft:{' '}
+                      {snapshot.draftConflict.value.text || '(empty draft)'}
+                    </p>
+                    <button type="button" onClick={() => void owner.keepLocalDraft().catch(report)}>
+                      Keep my draft
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void owner.restoreDraft(snapshot.draftConflict!).catch(report)}
+                    >
+                      Use other draft
+                    </button>
+                  </div>
+                )}
+                {snapshot.draftAlternatives?.map((draft) => (
+                  <div className={styles.conflict} key={draft.id}>
+                    <p>Recovered draft: {draft.value.text}</p>
+                    <button
+                      type="button"
+                      onClick={() => void owner.restoreDraft(draft).catch(report)}
+                    >
+                      Restore recovered draft
+                    </button>
+                  </div>
+                ))}
+                {editing && snapshot.editConflict?.id === editing.id && (
+                  <div className={styles.conflict} role="status">
+                    <p>Current message: {snapshot.editConflict.content.text}</p>
+                    <p>
+                      Your edit is still in the editor. Choose whether to save it over this version.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setEditVersion(snapshot.editConflict!.version)}
+                    >
+                      Keep my edit for next save
+                    </button>
+                    <button type="button" onClick={() => setEditing(undefined)}>
+                      Discard my edit
+                    </button>
+                  </div>
+                )}
                 <MessageComposer
                   key={selectedKey}
                   isTextOnly
+                  editingMessage={editingMessage}
+                  replyMessage={replyMessage}
                   isDisabled={isPersisting || !snapshot.isReady}
                   draft={snapshot.draft.value.text}
                   draftCustomEmoji={snapshot.draft.value.customEmoji}
                   draftRichText={snapshot.draft.value.richText}
                   onDraftChange={(value) => void owner.setDraft(value).catch(report)}
                   onSubmit={(message) => void submit(message)}
-                  onCancelContext={() => undefined}
-                  onJumpToMessage={() => undefined}
+                  onCancelContext={() => {
+                    setEditing(undefined);
+                    void owner.setReply(undefined).catch(report);
+                  }}
+                  onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
                   onNotify={setError}
                 />
               </footer>
@@ -237,6 +524,12 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
             <div className={styles.empty}>Choose a conversation or find someone to message.</div>
           )}
         </section>
+        <ActionConfirmation
+          confirmation={confirmation}
+          isBusy={isPersisting}
+          onCancel={() => setConfirmation(undefined)}
+          onChoose={(action) => void confirm(action)}
+        />
       </main>
     </CurrentUserProvider>
   );

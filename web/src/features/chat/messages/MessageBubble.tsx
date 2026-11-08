@@ -111,7 +111,10 @@ export const MessageBubble = memo(function MessageBubble({
   const isLinkPreview = message.media?.kind === 'link';
   const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
   const hasReplyQuote = Boolean(message.replyQuote?.text);
-  const replyDescription = message.replyQuote?.text || describeMessage(replyMessage);
+  const isReplyUnavailable = message.isReplyUnavailable ?? !replyMessage;
+  const replyDescription = isReplyUnavailable
+    ? 'Message unavailable'
+    : message.replyQuote?.text || describeMessage(replyMessage);
   const messageIdPrefix = idPrefix ?? (isPreview ? 'preview-message' : 'message');
   const elementId = `${messageIdPrefix}-${message.id}`;
 
@@ -179,7 +182,7 @@ export const MessageBubble = memo(function MessageBubble({
             data-quote={hasReplyQuote}
             dir="auto"
             onClick={() => onJumpToMessage(message.replyToId!)}
-            disabled={!replyMessage}
+            disabled={isReplyUnavailable}
           >
             <Ripple />
             {hasReplyQuote && (
@@ -187,7 +190,10 @@ export const MessageBubble = memo(function MessageBubble({
             )}
             <span className={styles.replyText}>
               {replyThumbnailUrl && <ReplyThumbnail source={replyThumbnailUrl} />}
-              <strong>{replyMessage?.authorName || 'Message unavailable'}</strong>
+              <strong>
+                {replyMessage?.authorName ||
+                  (isReplyUnavailable ? 'Message unavailable' : 'Reply to message')}
+              </strong>
               <span className={styles.replyDescription}>{replyDescription}</span>
             </span>
           </button>
@@ -220,7 +226,13 @@ export const MessageBubble = memo(function MessageBubble({
         {hasReactions && (
           <div className={styles.reactions} aria-label="Reactions">
             {message.reactions.map((emoji) => (
-              <MessageReaction key={emoji} emoji={emoji} messageId={message.id} onReact={onReact} />
+              <MessageReaction
+                key={emoji}
+                emoji={emoji}
+                details={message.reactionDetails?.find((reaction) => reaction.emoji === emoji)}
+                messageId={message.id}
+                onReact={onReact}
+              />
             ))}
             {!hasOverlayTime && <MessageMetadata message={message} />}
           </div>

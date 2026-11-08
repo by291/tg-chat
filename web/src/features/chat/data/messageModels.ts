@@ -77,7 +77,22 @@ export function renderMessage(message: CanonicalMessage): Message {
       length: entity.length,
     })),
     createdAt: Date.parse(message.created_at),
-    reactions: [],
+    reactions: message.reactions.map((reaction) => reaction.emoji),
+    reactionDetails: message.reactions.map((reaction) => ({
+      emoji: reaction.emoji,
+      count: reaction.count,
+      isSelected: reaction.is_selected,
+    })),
+    replyToId: message.reply?.message_id,
+    isReplyUnavailable: message.reply?.is_unavailable,
+    replyQuote:
+      message.reply?.quote && !message.reply.is_unavailable
+        ? { text: message.reply.quote }
+        : undefined,
+    isPinned: message.is_pinned,
+    isEdited: Boolean(message.edited_at),
+    isService: Boolean(message.service_kind),
+    expiresAt: message.expires_at ? Date.parse(message.expires_at) : undefined,
     deliveryStatus: 'accepted',
   };
 }
