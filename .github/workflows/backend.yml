@@ -97,5 +97,13 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+          run_install: false
+      - name: Install account browser tooling
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          pnpm --dir web exec playwright install --with-deps chromium
       - name: Verify the integrated runtime and persistent storage
         run: node scripts/check-runtime.mjs

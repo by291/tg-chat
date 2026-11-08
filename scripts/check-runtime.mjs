@@ -21,6 +21,10 @@ const INVALID_TOKEN_CLOSE_CODE = 3500;
 const OBJECT_CONTENT = 'Object storage survives service restarts.\n';
 const environment = createRuntimeEnvironment({ httpPort: '0', s3Port: '0' });
 environment.TG_CHAT_MAILPIT_PORT = '0';
+environment.TG_CHAT_SMTP_HOST = 'mailpit';
+environment.TG_CHAT_SMTP_PORT = '1025';
+environment.TG_CHAT_SMTP_MODE = 'plain';
+environment.TG_CHAT_MAIL_FROM = 'accounts@example.test';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'tg-chat-runtime-'));
 const environmentPath = join(temporaryDirectory, '.env');
 const project = `tg-chat-check-${randomUUID()}`;
@@ -207,6 +211,100 @@ async function verifyRoutes(origin) {
   });
   assert.equal(unsupported.status, 405);
   assert.equal((await unsupported.json()).error.code, 'method_not_allowed');
+}
+
+function configurePublicOrigin(origin) {
+  // Docker chooses the host port; cookie admission and email links must use that exact origin.
+  environment.TG_CHAT_PUBLIC_ORIGIN = origin;
+  writeFileSync(environmentPath, serializeEnvironment(environment), { mode: 0o600 });
+  // prettier-ignore
+  compose([
+    'up',
+    '-d',
+    '--no-deps',
+    '--wait',
+    'api',
+    'worker',
+    'centrifugo',
+  ]);
+}
+
+function verifyAccountBrowsers(origin) {
+  const mailpitOrigin = endpoint('mailpit', '8025');
+  const output = execute('pnpm', ['--dir', 'web', 'test:accounts'], {
+    env: {
+      ...process.env,
+      TG_CHAT_ACCOUNT_TEST_URL: origin,
+      TG_CHAT_MAILPIT_TEST_URL: mailpitOrigin,
+    },
+  });
+  console.log(output);
+}
+
+async function submitAccountRequest({ origin, path, body }) {
+  return fetch(`${origin}/api/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      origin,
+      'content-type': 'application/json',
+      'x-tg-chat-request': '1',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+}
+
+async function verifyValkeyOutage(origin) {
+  const credentials = {
+    username: `outage_${randomUUID().slice(0, 8)}`,
+    password: SECRET_MARKER,
+    device_name: 'Runtime acceptance',
+  };
+  const registration = await submitAccountRequest({
+    origin,
+    path: 'auth/register',
+    body: { ...credentials, display_name: 'Outage account' },
+  });
+  assert.equal(registration.status, 201);
+  const cookie = registration.headers.get('set-cookie')?.split(';')[0];
+  assert.ok(cookie, 'Registration must issue a session cookie');
+  await registration.arrayBuffer();
+
+  compose(['stop', 'valkey']);
+  try {
+    const login = await submitAccountRequest({
+      origin,
+      path: 'auth/login',
+      body: credentials,
+    });
+    assert.equal(login.status, 503, 'Sensitive admission must fail closed without Valkey');
+    await login.arrayBuffer();
+    const profile = await fetch(`${origin}/api/v1/account/profile`, {
+      headers: { cookie },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    assert.equal(profile.status, 200, 'Existing authenticated reads must survive Valkey outage');
+    assert.equal((await profile.json()).username, credentials.username);
+  } finally {
+    compose(['start', 'valkey']);
+  }
+
+  const deadline = Date.now() + STARTUP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const login = await submitAccountRequest({
+      origin,
+      path: 'auth/login',
+      body: credentials,
+    });
+    await login.arrayBuffer();
+    if (login.status === 200) {
+      return;
+    }
+    assert.equal(login.status, 503);
+    await delay(RETRY_DELAY_MS);
+  }
+
+  throw new Error('Account admission did not recover after Valkey restarted');
 }
 
 async function expectRealtimeRejection({ origin, token, expectedCode }) {
@@ -418,6 +516,9 @@ async function main() {
     const origin = endpoint('gateway', '80');
     const storageOrigin = endpoint('seaweedfs', '8333');
 
+    configurePublicOrigin(origin);
+    await waitUntilReady(`${origin}/health/ready`);
+
     await verifyRoutes(origin);
     await verifyRealtimeAuthentication(origin);
     verifyPrivateServices();
@@ -430,6 +531,10 @@ async function main() {
       '--rm',
       'verification',
     ]);
+    console.log('Checking real account browsers and SMTP links.');
+    verifyAccountBrowsers(origin);
+    console.log('Checking fail-closed admission and surviving reads during Valkey outage.');
+    await verifyValkeyOutage(origin);
     console.log('Checking outages, graceful shutdown, and persistent private storage.');
     await verifyPersistence({ origin, storageOrigin });
 
