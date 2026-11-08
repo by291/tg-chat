@@ -1,8 +1,8 @@
 # TG Chat
 
-A React chat application with a Telegram-inspired interface and a Rust API/Worker foundation. The
-frontend currently runs with local conversations and device storage; business features are not yet
-connected to the backend. A backend is not required to explore the frontend.
+A React chat application with a Telegram-inspired interface and a Rust API/Worker backend. Connected
+mode supports real accounts, private profiles, contacts, blocks, device sessions, and optional email
+recovery. Messaging remains a separate local demo until M3. No backend is needed to explore that demo:
 
 ```sh
 cd web
@@ -17,16 +17,16 @@ node scripts/create-local-env.mjs
 docker compose up --build -d --wait
 ```
 
-Open `http://localhost:8080`. The runtime currently supplies health endpoints, explicit migrations,
-safe process lifecycle, and generated API contracts. Accounts and messaging arrive in later
-milestones.
+Open `http://localhost:8080` to register an account. The explicit `/demo` entry opens sample
+conversations without using connected account state. SMTP is optional; see
+[backend development](./docs/development.md) to enable local email capture.
 
 ## Documentation
 
 - [Backend development](./docs/development.md): local runtime, verification, and generated
   contracts.
 - [Runtime operations](./docs/operations.md): migrations, health, secrets, storage, and shutdown.
-
+- [Accounts and recovery](./docs/accounts.md): identity, session, privacy, and durable mail boundaries.
 - [Frontend overview](./web/README.md): setup, capabilities, and current scope.
 - [Architecture](./web/docs/architecture.md): module boundaries, state ownership, and data flow.
 - [Startup and appearance](./web/docs/startup-and-appearance.md): progressive startup and
@@ -37,8 +37,8 @@ milestones.
   gestures, and forms.
 - [Development](./web/docs/development.md): local commands and verification strategy.
 - [Complete product design](./docs/superpowers/specs/2026-11-08-complete-product-design.md):
-  approved target for the Rust backend, synchronization, media, calls, and deployment; M1
-  establishes the runtime; remaining product capabilities are planned.
+  approved target for the Rust backend, synchronization, media, calls, and deployment; later
+  milestones connect messaging, media, administration, and calls.
 - [Implementation milestones](./docs/superpowers/plans/2026-11-08-product-milestones.md): delivery
   order, dependencies, and acceptance gates for the approved product design.
 

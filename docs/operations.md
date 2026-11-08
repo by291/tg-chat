@@ -1,9 +1,9 @@
 # Runtime operations
 
-M1 provides a reproducible single-host development runtime. It is the foundation for the
-[approved product](./superpowers/specs/2026-11-08-complete-product-design.md), with no accounts,
-business persistence, job processing, or call service yet. The Worker currently owns its lifecycle
-and internal health listener; later milestones will attach durable jobs to it.
+The single-host runtime supports accounts, sessions, contacts, and optional email recovery.
+PostgreSQL owns durable account and mail-job state; the Worker delivers leased email jobs.
+Messaging, media, and calls remain later parts of the
+[approved product](./superpowers/specs/2026-11-08-complete-product-design.md).
 
 ## Startup and migration ordering
 
@@ -11,8 +11,9 @@ Create `.env` with `node scripts/create-local-env.mjs`, then run
 `docker compose up --build -d --wait`. PostgreSQL becomes healthy first, the one-shot `migrate`
 service initializes or upgrades its schema, and API/Worker start after migration succeeds.
 Centrifugo depends on healthy Valkey. Caddy waits for API and Centrifugo before serving the
-frontend. SMTP and LiveKit are optional future services and are not required to start this
-environment.
+frontend. SMTP is optional and LiveKit is a future service; neither is required to start this
+environment. Without SMTP, account capabilities explicitly disable new verification/recovery
+requests. Existing verified addresses remain private account data.
 
 For an explicit migration after rebuilding the application image:
 
@@ -22,7 +23,7 @@ docker compose run --rm migrate
 docker compose up -d --wait api worker gateway
 ```
 
-Run migrations before replacing application processes. M1 readiness requires the **exact embedded
+Run migrations before replacing application processes. Readiness requires the **exact embedded
 migration catalogue**, including successful checksums; it deliberately does not claim compatibility
 with newer schemas. Schema changes therefore require a coordinated rollout until a later milestone
 introduces and tests a broader compatibility policy. Back up data before any schema change.
@@ -40,16 +41,18 @@ is unavailable. `GET /health/ready` checks database access and migration metadat
 HTTP 503 with a sanitized JSON error and generated `x-request-id`.
 
 Compose uses readiness for API and Worker health. A database outage makes them unhealthy without
-terminating them, and readiness recovers when the database returns. M1 does not report Valkey or S3
-as API readiness dependencies because no implemented API behavior uses them yet. Centrifugo and
+terminating them, and readiness recovers when the database returns. Valkey loss rejects sensitive
+admission and discovery while existing authenticated reads remain available; it does not globally
+fail API readiness. S3 is not an account dependency. Centrifugo and
 SeaweedFS have their own process probes; the SeaweedFS probe checks its master, while acceptance
 separately verifies signed S3 requests. Health probes are not a substitute for end-to-end
 monitoring.
 
 SIGTERM and Ctrl+C stop new HTTP acceptance, drain active requests with a deadline, and close the
 connection pool with another deadline. Compose allows time for these deadlines before force-killing
-containers. API and Worker log startup, draining, and stop events. There is no work lease to drain
-in M1; durable job shutdown will be implemented with the job owner.
+containers. API and Worker log startup, draining, and stop events. Worker shutdown stops new claims
+and allows bounded completion of its current SMTP attempt. A crashed claim becomes eligible for
+recovery after its lease expires; a stale worker cannot finish a newer claim.
 
 ## Secrets, network boundaries, and logs
 
@@ -68,7 +71,13 @@ Only the frontend gateway and authenticated S3 endpoint publish loopback host po
 Valkey, internal health listeners, Centrifugo administration/API, SeaweedFS filer, volume, and
 master ports remain inside the Compose network. The S3 credential has broad local storage access;
 future application upload URLs must use scoped, expiring signatures rather than revealing this key.
-Centrifugo rejects client sessions without valid tokens. M1 does not issue those tokens.
+Centrifugo rejects client sessions without valid tokens. Account APIs do not issue those tokens.
+The optional Mailpit profile also publishes a loopback-only capture UI; it is a development aid.
+
+`TG_CHAT_PUBLIC_ORIGIN` must exactly match the browser origin. Non-loopback origins require HTTPS;
+the session uses a Secure `__Host-` cookie. Local loopback HTTP uses a separate non-Secure cookie.
+The Compose API trusts only `X-TG-Client-IP`, which Caddy overwrites. Do not publish that API port
+directly while `TG_CHAT_TRUST_GATEWAY=true`. Native services default to socket peer addresses.
 
 Application logs contain generated request IDs, methods, matched route templates, statuses, and
 elapsed time. They omit raw paths, query strings, headers, request bodies, SQL statements, and
@@ -81,7 +90,55 @@ configuration because it contains expanded credentials.
 
 This local stack uses HTTP and single service instances. Public hosting requires TLS, public-origin
 and S3 endpoint configuration, backup/restore exercises, monitoring, and the later security and
-operational milestones. No high-availability or production readiness is claimed by M1.
+operational milestones. This runtime does not establish high availability or public-release readiness.
+
+## Trusted account administration
+
+Operator commands require trusted database access. They commit their change and an append-only
+audit entry together. There is no default privileged password or public bootstrap route.
+Create an operator by piping a password from your secret manager into stdin:
+
+```sh
+docker compose exec -T api api operator create --username operator_one --display-name Operator
+```
+
+The command reads stdin until EOF; supply one password line from a pipe or redirected private file.
+Do not place passwords in argv or shell history. A privileged identity is reserved for the later
+administration UI; current administration remains trusted CLI work.
+
+```sh
+docker compose exec -T api api operator close-registration --reason 'Maintenance window'
+docker compose exec -T api api operator open-registration --reason 'Maintenance completed'
+docker compose exec -T api api operator suspend --username member_one --reason 'Abuse review'
+docker compose exec -T api api operator restore --username member_one --reason 'Review completed'
+```
+
+Suspension revokes every session and invalidates outstanding credential challenges. Restoration
+requires a fresh login and never revives old cookies. Registration policy changes serialize with
+new admissions. Audit rows identify the trusted CLI actor and reason; the database rejects audit
+updates, deletion, and truncation. This is not tamper-proof against a database administrator.
+
+## Mail delivery and protected payloads
+
+Configure the same SMTP sender, transport, public origin, and `TG_CHAT_MAIL_KEY` for API and Worker.
+Use `starttls` or `tls` for remote SMTP; plaintext is accepted only for explicit local capture hosts.
+Set both SMTP username and password when authentication is required. Invalid partial configuration
+fails startup. [Development](./development.md) documents the optional Mailpit profile.
+
+Retain the Base64-encoded 32-byte key alongside database backups using your secret-storage process.
+Pending email payloads are AES-GCM encrypted and bound to their job identity. Replacing the key
+does not rotate existing ciphertext: use a coordinated drain before changing it, and retain the
+old key for any backup containing its pending jobs. A wrong key prevents those jobs from delivering.
+There is no automatic multi-key rotation or exhausted-job replay command in M2.
+
+The Worker logs job IDs and safe outcomes. Inspect job status, attempts, scheduled retry time, and
+lease expiry through trusted database access when troubleshooting; avoid dumping encrypted payloads,
+challenges, or recipient data into shared logs. Exhausted jobs are retained but do not count against
+the pending/running queue budget. Diagnose SMTP/key failures, then let users request fresh links
+after the cause is fixed. Terminal-row retention and cleanup require operator policy until a later
+maintenance milestone provides automated retention.
+Successful and discarded jobs erase payload bytes. See [accounts](./accounts.md) for transaction,
+single-use, and at-least-once delivery constraints.
 
 ## Persistence and recovery
 
@@ -96,6 +153,6 @@ only for its random, isolated test project.
 
 Use PostgreSQL's logical backup tools for a consistent database backup. Back up SeaweedFS metadata
 and object storage together while its single process is stopped, or use an explicitly tested
-consistent backup procedure. Valkey will eventually hold disposable delivery/cache state; PostgreSQL
-remains the planned authority for durable business records. Merely retaining a local Docker volume
+consistent backup procedure. Valkey currently holds expiring admission counters and will also hold
+delivery/cache state; PostgreSQL remains the authority for durable business records. Merely retaining a local Docker volume
 is not a backup, and persistence tests do not establish disaster-recovery guarantees.
