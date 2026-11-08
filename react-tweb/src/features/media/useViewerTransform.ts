@@ -1,5 +1,12 @@
 import { useGesture, type FullGestureState } from '@use-gesture/react';
 import { useLayoutEffect, useRef, useState } from 'react';
+import { measureViewerGeometry } from './viewerGeometry';
+import {
+  panViewerGesture,
+  settleViewerGesture,
+  resolveViewerSwipe,
+  type ViewerPointerGesture,
+} from './viewerGesture';
 import type { CSSProperties, MouseEvent, RefObject } from 'react';
 import {
   boundViewerTransform,
@@ -17,11 +24,6 @@ import {
   type ViewerTransform,
 } from './viewerTransform';
 
-const SWIPE_VIEWPORT_RATIO = 0.2;
-const SWIPE_DISTANCE = 125;
-const PAN_VELOCITY_FACTOR = 0.1;
-const PAN_IDLE_RESET_DELAY = 500;
-const MIN_GESTURE_DURATION = 1;
 const ZOOM_SETTLE_DELAY = 300;
 const WHEEL_RELEASE_DELAY = 150;
 const CONTROL_SELECTOR = 'button, input, a, [data-viewer-controls]';
@@ -36,28 +38,10 @@ interface ViewerTransformOptions {
   onDismiss?: () => void;
 }
 
-interface PointerGesture {
-  origin: ViewerPoint;
-  transform: ViewerTransform;
-  pointerType: string;
-  hasPinched: boolean;
-  lastDragOffset: ViewerPoint;
-  lastDragDelta: ViewerPoint;
-  firstMoveTime?: number;
-  lastMoveTime?: number;
-}
-
 export type ViewerTransformController = ReturnType<typeof useViewerTransform>;
 
 function isControl(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(CONTROL_SELECTOR));
-}
-
-function exceedsSwipeThreshold(distance: number, viewportLength: number) {
-  return (
-    Math.abs(distance) / viewportLength > SWIPE_VIEWPORT_RATIO ||
-    Math.abs(distance) > SWIPE_DISTANCE
-  );
 }
 
 /** Own viewer gestures on an outer layer independently of the media's opening animation. */
@@ -74,9 +58,9 @@ export function useViewerTransform(options: ViewerTransformOptions) {
   const pinchRef = useRef<{ origin: ViewerPoint; transform: ViewerTransform } | undefined>(
     undefined,
   );
-  const gestureRef = useRef<PointerGesture | undefined>(undefined);
+  const gestureRef = useRef<ViewerPointerGesture | undefined>(undefined);
   const pointerPositions = useRef(new Map<number, ViewerPoint>());
-  const continuation = useRef<{ pointerId: number; gesture: PointerGesture } | undefined>(
+  const continuation = useRef<{ pointerId: number; gesture: ViewerPointerGesture } | undefined>(
     undefined,
   );
   const hasPinched = useRef(false);
@@ -125,27 +109,11 @@ export function useViewerTransform(options: ViewerTransformOptions) {
       measuredMediaRef.current = mediaElement;
     }
 
-    // The layout box must exclude this layer's transform and the inner media's opening animation.
-    const currentTransform = container.style.transform;
-    const currentTransition = container.style.transition;
-    container.style.transition = 'none';
-    container.style.transform = 'none';
-    const rectangle = mediaElement.getBoundingClientRect();
-    container.style.transform = currentTransform;
-    // Flush restoration before re-enabling transitions so measurement cannot animate from identity.
-    container.getBoundingClientRect();
-    container.style.transition = currentTransition;
-    const viewport = { width: window.innerWidth, height: window.innerHeight };
-    const nextGeometry: ViewerGeometry = {
-      media: {
-        left: rectangle.left,
-        top: rectangle.top,
-        width: rectangle.width,
-        height: rectangle.height,
-      },
-      viewport,
-      mediaBox: optionsRef.current.getMediaBox?.() ?? viewport,
-    };
+    const nextGeometry = measureViewerGeometry({
+      container,
+      mediaElement,
+      getMediaBox: optionsRef.current.getMediaBox,
+    });
 
     geometryRef.current = nextGeometry;
     setGeometry(nextGeometry);
@@ -470,42 +438,24 @@ export function useViewerTransform(options: ViewerTransformOptions) {
     },
   );
 
-  function panPointerGesture(gesture: PointerGesture, offset: ViewerPoint) {
+  function panPointerGesture(gesture: ViewerPointerGesture, offset: ViewerPoint) {
     const currentGeometry = geometryRef.current;
     if (!currentGeometry) {
       return;
     }
 
-    const currentTime = Date.now();
-    gesture.firstMoveTime ??= currentTime;
-    if (
-      gesture.lastMoveTime !== undefined &&
-      currentTime >= gesture.lastMoveTime + PAN_IDLE_RESET_DELAY
-    ) {
-      gesture.firstMoveTime = gesture.lastMoveTime + PAN_IDLE_RESET_DELAY;
-    }
-    gesture.lastMoveTime = currentTime;
-    gesture.lastDragDelta = {
-      left: offset.left - gesture.lastDragOffset.left,
-      top: offset.top - gesture.lastDragOffset.top,
-    };
-    gesture.lastDragOffset = offset;
-    const currentTransform = transformRef.current;
-
-    // Accumulate from the bounded position so reversing an edge drag responds immediately.
     updateTransform(
-      boundViewerTransform({
+      panViewerGesture({
+        gesture,
+        offset,
         geometry: currentGeometry,
-        transform: {
-          ...currentTransform,
-          offsetX: currentTransform.offsetX + gesture.lastDragDelta.left,
-          offsetY: currentTransform.offsetY + gesture.lastDragDelta.top,
-        },
+        transform: transformRef.current,
+        now: Date.now(),
       }),
     );
   }
 
-  function settlePointerTransform(gesture: PointerGesture) {
+  function settlePointerTransform(gesture: ViewerPointerGesture) {
     const currentGeometry = geometryRef.current;
     const currentTransform = transformRef.current;
     if (!isEnabled || !canTransform || !currentGeometry) {
@@ -517,68 +467,37 @@ export function useViewerTransform(options: ViewerTransformOptions) {
       return;
     }
 
-    const canApplyMomentum =
-      !gesture.hasPinched &&
-      currentTransform.scale > VIEWER_ZOOM_INITIAL &&
-      gesture.transform.scale === currentTransform.scale;
-    if (
-      !canApplyMomentum ||
-      gesture.firstMoveTime === undefined ||
-      gesture.lastMoveTime === undefined
-    ) {
-      return;
+    const settledTransform = settleViewerGesture({
+      gesture,
+      geometry: currentGeometry,
+      transform: currentTransform,
+      now: Date.now(),
+    });
+    if (settledTransform) {
+      updateTransform(settledTransform);
     }
-
-    const currentTime = Date.now();
-    const idleResetTime = gesture.lastMoveTime + PAN_IDLE_RESET_DELAY;
-    const gestureTime = currentTime >= idleResetTime ? idleResetTime : gesture.firstMoveTime;
-    const elapsedTime = Math.max(MIN_GESTURE_DURATION, currentTime - gestureTime);
-    const distanceLeft = Math.abs(gesture.lastDragOffset.left);
-    const distanceTop = Math.abs(gesture.lastDragOffset.top);
-    const velocityLeft = distanceLeft / elapsedTime;
-    const velocityTop = distanceTop / elapsedTime;
-
-    // Match tweb's release momentum, then apply the same rotated-content edge bounds.
-    updateTransform(
-      boundViewerTransform({
-        geometry: currentGeometry,
-        transform: {
-          ...currentTransform,
-          offsetX:
-            currentTransform.offsetX +
-            distanceLeft * velocityLeft * PAN_VELOCITY_FACTOR * gesture.lastDragDelta.left,
-          offsetY:
-            currentTransform.offsetY +
-            distanceTop * velocityTop * PAN_VELOCITY_FACTOR * gesture.lastDragDelta.top,
-        },
-      }),
-    );
   }
 
-  function dispatchTouchSwipe(point: ViewerPoint, gesture: PointerGesture) {
-    const canSwipe =
-      gesture.pointerType === 'touch' &&
-      gesture.transform.scale === VIEWER_ZOOM_INITIAL &&
-      !gesture.hasPinched;
-    if (!isEnabled || !canSwipe) {
+  function dispatchTouchSwipe(point: ViewerPoint, gesture: ViewerPointerGesture) {
+    if (!isEnabled) {
+      return false;
+    }
+    const action = resolveViewerSwipe({
+      point,
+      gesture,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+    });
+    if (!action) {
       return false;
     }
 
-    const offsetX = point.left - gesture.origin.left;
-    const offsetY = point.top - gesture.origin.top;
-    if (exceedsSwipeThreshold(offsetX, window.innerWidth)) {
-      shouldIgnoreClickRef.current = true;
-      optionsRef.current.onNavigate?.(offsetX < 0 ? 1 : -1);
-      return true;
-    }
-
-    if (exceedsSwipeThreshold(offsetY, window.innerHeight)) {
-      shouldIgnoreClickRef.current = true;
+    shouldIgnoreClickRef.current = true;
+    if (action === 'dismiss') {
       optionsRef.current.onDismiss?.();
-      return true;
+    } else {
+      optionsRef.current.onNavigate?.(action === 'next' ? 1 : -1);
     }
-
-    return false;
+    return true;
   }
 
   function onWheel(event: WheelEvent) {
