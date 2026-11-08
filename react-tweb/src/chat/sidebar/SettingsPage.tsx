@@ -8,6 +8,8 @@ import { GeneralSettingsPage } from './GeneralSettingsPage';
 import { StickerSettingsPage } from './StickerSettingsPage';
 import { SettingsHeader, SettingsRow } from './SettingsControls';
 import { useClosingDialogValue } from './useClosingDialogValue';
+import { DEMO_PROFILE } from '../demo/profile';
+import { SettingsAccountDetails } from './SettingsAccountDetails';
 import styles from './SettingsPage.module.css';
 
 const SETTINGS_CATEGORIES = [
@@ -121,6 +123,7 @@ export function SettingsPage({ isDark, onToggleTheme, onBack }: SettingsPageProp
             <p>online</p>
           </div>
         )}
+        {!isSearching && <SettingsAccountDetails profile={DEMO_PROFILE} />}
         {categories.length > 0 ? (
           <div className={styles.section}>
             {categories.map((entry) => (

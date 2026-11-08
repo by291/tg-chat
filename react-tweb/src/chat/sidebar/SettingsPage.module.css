@@ -132,6 +132,39 @@
   background: linear-gradient(145deg, #f6cb6c, #e9972b);
 }
 
+.icon[data-color='green'] {
+  background: linear-gradient(145deg, #6bd773, #43ad49);
+}
+
+.icon[data-color='blue'] {
+  background: linear-gradient(145deg, #45c0ff, #168bfb);
+}
+
+.accountRow {
+  min-height: 56px;
+}
+
+.accountText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.accountValue {
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountLabel {
+  color: var(--secondary-color);
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .icon svg {
   width: 23px;
   height: 23px;
@@ -261,10 +294,6 @@
 
 .row > .value {
   margin-left: -16px;
-}
-
-.icon[data-color='green'] {
-  background: linear-gradient(145deg, #98cf88, #58a54c);
 }
 
 .range {
