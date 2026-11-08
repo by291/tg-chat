@@ -19,8 +19,9 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Milestone roadmap. Product design approved on 2026-11-08; none of the milestones below
-is claimed complete. No backend scaffolding or implementation is part of this planning change.
+**Status:** Product design approved on 2026-11-08. M1 is implemented and locally verified, including
+real Compose acceptance and independent review. M2 through M10 remain planned. Backend CI is
+configured; no remote CI outcome is claimed because the changes have not been pushed.
 
 ## Global constraints
 
@@ -142,13 +143,13 @@ entry; shared application context; HTTP error/request-ID envelope; OpenAPI expor
 frontend type check; real local PostgreSQL, Valkey, Centrifugo, and private SeaweedFS environment.
 LiveKit and mail can remain disabled profiles. No business tables are created speculatively.
 
-- [ ] Deliver the Rust runtime, explicit migration command/lock, dependency pinning, graceful
+- [x] Deliver the Rust runtime, explicit migration command/lock, dependency pinning, graceful
       shutdown, startup validation, and separate liveness/readiness behavior.
-- [ ] Deliver Compose networking, persistent volumes, same-origin frontend/API proxying, private
+- [x] Deliver Compose networking, persistent volumes, same-origin frontend/API proxying, private
       service ports, safe example configuration, and separate browser/internal S3 addresses.
-- [ ] Deliver structured logging with secret filtering, backend CI, OpenAPI export/type-generation
+- [x] Deliver structured logging with secret filtering, backend CI, OpenAPI export/type-generation
       checks, and a documented clean-environment startup path.
-- [ ] Verify clean startup, unavailable required dependencies, competing migrators, process restart,
+- [x] Verify clean startup, unavailable required dependencies, competing migrators, process restart,
       and persistent database state using real services. Inspect that optional SMTP/LiveKit absence
       does not prevent core startup. Preserve existing frontend checks.
 
@@ -157,8 +158,10 @@ and Worker restart separately without erasing persisted state. No directory-exis
 configuration-literal assertions substitute for these behaviors.
 
 **Verification ownership:** `tests/runtime.rs`, backend CI, and root development/operations docs.
-Use `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --test runtime`,
-`docker compose config --quiet`, and documented Compose health checks once implemented.
+Use `cargo fmt --all --check`, `cargo clippy --locked --all-targets -- -D warnings`,
+`cargo test --locked --all-targets -- --include-ignored` with an isolated PostgreSQL instance,
+`pnpm --dir web api:check`, and `node scripts/check-runtime.mjs`. Setup and limits are documented in
+[backend development](../../development.md) and [runtime operations](../../operations.md).
 
 ## M2: Accounts, sessions, contacts, and recovery
 
