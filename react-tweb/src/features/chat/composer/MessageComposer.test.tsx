@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageComposer } from './MessageComposer';
 import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '@/features/settings/appPreferences';
@@ -8,13 +9,19 @@ import type { Attachment } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
 
 const imageDecoders = vi.hoisted(() => new Map<string, (attachment: Attachment) => void>());
+const imageDecodeFailures = vi.hoisted(() => new Map<string, (error: Error) => void>());
 
-vi.mock('./attachments/attachments', () => ({
-  createAttachment: (file: File) =>
-    new Promise<Attachment>((resolve) => {
-      imageDecoders.set(file.name, resolve);
-    }),
-}));
+vi.mock('./attachments/attachments', async (importOriginal) => {
+  const attachments = await importOriginal<typeof import('./attachments/attachments')>();
+  return {
+    ...attachments,
+    createAttachment: (file: File) =>
+      new Promise<Attachment>((resolve, reject) => {
+        imageDecoders.set(file.name, resolve);
+        imageDecodeFailures.set(file.name, reject);
+      }),
+  };
+});
 
 const resizeCallbacks = new Map<Element, () => void>();
 let measuredEditorHeight = 33;
@@ -45,6 +52,7 @@ class TestResizeObserver {
 
 beforeEach(() => {
   imageDecoders.clear();
+  imageDecodeFailures.clear();
   resizeCallbacks.clear();
   measuredEditorHeight = 33;
   vi.stubGlobal('ResizeObserver', TestResizeObserver);
@@ -68,18 +76,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderComposer(editingMessage?: Message) {
-  return render(
-    <MessageComposer
-      draft="A caption"
-      editingMessage={editingMessage}
-      onDraftChange={() => {}}
-      onSubmit={() => {}}
-      onCancelContext={() => {}}
-      onJumpToMessage={() => {}}
-      onNotify={() => {}}
-    />,
-  );
+function renderComposer(options: Partial<ComponentProps<typeof MessageComposer>> = {}) {
+  const props: ComponentProps<typeof MessageComposer> = {
+    draft: 'A caption',
+    onDraftChange: () => {},
+    onSubmit: () => {},
+    onCancelContext: () => {},
+    onJumpToMessage: () => {},
+    onNotify: () => {},
+    ...options,
+  };
+  const view = render(<MessageComposer {...props} />);
+
+  return {
+    ...view,
+    rerenderComposer(nextOptions: Partial<ComponentProps<typeof MessageComposer>>) {
+      view.rerender(<MessageComposer {...props} {...nextOptions} />);
+    },
+  };
 }
 
 function pasteImage(name: string) {
@@ -134,6 +148,48 @@ describe('image composition', () => {
     expect(sendButton.disabled).toBe(false);
   });
 
+  it('sends a file chosen in document mode with its original name and media type', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderComposer({ onSubmit });
+    await user.click(screen.getByRole('button', { name: 'Attach' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Document' }));
+
+    const file = new File(['A report'], 'report.txt', { type: 'text/plain' });
+    fireEvent.change(screen.getByLabelText('Choose an attachment'), {
+      target: { files: [file] },
+    });
+    await screen.findByText('report.txt');
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachment: undefined,
+        media: expect.objectContaining({
+          kind: 'document',
+          name: 'report.txt',
+          mimeType: 'text/plain',
+          size: file.size,
+        }),
+      }),
+    );
+  });
+
+  it('treats a dropped image as media after the file chooser was opened in document mode', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+    await user.click(screen.getByRole('button', { name: 'Attach' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Document' }));
+
+    const file = new File(['image'], 'dropped.png', { type: 'image/png' });
+    fireEvent.drop(screen.getByRole('textbox', { name: 'Message' }), {
+      dataTransfer: { files: [file] },
+    });
+    await finishDecoding('dropped.png');
+
+    expect(screen.getByRole('img', { name: 'dropped.png' })).toBeTruthy();
+  });
+
   it('does not replace a newer attachment when an older decode completes later', async () => {
     renderComposer();
     pasteImage('older.png');
@@ -145,20 +201,103 @@ describe('image composition', () => {
     expect(screen.queryByRole('img', { name: 'older.png' })).toBeNull();
   });
 
-  it('allows saving an empty caption when the edited message still contains an image', () => {
-    renderComposer({
-      id: 'image-message',
+  it('keeps a removed attachment cleared when its pending replacement finishes', async () => {
+    renderComposer();
+    pasteImage('first.png');
+    await finishDecoding('first.png');
+    pasteImage('replacement.png');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove attachment' }));
+    await finishDecoding('replacement.png');
+
+    expect(screen.queryByRole('button', { name: 'Remove attachment' })).toBeNull();
+    expect(screen.queryByRole('img', { name: 'replacement.png' })).toBeNull();
+    const sendButton = screen.getByRole('button', { name: 'Send message' }) as HTMLButtonElement;
+    expect(sendButton.disabled).toBe(false);
+  });
+
+  it('restores the attachment draft after decoding finishes during message editing', async () => {
+    const view = renderComposer();
+    pasteImage('draft.png');
+    const editingMessage: Message = {
+      id: 'edited-message',
       chatId: 'dev',
       authorId: 'you',
       authorName: 'You',
-      text: 'Old caption',
+      text: 'Existing message',
       createdAt: 1000,
       reactions: [],
-      attachment: {
-        name: 'photo.png',
-        url: '/photo.png',
-        width: 100,
-        height: 100,
+    };
+    view.rerenderComposer({ editingMessage });
+    await finishDecoding('draft.png');
+
+    expect(screen.queryByRole('img', { name: 'draft.png' })).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('Existing message');
+
+    view.rerenderComposer({ editingMessage: undefined });
+
+    expect(screen.getByRole('img', { name: 'draft.png' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('A caption');
+  });
+
+  it('submits the attachment once and clears its preview for the next message', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const onSubmit = vi.fn();
+    renderComposer({ onSubmit });
+    pasteImage('sent.png');
+    await finishDecoding('sent.png');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'A caption',
+        attachment: {
+          name: 'sent.png',
+          url: '/sent.png',
+          width: 320,
+          height: 240,
+        },
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Remove attachment' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ attachment: undefined, media: undefined }),
+    );
+  });
+
+  it('does not report a decode failure after the composer unmounts', async () => {
+    const onNotify = vi.fn();
+    const view = renderComposer({ onNotify });
+    pasteImage('unmounted.png');
+    view.unmount();
+
+    await act(async () => {
+      imageDecodeFailures.get('unmounted.png')?.(new Error('The image could not be decoded.'));
+    });
+
+    expect(onNotify).not.toHaveBeenCalled();
+  });
+
+  it('allows saving an empty caption when the edited message still contains an image', () => {
+    renderComposer({
+      editingMessage: {
+        id: 'image-message',
+        chatId: 'dev',
+        authorId: 'you',
+        authorName: 'You',
+        text: 'Old caption',
+        createdAt: 1000,
+        reactions: [],
+        attachment: {
+          name: 'photo.png',
+          url: '/photo.png',
+          width: 100,
+          height: 100,
+        },
       },
     });
     const editor = screen.getByRole('textbox', { name: 'Message' });
@@ -216,11 +355,20 @@ it('applies send shortcut changes to an already mounted composer', async () => {
   act(() => setAppPreferences({ sendShortcut: 'ctrlEnter' }));
   await act(async () => {
     fireEvent.focus(editor);
-    fireEvent.keyDown(editor, { key: 'Enter', code: 'Enter', keyCode: 13 });
+    fireEvent.keyDown(editor, {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+    });
   });
   expect(onSubmit).not.toHaveBeenCalled();
   await act(async () => {
-    fireEvent.keyDown(editor, { key: 'Enter', code: 'Enter', keyCode: 13, metaKey: true });
+    fireEvent.keyDown(editor, {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      metaKey: true,
+    });
   });
   expect(onSubmit).toHaveBeenCalledOnce();
 });

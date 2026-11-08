@@ -1,12 +1,9 @@
-import { File, Maximize2, Minimize2, X } from 'lucide-react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
-import {
-  createAttachment,
-  createDocumentAttachment,
-  createVideoAttachment,
-} from './attachments/attachments';
 import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
+import { AttachmentPreview } from './attachments/AttachmentPreview';
+import { useComposerAttachments } from './attachments/useComposerAttachments';
 import { ComposerSendButton } from './ComposerSendButton';
 import { ComposerListDialog } from './forms/ComposerListDialog';
 import type { MessageMedia } from '@/domain/messages/media';
@@ -47,7 +44,7 @@ interface MessageComposerProps {
   onNotify: (message: string) => void;
 }
 
-/** Own the editable draft, attachment preview, and keyboard submission boundary. */
+/** Coordinate the editable draft, composition modes, and message submission boundary. */
 export function MessageComposer({
   draft,
   draftCustomEmoji,
@@ -63,21 +60,17 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const editorRef = useRef<EmojiEditorControls>(null);
   const editorRowRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const fileModeRef = useRef<'media' | 'document'>('media');
-  const isMountedRef = useRef(true);
-  const attachmentRequestRef = useRef(0);
+  const attachments = useComposerAttachments({
+    isEditing: Boolean(editingMessage),
+    onNotify,
+  });
+  const { attachment, mediaAttachment, isLoadingAttachment } = attachments;
   const [editValue, setEditValue] = useState<EmojiText>({
     text: editingMessage?.text ?? '',
     customEmoji: editingMessage?.customEmoji,
     richText: editingMessage?.richText,
   });
-  const [attachment, setAttachment] = useState<Attachment>();
-  const [mediaAttachment, setMediaAttachment] = useState<MessageMedia>();
-  const [attachmentName, setAttachmentName] = useState('');
   const [listDialog, setListDialog] = useState<'poll' | 'checklist'>();
-  const [isLoadingAttachment, setIsLoadingAttachment] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [editorHeight, setEditorHeight] = useState(0);
@@ -114,13 +107,6 @@ export function MessageComposer({
       richText: editingMessage?.richText,
     });
   }, [editingMessage]);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     const previousContext = previousContextRef.current;
@@ -165,8 +151,7 @@ export function MessageComposer({
     });
     setIsExpanded(false);
     if (!editingMessage) {
-      setAttachment(undefined);
-      setMediaAttachment(undefined);
+      attachments.removeAttachment();
     }
     editorRef.current?.focus();
   }
@@ -190,15 +175,7 @@ export function MessageComposer({
       requestCancelContext();
       return;
     }
-    removeAttachment();
-  }
-
-  function removeAttachment() {
-    // Cancelling invalidates a pending decode so it cannot restore the removed preview.
-    attachmentRequestRef.current += 1;
-    setAttachment(undefined);
-    setMediaAttachment(undefined);
-    setIsLoadingAttachment(false);
+    attachments.removeAttachment();
   }
 
   function selectAttachment(action: AttachmentAction) {
@@ -212,68 +189,19 @@ export function MessageComposer({
       setListDialog(action);
       return;
     }
-    const input = fileInputRef.current;
-    if (!input) {
-      return;
-    }
-    fileModeRef.current = action;
-    input.accept = action === 'document' ? '' : 'image/*,video/*';
-    input.click();
-  }
-
-  async function attachFile(file?: File, mode: 'media' | 'document' = 'media') {
-    if (!file || editingMessage) {
-      return;
-    }
-
-    attachmentRequestRef.current += 1;
-    const requestId = attachmentRequestRef.current;
-    setIsLoadingAttachment(true);
-    try {
-      let nextImage: Attachment | undefined;
-      let nextMedia: MessageMedia | undefined;
-      if (mode === 'document') {
-        nextMedia = await createDocumentAttachment(file);
-      } else if (file.type.startsWith('video/')) {
-        nextMedia = await createVideoAttachment(file);
-      } else {
-        nextImage = await createAttachment(file);
-      }
-      // Only the latest selection owns the preview and loading state.
-      if (isMountedRef.current && requestId === attachmentRequestRef.current) {
-        setAttachment(nextImage);
-        setMediaAttachment(nextMedia);
-        setAttachmentName(file.name);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not open this attachment.';
-      if (isMountedRef.current && requestId === attachmentRequestRef.current) {
-        onNotify(message);
-      }
-    } finally {
-      if (isMountedRef.current && requestId === attachmentRequestRef.current) {
-        setIsLoadingAttachment(false);
-      }
-    }
+    attachments.selectFile(action);
   }
 
   return (
     <div
       className={styles.composer}
       data-message-composer
-      data-dragging={isDragging}
+      data-dragging={attachments.isDragging}
       data-has-context={Boolean(contextMessage || forwardMessages?.length)}
       data-has-attachment={Boolean((attachment || mediaAttachment) && !editingMessage)}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setIsDragging(false);
-        void attachFile(event.dataTransfer.files[0]);
-      }}
+      onDragOver={attachments.dragOver}
+      onDragLeave={attachments.dragLeave}
+      onDrop={attachments.dropFile}
     >
       <ComposerContextBar
         replyMessage={replyMessage}
@@ -283,16 +211,11 @@ export function MessageComposer({
         onCancel={requestCancelContext}
       />
       {(attachment || mediaAttachment) && !editingMessage && (
-        <div className={styles.attachmentPreview}>
-          {attachment ? <img src={attachment.url} alt={attachment.name} /> : <File />}
-          <span>
-            <strong>{attachment ? 'Photo' : 'Attachment'}</strong>
-            <span>{attachmentName}</span>
-          </span>
-          <IconButton label="Remove attachment" onClick={removeAttachment}>
-            <X />
-          </IconButton>
-        </div>
+        <AttachmentPreview
+          attachment={attachment}
+          name={attachments.attachmentName}
+          onRemove={attachments.removeAttachment}
+        />
       )}
       <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
         <AttachmentMenu
@@ -301,15 +224,12 @@ export function MessageComposer({
           onSelect={selectAttachment}
         />
         <input
-          ref={fileInputRef}
+          ref={attachments.fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
           className={styles.fileInput}
           aria-label="Choose an attachment"
-          onChange={(event) => {
-            void attachFile(event.target.files?.[0], fileModeRef.current);
-            event.target.value = '';
-          }}
+          onChange={attachments.changeFile}
         />
         <EmojiEditor
           isComposer
@@ -322,7 +242,7 @@ export function MessageComposer({
           onChange={updateText}
           onSubmit={sendMessage}
           onCancel={cancelComposition}
-          onPasteImage={(file) => void attachFile(file)}
+          onPasteImage={attachments.pasteImage}
           onError={onNotify}
         />
         {canExpand && (
