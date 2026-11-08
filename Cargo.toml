@@ -42,4 +42,3 @@ unsafe_code = "forbid"
 [lints.clippy]
 dbg_macro = "deny"
 todo = "deny"
-

@@ -352,7 +352,11 @@ async function verifyGracefulShutdown(origin) {
 async function verifyPersistence({ origin, storageOrigin }) {
   queryDatabase('CREATE TABLE acceptance_probe (value text NOT NULL)');
   queryDatabase("INSERT INTO acceptance_probe VALUES ('preserved')");
-  signedStorageRequest({ origin: storageOrigin, path: '/runtime-check', method: 'PUT' });
+  signedStorageRequest({
+    origin: storageOrigin,
+    path: '/runtime-check',
+    method: 'PUT',
+  });
   signedStorageRequest({
     origin: storageOrigin,
     path: '/runtime-check/probe.txt',

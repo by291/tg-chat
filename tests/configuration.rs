@@ -68,7 +68,14 @@ fn invalid_listener_address_is_rejected() {
 
 #[test]
 fn zero_or_unbounded_pool_sizes_are_rejected() {
-    for pool_size in ["0", "101", "invalid"] {
+    #[rustfmt::skip]
+    let invalid_pool_sizes = [
+        "0",
+        "101",
+        "invalid",
+    ];
+
+    for pool_size in invalid_pool_sizes {
         let mut values = valid_values();
         values.insert("TG_CHAT_DB_MAX_CONNECTIONS".to_owned(), pool_size.to_owned());
 
