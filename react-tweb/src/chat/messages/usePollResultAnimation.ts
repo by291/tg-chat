@@ -1,17 +1,19 @@
+import {
+  animate,
+  useMotionValue,
+  useTransform,
+  type AnimationPlaybackControls,
+} from 'motion/react';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 const PATH_DURATION = 400;
-const BAR_DURATION = 600;
-const PERCENTAGE_DURATION = 900;
+const BAR_DURATION = 0.6;
+const PERCENTAGE_DURATION = 0.9;
 const PERCENTAGE_SCALE = 100;
 
-interface PollResultFrame {
-  stage: 'choice' | 'path' | 'result';
-  percentage: number;
-  progress: number;
-}
+type PollResultStage = 'choice' | 'path' | 'result';
 
-/** Reveal new results in sequence while restored history renders its final values immediately. */
+/** Reveal results with Motion values while React owns only the choice/path/result stages. */
 export function usePollResultAnimation({
   hasResults,
   percentage,
@@ -19,97 +21,89 @@ export function usePollResultAnimation({
   hasResults: boolean;
   percentage: number;
 }) {
-  const [frame, setFrame] = useState<PollResultFrame>(() => ({
-    stage: hasResults ? 'result' : 'choice',
-    percentage: hasResults ? percentage : 0,
-    progress: hasResults ? percentage / PERCENTAGE_SCALE : 0,
-  }));
-  const currentFrame = useRef(frame);
+  const [stage, setStage] = useState<PollResultStage>(hasResults ? 'result' : 'choice');
+  const stageRef = useRef(stage);
   const pathStartedAt = useRef(0);
+  const animatedPercentage = useMotionValue(hasResults ? percentage : 0);
+  const progress = useMotionValue(hasResults ? percentage / PERCENTAGE_SCALE : 0);
+  const percentageText = useTransform(() => `${Math.floor(animatedPercentage.get())}%`);
 
-  useLayoutEffect(() => {
-    let animationFrame = 0;
-    let delay: ReturnType<typeof setTimeout> | undefined;
+  useLayoutEffect(
+    () => {
+      let delay: ReturnType<typeof setTimeout> | undefined;
+      const animations: AnimationPlaybackControls[] = [];
 
-    function display(nextFrame: PollResultFrame) {
-      currentFrame.current = nextFrame;
-      setFrame(nextFrame);
-    }
-
-    if (!hasResults) {
-      display({
-        stage: 'choice',
-        percentage: 0,
-        progress: 0,
-      });
-      return;
-    }
-
-    const targetProgress = percentage / PERCENTAGE_SCALE;
-    const shouldReduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (shouldReduceMotion) {
-      display({
-        stage: 'result',
-        percentage,
-        progress: targetProgress,
-      });
-      return;
-    }
-
-    function animateResult() {
-      const previous = currentFrame.current;
-      const percentageDistance = percentage - previous.percentage;
-      const progressDistance = targetProgress - previous.progress;
-      const percentageDuration =
-        (PERCENTAGE_DURATION * Math.abs(percentageDistance)) / PERCENTAGE_SCALE;
-      const progressDuration = BAR_DURATION * Math.abs(progressDistance);
-      const startedAt = performance.now();
-      display({ ...previous, stage: 'result' });
-
-      function advance(now: number) {
-        const elapsed = now - startedAt;
-        const percentageFraction = percentageDuration
-          ? Math.min(1, elapsed / percentageDuration)
-          : 1;
-        const progressFraction = progressDuration ? Math.min(1, elapsed / progressDuration) : 1;
-        display({
-          stage: 'result',
-          percentage: previous.percentage + percentageDistance * percentageFraction,
-          progress: previous.progress + progressDistance * progressFraction,
-        });
-        if (percentageFraction < 1 || progressFraction < 1) {
-          animationFrame = requestAnimationFrame(advance);
-        }
+      function changeStage(nextStage: PollResultStage) {
+        stageRef.current = nextStage;
+        setStage(nextStage);
       }
 
-      animationFrame = requestAnimationFrame(advance);
-    }
+      if (!hasResults) {
+        changeStage('choice');
+        animatedPercentage.jump(0);
+        progress.jump(0);
+        return;
+      }
 
-    if (currentFrame.current.stage === 'choice') {
-      pathStartedAt.current = performance.now();
-      display({
-        stage: 'path',
-        percentage: 0,
-        progress: 0,
-      });
-    }
+      const targetProgress = percentage / PERCENTAGE_SCALE;
+      const shouldReduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if (shouldReduceMotion) {
+        changeStage('result');
+        animatedPercentage.jump(percentage);
+        progress.jump(targetProgress);
+        return;
+      }
 
-    if (currentFrame.current.stage === 'path') {
-      // Keep the same deadline if an updated vote arrives while the dot is travelling.
-      const elapsed = performance.now() - pathStartedAt.current;
-      delay = setTimeout(animateResult, Math.max(0, PATH_DURATION - elapsed));
-    } else if (
-      currentFrame.current.percentage !== percentage ||
-      currentFrame.current.progress !== targetProgress
-    ) {
-      animateResult();
-    }
+      function animateResult() {
+        changeStage('result');
+        const percentageDistance = Math.abs(percentage - animatedPercentage.get());
+        const progressDistance = Math.abs(targetProgress - progress.get());
+        animations.push(
+          animate(animatedPercentage, percentage, {
+            duration: (PERCENTAGE_DURATION * percentageDistance) / PERCENTAGE_SCALE,
+            ease: 'linear',
+          }),
+          animate(progress, targetProgress, {
+            duration: BAR_DURATION * progressDistance,
+            ease: 'linear',
+          }),
+        );
+      }
 
-    return () => {
-      clearTimeout(delay);
-      cancelAnimationFrame(animationFrame);
-    };
-  }, [hasResults, percentage]);
+      if (stageRef.current === 'choice') {
+        pathStartedAt.current = performance.now();
+        changeStage('path');
+      }
 
-  return frame;
+      if (stageRef.current === 'path') {
+        // Updated votes retain the original path deadline instead of restarting the reveal.
+        const elapsed = performance.now() - pathStartedAt.current;
+        delay = setTimeout(animateResult, Math.max(0, PATH_DURATION - elapsed));
+      } else if (animatedPercentage.get() !== percentage || progress.get() !== targetProgress) {
+        animateResult();
+      }
+
+      return () => {
+        clearTimeout(delay);
+        // Preserve current values so an interrupting vote continues from the visible position.
+        for (const animation of animations) {
+          animation.stop();
+        }
+      };
+    },
+    // prettier-ignore
+    [
+    hasResults,
+    percentage,
+    animatedPercentage,
+    progress,
+  ],
+  );
+
+  return {
+    stage,
+    percentage: animatedPercentage,
+    percentageText,
+    progress,
+  };
 }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PollMedia } from '../messageMedia';
@@ -67,7 +67,6 @@ function ChangeVoteButton() {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
 });
 
@@ -78,13 +77,12 @@ afterEach(() => {
 });
 
 describe('poll result transitions', () => {
-  it('reveals results progressively after voting without delaying the saved result on remount', () => {
+  it('reveals results progressively after voting without delaying the saved result on remount', async () => {
     const view = render(<VotingPoll />);
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     expect(screen.queryByText('100%')).toBeNull();
 
-    act(() => vi.advanceTimersByTime(1600));
-    expect(screen.getByText('100%')).toBeTruthy();
+    expect(await screen.findByText('100%', {}, { timeout: 2000 })).toBeTruthy();
     expect(screen.getByText('0%')).toBeTruthy();
     expect(screen.getByText('1 member voted')).toBeTruthy();
     view.unmount();
@@ -175,7 +173,7 @@ describe('poll result transitions', () => {
     expect(screen.getByText('1 member voted')).toBeTruthy();
   });
 
-  it('reveals final results if the poll closes while a replacement vote is being edited', () => {
+  it('reveals final results if the poll closes while a replacement vote is being edited', async () => {
     render(
       <StructuredMessageActionsProvider>
         <ChangeVoteButton />
@@ -206,9 +204,7 @@ describe('poll result transitions', () => {
     expect(screen.queryByText('100%')).toBeNull();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Layout' }).disabled).toBe(false);
 
-    act(() => vi.advanceTimersByTime(2000));
-    act(() => vi.advanceTimersByTime(1600));
-    expect(screen.getByText('100%')).toBeTruthy();
+    expect(await screen.findByText('100%', {}, { timeout: 4000 })).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: /^Layout,/ }).disabled).toBe(true);
   });
 });

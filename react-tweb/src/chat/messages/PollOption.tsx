@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { motion, type MotionStyle } from 'motion/react';
 import { Ripple } from '../../components/Ripple';
 import { MessageCheckbox } from './MessageCheckbox';
 import { usePollResultAnimation } from './usePollResultAnimation';
@@ -52,7 +52,7 @@ export function PollOption({
           <MessageCheckbox isChecked={isSelected} isRound={!isMultiple} />
         </span>
         {frame.stage === 'result' && (
-          <span className={styles.percentage}>{Math.floor(frame.percentage)}%</span>
+          <motion.span className={styles.percentage}>{frame.percentageText}</motion.span>
         )}
       </span>
       <span className={styles.optionLabel}>
@@ -78,17 +78,17 @@ export function PollOption({
           </svg>
         )}
         {frame.stage === 'result' && (
-          <span
+          <motion.span
             className={styles.progress}
             role="meter"
             aria-label={`${text} votes`}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={percentage}
-            style={{ '--progress': frame.progress } as CSSProperties}
+            style={{ '--progress': frame.progress } as MotionStyle}
           >
             <span className={styles.progressFill} />
-          </span>
+          </motion.span>
         )}
         {hasChosenMark && (
           <span className={styles.chosenMark}>
