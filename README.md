@@ -12,3 +12,7 @@ pnpm dev
 ```
 
 Start learning with the [source guide](./react-tweb/docs/source-guide.md).
+
+Text files use LF line endings on every platform, including Windows. Repository Git attributes,
+EditorConfig, and Prettier enforce the same convention without changing global Git settings.
+Git detects binary assets automatically and leaves their contents unchanged.

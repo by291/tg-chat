@@ -1,0 +1,2 @@
+# Keep text files consistent across platforms and leave detected binaries unchanged.
+* text=auto eol=lf
