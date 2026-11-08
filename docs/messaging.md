@@ -15,7 +15,7 @@ The sender supplies a message UUID and operation UUID. Canonical validated conte
 are hashed with those identities. A matching retry returns the original message, sequence, timestamp,
 and current personal conversation projection. Mismatched reuse conflicts. Permanent identity bindings
 are separate from operation receipts, so receipt cleanup cannot make a message identity reusable.
-Receipts are not pruned in M3; future cleanup must retain them for at least seven days.
+The Worker retains command receipts for seven days; permanent send identities survive cleanup.
 
 Acceptance locks one conversation, then its participant accounts in UUID order, then the personal
 sync heads in UUID order. New conversation participant foreign keys are deferred until commit to avoid
@@ -39,11 +39,13 @@ exists before opening that snapshot. It never includes history.
 `GET /api/v1/chat/sync` consumes a deployment/account-bound cursor and returns complete committed
 change groups, materialized current authorized entities, and the snapshot's observation cursor. Pages
 never split a transaction group. Malformed, foreign, pruned, and future cursors require a new bootstrap.
-There are no message deletion commands in M3; later lifecycle work must add authorized removal/tombstone
-projections before pruning entities referenced by retained change groups.
+Groups contain explicit message removals and nullable conversation projections. Personal hiding,
+clearing, closing, deletion, and expiry remove unauthorized bodies from current projections. The Worker
+prunes only a contiguous old feed prefix, advancing its retention floor in the same transaction.
 
 `GET /api/v1/conversations/{conversation_id}/history` uses before/after sequence keysets and returns
-one preceding message as sender-group context. `GET /api/v1/messages/{message_id}` reconciles one
+one preceding message as sender-group context. `around` loads a bounded authorized reply neighborhood;
+`pinned=true` provides a separate paginated pin directory. Both preserve personal visibility. `GET /api/v1/messages/{message_id}` reconciles one
 message. Both hide unknown and foreign resources behind the same not-found result. History and sync
 pages default to 50 and permit at most 100 items/groups. Account cookies, CSRF, Origin enforcement,
 request markers, no-store responses, and sanitized errors also protect messaging routes. Send admission
@@ -59,36 +61,87 @@ Custom emoji may reference only the bundled public catalog. Client timestamps ne
 
 ## Browser durability and recovery
 
-The connected owner keeps canonical history in memory and persists pending operations and drafts in
-IndexedDB, keyed by deployment/account/session. Submission starts only after the pending transaction
+The connected owner persists canonical projections and their cursor atomically in IndexedDB, keyed by
+deployment/account/session. An epoch plus cursor compare-and-set prevents an old tab from regressing
+shared state. Quota failure aborts the entire update. Bootstrap resets replace the canonical epoch;
+pending sends, uncertain commands, and local drafts remain separately owned. Submission starts only after the pending transaction
 commits. A captured draft revision is cleared only if no newer edit replaced it. Pending operations
 retain their original IDs and content across network errors and reloads. At most 100 pending sends and
 201 drafts are retained for a session.
 
 The active conversation holds at most 200 accepted messages. Older/latest navigation selects a bounded
 window while TanStack Virtual independently bounds mounted rows. Delayed pages are fenced by view
-generation; an older request retains its left edge, and a bounded in-flight buffer retains sync
-arrivals while a latest snapshot is being fetched; delayed private requests are fenced by session generation. Authoritative versions merge
-without floating-point conversion. Queued, sending, server-accepted, and failed states are distinct;
-server acceptance does not claim delivery or reading by the recipient.
+generation and observation cursor; an older request retains its left edge, and a bounded in-flight buffer retains sync
+arrivals while a latest snapshot is being fetched; delayed private requests are fenced by session generation. Content and interaction versions merge independently
+without floating-point conversion. Destructive changes invalidate old pages and scrub reply excerpts.
+The durable page cache has a separate byte/page budget; eviction never moves the sync cursor backward.
+Bounded removal fences prevent resurrection even when the removed row was already evicted. Queued, sending, server-accepted, and failed states are distinct;
+server acceptance does not claim delivery. Read receipts advance only through an actually reached
+message in a focused visible timeline, and the peer cursor controls the read indicator.
 
-Visible pages poll every three seconds, catch up on focus/online, and back off on errors. Automatic
+Authenticated Centrifugo publications wake the HTTP catch-up loop. Visible pages also poll, catch up
+on focus/online, and back off with jitter on errors. A lost notification cannot skip durable changes. Automatic
 retries stop after seven days. Explicit Retry grants one attempt using the original identity and age;
 it does not restart the automatic retry window. Unconfirmed sends remain inspectable; removing one from the outbox does
 not delete a message that may already have committed. Logout/revocation clears owned pending/draft
 content and leaves a storage tombstone that rejects stale writers. Reload preserves pending work.
 
-M4 owns authenticated Centrifugo delivery, durable canonical cache/checkpoint coordination, draft
-conflict synchronization, read advancement, and message lifecycle commands. M3's Worker deliberately
-leaves one coalesced wakeup row per account pending; it does not pretend to publish realtime events.
-Attachments, reactions, edits, deletion, replies, and groups remain unavailable in connected mode.
+## Lifecycle and personal state
+
+`POST /api/v1/chat/commands` accepts stable operation IDs and desired-state actions. Replays validate
+the payload before returning a current authorized projection. Shared effects use the same
+conversation-first lock order as acceptance; personal effects append only the owner's feed group.
+Content edits require the author and expected content version. Conflicts return the authorized current
+message while the editor retains its text. Reactions have a separate revision, an allowlist, and a
+per-account limit. Pins and reactions are shared; hiding a message is personal. Deletion preserves
+identity, removes content and interactions, and invalidates old reply excerpts.
+
+Drafts use a separate compare-and-set revision. Debounced saves retain local input during network
+failure and expose competing drafts for an explicit choice. Two tabs that save a stale local revision
+retain bounded alternatives. Sending captures both its local draft identity and the matching server
+revision; neither acknowledgement may erase later typing. Ambiguous commands are persisted before
+transport and remain explicitly retryable using the same ID. Commands older than receipt retention
+require reconciliation rather than blind replay.
+
+Archive, mute, directory pin, manual unread, hidden state, and keep-archived preference belong to the
+account. Clear advances its visibility cutoff; close also deactivates membership. Reopening preserves
+the cutoff and repeats directory capacity admission. A new incoming message unhides a conversation;
+archive retention follows mute and keep-archived preference. Read cursors only advance.
+
+Expiry policies apply to future messages and create typed service notices. Reads and commands exclude
+expired bodies immediately, before the bounded cleanup worker tombstones them. Reply targets must be
+visible in the same conversation; an unavailable target retains only its unavailable identity, never
+its former quoted content. Attachments, forwarding, search, groups, and channels remain later work.
+
+## Realtime and maintenance
+
+Centrifugo authenticates connect/refresh through private API callbacks. The callback verifies its
+shared secret, configured browser Origin, and the ordinary session cookie; it assigns only the
+account's server-side personal subscription. Client publication and arbitrary subscription are
+forbidden. The Worker checks registered connections against session revocation/expiry/suspension and
+issues disconnects; refresh repeats authorization.
+
+Publications contain only a schema version and cursor. The durable coalesced wakeup row is claimed
+with a lease token, published outside the business transaction, and acknowledged only by its current
+owner. A newer position survives an older publication acknowledgement. Bounded attempts and backoff
+lead to an inspectable exhausted state; an admission budget prevents unbounded wakeup growth and
+rolls back the entire business transaction if no new row can be admitted. Publication, retention,
+expiry, disconnection, and email work have independent bounded loops. See
+[operations](./operations.md) for retry commands and configuration.
 
 ## Verification
 
-Real PostgreSQL tests cover concurrent first sends, policy/capacity rejection, complete rollback,
-permanent identity reuse, snapshot cursors, and stalled feed allocation. Browser tests cover two-account
-rich messaging, pending reload, keyset history, authenticated alignment, mobile layout, and Saved
-privacy. `scripts/check-messaging.mjs`, invoked by the isolated Compose acceptance runner, forwards a
-real send, consumes the committed API response, drops the client socket, restarts API, and replays the
-same operation. It verifies one stored message and one complete recipient change group.
-See [development](./development.md) for repeatable commands and environment requirements.
+Real PostgreSQL tests exercise concurrent acceptance and edits, policy/capacity rollback, permanent
+identity reuse, content/interaction revisions, private quotes and summaries, expiry before cleanup,
+draft conflicts, conditional clearing, monotonic reads, feed retention, publication leases, and
+backlog admission. Browser unit tests inject stale pages, cross-tab checkpoint races, quota failure,
+reset, ambiguous acknowledgements, and typing during draft saves.
+
+`pnpm --dir web test:accounts` covers account isolation, SMTP recovery, rich messaging, pending reload,
+history paging, and mobile Saved Messages. `pnpm --dir web test:sync` uses two accounts, four sessions,
+and an extra shared-cache tab to exercise edits, reactions, pins, replies, deletion, and full reset.
+Run the suites with independent admission fixtures: they intentionally preserve production rate limits.
+The isolated Compose runner owns that separation and additionally interrupts Worker/Centrifugo,
+clears Valkey, advances a fixture's retention age, and verifies durable recovery. See
+[development](./development.md) for prerequisites and repeatable commands. These are correctness gates,
+not a production load or long-duration availability certification.

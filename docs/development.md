@@ -76,6 +76,9 @@ VITE_APP_MODE=connected pnpm --dir web dev --port 5173
 
 Vite proxies `/api` and `/health` to `http://127.0.0.1:8080`; override
 `TG_CHAT_DEV_API_ORIGIN` in Vite's environment if needed. Use the exact configured frontend origin.
+Vite also proxies `/connection` to `TG_CHAT_DEV_REALTIME_ORIGIN` (default `http://127.0.0.1:8000`).
+Native API/Worker require matching `TG_CHAT_CENTRIFUGO_API_KEY` and `TG_CHAT_CENTRIFUGO_PROXY_KEY`,
+plus `TG_CHAT_CENTRIFUGO_URL`; configure Centrifugo's private connect/refresh callbacks to reach the API.
 Unset `VITE_APP_MODE` for the standalone demo. Docker builds connected mode automatically.
 
 Migration is explicit and serialized by PostgreSQL advisory locking. API and Worker never migrate on
@@ -110,7 +113,8 @@ node scripts/check-runtime.mjs
 This runner builds images, generates ephemeral credentials and a unique Compose project, runs the
 real Rust tests inside a Linux container, and runs account/messaging browsers against the built
 frontend and Mailpit. It drops a real committed message response, restarts API, and verifies replay
-and recipient visibility. Independent fixture phases reset only the isolated project’s Valkey cache
+and recipient visibility. It interrupts Worker/Centrifugo, clears Valkey, checks retention-floor
+rebootstrap, and runs the four-session synchronization browser suite. Independent fixture phases reset only the isolated project’s Valkey cache
 to avoid sharing registration rate limits through one loopback address. It checks routing, private ports, S3 authentication, PG/Valkey outage behavior, graceful
 API/Worker termination, and persistence through service restarts. It
 removes only its own containers and volumes. It requires Docker, Node.js, and curl with AWS SigV4

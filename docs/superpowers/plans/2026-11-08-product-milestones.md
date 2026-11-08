@@ -20,8 +20,8 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
 **Status:** Product design approved on 2026-11-08. M1 through M3 are implemented and locally verified,
-including real Compose acceptance and independent review with findings resolved. M4 through M10
-remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes
+including real Compose acceptance and independent review with findings resolved. M4 implementation
+and Compose acceptance are complete; independent final review is in progress. M5 through M10 remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes
 have not been pushed.
 
 ## Global constraints
@@ -259,19 +259,19 @@ receipts.
 reset-required handling, conflict-aware drafts, read cursors, message tombstones, and retryable
 jobs.
 
-- [ ] Deliver Worker wakeup publication with coalescing, duplicate safety, bounded retry/backoff,
+- [x] Deliver Worker wakeup publication with coalescing, duplicate safety, bounded retry/backoff,
       lease recovery, and operator-visible exhausted work. Authenticate Centrifugo proxy callbacks,
       restrict personal subscriptions, and enforce session disconnection/refresh rules.
-- [ ] Deliver serialized sync application and atomic IndexedDB state/checkpoint commits. Handle
+- [x] Deliver serialized sync application and atomic IndexedDB state/checkpoint commits. Handle
       retention-floor resets, account/view generations, stale responses, multi-tab compare-and-set,
       bounded cache eviction, reconnect/focus catch-up, and periodic lost-wakeup recovery.
-- [ ] Deliver conflict-aware synchronized drafts, conditional draft clearing on send, monotonic read
+- [x] Deliver conflict-aware synchronized drafts, conditional draft clearing on send, monotonic read
       receipts/unread counts, archive/mute/pin/manual-unread settings, personal hides/clear/close,
       and direct-chat reopening capacity rules.
-- [ ] Deliver authorized message edits/deletes, reply targets/quotes, pins, reactions, service
+- [x] Deliver authorized message edits/deletes, reply targets/quotes, pins, reactions, service
       events, and expiry policies. Enforce expiry in reads/actions before asynchronous cleanup. Keep
       separate content, draft, access, and interaction versions.
-- [ ] Verify duplicate/out-of-order wakeups, cleared Valkey, expired sync cursors, Worker crashes,
+- [x] Verify duplicate/out-of-order wakeups, cleared Valkey, expired sync cursors, Worker crashes,
       storage quota failure, stale page arrival after deletion, old-tab checkpoint writes, account
       switching, conflicting edits/drafts, and sending followed immediately by more typing.
 
@@ -279,8 +279,9 @@ jobs.
 including after full reset. Centrifugo failure does not lose committed messages. Reply jumps and
 incoming messages preserve existing reading-position and editor behavior.
 
-**Verification ownership:** Extend `tests/sync.rs` and `tests/messages.rs`; add `tests/jobs.rs` and
-`web/e2e/synchronization.spec.ts`; update existing history/editor behavioral tests. Use real
+**Verification ownership:** `tests/message_lifecycle.rs`, `tests/conversation_state.rs`,
+`tests/sync_jobs.rs`, `tests/realtime.rs`, browser data-owner tests,
+`web/e2e-accounts/synchronization.spec.ts`, and `scripts/check-synchronization.mjs`. Use real
 Centrifugo/Valkey and multiple browser contexts, including two tabs sharing one cache.
 
 ## M5: Groups, channels, discovery, and membership

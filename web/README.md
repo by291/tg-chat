@@ -70,3 +70,16 @@ Start with [architecture](./docs/architecture.md) for the overall design. Contin
 
 The frontend is distributed under [GPL-3.0](./LICENSE). The browser icon is maintained in
 `public/favicon.svg`, with an ICO companion for browser compatibility.
+
+## Connected synchronization
+
+Connected mode supports direct/Saved text and rich messages, edit conflicts, replies, reactions, pins,
+read receipts, synchronized drafts, and personal conversation controls. Canonical state and its cursor
+commit atomically in IndexedDB; pending sends and uncertain actions survive a canonical reset.
+Centrifugo wakes HTTP catch-up, with polling/focus recovery when notifications are lost. See
+[durable messaging](../docs/messaging.md) for ownership, authorization, and retention constraints.
+
+Run `pnpm test:accounts` for existing account/message workflows and `pnpm test:sync` for four-session
+convergence. They have separate artifact directories. Use the root isolated Compose verification for
+independent admission fixtures; running both against one already-used local IP may legitimately hit
+registration limits. Do not weaken product rate limits to make tests pass.

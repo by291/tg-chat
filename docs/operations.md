@@ -57,7 +57,7 @@ recovery after its lease expires; a stale worker cannot finish a newer claim.
 ## Secrets, network boundaries, and logs
 
 Keep `.env` private and out of source control. The bootstrap script sets owner-only file
-permissions. Database passwords, Centrifugo signing/API keys, and S3 credentials are required at
+permissions. Database passwords, Centrifugo proxy/API keys, and S3 credentials are required at
 Compose startup. PostgreSQL only uses its initialization password on an empty volume: changing
 `.env` alone does not rotate an existing database password. Coordinate credential rotation with the
 owning service.
@@ -71,7 +71,13 @@ Only the frontend gateway and authenticated S3 endpoint publish loopback host po
 Valkey, internal health listeners, Centrifugo administration/API, SeaweedFS filer, volume, and
 master ports remain inside the Compose network. The S3 credential has broad local storage access;
 future application upload URLs must use scoped, expiring signatures rather than revealing this key.
-Centrifugo rejects client sessions without valid tokens. Account APIs do not issue those tokens.
+Centrifugo verifies the normal session cookie through private API connect/refresh callbacks. The
+browser receives a server-owned personal subscription; it cannot publish or choose arbitrary channels.
+Caddy does not expose `/internal/realtime/*`. Callback authentication requires
+`TG_CHAT_CENTRIFUGO_PROXY_KEY`; publication/disconnection requires the separate
+`TG_CHAT_CENTRIFUGO_API_KEY`. API and Worker also use `TG_CHAT_CENTRIFUGO_URL`. Existing development
+`.env` files from M3 must add the proxy key; the former token key is no longer used. Generate a fresh
+secret locally with `openssl rand -hex 32` and store it privately in `.env`.
 The optional Mailpit profile also publishes a loopback-only capture UI; it is a development aid.
 
 `TG_CHAT_PUBLIC_ORIGIN` must exactly match the browser origin. Non-loopback origins require HTTPS;
@@ -158,3 +164,30 @@ and object storage together while its single process is stopped, or use an expli
 consistent backup procedure. Valkey currently holds expiring admission counters and will also hold
 delivery/cache state; PostgreSQL remains the authority for durable business records. Merely retaining a local Docker volume
 is not a backup, and persistence tests do not establish disaster-recovery guarantees.
+
+## Realtime recovery and retention
+
+A realtime outage does not lose committed changes: publications carry only a cursor, and clients
+continue HTTP catch-up. Expiry and retention work continue independently of publication. Worker
+restarts reclaim expired leases; an old claimant cannot acknowledge a newer lease or discard a newer
+coalesced position. Monitor exhausted wakeups and database admission failures as well as process health.
+
+Inspect and retry exhausted work after repairing Centrifugo or its credentials:
+
+```sh
+docker compose exec api api wakeups list
+docker compose exec api api wakeups retry --user-id "$TG_CHAT_RETRY_USER_ID"
+```
+
+Set `TG_CHAT_RETRY_USER_ID` to the account UUID reported by inspection. Retry resets only exhausted
+work and retains the current target position. The backlog budget is enforced in the same transaction
+as the business change; reaching it rejects the entire new change instead of silently losing wakeups.
+General command receipts are retained for seven days, permanent message identity bindings remain,
+and personal feed retention advances a contiguous floor after thirty days. Old clients must bootstrap
+again. These are distinct lifetimes; deleting a receipt must never free a permanent send identity.
+
+The connection registry is bounded by refresh lifetime and is reconciled against revoked, expired,
+idle, and suspended sessions. Refresh and disconnection are complementary: do not remove either
+when changing Centrifugo configuration. The integration follows Centrifugo's
+[proxy callbacks](https://centrifugal.dev/docs/server/proxy) and
+[server API](https://centrifugal.dev/docs/server/server_api).
