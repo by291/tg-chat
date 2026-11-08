@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { getAppearance, setAppearanceMode } from './appearanceStore';
+import { setAppearanceMode } from './appearanceStore';
 import { useAppearanceTheme } from './useAppearanceTheme';
-import { selectAppearanceMode } from './appearanceActions';
 
 function ThemeRoot() {
   const { isDark } = useAppearanceTheme({ isReady: true, isLegacyDark: false });
