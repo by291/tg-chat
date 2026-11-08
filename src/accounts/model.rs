@@ -23,6 +23,12 @@ pub enum AccountError {
     Forbidden,
     #[error("the account changed; authenticate again before retrying")]
     Conflict,
+    #[error("the message or operation identity is already bound to another request")]
+    MessageConflict,
+    #[error("the conversation cannot accept this message")]
+    ConversationUnavailable,
+    #[error("the synchronization cursor requires a fresh bootstrap")]
+    SyncResetRequired,
     #[error("the account capacity has been reached")]
     QuotaExceeded,
     #[error("a required account service is temporarily unavailable")]

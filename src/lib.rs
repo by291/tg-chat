@@ -12,3 +12,6 @@ pub mod contacts;
 pub mod jobs;
 
 pub mod messages;
+
+pub mod conversations;
+pub mod sync;

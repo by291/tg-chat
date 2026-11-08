@@ -53,6 +53,11 @@ impl IntoResponse for ApiFailure {
             }
             AccountError::NotFound => (StatusCode::NOT_FOUND, "not_found"),
             AccountError::Forbidden => (StatusCode::FORBIDDEN, "forbidden"),
+            AccountError::MessageConflict => (StatusCode::CONFLICT, "message_conflict"),
+            AccountError::ConversationUnavailable => {
+                (StatusCode::CONFLICT, "conversation_unavailable")
+            }
+            AccountError::SyncResetRequired => (StatusCode::CONFLICT, "sync_reset_required"),
             AccountError::Conflict => (StatusCode::CONFLICT, "account_changed"),
             AccountError::QuotaExceeded => (StatusCode::CONFLICT, "capacity_reached"),
             AccountError::Unavailable => {
