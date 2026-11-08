@@ -88,6 +88,7 @@ function ViewerContent({
     ) {
       return;
     }
+
     // Disabling the clicked arrow must not move keyboard navigation outside the dialog.
     viewerRef.current?.focus({ preventScroll: true });
     isBusyRef.current = true;
@@ -100,15 +101,21 @@ function ViewerContent({
     navigateTo(mediaMessages[activeIndex + direction]);
   }
 
-  const updateBusy = useCallback((nextBusy: boolean) => {
-    isBusyRef.current = nextBusy;
-    setIsBusy(nextBusy);
+  const updateBusy = useCallback(({ isBusy: nextIsBusy }: { isBusy: boolean }) => {
+    // Navigation can arrive again before React commits the disabled controls.
+    isBusyRef.current = nextIsBusy;
+    setIsBusy(nextIsBusy);
+  }, []);
+
+  const updateMenuOpen = useCallback(({ isOpen: nextIsOpen }: { isOpen: boolean }) => {
+    setIsMenuOpen(nextIsOpen);
   }, []);
 
   function clickViewer(event: MouseEvent<HTMLDivElement>) {
     if (!isOpen || isBusyRef.current || isMenuOpen || event.defaultPrevented) {
       return;
     }
+
     const target = event.target as HTMLElement;
     const hasClickedControls = target.closest(
       'button, input, a, video, [data-viewer-controls], [role="menu"], [aria-label="Video player"]',
@@ -120,6 +127,7 @@ function ViewerContent({
       setIsChromeHidden((current) => !current);
       return;
     }
+
     onClose();
   }
 
@@ -131,10 +139,12 @@ function ViewerContent({
     if (isOpen) {
       return;
     }
+
     const layer = transform.containerRef.current;
     if (!layer?.animate) {
       return;
     }
+
     const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const animation = layer.animate(
       [{ transform: getComputedStyle(layer).transform }, { transform: 'none' }],
@@ -144,6 +154,7 @@ function ViewerContent({
         fill: 'both',
       },
     );
+
     return () => animation.cancel();
   }, [isOpen, transform.containerRef]);
 
@@ -159,6 +170,7 @@ function ViewerContent({
         if (isMenuOpen || (event.target as HTMLElement).matches('input, textarea')) {
           return;
         }
+
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
           event.preventDefault();
           navigate(event.key === 'ArrowLeft' ? -1 : 1);
@@ -206,7 +218,7 @@ function ViewerContent({
         transform={transform}
         onCommand={onCommand}
         onNotify={onNotify}
-        onMenuOpenChange={setIsMenuOpen}
+        onMenuOpenChange={updateMenuOpen}
       />
       <div className={styles.navigation} data-viewer-controls>
         <button

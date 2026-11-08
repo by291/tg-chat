@@ -36,6 +36,7 @@ export function useEditorInputCommands({
     return editor.registerCommand(
       KEY_ENTER_COMMAND,
       (event) => {
+        // Structured blocks need Lexical's paragraph command to continue list and quote editing.
         if (event?.shiftKey && !editor.isComposing() && !event.isComposing) {
           const selection = $getSelection();
           const parents = $isRangeSelection(selection)
@@ -76,6 +77,7 @@ export function useEditorInputCommands({
 
         event.preventDefault();
         callbacksRef.current.onSubmit();
+
         return true;
       },
       COMMAND_PRIORITY_HIGH,
@@ -103,6 +105,7 @@ export function useEditorInputCommands({
         event.preventDefault();
         const document = parseRichEditorHtml(html);
         $insertNodes($generateNodesFromDOM(editor, document));
+
         return true;
       },
       COMMAND_PRIORITY_HIGH,

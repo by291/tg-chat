@@ -32,7 +32,11 @@ describe('history rows', () => {
     const message = createInitialState().messages[0];
     const messages = [
       { ...message, createdAt: new Date('2025-11-05T12:00:00').getTime() },
-      { ...message, id: 'next-year', createdAt: new Date('2026-11-05T12:00:00').getTime() },
+      {
+        ...message,
+        id: 'next-year',
+        createdAt: new Date('2026-11-05T12:00:00').getTime(),
+      },
     ];
     const dates = createHistoryRows(messages).filter((row) => row.kind === 'date');
     expect(dates).toHaveLength(2);
@@ -43,7 +47,11 @@ describe('history rows', () => {
     const message = createInitialState().messages[0];
     const messages = [
       message,
-      { ...message, id: 'service', isService: true },
+      {
+        ...message,
+        id: 'service',
+        isService: true,
+      },
       { ...message, id: 'after-service' },
     ];
     const rows = createHistoryRows(messages);

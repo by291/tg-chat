@@ -23,7 +23,13 @@ describe('composer submission', () => {
     };
 
     expect(shouldSubmitMessage(keyboard)).toBe(false);
-    expect(shouldSubmitMessage({ ...keyboard, isComposing: false, keyCode: 229 })).toBe(false);
+    expect(
+      shouldSubmitMessage({
+        ...keyboard,
+        isComposing: false,
+        keyCode: 229,
+      }),
+    ).toBe(false);
   });
 });
 
@@ -42,14 +48,35 @@ it('uses the platform modifier for configured sending and preserves plain Enter 
   expect(shouldSubmitMessage({ ...keyboard, ctrlKey: true }, appleOptions)).toBe(false);
   expect(shouldSubmitMessage({ ...keyboard, ctrlKey: true }, otherOptions)).toBe(true);
   expect(shouldSubmitMessage({ ...keyboard, metaKey: true }, otherOptions)).toBe(false);
-  expect(shouldSubmitMessage({ ...keyboard, metaKey: true, shiftKey: true }, appleOptions)).toBe(
-    false,
-  );
-  expect(shouldSubmitMessage({ ...keyboard, metaKey: true, isComposing: true }, appleOptions)).toBe(
-    false,
-  );
-  expect(shouldSubmitMessage({ ...keyboard, ctrlKey: true, keyCode: 229 }, otherOptions)).toBe(
-    false,
-  );
+  expect(
+    shouldSubmitMessage(
+      {
+        ...keyboard,
+        metaKey: true,
+        shiftKey: true,
+      },
+      appleOptions,
+    ),
+  ).toBe(false);
+  expect(
+    shouldSubmitMessage(
+      {
+        ...keyboard,
+        metaKey: true,
+        isComposing: true,
+      },
+      appleOptions,
+    ),
+  ).toBe(false);
+  expect(
+    shouldSubmitMessage(
+      {
+        ...keyboard,
+        ctrlKey: true,
+        keyCode: 229,
+      },
+      otherOptions,
+    ),
+  ).toBe(false);
   expect(shouldSubmitMessage({ ...keyboard, altKey: true })).toBe(false);
 });

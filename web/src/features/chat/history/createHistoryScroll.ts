@@ -63,6 +63,7 @@ export function createHistoryScroll({
     if (isNavigationActive()) {
       return;
     }
+
     targetOffset = offset + (options.adjustments ?? 0);
 
     // Measurement reconciliation can retarget a smooth request with an instant write. Keep
@@ -70,6 +71,7 @@ export function createHistoryScroll({
     if (isAnimating && options.behavior !== 'smooth') {
       return;
     }
+
     // A later send starts its own flight; it must not inherit an almost-finished timeline.
     cancelAnimationFrame(frame);
     if (options.behavior !== 'smooth') {
@@ -89,6 +91,7 @@ export function createHistoryScroll({
       if (!viewport || !isAnimating) {
         return;
       }
+
       if (startedAt === undefined) {
         startedAt = timestamp;
         const distance = targetOffset - viewport.scrollTop;

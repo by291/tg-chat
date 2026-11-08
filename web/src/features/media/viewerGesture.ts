@@ -48,7 +48,7 @@ function exceedsSwipeThreshold(distance: number, viewportLength: number) {
   );
 }
 
-/** Record drag movement and pan from the bounded position so reversing at an edge responds at once. */
+/** Pan from the bounded position so reversing direction at an edge responds immediately. */
 export function panViewerGesture({
   gesture,
   offset,
@@ -136,5 +136,6 @@ export function resolveViewerSwipe({ point, gesture, viewport }: SwipeOptions) {
   if (exceedsSwipeThreshold(offsetY, viewport.height)) {
     return 'dismiss';
   }
+
   return undefined;
 }

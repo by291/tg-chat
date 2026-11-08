@@ -73,6 +73,7 @@ describe('photo viewer transitions', () => {
   it('returns to the clicked copy when the same photo is also visible in history', () => {
     const historySource = document.createElement('button');
     const sharedSource = document.createElement('button');
+
     for (const source of [historySource, sharedSource]) {
       source.dataset.photoId = photoMessage.id;
       source.append(document.createElement('img'));
@@ -84,6 +85,7 @@ describe('photo viewer transitions', () => {
         });
       document.body.append(source);
     }
+
     rememberPhotoSource(photoMessage.id, sharedSource);
     const view = render(<ViewerPhoto message={photoMessage} isOpen activeIndex={0} />);
     expect(sharedSource.getAttribute('data-viewer-source')).toBe('true');

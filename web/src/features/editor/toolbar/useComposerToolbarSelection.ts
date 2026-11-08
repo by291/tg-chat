@@ -48,6 +48,7 @@ function getSelectionPosition(root: HTMLElement | null): ToolbarPosition | null 
   const rightLimit = window.innerWidth - width - MINIMUM_VIEWPORT_GUTTER;
   const left = Math.max(MINIMUM_VIEWPORT_GUTTER, Math.min(centeredLeft, rightLimit));
   const top = Math.max(MINIMUM_VIEWPORT_GUTTER, rectangle.top - TOOLBAR_HEIGHT - TOOLBAR_GAP);
+
   return {
     top,
     left,
@@ -115,11 +116,13 @@ export function useComposerToolbarSelection(editor: LexicalEditor) {
 
         savedSelectionRef.current = selection.clone();
         const activeFormats = new Set<TextFormatType>();
+
         for (const action of [...TEXT_FORMATS, ...EXTENDED_FORMATS]) {
           if (selection.hasFormat(action.format)) {
             activeFormats.add(action.format);
           }
         }
+
         setFormats(activeFormats);
         setIsQuote($findSelectedAncestor('quote') !== null);
         setIsQuoteCollapsed($isComposerQuoteCollapsed());

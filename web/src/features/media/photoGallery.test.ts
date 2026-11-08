@@ -20,6 +20,7 @@ describe('mixed media gallery navigation', () => {
     if (video.media?.kind !== 'video') {
       throw new Error('Expected a video fixture.');
     }
+
     const ordinaryVideo = {
       ...video,
       id: 'ordinary-video',

@@ -78,7 +78,11 @@ describe('older history prefetch policy', () => {
   });
 
   it('keeps a minimum prefetch distance for short viewports', () => {
-    const shortViewport = { ...viewport, clientHeight: 200, scrollTop: 350 };
+    const shortViewport = {
+      ...viewport,
+      clientHeight: 200,
+      scrollTop: 350,
+    };
     expect(shouldLoadOlderHistory({ ...pagination, viewport: shortViewport })).toBe(true);
   });
 

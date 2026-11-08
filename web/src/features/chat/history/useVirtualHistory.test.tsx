@@ -58,6 +58,7 @@ beforeAll(() => {
     if (!options || typeof options === 'number') {
       return;
     }
+
     this.scrollTop = Math.max(0, options.top || 0);
     queueMicrotask(() => this.dispatchEvent(new Event('scroll')));
   };
@@ -97,6 +98,7 @@ function HistoryScreen({ navigation, historyRows = rows, overlayInsets }: Histor
   });
   const totalHeight = scroll.virtualizer.getTotalSize();
   const bottomAlignment = Math.max(0, VIEWPORT_HEIGHT - totalHeight);
+
   return (
     <>
       <button onClick={scroll.jumpToLatest}>Latest</button>
@@ -144,7 +146,14 @@ async function settleInitialFrame() {
 function appendMessage({ authorId }: { authorId: string }) {
   const messages = createHistoryMessages().slice(0, HISTORY_MESSAGE_COUNT);
   const lastMessage = messages[messages.length - 1];
-  return createHistoryRows([...messages, { ...lastMessage, id: 'new-message', authorId }]);
+  return createHistoryRows([
+    ...messages,
+    {
+      ...lastMessage,
+      id: 'new-message',
+      authorId,
+    },
+  ]);
 }
 
 async function advanceAnimation(milliseconds: number) {
@@ -377,7 +386,11 @@ describe('reveal coordination', () => {
     const lastMessage = messages[messages.length - 1];
     const appendedMessages = [
       ...messages,
-      { ...lastMessage, id: 'new-message', authorId: CURRENT_USER_ID },
+      {
+        ...lastMessage,
+        id: 'new-message',
+        authorId: CURRENT_USER_ID,
+      },
     ];
     view.rerender(<HistoryScreen historyRows={createHistoryRows(appendedMessages)} />);
     const revealOffset = Number.parseFloat(

@@ -74,6 +74,7 @@ function boundAxis({ offset, start, length, viewportLength, scale }: AxisBoundar
 
   const minimum = viewportLength - (start + length) * scale;
   const maximum = Math.max(-start * scale, centeredOffset);
+
   return Math.max(minimum, Math.min(maximum, offset));
 }
 

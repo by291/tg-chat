@@ -18,6 +18,7 @@ function readRestingMediaBounds(image: HTMLElement) {
   if (!layer) {
     return image.getBoundingClientRect();
   }
+
   // Closing animates the outer zoom/rotation back independently. The thumbnail path belongs
   // to its untransformed layout, otherwise the outer scale would be applied twice.
   const transform = layer.style.transform;
@@ -29,6 +30,7 @@ function readRestingMediaBounds(image: HTMLElement) {
   // Closing must capture the restored presentation, not a transition started by measurement.
   layer.getBoundingClientRect();
   layer.style.transition = transition;
+
   return bounds;
 }
 
@@ -47,6 +49,7 @@ function getScaledCorners(source: HTMLElement, scale: number) {
   ] as const;
   const radii = corners.map((corner) => parseFloat(getComputedStyle(source)[corner]) || 0);
   let parent = source.parentElement;
+
   for (let depth = 0; parent && depth < CLIPPING_ANCESTOR_LIMIT; depth += 1) {
     const outer = parent.getBoundingClientRect();
     const edges = [
@@ -61,13 +64,16 @@ function getScaledCorners(source: HTMLElement, scale: number) {
     ];
     const parentStyle = getComputedStyle(parent);
     const hasClip = parentStyle.overflow === 'hidden';
+
     for (let index = 0; index < corners.length; index += 1) {
       const inheritedRadius =
         hasClip && edges[index] ? parseFloat(parentStyle[corners[index]]) || 0 : 0;
       radii[index] = Math.max(radii[index], inheritedRadius);
     }
+
     parent = parent.parentElement;
   }
+
   return radii.map((radius) => `${radius / scale}px`).join(' ');
 }
 
@@ -78,15 +84,19 @@ export function findPhotoSource(messageId: string): HTMLElement | null {
   if (clickedSource?.messageId === messageId && clickedSource.element.isConnected) {
     return clickedSource.element;
   }
+
   const focusedSource = document.activeElement?.closest<HTMLElement>('[data-photo-id]');
   if (focusedSource?.dataset.photoId === messageId) {
     return focusedSource;
   }
+
   const candidates = document.querySelectorAll<HTMLElement>('[data-photo-id]');
+
   for (const candidate of candidates) {
     if (candidate.dataset.photoId !== messageId) {
       continue;
     }
+
     const bounds = candidate.getBoundingClientRect();
     const isVisible =
       bounds.bottom > 0 &&
@@ -98,6 +108,7 @@ export function findPhotoSource(messageId: string): HTMLElement | null {
       return candidate;
     }
   }
+
   return null;
 }
 
@@ -112,6 +123,7 @@ export function animateViewerPhoto({
   if (shouldReduceMotion || !image.animate) {
     return undefined;
   }
+
   const destination = readRestingMediaBounds(image);
   const sourceImage = source?.querySelector<HTMLElement>('video, img:not([aria-hidden])');
   const origin = sourceImage?.getBoundingClientRect();
@@ -166,6 +178,7 @@ export function animateGallerySlide({
   const outside = {
     transform: `translateX(${isEntering ? incomingOffset : outgoingOffset}px)`,
   };
+
   return image.animate?.(isEntering ? [outside, centered] : [centered, outside], {
     duration: SLIDE_DURATION,
     easing: 'ease',

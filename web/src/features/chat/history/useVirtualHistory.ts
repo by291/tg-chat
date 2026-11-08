@@ -96,6 +96,7 @@ export function useVirtualHistory({
       setLatestNavigation(undefined);
     }
   }, [latestNavigation, navigation?.requestId]);
+
   const shouldReduceMotion = useReducedMotion();
   const getItemKey = useCallback((index: number) => rows[index].key, [rows]);
   const estimateSize = useCallback(
@@ -114,9 +115,11 @@ export function useVirtualHistory({
       // Keep the old viewport and animation corridor, without mounting the gap between distant
       // targets.
       const indexes = new Set([...visibleIndexes, ...navigationWindow.retainedIndexes]);
+
       for (let index = navigationWindow.start; index <= navigationWindow.end; index += 1) {
         indexes.add(index);
       }
+
       return Array.from(indexes).sort((left, right) => left - right);
     },
     [navigationWindow, rows],
@@ -171,50 +174,60 @@ export function useVirtualHistory({
   const viewportHeight = virtualizer.scrollRect?.height ?? 0;
   const bottomAlignment = Math.max(0, viewportHeight - virtualizer.getTotalSize());
 
-  useLayoutEffect(() => {
-    const previous = previousInsetsRef.current;
-    previousInsetsRef.current = overlayInsets;
-    const viewport = viewportRef.current;
-    if (!viewport || !isInitializedRef.current) {
-      return;
-    }
-    const topChange = overlayInsets.top - previous.top;
-    const bottomChange = overlayInsets.bottom - previous.bottom;
-    if (topChange === 0 && bottomChange === 0) {
-      return;
-    }
-
-    // The viewport no longer shrinks when reply/edit controls grow. Preserve the same reading
-    // position explicitly, or keep the latest message above the resized composer at the end.
-    const previousDistance =
-      virtualizer.getTotalSize() -
-      viewport.scrollTop -
-      viewport.clientHeight -
-      topChange -
-      bottomChange;
-    // An appended message already owns the movement. Collapsing its reply/input helper must
-    // retarget that reveal, rather than snapping to the end and covering it with another motion.
-    if (historyScroll.isAnimating()) {
-      virtualizer.scrollToEnd({ behavior: 'smooth' });
-      return;
-    }
-    if (previousDistance <= FOLLOW_BOTTOM_DISTANCE) {
-      virtualizer.scrollToEnd({ behavior: 'auto' });
-      const animatedRows = animatedRowsRef.current;
-      if (animatedRows && bottomChange !== 0) {
-        // Commit padding and scroll once, then animate only pixels; per-frame React updates
-        // would repeatedly update the virtual range and render the message components.
-        insetAnimationRef.current = animateHistoryInset({
-          element: animatedRows,
-          offset: bottomChange,
-          duration: shouldReduceMotion ? 0 : (overlayInsets.transitionDuration ?? 0),
-          previousAnimation: insetAnimationRef.current,
-        });
+  useLayoutEffect(
+    () => {
+      const previous = previousInsetsRef.current;
+      previousInsetsRef.current = overlayInsets;
+      const viewport = viewportRef.current;
+      if (!viewport || !isInitializedRef.current) {
+        return;
       }
-      return;
-    }
-    virtualizer.scrollToOffset(viewport.scrollTop + topChange, { behavior: 'auto' });
-  }, [overlayInsets, virtualizer, shouldReduceMotion]);
+
+      const topChange = overlayInsets.top - previous.top;
+      const bottomChange = overlayInsets.bottom - previous.bottom;
+      if (topChange === 0 && bottomChange === 0) {
+        return;
+      }
+
+      // The viewport no longer shrinks when reply/edit controls grow. Preserve the same reading
+      // position explicitly, or keep the latest message above the resized composer at the end.
+      const previousDistance =
+        virtualizer.getTotalSize() -
+        viewport.scrollTop -
+        viewport.clientHeight -
+        topChange -
+        bottomChange;
+      // An appended message already owns the movement. Collapsing its reply/input helper must
+      // retarget that reveal, rather than snapping to the end and covering it with another motion.
+      if (historyScroll.isAnimating()) {
+        virtualizer.scrollToEnd({ behavior: 'smooth' });
+        return;
+      }
+      if (previousDistance <= FOLLOW_BOTTOM_DISTANCE) {
+        virtualizer.scrollToEnd({ behavior: 'auto' });
+        const animatedRows = animatedRowsRef.current;
+        if (animatedRows && bottomChange !== 0) {
+          // Commit padding and scroll once, then animate only pixels; per-frame React updates
+          // would repeatedly update the virtual range and render the message components.
+          insetAnimationRef.current = animateHistoryInset({
+            element: animatedRows,
+            offset: bottomChange,
+            duration: shouldReduceMotion ? 0 : (overlayInsets.transitionDuration ?? 0),
+            previousAnimation: insetAnimationRef.current,
+          });
+        }
+        return;
+      }
+
+      virtualizer.scrollToOffset(viewport.scrollTop + topChange, { behavior: 'auto' });
+    },
+    // prettier-ignore
+    [
+      overlayInsets,
+      virtualizer,
+      shouldReduceMotion,
+    ],
+  );
 
   useEffect(() => {
     return () => insetAnimationRef.current?.cancel();
@@ -302,6 +315,7 @@ export function useVirtualHistory({
     if (!shouldReveal) {
       return;
     }
+
     // Reserving the reveal must not keep a previous resize restore or reply navigation alive.
     cancelOtherMotion();
     setNavigationWindow(undefined);
@@ -317,18 +331,21 @@ export function useVirtualHistory({
       }
       return;
     }
+
     // A reaction/edit may replace the rows while moving. Re-resolve the index only on that change.
     const isSameRequest = lastNavigationRef.current === navigationKey;
     const hasSameRows = activeNavigationRowsRef.current === rows;
     if (isSameRequest && (!cancelNavigationRef.current || hasSameRows)) {
       return;
     }
+
     const shouldPrepareWindow =
       navigationWindow?.requestId !== navigationKey || navigationWindow.rows !== rows;
     if (shouldPrepareWindow) {
       cancelNavigation();
       lastNavigationRef.current = undefined;
     }
+
     const targetIndex = isLatestNavigation
       ? rows.length - 1
       : rows.findIndex((row) => row.key === navigation?.messageId);
@@ -336,6 +353,7 @@ export function useVirtualHistory({
     if (targetIndex < 0 || !viewport) {
       return;
     }
+
     const messageId = rows[targetIndex].key;
     const alignment = isLatestNavigation ? 'end' : 'center';
 
@@ -405,6 +423,7 @@ export function useVirtualHistory({
       if (!viewport.clientWidth || !viewport.clientHeight) {
         return;
       }
+
       previousContentWidthRef.current = content.clientWidth;
       cancelResizeRestoreRef.current = remeasureHistory({
         viewport,
@@ -424,6 +443,7 @@ export function useVirtualHistory({
       if (!width || !height) {
         return;
       }
+
       const hasWidthChanged =
         width !== previousContentWidthRef.current || resizeTimer !== undefined;
       // The content observer also reports history-height changes from pagination and media.
@@ -431,6 +451,7 @@ export function useVirtualHistory({
       if (!hasWidthChanged && height === previousHeight) {
         return;
       }
+
       const wasAtEnd =
         viewport.scrollHeight - viewport.scrollTop - previousHeight <= FOLLOW_BOTTOM_DISTANCE;
       previousHeight = height;
@@ -458,6 +479,7 @@ export function useVirtualHistory({
         };
         return;
       }
+
       if (wasAtEnd && !cancelNavigationRef.current) {
         virtualizer.scrollToEnd({ behavior: 'auto' });
       }
@@ -466,6 +488,7 @@ export function useVirtualHistory({
     // Only a content-width change invalidates wrapping and cached row heights.
     observer.observe(viewport);
     observer.observe(content);
+
     return () => {
       observer.disconnect();
       clearTimeout(resizeTimer);

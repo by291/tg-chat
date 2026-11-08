@@ -52,6 +52,7 @@ export class SpoilerNode extends ElementNode {
     const element = document.createElement('span');
     element.dataset.spoiler = 'true';
     element.className = styles.spoiler;
+
     return element;
   }
 
@@ -100,6 +101,7 @@ export class DetailsNode extends ElementNode {
     const element = document.createElement('details');
     element.open = true;
     element.className = styles.details;
+
     return element;
   }
 

@@ -43,6 +43,8 @@ interface ComposerDialogsOptions {
 function getCurrentDateInput(timestamp = Date.now()) {
   const date = new Date(timestamp);
   const timezoneOffset = date.getTimezoneOffset() * MILLISECONDS_PER_MINUTE;
+
+  // datetime-local expects wall-clock fields, whereas toISOString always serializes UTC.
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, DATE_TIME_INPUT_LENGTH);
 }
 
@@ -104,6 +106,7 @@ export function useComposerDialogs({
       if (!(target instanceof HTMLElement)) {
         return;
       }
+
       editor.getEditorState().read(() => {
         const node = $getNearestNodeFromDOMNode(target);
         if (node instanceof MathNode) {
@@ -155,7 +158,10 @@ export function useComposerDialogs({
     applyEditorChange(() => {
       if (kind === 'link') {
         editor.dispatchCommand(TOGGLE_LINK_COMMAND, text || null);
-      } else if (kind === 'date') {
+        return;
+      }
+
+      if (kind === 'date') {
         const date = $createMessageDateNode({ timestamp: new Date(text).getTime() });
         const previous = nodeKey ? $getNodeByKey(nodeKey) : null;
         if (previous instanceof MessageDateNode) {
@@ -163,25 +169,32 @@ export function useComposerDialogs({
         } else {
           $getSelection()?.insertNodes([date]);
         }
-      } else if (kind === 'language') {
-        $setComposerCodeLanguage(text);
-      } else {
-        const math = $createMathNode({ source: text, isBlock: value.isBlock });
-        const previous = nodeKey ? $getNodeByKey(nodeKey) : null;
-        if (previous instanceof MathNode) {
-          replaceFormula({ previous, replacement: math });
-          return;
-        }
-        if (value.isBlock) {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            selection.removeText();
-          }
-          $insertNodeToNearestRoot(math);
-        } else {
-          $getSelection()?.insertNodes([math]);
-        }
+        return;
       }
+
+      if (kind === 'language') {
+        $setComposerCodeLanguage(text);
+        return;
+      }
+
+      const math = $createMathNode({ source: text, isBlock: value.isBlock });
+      const previous = nodeKey ? $getNodeByKey(nodeKey) : null;
+      if (previous instanceof MathNode) {
+        replaceFormula({ previous, replacement: math });
+        return;
+      }
+
+      // A block formula replaces the selection at the root instead of nesting inside a paragraph.
+      if (value.isBlock) {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          selection.removeText();
+        }
+        $insertNodeToNearestRoot(math);
+        return;
+      }
+
+      $getSelection()?.insertNodes([math]);
     });
   }
 

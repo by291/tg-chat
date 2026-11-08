@@ -9,7 +9,11 @@ const firstDay = new Date(2026, 10, 3).getTime();
 const nextDay = new Date(2026, 10, 4).getTime();
 const rows = createHistoryRows([
   { ...message, createdAt: firstDay },
-  { ...message, id: 'next-day', createdAt: nextDay },
+  {
+    ...message,
+    id: 'next-day',
+    createdAt: nextDay,
+  },
 ]);
 
 function measuredRow(index: number, start: number): VirtualItem {
@@ -55,9 +59,13 @@ describe('sticky history dates', () => {
     expect(groups).toHaveLength(2);
     expect(groups[0].end).toBe(groups[1].start);
     expect(groups[1].end).toBe(measurements[3].end);
-    expect(getActiveHistoryDateKey({ groups, scrollOffset: 250, topInset: 0 })).toBe(
-      groups[1].date.key,
-    );
+    expect(
+      getActiveHistoryDateKey({
+        groups,
+        scrollOffset: 250,
+        topInset: 0,
+      }),
+    ).toBe(groups[1].date.key);
   });
 
   it('recovers a paged day without placing its header over the first loaded message', () => {
@@ -92,10 +100,20 @@ describe('sticky history dates', () => {
       renderedItems: measurements,
       bottomAlignment: 0,
     });
-    expect(getActiveHistoryDateKey({ groups, scrollOffset: 36, topInset: 0 })).toBeUndefined();
-    expect(getActiveHistoryDateKey({ groups, scrollOffset: 41, topInset: 0 })).toBe(
-      groups[0].date.key,
-    );
+    expect(
+      getActiveHistoryDateKey({
+        groups,
+        scrollOffset: 36,
+        topInset: 0,
+      }),
+    ).toBeUndefined();
+    expect(
+      getActiveHistoryDateKey({
+        groups,
+        scrollOffset: 41,
+        topInset: 0,
+      }),
+    ).toBe(groups[0].date.key);
   });
 
   it('keeps dates in a short bottom-aligned history below the floating header', () => {
@@ -105,7 +123,13 @@ describe('sticky history dates', () => {
       renderedItems: measurements,
       bottomAlignment: 200,
     });
-    expect(getActiveHistoryDateKey({ groups, scrollOffset: 0, topInset: 64 })).toBeUndefined();
+    expect(
+      getActiveHistoryDateKey({
+        groups,
+        scrollOffset: 0,
+        topInset: 64,
+      }),
+    ).toBeUndefined();
     expect(groups[0].start).toBe(measurements[0].start + 200);
   });
 });

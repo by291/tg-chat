@@ -95,6 +95,7 @@ export function useViewerWheelInput(options: ViewerWheelInputOptions) {
     window.addEventListener('keydown', updateZoomModifier);
     window.addEventListener('keyup', updateZoomModifier);
     window.addEventListener('blur', clearZoomModifier);
+
     return () => {
       window.removeEventListener('keydown', updateZoomModifier);
       window.removeEventListener('keyup', updateZoomModifier);
@@ -107,13 +108,21 @@ export function useViewerWheelInput(options: ViewerWheelInputOptions) {
     wheelListenerRef.current = onWheel;
   });
 
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const dispatchWheel = (event: WheelEvent) => wheelListenerRef.current(event);
-    container?.addEventListener('wheel', dispatchWheel, { passive: false });
+  useLayoutEffect(
+    () => {
+      const container = containerRef.current;
+      const dispatchWheel = (event: WheelEvent) => wheelListenerRef.current(event);
+      container?.addEventListener('wheel', dispatchWheel, { passive: false });
 
-    return () => {
-      container?.removeEventListener('wheel', dispatchWheel);
-    };
-  }, [mediaId, mediaElementRef, containerRef]);
+      return () => {
+        container?.removeEventListener('wheel', dispatchWheel);
+      };
+    },
+    // prettier-ignore
+    [
+      mediaId,
+      mediaElementRef,
+      containerRef,
+    ],
+  );
 }

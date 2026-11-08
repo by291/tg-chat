@@ -60,7 +60,9 @@ export class MathNode extends DecoratorNode<ReactElement> {
       if (source === null) {
         return null;
       }
+
       const isBlock = element.getAttribute('data-math-display') === 'block';
+
       return {
         conversion: () => ({ node: $createMathNode({ source, isBlock }) }),
         priority: 3 as const,
@@ -99,6 +101,7 @@ export class MathNode extends DecoratorNode<ReactElement> {
     element.dataset.math = this.__source;
     element.dataset.mathDisplay = this.__isBlock ? 'block' : 'inline';
     element.textContent = this.__source;
+
     return { element };
   }
 

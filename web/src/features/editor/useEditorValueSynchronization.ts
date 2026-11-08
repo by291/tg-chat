@@ -80,23 +80,31 @@ export function useEditorValueSynchronization({
     });
   }, [editor, savedSelectionRef]);
 
-  useLayoutEffect(() => {
-    const current = editor.getEditorState().read($readEmojiEditor, { editor });
-    if (isSameEditorValue(current, value)) {
-      return;
-    }
+  useLayoutEffect(
+    () => {
+      const current = editor.getEditorState().read($readEmojiEditor, { editor });
+      if (isSameEditorValue(current, value)) {
+        return;
+      }
 
-    // Only external changes replace the tree; ordinary typing preserves selection and undo.
-    savedSelectionRef.current = null;
-    publishedValueRef.current = value;
-    editor.update(
-      () => {
-        $replaceEmojiEditor(value);
-        $setSelection(null);
-      },
-      // Apply external clears before a pending focus update can publish the old draft again.
-      { tag: [SKIP_DOM_SELECTION_TAG, EXTERNAL_VALUE_TAG], discrete: true },
-    );
-    editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
-  }, [editor, value, savedSelectionRef]);
+      // Only external changes replace the tree; ordinary typing preserves selection and undo.
+      savedSelectionRef.current = null;
+      publishedValueRef.current = value;
+      editor.update(
+        () => {
+          $replaceEmojiEditor(value);
+          $setSelection(null);
+        },
+        // Apply external clears before a pending focus update can publish the old draft again.
+        { tag: [SKIP_DOM_SELECTION_TAG, EXTERNAL_VALUE_TAG], discrete: true },
+      );
+      editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
+    },
+    // prettier-ignore
+    [
+      editor,
+      value,
+      savedSelectionRef,
+    ],
+  );
 }

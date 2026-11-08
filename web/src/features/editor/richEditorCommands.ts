@@ -37,7 +37,9 @@ export function $findSelectedAncestor(type: string): LexicalNode | null {
   if (!$isRangeSelection(selection)) {
     return null;
   }
+
   const anchor = selection.anchor.getNode();
+
   return $findMatchingParent(anchor, (node) => {
     return type === 'quote' ? $isQuoteNode(node) : node.getType() === type;
   });
@@ -66,6 +68,7 @@ export function $setComposerBlock(format: BlockFormat) {
     $setBlocksType(selection, () => $createCodeNode());
     return;
   }
+
   $setBlocksType(selection, () => $createHeadingNode(format));
 }
 
@@ -83,6 +86,7 @@ function $isolateInlineChild(node: LexicalNode) {
     parent.insertAfter(after);
     after.append(...following);
   }
+
   return parent;
 }
 
@@ -91,11 +95,14 @@ function $removeSelectedSpoiler(node: LexicalNode) {
   if (!(spoiler instanceof SpoilerNode)) {
     return;
   }
+
   // Split only inline ancestors so unselected text keeps both its marks and paragraph position.
   let current = node;
+
   while (current.getParent() !== spoiler) {
     current = $isolateInlineChild(current);
   }
+
   $isolateInlineChild(current);
   $unwrapNode(spoiler);
 }
@@ -106,20 +113,24 @@ export function $toggleComposerSpoiler() {
   if (!$isRangeSelection(selection) || selection.isCollapsed()) {
     return;
   }
+
   const selectedNodes = selection.extract();
   const leaves = selectedNodes.filter((node) => !$isElementNode(node) && node.isInline());
   const isEntireSelectionSpoiled = leaves.every((node) => {
     return $findMatchingParent(node, (parent) => parent instanceof SpoilerNode) !== null;
   });
+
   for (const node of leaves) {
     if (isEntireSelectionSpoiled) {
       $removeSelectedSpoiler(node);
       continue;
     }
+
     const existingSpoiler = $findMatchingParent(node, (parent) => parent instanceof SpoilerNode);
     if (existingSpoiler) {
       continue;
     }
+
     const spoiler = $createSpoilerNode();
     node.insertBefore(spoiler);
     spoiler.append(node);
@@ -136,12 +147,14 @@ function $copySelectedSubtree(options: {
   }
 
   const selectedChildren: LexicalNode[] = [];
+
   for (const child of node.getChildren()) {
     const selectedChild = $copySelectedSubtree({ node: child, selectedKeys });
     if (selectedChild) {
       selectedChildren.push(selectedChild);
     }
   }
+
   const hasSelectedContent = selectedChildren.length > 0 || selectedKeys.has(node.getKey());
   if (!hasSelectedContent) {
     return null;
@@ -149,6 +162,7 @@ function $copySelectedSubtree(options: {
 
   const copiedElement = $copyNode(node);
   copiedElement.append(...selectedChildren);
+
   return copiedElement;
 }
 
@@ -163,13 +177,16 @@ function $extractDetailsBody() {
   const selectedNodes = selection.extract();
   const selectedKeys = new Set(selectedNodes.map((node) => node.getKey()));
   const body: LexicalNode[] = [];
+
   for (const node of $getRoot().getChildren()) {
     const selectedBlock = $copySelectedSubtree({ node, selectedKeys });
     if (selectedBlock) {
       body.push(selectedBlock);
     }
   }
+
   selection.removeText();
+
   return body.length > 0 ? body : [$createParagraphNode()];
 }
 
@@ -190,6 +207,7 @@ export function $clearComposerFormatting(editor: LexicalEditor) {
   if (!$isRangeSelection(selection)) {
     return;
   }
+
   for (const node of selection.extract()) {
     if ($isTextNode(node)) {
       node.setFormat(0);
@@ -197,6 +215,7 @@ export function $clearComposerFormatting(editor: LexicalEditor) {
       $removeSelectedSpoiler(node);
     }
   }
+
   selection.setFormat(0);
   selection.setStyle('');
   editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
@@ -228,6 +247,7 @@ export function $removeComposerTable() {
   if (!$isElementNode(table)) {
     return;
   }
+
   const paragraph = $createParagraphNode();
   table.replace(paragraph);
   paragraph.selectStart();

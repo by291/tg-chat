@@ -19,6 +19,7 @@ function formatPlaybackTime(seconds: number) {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const minutes = Math.floor(safeSeconds / SECONDS_PER_MINUTE);
   const remainder = Math.floor(safeSeconds % SECONDS_PER_MINUTE);
+
   return `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
@@ -60,6 +61,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
     if (!isPlaying || !isActive) {
       return;
     }
+
     hideControlsTimer.current = setTimeout(() => {
       const hasControlFocus = controlsRef.current?.contains(document.activeElement);
       if (!isDraggingControl.current && !hasControlFocus) {
@@ -73,6 +75,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
       if (!isDraggingControl.current) {
         return;
       }
+
       isDraggingControl.current = false;
       revealControls();
     }
@@ -81,6 +84,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
     // Releasing a drag outside the player must not leave its controls permanently pinned.
     document.addEventListener('pointerup', finishControlInteraction);
     document.addEventListener('pointercancel', finishControlInteraction);
+
     return () => {
       clearTimeout(hideControlsTimer.current);
       document.removeEventListener('pointerup', finishControlInteraction);
@@ -93,9 +97,11 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
     if (!video || !isActiveRef.current) {
       return;
     }
+
     setError('');
     playbackAttempt.current += 1;
     const attempt = playbackAttempt.current;
+
     try {
       pauseOtherMedia(video);
       await video.play();
@@ -104,7 +110,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
         video.pause();
       }
     } catch (playbackError) {
-      // Strict Mode and rapid navigation can reject an obsolete play request after a new one starts.
+      // An obsolete play request may reject after Strict Mode or navigation starts a new one.
       const isCurrentAttempt = attempt === playbackAttempt.current;
       const isInterrupted =
         playbackError instanceof DOMException && playbackError.name === 'AbortError';
@@ -149,6 +155,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
       void playVideo();
       return;
     }
+
     video.pause();
   }
 
@@ -157,6 +164,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
     if (!video) {
       return;
     }
+
     const nextTime = Math.max(0, Math.min(seconds, duration));
     video.currentTime = nextTime;
     setCurrentTime(nextTime);
@@ -167,6 +175,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
     if (!video) {
       return;
     }
+
     video.volume = nextVolume;
     video.muted = nextVolume === 0;
     setVolume(nextVolume);
@@ -182,6 +191,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
       changeVolume(1);
       return;
     }
+
     video.muted = !video.muted;
     setIsMuted(video.muted);
   }
@@ -192,6 +202,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
         await document.exitFullscreen();
         return;
       }
+
       const player = playerRef.current;
       await player?.requestFullscreen();
       if (!isActiveRef.current) {

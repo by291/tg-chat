@@ -37,6 +37,7 @@ afterEach(() => {
 function advanceFrame(timestamp: number) {
   const pending = Array.from(callbacks.values());
   callbacks.clear();
+
   for (const callback of pending) {
     callback(timestamp);
   }

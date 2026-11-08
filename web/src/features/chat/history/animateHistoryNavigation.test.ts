@@ -31,6 +31,7 @@ afterEach(() => {
 function advanceFrame(timestamp: number) {
   const pending = Array.from(callbacks.values());
   callbacks.clear();
+
   for (const callback of pending) {
     callback(timestamp);
   }
@@ -97,6 +98,7 @@ describe('navigation lifecycle', () => {
     const { viewport, isFinished } = createNavigationHarness();
     let previousOffset = 0;
     let previousDistance = Infinity;
+
     for (let elapsed = SAMPLE_INTERVAL; elapsed <= LATE_LAYOUT_TIME; elapsed += SAMPLE_INTERVAL) {
       advanceFrame(FRAME_INTERVAL * 2 + elapsed);
       const distance = viewport.scrollTop - previousOffset;
@@ -105,6 +107,7 @@ describe('navigation lifecycle', () => {
       previousOffset = viewport.scrollTop;
       previousDistance = distance;
     }
+
     advanceFrame(SETTLED_TIME);
     expect(viewport.scrollTop).toBe(TARGET_OFFSET);
     expect(isFinished()).toBe(true);

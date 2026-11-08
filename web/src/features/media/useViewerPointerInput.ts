@@ -70,8 +70,17 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
   }
 
   function onDrag(state: FullGestureState<'drag'>) {
-    const { event, first, last, canceled, cancel, movement, xy, pinching } = state;
-    if (first) {
+    const {
+      event,
+      first: isFirst,
+      last: isLast,
+      canceled: isCanceled,
+      cancel,
+      movement,
+      xy: coordinates,
+      pinching: isPinching,
+    } = state;
+    if (isFirst) {
       const pointerType = 'pointerType' in event ? event.pointerType : 'touch';
       const canStart =
         isEnabled &&
@@ -82,12 +91,13 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
         cancel();
         return;
       }
+
       shouldIgnoreClickRef.current = false;
       cancelZoomSettle();
       setIsDirectWheelGesture(false);
       dragCancelRef.current = cancel;
       gestureRef.current = {
-        origin: { left: xy[0], top: xy[1] },
+        origin: { left: coordinates[0], top: coordinates[1] },
         transform: transformRef.current,
         pointerType,
         hasPinched: false,
@@ -99,12 +109,13 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
     if (!gesture || !isEnabled) {
       return;
     }
-    if (canceled || event.type === 'pointercancel' || event.type === 'touchcancel') {
+    if (isCanceled || event.type === 'pointercancel' || event.type === 'touchcancel') {
       gestureRef.current = undefined;
       setIsDragging(false);
       return;
     }
-    if (pinching || pinchRef.current) {
+    if (isPinching || pinchRef.current) {
+      // Pinch owns the transform; keep drag progress current for the later pointer handoff.
       gesture.hasPinched = true;
       gesture.lastDragOffset = { left: movement[0], top: movement[1] };
       return;
@@ -113,19 +124,20 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
     const point =
       'clientX' in event
         ? { left: event.clientX, top: event.clientY }
-        : { left: xy[0], top: xy[1] };
+        : { left: coordinates[0], top: coordinates[1] };
     if (dispatchTouchSwipe(point, gesture)) {
       shouldIgnoreClickRef.current = true;
       onCancelGesture();
       return;
     }
-    if (last) {
+    if (isLast) {
       settlePointerTransform(gesture);
       gestureRef.current = undefined;
       dragCancelRef.current = undefined;
       setIsDragging(false);
       return;
     }
+
     const hasMoved = movement[0] !== 0 || movement[1] !== 0;
     if (hasMoved) {
       event.preventDefault();
@@ -138,12 +150,21 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
   }
 
   function onPinch(state: FullGestureState<'pinch'>) {
-    const { event, first, last, canceled, cancel, origin, movement } = state;
-    if (first) {
+    const {
+      event,
+      first: isFirst,
+      last: isLast,
+      canceled: isCanceled,
+      cancel,
+      origin,
+      movement,
+    } = state;
+    if (isFirst) {
       if (!isEnabled || !canTransform || isViewerControlTarget(event.target)) {
         cancel();
         return;
       }
+
       cancelZoomSettle();
       pinchCancelRef.current = cancel;
       hasPinched.current = true;
@@ -161,15 +182,16 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
     if (!pinch || !currentGeometry || !isEnabled || !canTransform) {
       return;
     }
-    if (last || canceled) {
+    if (isLast || isCanceled) {
       pinchRef.current = undefined;
       pinchCancelRef.current = undefined;
       setIsDragging(false);
-      if (!canceled && transformRef.current.scale < VIEWER_ZOOM_INITIAL) {
+      if (!isCanceled && transformRef.current.scale < VIEWER_ZOOM_INITIAL) {
         resetZoom();
       }
       return;
     }
+
     event.preventDefault();
     shouldIgnoreClickRef.current = true;
     setIsDragging(true);
@@ -201,11 +223,13 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
     if (!pointerPositions.current.has(event.pointerId)) {
       return;
     }
+
     trackPointer(event);
     const remaining = continuation.current;
     if (!isEnabled || !canTransform || remaining?.pointerId !== event.pointerId) {
       return;
     }
+
     event.preventDefault();
     shouldIgnoreClickRef.current = true;
     setIsDragging(true);
@@ -315,6 +339,7 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
     if (!isEnabled) {
       return false;
     }
+
     const action = resolveViewerSwipe({
       point,
       gesture,
@@ -330,6 +355,7 @@ export function useViewerPointerInput(options: ViewerPointerInputOptions) {
     } else {
       onNavigate?.(action === 'next' ? 1 : -1);
     }
+
     return true;
   }
 

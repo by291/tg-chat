@@ -11,12 +11,14 @@ export interface ReadingAnchor {
 export function readHistoryAnchor(viewport: HTMLElement): ReadingAnchor | undefined {
   const viewportTop = viewport.getBoundingClientRect().top;
   const rows = viewport.querySelectorAll<HTMLElement>('[data-row-key]');
+
   for (const row of rows) {
     const rectangle = row.getBoundingClientRect();
     if (rectangle.bottom > viewportTop && row.dataset.rowKey) {
       return { key: row.dataset.rowKey, offset: rectangle.top - viewportTop };
     }
   }
+
   return undefined;
 }
 
@@ -36,6 +38,7 @@ export function readMeasuredHistoryAnchor({
   if (!item) {
     return undefined;
   }
+
   return {
     key: String(item.key),
     offset: item.start + bottomAlignment - scrollTop,
@@ -60,16 +63,19 @@ export function remeasureHistory({
   // measureElement can skip synchronous reads while scrolling. After clearing the cache,
   // unchanged rows may never emit another resize event, so explicitly seed their actual heights.
   const mountedRows = viewport.querySelectorAll<HTMLDivElement>('[data-index]');
+
   for (const row of mountedRows) {
     const index = virtualizer.indexFromElement(row);
     const height = row.getBoundingClientRect().height;
     virtualizer.resizeItem(index, height);
   }
+
   virtualizer.getTotalSize();
 
   if (!anchor) {
     return;
   }
+
   const anchorIndex = virtualizer.measurementsCache.findIndex((item) => item.key === anchor.key);
   let frame = 0;
   let remainingFrames = RESTORE_MEASUREMENT_FRAMES;
@@ -80,6 +86,7 @@ export function remeasureHistory({
     if (!item || item.key !== anchor.key) {
       return;
     }
+
     const bottomAlignment = Math.max(0, viewport.clientHeight - virtualizer.getTotalSize());
     // Apply the relative offset before clamping at the scroll boundary.
     virtualizer.scrollToOffset(item.start + bottomAlignment - anchor.offset, {
@@ -95,6 +102,7 @@ export function remeasureHistory({
   };
 
   restoreMeasuredAnchor();
+
   return () => {
     cancelAnimationFrame(frame);
     virtualizer.cancelScroll();

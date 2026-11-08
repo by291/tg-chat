@@ -24,6 +24,7 @@ export function useMediaViewerCommand({
       if (!command || !isTargetConversation || appliedCommand.current === command) {
         return;
       }
+
       // Callback identities change with conversation state; they must not replay a user request.
       appliedCommand.current = command;
       if (command.action === 'go-to-message') {

@@ -63,6 +63,7 @@ export class CustomEmojiNode extends DecoratorNode<ReactElement> {
         if (!documentId || !findCustomEmoji(documentId)) {
           return null;
         }
+
         return {
           priority: 4,
           conversion: () => ({
@@ -78,6 +79,7 @@ export class CustomEmojiNode extends DecoratorNode<ReactElement> {
     const element = document.createElement('span');
     element.setAttribute('data-custom-emoji', this.getDocumentId());
     element.textContent = this.getTextContent();
+
     return { element };
   }
 
@@ -86,6 +88,7 @@ export class CustomEmojiNode extends DecoratorNode<ReactElement> {
     const element = document.createElement('span');
     element.setAttribute('data-emoji-node', this.__documentId);
     element.style.display = 'inline';
+
     return element;
   }
 

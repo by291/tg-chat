@@ -20,6 +20,7 @@ function captureClipboardImage() {
     },
   );
   vi.stubGlobal('navigator', { clipboard: { write: vi.fn().mockResolvedValue(undefined) } });
+
   return () => clipboardImage;
 }
 
@@ -54,6 +55,7 @@ function provideDecodedImage(options: { decodeError?: Error } = {}) {
       }
     },
   );
+
   return revokeObjectURL;
 }
 

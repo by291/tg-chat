@@ -51,6 +51,7 @@ function findTarget({
   const visibleHeight = Math.max(0, viewport.clientHeight - topInset - bottomInset);
   const centerOffset = Math.max(0, (visibleHeight - item.size) / 2);
   const desiredOffset = item.start - topInset - centerOffset;
+
   return {
     index: item.index,
     offset: Math.max(0, Math.min(desiredOffset, maximumOffset)),
@@ -108,6 +109,7 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
     if (isCancelled) {
       return;
     }
+
     const target = findTarget(options);
     if (!target) {
       finish();
@@ -139,6 +141,7 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
       finish(target);
       return;
     }
+
     // Sample one trajectory from elapsed time. Reading pixel-rounded scrollTop back into the
     // next frame would distort its low-speed tail, especially on high-refresh-rate displays.
     currentOffset = startingOffset + (plannedOffset - startingOffset) * easedProgress;
@@ -150,6 +153,7 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
     if (isCancelled) {
       return;
     }
+
     const target = findTarget(options);
     if (!target) {
       finish();
@@ -176,13 +180,16 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
     if (isCancelled) {
       return;
     }
+
     // The virtualizer skips ref measurements during an active wheel gesture. Read the mounted
     // corridor explicitly, then let its canvas commit before computing a navigation trajectory.
     const mountedRows = viewport.querySelectorAll<HTMLDivElement>('[data-index]');
+
     for (const row of mountedRows) {
       const index = virtualizer.indexFromElement(row);
       virtualizer.resizeItem(index, row.getBoundingClientRect().height);
     }
+
     virtualizer.getTotalSize();
     frame = requestAnimationFrame(prepare);
   }
@@ -190,6 +197,7 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
   // Prepending history and its scroll-anchor correction must commit before reading the start
   // position.
   frame = requestAnimationFrame(measureDestination);
+
   return () => {
     isCancelled = true;
     cancelAnimationFrame(frame);

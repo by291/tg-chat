@@ -31,7 +31,11 @@ describe('custom emoji editing', () => {
     const value = {
       text: `${prefix}${exampleEmoji.emoji} after`,
       customEmoji: [
-        { documentId: exampleEmoji.id, offset: prefix.length, length: exampleEmoji.emoji.length },
+        {
+          documentId: exampleEmoji.id,
+          offset: prefix.length,
+          length: exampleEmoji.emoji.length,
+        },
       ],
     };
     editor.update(() => $replaceEmojiEditor(value), { discrete: true });
@@ -76,7 +80,11 @@ describe('custom emoji editing', () => {
         $replaceEmojiEditor({
           text: `Keep ${exampleEmoji.emoji}`,
           customEmoji: [
-            { documentId: exampleEmoji.id, offset: 5, length: exampleEmoji.emoji.length },
+            {
+              documentId: exampleEmoji.id,
+              offset: 5,
+              length: exampleEmoji.emoji.length,
+            },
           ],
         });
         $getRoot().selectEnd();
@@ -100,7 +108,13 @@ describe('custom emoji editing', () => {
       () => {
         $replaceEmojiEditor({
           text: 'Hi 😂',
-          customEmoji: [{ documentId: 'unavailable', offset: 3, length: 2 }],
+          customEmoji: [
+            {
+              documentId: 'unavailable',
+              offset: 3,
+              length: 2,
+            },
+          ],
         });
       },
       { discrete: true },

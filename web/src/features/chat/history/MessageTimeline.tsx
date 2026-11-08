@@ -96,6 +96,7 @@ function VirtualMessageHistory({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const history = useHistoryWindow(allRows);
   const { rows, hasOlder, loadOlder } = history;
+  const notifyMessageMount = isPreview ? undefined : onMessageMount;
   const scroll = useVirtualHistory({
     rows,
     overlayInsets,
@@ -104,25 +105,35 @@ function VirtualMessageHistory({
     navigation,
     onReachLatest,
   });
-  useLayoutEffect(() => {
-    const viewport = scroll.viewportRef.current;
-    if (!viewport) {
-      return;
-    }
-    return registerReactionLayoutHistory({
-      viewport,
-      measureRow: (row) => {
-        if (!(row instanceof HTMLDivElement)) {
-          return;
-        }
-        const index = scroll.virtualizer.indexFromElement(row);
-        // measureElement defers reads during user scrolling. A local reaction needs its final
-        // size now, before presentation snapshots, while TanStack still owns the actual layout.
-        scroll.virtualizer.resizeItem(index, row.getBoundingClientRect().height);
-      },
-      scrollToEnd: () => scroll.virtualizer.scrollToEnd({ behavior: 'auto' }),
-    });
-  }, [scroll.viewportRef, scroll.virtualizer, registerReactionLayoutHistory]);
+  useLayoutEffect(
+    () => {
+      const viewport = scroll.viewportRef.current;
+      if (!viewport) {
+        return;
+      }
+
+      return registerReactionLayoutHistory({
+        viewport,
+        measureRow: (row) => {
+          if (!(row instanceof HTMLDivElement)) {
+            return;
+          }
+
+          const index = scroll.virtualizer.indexFromElement(row);
+          // measureElement defers reads during user scrolling. A local reaction needs its final
+          // size now, before presentation snapshots, while TanStack still owns the actual layout.
+          scroll.virtualizer.resizeItem(index, row.getBoundingClientRect().height);
+        },
+        scrollToEnd: () => scroll.virtualizer.scrollToEnd({ behavior: 'auto' }),
+      });
+    },
+    // prettier-ignore
+    [
+      scroll.viewportRef,
+      scroll.virtualizer,
+      registerReactionLayoutHistory,
+    ],
+  );
   const menu = useMessageMenu({
     viewportRef: scroll.viewportRef,
     isDisabled: isPreview,
@@ -170,9 +181,11 @@ function VirtualMessageHistory({
     if (!navigation) {
       return;
     }
+
     history.revealMessage(navigation.messageId);
     setHighlightedId(navigation.messageId);
     const timeout = window.setTimeout(() => setHighlightedId(''), HIGHLIGHT_DURATION);
+
     return () => window.clearTimeout(timeout);
   }, [navigation]);
 
@@ -185,12 +198,14 @@ function VirtualMessageHistory({
     if (isPreview || selectedIds !== undefined || !(event.target instanceof Element)) {
       return;
     }
+
     const isInteractiveContent = event.target.closest(
       'button, a, input, video, audio, [data-message-media], [data-message-metadata]',
     );
     if (isInteractiveContent || window.getSelection()?.toString().trim()) {
       return;
     }
+
     const messageId = findMessageRow(event.target)?.dataset.messageId;
     const message = messageId ? messageById.get(messageId) : undefined;
     if (message) {
@@ -279,7 +294,7 @@ function VirtualMessageHistory({
                       <MessageBubble
                         message={row.message}
                         shouldShowSender={shouldShowSender}
-                        onMount={isPreview ? undefined : onMessageMount}
+                        onMount={notifyMessageMount}
                         isSelecting={selectedIds !== undefined}
                         isSelected={selectedIds?.includes(row.message.id)}
                         isPreview={isPreview}

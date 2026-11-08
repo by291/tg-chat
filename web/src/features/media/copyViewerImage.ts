@@ -29,6 +29,7 @@ async function loadClipboardImage(url: string): Promise<Blob> {
   if (!response.ok) {
     throw new Error('Could not load the image for the clipboard.');
   }
+
   const imageBlob = await response.blob();
   if (imageBlob.type === CLIPBOARD_IMAGE_TYPE) {
     return imageBlob;
@@ -36,6 +37,7 @@ async function loadClipboardImage(url: string): Promise<Blob> {
 
   // The gallery's SVG images decode through HTMLImageElement in browsers that reject ImageBitmap.
   const imageUrl = URL.createObjectURL(imageBlob);
+
   try {
     const image = new Image();
     image.src = imageUrl;
@@ -49,7 +51,9 @@ async function loadClipboardImage(url: string): Promise<Blob> {
     if (!context) {
       throw new Error('Could not prepare the image for the clipboard.');
     }
+
     context.drawImage(image, 0, 0);
+
     return await encodeCanvasImage(canvas);
   } finally {
     URL.revokeObjectURL(imageUrl);
@@ -68,6 +72,7 @@ export async function copyViewerImage({ message, onNotify }: CopyViewerImageOpti
   }
 
   const imagePromise = loadClipboardImage(message.attachment.url);
+
   try {
     // Start the clipboard write within the click gesture; encoding resolves asynchronously.
     const clipboardItem = new ClipboardItem({ [CLIPBOARD_IMAGE_TYPE]: imagePromise });

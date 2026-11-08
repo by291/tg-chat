@@ -186,6 +186,7 @@ it('keeps the viewer open when clicking its caption or toolbar', async () => {
   const rotate = await screen.findByRole('button', { name: 'Rotate left' });
   await waitFor(() => expect((rotate as HTMLButtonElement).disabled).toBe(false));
   vi.useFakeTimers();
+
   try {
     fireEvent.click(screen.getByText(album.text), { detail: 1 });
     fireEvent.click(screen.getByRole('banner'), { detail: 1 });
@@ -203,6 +204,7 @@ it('keeps mobile double-tap zoom from closing the viewer', async () => {
   const zoom = await screen.findByRole('button', { name: 'Zoom in' });
   await waitFor(() => expect((zoom as HTMLButtonElement).disabled).toBe(false));
   vi.useFakeTimers();
+
   try {
     const image = screen.getByAltText(photos[0].attachment!.name);
     fireEvent.click(image, { detail: 1 });
@@ -269,6 +271,7 @@ it('pauses unrelated chat videos until the photo viewer finishes its exit animat
     }
   `;
   document.head.append(animationStyles);
+
   try {
     const { container, rerender } = render(<BackgroundVideoScreen />);
     const backgroundVideo = container.querySelector('video')!;
@@ -277,7 +280,11 @@ it('pauses unrelated chat videos until the photo viewer finishes its exit animat
     rerender(<BackgroundVideoScreen message={photos[0]} />);
     const dialog = await screen.findByRole('dialog');
     await waitFor(() => expect(backgroundVideo.paused).toBe(true));
-    dispatchViewerAnimation({ dialog, type: 'animationstart', name: 'viewer-enter' });
+    dispatchViewerAnimation({
+      dialog,
+      type: 'animationstart',
+      name: 'viewer-enter',
+    });
     act(() => vi.runOnlyPendingTimers());
 
     rerender(<BackgroundVideoScreen />);
@@ -286,7 +293,11 @@ it('pauses unrelated chat videos until the photo viewer finishes its exit animat
     expect(dialog.isConnected).toBe(true);
     expect(backgroundVideo.paused).toBe(true);
 
-    dispatchViewerAnimation({ dialog, type: 'animationend', name: 'viewer-exit' });
+    dispatchViewerAnimation({
+      dialog,
+      type: 'animationend',
+      name: 'viewer-exit',
+    });
     await waitFor(() => expect(dialog.isConnected).toBe(false));
     expect(backgroundVideo.paused).toBe(false);
   } finally {

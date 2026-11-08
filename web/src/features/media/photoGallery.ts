@@ -17,6 +17,7 @@ export function createAlbumPhoto(
 /** Flatten album photos into the same navigation sequence as standalone photos. */
 export function getPhotoMessages(messages: Message[]): Message[] {
   const photos: Message[] = [];
+
   for (const message of messages) {
     if (message.attachment) {
       photos.push(message);
@@ -28,6 +29,7 @@ export function getPhotoMessages(messages: Message[]): Message[] {
       }
     }
   }
+
   return photos;
 }
 

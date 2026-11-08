@@ -55,6 +55,7 @@ export class MessageDateNode extends DecoratorNode<ReactElement> {
       if (attribute === null || !Number.isFinite(timestamp)) {
         return null;
       }
+
       return {
         conversion: () => ({
           node: $createMessageDateNode({ timestamp, label: element.textContent ?? undefined }),
@@ -94,6 +95,7 @@ export class MessageDateNode extends DecoratorNode<ReactElement> {
     element.dataset.messageDate = String(this.__timestamp);
     element.dateTime = new Date(this.__timestamp).toISOString();
     element.textContent = this.__label;
+
     return { element };
   }
 

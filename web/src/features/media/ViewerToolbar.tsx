@@ -36,7 +36,7 @@ interface ViewerToolbarProps {
   transform: ViewerTransformController;
   onCommand: (command: MediaViewerCommand) => void;
   onNotify: (message: string) => void;
-  onMenuOpenChange: (isOpen: boolean) => void;
+  onMenuOpenChange: (options: { isOpen: boolean }) => void;
 }
 
 /** Keep media transformations and message actions available without stealing gallery gestures. */
@@ -58,11 +58,12 @@ export function ViewerToolbar({
     const syncMobileMenu = () => {
       setIsMobile(viewport.matches);
       if (!viewport.matches) {
-        onMenuOpenChange(false);
+        onMenuOpenChange({ isOpen: false });
       }
     };
     syncMobileMenu();
     viewport.addEventListener('change', syncMobileMenu);
+
     return () => viewport.removeEventListener('change', syncMobileMenu);
   }, [onMenuOpenChange]);
 
@@ -146,7 +147,7 @@ export function ViewerToolbar({
         )}
         <Menu.Root
           open={isMobile && isMenuOpen}
-          onOpenChange={({ open }) => onMenuOpenChange(open)}
+          onOpenChange={({ open }) => onMenuOpenChange({ isOpen: open })}
         >
           <Menu.Trigger asChild>
             <IconButton label="Media options" className={styles.mobileAction}>

@@ -101,6 +101,7 @@ describe('rich editor commands', () => {
         if (!$isRangeSelection(selection)) {
           throw new Error('Expected a text selection.');
         }
+
         selection.focus.set(lastText.getKey(), 4, 'text');
         $insertComposerDetails();
       },
@@ -140,6 +141,7 @@ describe('rich editor commands', () => {
         if (!$isRangeSelection(selection)) {
           throw new Error('Expected a text selection.');
         }
+
         selection.focus.set(secondText.getKey(), 3, 'text');
         $insertComposerDetails();
       },

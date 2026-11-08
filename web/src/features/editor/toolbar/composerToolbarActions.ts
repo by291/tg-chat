@@ -141,6 +141,7 @@ export function createComposerToolbarActions({
       applyEditorChange: () => applyEditorChange($removeComposerTable),
     },
   ];
+
   return {
     blockActions,
     listActions,

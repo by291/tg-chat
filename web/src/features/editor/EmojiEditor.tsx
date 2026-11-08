@@ -66,6 +66,7 @@ function EditorBridge({ value, controlsRef, onChange, onSubmit, onPasteImage }: 
     controlsRef,
     savedSelectionRef,
   });
+
   return null;
 }
 

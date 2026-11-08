@@ -34,6 +34,7 @@ interface EditorText extends EmojiText {
 function createTextNodes(text: string) {
   const nodes: LexicalNode[] = [];
   const lines = text.split('\n');
+
   for (const [index, line] of lines.entries()) {
     if (index > 0) {
       nodes.push($createLineBreakNode());
@@ -42,6 +43,7 @@ function createTextNodes(text: string) {
       nodes.push($createTextNode(line));
     }
   }
+
   return nodes;
 }
 
@@ -58,7 +60,9 @@ export function $replaceEmojiEditor(value: EmojiText) {
       return;
     }
   }
+  // Empty or rejected rich markup still retains the domain's plain-text fallback.
   const paragraph = $createParagraphNode();
+
   for (const part of splitEmojiText(value)) {
     const emoji = part.documentId ? findCustomEmoji(part.documentId) : undefined;
     if (emoji) {
@@ -67,6 +71,7 @@ export function $replaceEmojiEditor(value: EmojiText) {
       paragraph.append(...createTextNodes(part.text));
     }
   }
+
   root.append(paragraph);
 }
 
@@ -91,12 +96,14 @@ function collectCustomEmoji(options: {
   // instead of inventing a second set of newline/tab rules and corrupting emoji offsets.
   const text = node.getTextContent();
   let cursor = 0;
+
   for (const child of node.getChildren()) {
     const childText = child.getTextContent();
     const childOffset = text.indexOf(childText, cursor);
     if (childOffset < 0) {
       continue;
     }
+
     collectCustomEmoji({
       node: child,
       offset: offset + childOffset,
@@ -110,6 +117,7 @@ function hasRichFormatting(node: LexicalNode): boolean {
   if ($isTextNode(node)) {
     return node.getFormat() !== 0;
   }
+
   const isPlainNode = PLAIN_NODE_TYPES.has(node.getType());
   if (!isPlainNode) {
     return true;
@@ -117,6 +125,7 @@ function hasRichFormatting(node: LexicalNode): boolean {
   if ($isElementNode(node)) {
     return node.getChildren().some(hasRichFormatting);
   }
+
   return false;
 }
 
@@ -126,6 +135,7 @@ export function $readEmojiEditor(): EditorText {
   const isRichText = hasRichFormatting(root);
   const blocks = isRichText ? [root] : root.getChildren();
   const value: EditorText = { text: '', customEmoji: [] };
+
   for (const [index, block] of blocks.entries()) {
     // Lexical separates paragraphs with two newlines; chat paragraphs occupy one visual line.
     // Keep complex rich blocks in Lexical's representation so list/table emoji offsets stay valid.
@@ -139,8 +149,10 @@ export function $readEmojiEditor(): EditorText {
     });
     value.text += block.getTextContent();
   }
+
   if (isRichText) {
     value.richText = $exportRichEditorHtml();
   }
+
   return value;
 }

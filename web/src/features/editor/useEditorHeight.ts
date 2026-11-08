@@ -22,52 +22,64 @@ export function useEditorHeight({
   const previousHeightRef = useRef<number | null>(null);
   const wasExpandedRef = useRef(false);
 
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const input = inputRef.current;
-    if (!isEnabled || !container || !input) {
-      return;
-    }
-
-    if (isExpanded) {
-      wasExpandedRef.current = true;
-      container.style.transitionDuration = `${EXPAND_DURATION}ms`;
-      container.style.height = 'var(--expanded-editor-height)';
-      return;
-    }
-
-    function measure(measuredHeight?: number) {
-      if (!container || !input) {
+  useLayoutEffect(
+    () => {
+      const container = containerRef.current;
+      const input = inputRef.current;
+      if (!isEnabled || !container || !input) {
         return;
       }
 
-      // Observe the input, not the animated shell, to avoid measuring our own transition frames.
-      const height = Math.ceil(measuredHeight ?? input.getBoundingClientRect().height);
-      const previousHeight = previousHeightRef.current;
-      if (height === previousHeight && !wasExpandedRef.current) {
+      if (isExpanded) {
+        wasExpandedRef.current = true;
+        container.style.transitionDuration = `${EXPAND_DURATION}ms`;
+        container.style.height = 'var(--expanded-editor-height)';
         return;
       }
-      const difference = Math.abs(height - (previousHeight ?? height));
-      let duration = 0;
-      if (difference > 1 && previousHeight !== null) {
-        duration = Math.round(HEIGHT_DURATION_FACTOR * Math.log(difference));
-      }
-      if (wasExpandedRef.current) {
-        duration = EXPAND_DURATION;
+
+      function measure(measuredHeight?: number) {
+        if (!container || !input) {
+          return;
+        }
+
+        // Observe the input, not the animated shell, to avoid measuring our own transition frames.
+        const height = Math.ceil(measuredHeight ?? input.getBoundingClientRect().height);
+        const previousHeight = previousHeightRef.current;
+        if (height === previousHeight && !wasExpandedRef.current) {
+          return;
+        }
+
+        const difference = Math.abs(height - (previousHeight ?? height));
+        let duration = 0;
+        if (difference > 1 && previousHeight !== null) {
+          duration = Math.round(HEIGHT_DURATION_FACTOR * Math.log(difference));
+        }
+        if (wasExpandedRef.current) {
+          duration = EXPAND_DURATION;
+        }
+
+        container.style.transitionDuration = `${duration}ms`;
+        container.style.height = `${height}px`;
+        previousHeightRef.current = height;
+        wasExpandedRef.current = false;
+        onHeightChange?.(height);
       }
 
-      container.style.transitionDuration = `${duration}ms`;
-      container.style.height = `${height}px`;
-      previousHeightRef.current = height;
-      wasExpandedRef.current = false;
-      onHeightChange?.(height);
-    }
+      measure();
+      const observer = new ResizeObserver((entries) => {
+        measure(entries[0]?.borderBoxSize[0]?.blockSize);
+      });
+      observer.observe(input);
 
-    measure();
-    const observer = new ResizeObserver((entries) => {
-      measure(entries[0]?.borderBoxSize[0]?.blockSize);
-    });
-    observer.observe(input);
-    return () => observer.disconnect();
-  }, [containerRef, inputRef, isEnabled, isExpanded, onHeightChange]);
+      return () => observer.disconnect();
+    },
+    // prettier-ignore
+    [
+      containerRef,
+      inputRef,
+      isEnabled,
+      isExpanded,
+      onHeightChange,
+    ],
+  );
 }

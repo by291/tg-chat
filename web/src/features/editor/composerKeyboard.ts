@@ -27,7 +27,9 @@ export function shouldSubmitMessage(
   if (sendShortcut === 'enter') {
     return !event.ctrlKey && !event.metaKey;
   }
+
   const isSendModifier = isApple ? event.metaKey : event.ctrlKey;
   const hasOtherModifier = isApple ? event.ctrlKey : event.metaKey;
+
   return Boolean(isSendModifier && !hasOtherModifier);
 }

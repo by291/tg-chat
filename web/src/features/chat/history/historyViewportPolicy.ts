@@ -49,6 +49,7 @@ export function canMarkLatestRead({
 
   // Reading requires the rendered bottom, not the looser threshold used for following new messages.
   const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+
   return distanceFromBottom <= READ_BOTTOM_DISTANCE;
 }
 
@@ -69,5 +70,6 @@ export function shouldLoadOlderHistory({
 
   // Momentum must keep loading ahead; only layout rebuilding and explicit navigation defer it.
   const prefetchDistance = Math.max(MIN_HISTORY_PREFETCH_DISTANCE, viewport.clientHeight);
+
   return scrollDirection !== 'forward' && viewport.scrollTop <= prefetchDistance;
 }

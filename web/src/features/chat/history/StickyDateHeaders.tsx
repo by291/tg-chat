@@ -20,26 +20,35 @@ function useDateVisibility(options: DateVisibilityOptions) {
   const [activeDateKey, setActiveDateKey] = useState<string>();
   const [isScrolling, setIsScrolling] = useState(false);
 
-  useLayoutEffect(() => {
-    // Prepending history changes coordinates; replace them before the next scroll callback.
-    geometryRef.current = options;
-    const viewport = viewportRef.current;
-    if (viewport) {
-      setActiveDateKey(
-        getActiveHistoryDateKey({
-          groups: options.groups,
-          scrollOffset: viewport.scrollTop,
-          topInset: options.topInset,
-        }),
-      );
-    }
-  }, [options.groups, options.topInset, viewportRef]);
+  useLayoutEffect(
+    () => {
+      // Prepending history changes coordinates; replace them before the next scroll callback.
+      geometryRef.current = options;
+      const viewport = viewportRef.current;
+      if (viewport) {
+        setActiveDateKey(
+          getActiveHistoryDateKey({
+            groups: options.groups,
+            scrollOffset: viewport.scrollTop,
+            topInset: options.topInset,
+          }),
+        );
+      }
+    },
+    // prettier-ignore
+    [
+      options.groups,
+      options.topInset,
+      viewportRef,
+    ],
+  );
 
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) {
       return;
     }
+
     const scrollElement = viewport;
     let idleTimeout: number | undefined;
     let frame: number | undefined;
@@ -60,6 +69,7 @@ function useDateVisibility(options: DateVisibilityOptions) {
       if (distanceToEnd <= 0) {
         return;
       }
+
       setIsScrolling(true);
       window.clearTimeout(idleTimeout);
       idleTimeout = window.setTimeout(() => setIsScrolling(false), SCROLL_IDLE_DELAY);
@@ -72,6 +82,7 @@ function useDateVisibility(options: DateVisibilityOptions) {
     }
 
     viewport.addEventListener('scroll', scheduleVisibilityUpdate, { passive: true });
+
     return () => {
       viewport.removeEventListener('scroll', scheduleVisibilityUpdate);
       window.clearTimeout(idleTimeout);
@@ -84,7 +95,7 @@ function useDateVisibility(options: DateVisibilityOptions) {
   return { activeDateKey, isScrolling };
 }
 
-/** Keep both neighboring date headers mounted while native sticky positioning performs the handoff. */
+/** Retain neighboring date headers while native sticky positioning handles the handoff. */
 export function StickyDateHeaders({
   groups,
   viewportRef,
@@ -92,7 +103,11 @@ export function StickyDateHeaders({
   isPreview,
   onOpenDate,
 }: StickyDateHeadersProps) {
-  const { activeDateKey, isScrolling } = useDateVisibility({ groups, viewportRef, topInset });
+  const { activeDateKey, isScrolling } = useDateVisibility({
+    groups,
+    viewportRef,
+    topInset,
+  });
 
   return groups.map((group) => {
     const isSticky = !isPreview && group.date.key === activeDateKey;

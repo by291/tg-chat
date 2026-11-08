@@ -8,7 +8,7 @@ interface ViewerGalleryProps {
   isOpen: boolean;
   activeIndex: number;
   mediaElementRef?: RefObject<HTMLDivElement | null>;
-  onBusyChange?: (isBusy: boolean) => void;
+  onBusyChange?: (options: { isBusy: boolean }) => void;
 }
 
 /** Retain outgoing media at its own dimensions until the incoming slide has settled. */
@@ -27,20 +27,28 @@ export function ViewerGallery({
     isSettled: false,
   });
 
-  useLayoutEffect(() => {
-    if (message.id !== slides.current.id) {
-      setSlides({
-        current: message,
-        previous: slides.current,
-        index: activeIndex,
-        direction: Math.sign(activeIndex - slides.index),
-        isSettled: false,
-      });
-    }
-  }, [message, activeIndex, slides]);
+  useLayoutEffect(
+    () => {
+      if (message.id !== slides.current.id) {
+        setSlides({
+          current: message,
+          previous: slides.current,
+          index: activeIndex,
+          direction: Math.sign(activeIndex - slides.index),
+          isSettled: false,
+        });
+      }
+    },
+    // prettier-ignore
+    [
+      message,
+      activeIndex,
+      slides,
+    ],
+  );
 
   useLayoutEffect(() => {
-    onBusyChange?.(!slides.isSettled);
+    onBusyChange?.({ isBusy: !slides.isSettled });
   }, [slides.isSettled, onBusyChange]);
 
   function settle() {

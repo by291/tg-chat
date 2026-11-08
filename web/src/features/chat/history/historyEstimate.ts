@@ -29,9 +29,11 @@ function estimateTextHeight(text: string, availableWidth: number) {
   const charactersPerLine = Math.max(1, availableWidth / AVERAGE_GLYPH_WIDTH);
   const paragraphs = text.split('\n');
   let lineCount = 0;
+
   for (const paragraph of paragraphs) {
     lineCount += Math.max(1, Math.ceil(paragraph.length / charactersPerLine));
   }
+
   return lineCount * TEXT_LINE_HEIGHT;
 }
 

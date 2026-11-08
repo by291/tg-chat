@@ -61,6 +61,7 @@ function renderToolbar() {
   if (!editor) {
     throw new Error('The editor did not mount.');
   }
+
   return { editor, onError };
 }
 

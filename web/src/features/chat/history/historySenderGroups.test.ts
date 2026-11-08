@@ -10,9 +10,21 @@ const GROUP_END_GAP = 6;
 const BOTTOM_ALIGNMENT = 200;
 const initialMessage = createInitialState().messages[0];
 const messages = [
-  { ...initialMessage, id: 'first', authorId: 'sender' },
-  { ...initialMessage, id: 'middle', authorId: 'sender' },
-  { ...initialMessage, id: 'last', authorId: 'sender' },
+  {
+    ...initialMessage,
+    id: 'first',
+    authorId: 'sender',
+  },
+  {
+    ...initialMessage,
+    id: 'middle',
+    authorId: 'sender',
+  },
+  {
+    ...initialMessage,
+    id: 'last',
+    authorId: 'sender',
+  },
 ];
 
 function measureRows(rows: HistoryRow[]): VirtualItem[] {
@@ -75,12 +87,28 @@ describe('history sender groups', () => {
     nextDay.setDate(nextDay.getDate() + 1);
     const rows = createHistoryRows([
       messages[0],
-      { ...messages[1], id: 'other-sender', authorId: 'other-sender' },
-      { ...messages[1], id: 'service', isService: true },
+      {
+        ...messages[1],
+        id: 'other-sender',
+        authorId: 'other-sender',
+      },
+      {
+        ...messages[1],
+        id: 'service',
+        isService: true,
+      },
       { ...messages[1], id: 'after-service' },
-      { ...messages[1], id: 'own', authorId: CURRENT_USER_ID },
+      {
+        ...messages[1],
+        id: 'own',
+        authorId: CURRENT_USER_ID,
+      },
       { ...messages[1], id: 'after-own' },
-      { ...messages[1], id: 'next-day', createdAt: nextDay.getTime() },
+      {
+        ...messages[1],
+        id: 'next-day',
+        createdAt: nextDay.getTime(),
+      },
     ]);
     const measurements = measureRows(rows);
     const groups = createHistorySenderGroups({
@@ -97,6 +125,7 @@ describe('history sender groups', () => {
       'after-own',
       'next-day',
     ]);
+
     for (let index = 1; index < groups.length; index += 1) {
       expect(groups[index - 1].end).toBeLessThan(groups[index].start);
     }
