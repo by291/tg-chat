@@ -1,0 +1,99 @@
+name: Web CI
+
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/web.yml'
+      - '.gitattributes'
+      - '.editorconfig'
+      - 'README.md'
+      - 'AGENTS.md'
+  push:
+    branches:
+      - main
+    paths:
+      - 'web/**'
+      - '.github/workflows/web.yml'
+      - '.gitattributes'
+      - '.editorconfig'
+      - 'README.md'
+      - 'AGENTS.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: web
+
+jobs:
+  checks:
+    name: Web checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2025
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Set up pnpm and dependency cache
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+          cache: true
+          cache_dependency_path: web/pnpm-lock.yaml
+          run_install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        run: |
+          pnpm format:check
+          pnpm exec prettier --check --config .prettierrc.json \
+            ../.github/workflows/web.yml ../README.md ../AGENTS.md
+
+      - name: Run unit and component tests
+        run: pnpm test
+
+      - name: Check types and build on Windows
+        if: runner.os == 'Windows'
+        run: pnpm build
+
+      - name: Install Chromium and system dependencies
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install --with-deps chromium
+
+      # The browser script already checks types and builds its production preview.
+      - name: Build and test browser interactions
+        if: runner.os == 'Linux'
+        run: pnpm test:browser
+
+      - name: Save browser failure artifacts
+        if: failure() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v5
+        with:
+          name: web-browser-failures-${{ github.run_attempt }}
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

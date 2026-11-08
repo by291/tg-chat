@@ -31,6 +31,21 @@ normalized. Root Markdown can be checked from `web/` with:
 pnpm exec prettier --check ../README.md ../AGENTS.md
 ```
 
+## Continuous integration
+
+[Web CI](../../.github/workflows/web.yml) runs for pull requests and pushes to `main` that affect
+the frontend or its shared engineering configuration. It can also be started manually. New runs
+cancel older work for the same branch or pull request.
+
+Linux and Windows both install the locked dependencies and run unit/component tests. Windows runs
+the type check and production build directly. Linux checks formatting and runs Chromium against a
+production preview; that browser command already includes type checking and the build.
+
+Node.js uses the supported 22 release line, while pnpm follows the version in `package.json`.
+The dependency cache is keyed by the frontend lockfile. Browser failures retain screenshots and
+traces as a workflow artifact for seven days. The workflow requires no project secrets and does
+not publish or deploy the application.
+
 ## Verify behavior at the owning boundary
 
 Unit and component tests cover domain transitions, restoration validation, rich-text conversion,
