@@ -1,0 +1,41 @@
+.viewport {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: min(480px, calc(100vw - 32px));
+  padding: 8px 16px;
+  border-radius: 16px;
+  color: white;
+  background: rgb(0 0 0 / 66%);
+  backdrop-filter: blur(25px);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast[data-visible='true'] {
+  opacity: 1;
+}
+
+@starting-style {
+  .toast[data-visible='true'] {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transition: none;
+  }
+}

@@ -16,9 +16,9 @@ import { useChatState } from '../chat/state/useChatState';
 import { useInputModality } from './useInputModality';
 import { useAppPreferences } from './settings/appPreferences';
 import { useThemeTransition } from './useThemeTransition';
+import { ToastViewport } from '../components/Toast';
+import { showToast } from '../components/toastStore';
 import styles from './ChatApp.module.css';
-
-const NOTICE_DURATION = 4000;
 
 /** Compose the application shell around persistent conversation state and transient panels. */
 export function ChatApp() {
@@ -33,7 +33,6 @@ export function ChatApp() {
   const [requestedMediaCommand, setRequestedMediaCommand] = useState<MediaViewerCommand>();
   const [mediaReturnMessage, setMediaReturnMessage] = useState<Message>();
   const [forwardDrafts, setForwardDrafts] = useState<Record<string, Message[]>>({});
-  const [notice, setNotice] = useState('');
   const [requestedChatId] = useState(() => new URL(window.location.href).searchParams.get('chat'));
   const isConversationDeleted =
     state.conversationPreferences?.[state.activeChatId]?.isDeleted ?? false;
@@ -62,15 +61,6 @@ export function ChatApp() {
   ],
   );
 
-  useEffect(() => {
-    if (!notice) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setNotice(''), NOTICE_DURATION);
-    return () => window.clearTimeout(timeout);
-  }, [notice]);
-
   function selectConversation(chatId: string) {
     dispatch({ type: 'select-chat', chatId });
     setIsMobileChatOpen(true);
@@ -84,7 +74,7 @@ export function ChatApp() {
     const resolvedCommand = resolveMediaViewerCommand({ command, messages: state.messages });
     if (!resolvedCommand) {
       setMediaMessage(undefined);
-      setNotice('This message is no longer available.');
+      showToast('This message is no longer available.');
       return;
     }
 
@@ -172,7 +162,7 @@ export function ChatApp() {
               }}
               onOpenMedia={setMediaMessage}
               onBack={() => setIsMobileChatOpen(false)}
-              onNotify={setNotice}
+              onNotify={showToast}
             />
           )}
           {!hasConversation && (
@@ -209,18 +199,14 @@ export function ChatApp() {
           onClose={() => setMediaMessage(undefined)}
           onNavigate={setMediaMessage}
           onCommand={runMediaViewerCommand}
-          onNotify={setNotice}
+          onNotify={showToast}
         />
         {storageError && (
           <div className={styles.storageError} role="alert">
             {storageError}
           </div>
         )}
-        {notice && (
-          <div className={styles.toast} role="status">
-            {notice}
-          </div>
-        )}
+        <ToastViewport />
       </div>
     </ContactActionsProvider>
   );

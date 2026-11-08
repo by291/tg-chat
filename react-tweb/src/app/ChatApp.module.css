@@ -95,7 +95,6 @@
   margin: 0;
 }
 
-.toast,
 .storageError {
   position: fixed;
   z-index: 60;
@@ -109,10 +108,6 @@
   box-shadow: var(--surface-shadow);
   font-size: 14px;
   transform: translateX(-50%);
-}
-
-.toast {
-  z-index: 100;
 }
 
 .storageError {
