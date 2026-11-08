@@ -331,6 +331,32 @@
         }
       }
     },
+    "/api/v1/chat/commands": {
+      "post": {
+        "tags": [],
+        "operationId": "command",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/MessageCommand" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CommandReceipt" } }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CommandConflict" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/sync": {
       "get": {
         "tags": [],
@@ -418,6 +444,12 @@
             "in": "query",
             "required": false,
             "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          {
+            "name": "around",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "responses": {
@@ -580,6 +612,10 @@
           "sequence",
           "version",
           "created_at",
+          "is_deleted",
+          "interaction_version",
+          "is_pinned",
+          "reactions",
           "content"
         ],
         "properties": {
@@ -588,8 +624,19 @@
           "content": { "$ref": "#/components/schemas/MessageContent" },
           "conversation_id": { "type": "string", "format": "uuid" },
           "created_at": { "type": "string", "format": "date-time" },
+          "edited_at": { "type": ["string", "null"], "format": "date-time" },
+          "expires_at": { "type": ["string", "null"], "format": "date-time" },
           "id": { "type": "string", "format": "uuid" },
+          "interaction_version": { "type": "string" },
+          "is_deleted": { "type": "boolean" },
+          "is_pinned": { "type": "boolean" },
+          "reactions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ReactionView" }
+          },
+          "reply": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ReplyView" }] },
           "sequence": { "type": "string" },
+          "service_kind": { "type": ["string", "null"] },
           "version": { "type": "string" }
         }
       },
@@ -606,6 +653,127 @@
           "email_recovery_available": { "type": "boolean" },
           "messaging_available": { "type": "boolean" },
           "registration_open": { "type": "boolean" }
+        }
+      },
+      "CommandAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["expected_version", "kind"],
+            "properties": {
+              "content": {
+                "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/MessageContent" }]
+              },
+              "expected_version": { "type": "string" },
+              "kind": { "type": "string", "enum": ["draft"] },
+              "reply": {
+                "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ReplyInput" }]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["through", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["read"] },
+              "through": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["is_archived", "is_hidden", "is_manually_unread", "keep_archived", "kind"],
+            "properties": {
+              "is_archived": { "type": "boolean" },
+              "is_hidden": { "type": "boolean" },
+              "is_manually_unread": { "type": "boolean" },
+              "keep_archived": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["preferences"] },
+              "muted_until": { "type": ["string", "null"], "format": "date-time" },
+              "pin_rank": { "type": ["integer", "null"], "format": "int32" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "type": "string", "enum": ["clear"] } }
+          },
+          {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "type": "string", "enum": ["close"] } }
+          },
+          {
+            "type": "object",
+            "required": ["days", "kind"],
+            "properties": {
+              "days": { "type": "integer", "format": "int32" },
+              "kind": { "type": "string", "enum": ["expiry"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "expected_version", "content", "kind"],
+            "properties": {
+              "content": { "$ref": "#/components/schemas/MessageContent" },
+              "expected_version": { "type": "string" },
+              "kind": { "type": "string", "enum": ["edit"] },
+              "message_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["delete"] },
+              "message_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["hide_message"] },
+              "message_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "emoji", "is_selected", "kind"],
+            "properties": {
+              "emoji": { "type": "string" },
+              "is_selected": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["reaction"] },
+              "message_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "is_pinned", "kind"],
+            "properties": {
+              "is_pinned": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["pin"] },
+              "message_id": { "type": "string", "format": "uuid" }
+            }
+          }
+        ]
+      },
+      "CommandConflict": {
+        "type": "object",
+        "required": ["error", "current"],
+        "properties": {
+          "current": { "$ref": "#/components/schemas/CommandReceipt" },
+          "error": { "$ref": "#/components/schemas/ErrorDetails" }
+        }
+      },
+      "CommandReceipt": {
+        "type": "object",
+        "properties": {
+          "conversation": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ConversationView" }]
+          },
+          "message": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CanonicalMessage" }]
+          }
         }
       },
       "ConversationView": {
@@ -626,20 +794,28 @@
           "clear_through",
           "is_archived",
           "is_hidden",
-          "is_manually_unread"
+          "is_manually_unread",
+          "keep_archived",
+          "expiry_days",
+          "peer_read_through",
+          "draft"
         ],
         "properties": {
           "clear_through": { "type": "string" },
+          "draft": { "$ref": "#/components/schemas/DraftView" },
+          "expiry_days": { "type": "integer", "format": "int32" },
           "generation": { "type": "string" },
           "id": { "type": "string", "format": "uuid" },
           "is_archived": { "type": "boolean" },
           "is_hidden": { "type": "boolean" },
           "is_manually_unread": { "type": "boolean" },
+          "keep_archived": { "type": "boolean" },
           "kind": { "type": "string" },
           "last_sequence": { "type": "string" },
           "muted_until": { "type": ["string", "null"], "format": "date-time" },
           "peer_id": { "type": "string", "format": "uuid" },
           "peer_name": { "type": "string" },
+          "peer_read_through": { "type": "string" },
           "peer_username": { "type": "string" },
           "pin_rank": { "type": ["integer", "null"], "format": "int32" },
           "read_through": { "type": "string" },
@@ -698,6 +874,17 @@
           "users": { "type": "array", "items": { "$ref": "#/components/schemas/PublicProfile" } }
         }
       },
+      "DraftView": {
+        "type": "object",
+        "required": ["version"],
+        "properties": {
+          "content": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/MessageContent" }]
+          },
+          "reply": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ReplyInput" }] },
+          "version": { "type": "string" }
+        }
+      },
       "EmailAddress": {
         "type": "object",
         "required": ["email"],
@@ -735,14 +922,16 @@
       "HealthStatus": { "type": "string", "enum": ["ok"] },
       "HistoryPage": {
         "type": "object",
-        "required": ["messages", "has_older", "has_newer"],
+        "required": ["messages", "has_older", "has_newer", "observation_cursor", "generation"],
         "properties": {
+          "generation": { "type": "string" },
           "has_newer": { "type": "boolean" },
           "has_older": { "type": "boolean" },
           "messages": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/CanonicalMessage" }
           },
+          "observation_cursor": { "type": "string" },
           "preceding_message": {
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CanonicalMessage" }]
           }
@@ -755,6 +944,16 @@
           "device_name": { "type": "string" },
           "password": { "type": "string" },
           "username": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "MessageCommand": {
+        "type": "object",
+        "required": ["operation_id", "conversation_id", "action"],
+        "properties": {
+          "action": { "$ref": "#/components/schemas/CommandAction" },
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "operation_id": { "type": "string", "format": "uuid" }
         },
         "additionalProperties": false
       },
@@ -838,6 +1037,15 @@
           "username": { "type": "string" }
         }
       },
+      "ReactionView": {
+        "type": "object",
+        "required": ["emoji", "count", "is_selected"],
+        "properties": {
+          "count": { "type": "string" },
+          "emoji": { "type": "string" },
+          "is_selected": { "type": "boolean" }
+        }
+      },
       "Registration": {
         "type": "object",
         "required": ["username", "password", "display_name", "device_name"],
@@ -855,14 +1063,34 @@
         "properties": { "target_id": { "type": "string", "format": "uuid" } },
         "additionalProperties": false
       },
+      "ReplyInput": {
+        "type": "object",
+        "required": ["message_id"],
+        "properties": {
+          "message_id": { "type": "string", "format": "uuid" },
+          "quote": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      },
+      "ReplyView": {
+        "type": "object",
+        "required": ["message_id", "is_unavailable"],
+        "properties": {
+          "is_unavailable": { "type": "boolean" },
+          "message_id": { "type": "string", "format": "uuid" },
+          "quote": { "type": ["string", "null"] }
+        }
+      },
       "SendMessage": {
         "type": "object",
         "required": ["operation_id", "message_id", "destination", "content"],
         "properties": {
           "content": { "$ref": "#/components/schemas/MessageContent" },
           "destination": { "$ref": "#/components/schemas/Destination" },
+          "draft_version": { "type": ["string", "null"] },
           "message_id": { "type": "string", "format": "uuid" },
-          "operation_id": { "type": "string", "format": "uuid" }
+          "operation_id": { "type": "string", "format": "uuid" },
+          "reply": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ReplyInput" }] }
         },
         "additionalProperties": false
       },
@@ -889,13 +1117,17 @@
       },
       "SyncGroup": {
         "type": "object",
-        "required": ["position", "conversation"],
+        "required": ["position", "conversation_id"],
         "properties": {
-          "conversation": { "$ref": "#/components/schemas/ConversationView" },
+          "conversation": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ConversationView" }]
+          },
+          "conversation_id": { "type": "string", "format": "uuid" },
           "message": {
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CanonicalMessage" }]
           },
-          "position": { "type": "string" }
+          "position": { "type": "string" },
+          "removed_message_id": { "type": ["string", "null"], "format": "uuid" }
         }
       },
       "SyncPage": {

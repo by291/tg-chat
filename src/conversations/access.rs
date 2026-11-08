@@ -152,11 +152,15 @@ pub(crate) async fn admit_members(
         if conversation.kind != "saved" {
             check_capacity(connection, user_id).await?;
         }
-        sqlx::query("INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)")
-            .bind(conversation.id)
-            .bind(user_id)
-            .execute(&mut *connection)
-            .await?;
+        sqlx::query(
+            "INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)
+             ON CONFLICT (conversation_id, user_id) DO UPDATE SET directory_active = true,
+                 generation = conversation_members.generation + 1, is_hidden = false",
+        )
+        .bind(conversation.id)
+        .bind(user_id)
+        .execute(&mut *connection)
+        .await?;
     }
 
     Ok(())

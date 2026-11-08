@@ -60,3 +60,31 @@ pub(crate) async fn personalize(
 
     Ok(())
 }
+
+pub(crate) struct ReplyCheck<'a> {
+    pub user_id: Uuid,
+    pub conversation_id: Uuid,
+    pub reply: &'a super::ReplyInput,
+}
+
+/// Validate a reply against a currently visible source in the same conversation.
+pub(crate) async fn validate_reply(
+    connection: &mut PgConnection,
+    check: ReplyCheck<'_>,
+) -> Result<(), AccountError> {
+    let mut statement = QueryBuilder::new(
+        "SELECT message.content->>'text' FROM messages message WHERE message.id = ",
+    );
+    statement.push_bind(check.reply.message_id);
+    statement.push(" AND message.conversation_id = ").push_bind(check.conversation_id);
+    restrict_visible(&mut statement, check.user_id);
+    let source: Option<String> = statement.build_query_scalar().fetch_optional(connection).await?;
+    let source = source.ok_or(AccountError::NotFound)?;
+    let is_invalid_quote =
+        check.reply.quote.as_ref().is_some_and(|quote| quote.is_empty() || !source.contains(quote));
+    if is_invalid_quote {
+        return Err(AccountError::Validation("quote must occur in the reply target"));
+    }
+
+    Ok(())
+}

@@ -1,3 +1,6 @@
+#[allow(dead_code)]
+pub mod messaging;
+
 use std::collections::HashMap;
 
 use base64::{Engine, engine::general_purpose::STANDARD};

@@ -304,6 +304,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/chat/commands': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['command'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/chat/sync': {
     parameters: {
       query?: never;
@@ -462,9 +478,19 @@ export interface components {
       conversation_id: string;
       /** Format: date-time */
       created_at: string;
+      /** Format: date-time */
+      edited_at?: string | null;
+      /** Format: date-time */
+      expires_at?: string | null;
       /** Format: uuid */
       id: string;
+      interaction_version: string;
+      is_deleted: boolean;
+      is_pinned: boolean;
+      reactions: components['schemas']['ReactionView'][];
+      reply?: null | components['schemas']['ReplyView'];
       sequence: string;
+      service_kind?: string | null;
       version: string;
     };
     Capabilities: {
@@ -473,14 +499,100 @@ export interface components {
       messaging_available: boolean;
       registration_open: boolean;
     };
+    CommandAction:
+      | {
+          content?: null | components['schemas']['MessageContent'];
+          expected_version: string;
+          /** @enum {string} */
+          kind: 'draft';
+          reply?: null | components['schemas']['ReplyInput'];
+        }
+      | {
+          /** @enum {string} */
+          kind: 'read';
+          through: string;
+        }
+      | {
+          is_archived: boolean;
+          is_hidden: boolean;
+          is_manually_unread: boolean;
+          keep_archived: boolean;
+          /** @enum {string} */
+          kind: 'preferences';
+          /** Format: date-time */
+          muted_until?: string | null;
+          /** Format: int32 */
+          pin_rank?: number | null;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'clear';
+        }
+      | {
+          /** @enum {string} */
+          kind: 'close';
+        }
+      | {
+          /** Format: int32 */
+          days: number;
+          /** @enum {string} */
+          kind: 'expiry';
+        }
+      | {
+          content: components['schemas']['MessageContent'];
+          expected_version: string;
+          /** @enum {string} */
+          kind: 'edit';
+          /** Format: uuid */
+          message_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'delete';
+          /** Format: uuid */
+          message_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'hide_message';
+          /** Format: uuid */
+          message_id: string;
+        }
+      | {
+          emoji: string;
+          is_selected: boolean;
+          /** @enum {string} */
+          kind: 'reaction';
+          /** Format: uuid */
+          message_id: string;
+        }
+      | {
+          is_pinned: boolean;
+          /** @enum {string} */
+          kind: 'pin';
+          /** Format: uuid */
+          message_id: string;
+        };
+    CommandConflict: {
+      current: components['schemas']['CommandReceipt'];
+      error: components['schemas']['ErrorDetails'];
+    };
+    CommandReceipt: {
+      conversation?: null | components['schemas']['ConversationView'];
+      message?: null | components['schemas']['CanonicalMessage'];
+    };
     ConversationView: {
       clear_through: string;
+      draft: components['schemas']['DraftView'];
+      /** Format: int32 */
+      expiry_days: number;
       generation: string;
       /** Format: uuid */
       id: string;
       is_archived: boolean;
       is_hidden: boolean;
       is_manually_unread: boolean;
+      keep_archived: boolean;
       kind: string;
       last_sequence: string;
       /** Format: date-time */
@@ -488,6 +600,7 @@ export interface components {
       /** Format: uuid */
       peer_id: string;
       peer_name: string;
+      peer_read_through: string;
       peer_username: string;
       /** Format: int32 */
       pin_rank?: number | null;
@@ -530,6 +643,11 @@ export interface components {
       next_cursor?: string | null;
       users: components['schemas']['PublicProfile'][];
     };
+    DraftView: {
+      content?: null | components['schemas']['MessageContent'];
+      reply?: null | components['schemas']['ReplyInput'];
+      version: string;
+    };
     EmailAddress: {
       email: string;
     };
@@ -551,15 +669,24 @@ export interface components {
     /** @enum {string} */
     HealthStatus: 'ok';
     HistoryPage: {
+      generation: string;
       has_newer: boolean;
       has_older: boolean;
       messages: components['schemas']['CanonicalMessage'][];
+      observation_cursor: string;
       preceding_message?: null | components['schemas']['CanonicalMessage'];
     };
     Login: {
       device_name: string;
       password: string;
       username: string;
+    };
+    MessageCommand: {
+      action: components['schemas']['CommandAction'];
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: uuid */
+      operation_id: string;
     };
     MessageContent: {
       custom_emoji: components['schemas']['CustomEmoji'][];
@@ -608,6 +735,11 @@ export interface components {
       id: string;
       username: string;
     };
+    ReactionView: {
+      count: string;
+      emoji: string;
+      is_selected: boolean;
+    };
     Registration: {
       device_name: string;
       display_name: string;
@@ -618,13 +750,26 @@ export interface components {
       /** Format: uuid */
       target_id: string;
     };
+    ReplyInput: {
+      /** Format: uuid */
+      message_id: string;
+      quote?: string | null;
+    };
+    ReplyView: {
+      is_unavailable: boolean;
+      /** Format: uuid */
+      message_id: string;
+      quote?: string | null;
+    };
     SendMessage: {
       content: components['schemas']['MessageContent'];
       destination: components['schemas']['Destination'];
+      draft_version?: string | null;
       /** Format: uuid */
       message_id: string;
       /** Format: uuid */
       operation_id: string;
+      reply?: null | components['schemas']['ReplyInput'];
     };
     SendReceipt: {
       conversation: components['schemas']['ConversationView'];
@@ -645,9 +790,13 @@ export interface components {
       last_seen_at: string;
     };
     SyncGroup: {
-      conversation: components['schemas']['ConversationView'];
+      conversation?: null | components['schemas']['ConversationView'];
+      /** Format: uuid */
+      conversation_id: string;
       message?: null | components['schemas']['CanonicalMessage'];
       position: string;
+      /** Format: uuid */
+      removed_message_id?: string | null;
     };
     SyncPage: {
       cursor: string;
@@ -1135,6 +1284,37 @@ export interface operations {
       };
     };
   };
+  command: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MessageCommand'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CommandReceipt'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CommandConflict'];
+        };
+      };
+    };
+  };
   sync: {
     parameters: {
       query: {
@@ -1228,6 +1408,7 @@ export interface operations {
         before?: string;
         after?: string;
         limit?: number;
+        around?: string;
       };
       header?: never;
       path: {

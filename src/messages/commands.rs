@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::PgConnection;
@@ -32,6 +33,27 @@ pub struct MessageCommand {
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CommandAction {
+    Draft {
+        expected_version: String,
+        content: Option<MessageContent>,
+        reply: Option<super::ReplyInput>,
+    },
+    Read {
+        through: String,
+    },
+    Preferences {
+        is_archived: bool,
+        is_hidden: bool,
+        is_manually_unread: bool,
+        pin_rank: Option<i32>,
+        muted_until: Option<DateTime<Utc>>,
+        keep_archived: bool,
+    },
+    Clear,
+    Close,
+    Expiry {
+        days: i32,
+    },
     Edit {
         message_id: Uuid,
         expected_version: String,
@@ -61,7 +83,7 @@ pub struct CommandReceipt {
 }
 
 impl CommandAction {
-    fn message_id(&self) -> Uuid {
+    pub(crate) fn message_id(&self) -> Option<Uuid> {
         match self {
             Self::Edit {
                 message_id,
@@ -80,15 +102,16 @@ impl CommandAction {
             | Self::Pin {
                 message_id,
                 ..
-            } => *message_id,
+            } => Some(*message_id),
+            _ => None,
         }
     }
 }
 
-struct CommandContext<'a> {
-    actor: &'a Actor,
-    input: &'a MessageCommand,
-    conversation: &'a access::LockedConversation,
+pub(crate) struct CommandContext<'a> {
+    pub actor: &'a Actor,
+    pub input: &'a MessageCommand,
+    pub conversation: &'a access::LockedConversation,
 }
 
 /// Recalculate personal unread state from the same visibility rules used by history.
@@ -276,31 +299,49 @@ async fn apply(
             .execute(&mut *connection)
             .await?;
         }
+        _ => return Err(AccountError::Validation("expected a message action").into()),
     }
-    repair_unread(connection, context.input.conversation_id).await?;
-    sqlx::query("UPDATE conversations SET version = version + 1 WHERE id = $1")
-        .bind(context.input.conversation_id)
-        .execute(&mut *connection)
-        .await?;
-    let participants = if matches!(context.input.action, CommandAction::HideMessage { .. }) {
-        vec![context.actor.user_id]
-    } else {
-        context.conversation.participants()
-    };
-    changes::append(
-        connection,
-        ChangeGroup {
-            participants: &participants,
-            conversation_id: context.input.conversation_id,
-            message_id: Some(message.id),
-        },
-    )
-    .await?;
 
     Ok(())
 }
 
 impl MessageService {
+    /// Read the current authorized command resources for an explicit conflict response.
+    pub(crate) async fn command_snapshot(
+        &self,
+        actor: Actor,
+        input: &MessageCommand,
+    ) -> Result<CommandReceipt, AccountError> {
+        let mut transaction = self.snapshot(&actor).await?;
+        let conversation =
+            match conversations::view(&mut transaction, actor.user_id, input.conversation_id).await
+            {
+                Ok(conversation) => Some(conversation),
+                Err(AccountError::NotFound) => None,
+                Err(error) => return Err(error),
+            };
+        let message = if let Some(message_id) =
+            input.action.message_id().filter(|_| conversation.is_some())
+        {
+            let receipt = acceptance::receipt(&mut transaction, actor.user_id, message_id).await;
+            match receipt {
+                Ok(receipt) if receipt.message.conversation_id == input.conversation_id => {
+                    Some(receipt.message)
+                }
+                Ok(_) | Err(AccountError::NotFound) => None,
+                Err(error) => return Err(error),
+            }
+        } else {
+            None
+        };
+        transaction.commit().await?;
+
+        Ok(CommandReceipt {
+            conversation,
+            message,
+        })
+    }
+
     /// Apply one idempotent lifecycle command under the conversation and participant locks.
     pub async fn command(
         &self,
@@ -333,20 +374,22 @@ impl MessageService {
         let conversation = access::lock_conversation(&mut transaction, actor, &destination).await?;
         access::lock_participants(&mut transaction, &conversation).await?;
         lock_actor(&mut transaction, actor, &self.accounts.settings).await?;
-        conversations::view(&mut transaction, actor.user_id, conversation.id).await?;
 
-        let previous = sqlx::query_scalar::<_, Vec<u8>>(
-            "SELECT payload_hash FROM command_receipts WHERE actor_id = $1 AND operation_id = $2",
+        let previous = sqlx::query_as::<_, (Vec<u8>, Option<Uuid>)>(
+            "SELECT payload_hash, message_id FROM command_receipts WHERE actor_id = $1 AND operation_id = $2",
         )
         .bind(actor.user_id)
         .bind(input.operation_id)
         .fetch_optional(&mut *transaction)
         .await?;
-        if let Some(previous) = previous {
+        let message_id;
+        if let Some((previous, previous_message_id)) = previous {
             if previous != hash {
                 return Err(AccountError::MessageConflict.into());
             }
+            message_id = previous_message_id;
         } else {
+            conversations::view(&mut transaction, actor.user_id, conversation.id).await?;
             let is_send_identity: bool = sqlx::query_scalar(
                 "SELECT EXISTS (SELECT 1 FROM message_identities
                  WHERE author_id = $1 AND operation_id = $2)",
@@ -363,7 +406,39 @@ impl MessageService {
                 input,
                 conversation: &conversation,
             };
-            apply(&mut transaction, &context).await?;
+            message_id = if input.action.message_id().is_some() {
+                apply(&mut transaction, &context).await?;
+                input.action.message_id()
+            } else {
+                conversations::state::apply(&mut transaction, &context).await?
+            };
+            repair_unread(&mut transaction, conversation.id).await?;
+            sqlx::query("UPDATE conversations SET version = version + 1 WHERE id = $1")
+                .bind(conversation.id)
+                .execute(&mut *transaction)
+                .await?;
+            let is_personal = matches!(
+                input.action,
+                CommandAction::HideMessage { .. }
+                    | CommandAction::Draft { .. }
+                    | CommandAction::Preferences { .. }
+                    | CommandAction::Clear
+                    | CommandAction::Close
+            );
+            let participants = if is_personal {
+                vec![actor.user_id]
+            } else {
+                conversation.participants()
+            };
+            changes::append(
+                &mut transaction,
+                ChangeGroup {
+                    participants: &participants,
+                    conversation_id: conversation.id,
+                    message_id,
+                },
+            )
+            .await?;
             let insert = sqlx::query(
                 "INSERT INTO command_receipts
                  (actor_id, operation_id, payload_hash, conversation_id, message_id)
@@ -371,16 +446,25 @@ impl MessageService {
             )
             .bind(actor.user_id)
             .bind(input.operation_id);
-            let insert = insert.bind(hash).bind(conversation.id).bind(input.action.message_id());
+            let insert = insert.bind(hash).bind(conversation.id).bind(message_id);
             insert.execute(&mut *transaction).await?;
         }
-        let receipt =
-            acceptance::receipt(&mut transaction, actor.user_id, input.action.message_id()).await?;
+        let conversation =
+            match conversations::view(&mut transaction, actor.user_id, conversation.id).await {
+                Ok(conversation) => Some(conversation),
+                Err(AccountError::NotFound) => None,
+                Err(error) => return Err(error.into()),
+            };
+        let message = if let Some(message_id) = message_id.filter(|_| conversation.is_some()) {
+            Some(acceptance::receipt(&mut transaction, actor.user_id, message_id).await?.message)
+        } else {
+            None
+        };
         transaction.commit().await?;
 
         Ok(CommandReceipt {
-            conversation: Some(receipt.conversation),
-            message: Some(receipt.message),
+            conversation,
+            message,
         })
     }
 }

@@ -3,42 +3,9 @@ mod support;
 
 use serde_json::json;
 use sqlx::PgPool;
-use tg_chat::{
-    accounts::{AccountError, AccountService, AccountSettings, Actor},
-    messages::{MessageCommand, MessageService, SendMessage},
-};
+use support::messaging::{command, fixture, send_input};
+use tg_chat::accounts::AccountError;
 use uuid::Uuid;
-
-fn send_input(recipient: Uuid) -> SendMessage {
-    serde_json::from_value(json!({
-        "operation_id": Uuid::new_v4(),
-        "message_id": Uuid::new_v4(),
-        "destination": {"kind": "recipient", "user_id": recipient},
-        "content": {
-            "schema_version": 1,
-            "text": "Original text",
-            "custom_emoji": []
-        }
-    }))
-    .unwrap()
-}
-
-fn command(conversation_id: Uuid, action: serde_json::Value) -> MessageCommand {
-    serde_json::from_value(json!({
-        "operation_id": Uuid::new_v4(),
-        "conversation_id": conversation_id,
-        "action": action
-    }))
-    .unwrap()
-}
-
-async fn fixture(pool: PgPool) -> (MessageService, Actor, Actor) {
-    let accounts = AccountService::new(pool, AccountSettings::default());
-    let alice = support::account(&accounts, "alice").await;
-    let bobby = support::account(&accounts, "bobby").await;
-
-    (MessageService::new(accounts), alice, bobby)
-}
 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]

@@ -3,13 +3,16 @@ use axum::http::request::Parts;
 use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, FromRequestParts, Path, State},
+    http::StatusCode,
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use utoipa::OpenApi;
 use uuid::Uuid;
 
 use super::{
-    CanonicalMessage, HistoryPage, HistoryQuery, MessageService, SendMessage, SendReceipt,
+    CanonicalMessage, CommandReceipt, HistoryPage, HistoryQuery, MessageCommand, MessageService,
+    SendMessage, SendReceipt,
 };
 use crate::{
     accounts::{
@@ -22,7 +25,7 @@ use crate::{
 const MAX_MESSAGE_BODY_BYTES: usize = 128 * 1024;
 
 #[derive(OpenApi)]
-#[openapi(paths(bootstrap, sync, send, message, history))]
+#[openapi(paths(bootstrap, sync, send, message, history, command))]
 pub struct MessageDocument;
 
 #[utoipa::path(
@@ -146,6 +149,48 @@ async fn history(
     Ok(Json(page))
 }
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+struct CommandConflict {
+    error: crate::http::ErrorDetails,
+    current: CommandReceipt,
+}
+
+#[utoipa::path(
+    post, path = "/api/v1/chat/commands", request_body = MessageCommand,
+    responses((status = 200, body = CommandReceipt), (status = 409, body = CommandConflict))
+)]
+async fn command(
+    State(state): State<AccountHttpState>,
+    context: ActorContext,
+    SafeJson(input): SafeJson<MessageCommand>,
+) -> Result<Response, ApiFailure> {
+    state
+        .limiter
+        .admit_message(&context.actor.user_id.to_string())
+        .await
+        .map_err(|error| context.request.failure(error))?;
+    let service = MessageService::new(state.accounts);
+    match service.command(context.actor.clone(), input.clone()).await {
+        Ok(receipt) => Ok(Json(receipt).into_response()),
+        Err(AccountError::MessageConflict) => {
+            let current = service
+                .command_snapshot(context.actor, &input)
+                .await
+                .map_err(|error| context.request.failure(error))?;
+            let conflict = CommandConflict {
+                error: crate::http::ErrorDetails {
+                    code: "message_conflict",
+                    message: "The resource changed; reconcile its current version".to_owned(),
+                    request_id: context.request.request_id,
+                },
+                current,
+            };
+            Ok((StatusCode::CONFLICT, Json(conflict)).into_response())
+        }
+        Err(error) => Err(context.request.failure(error)),
+    }
+}
+
 /// Attach messaging routes to the existing cookie, CSRF, Origin, and no-store boundaries.
 pub(crate) fn router() -> Router<AccountHttpState> {
     let routes =
@@ -153,6 +198,7 @@ pub(crate) fn router() -> Router<AccountHttpState> {
     let routes =
         routes.route("/messages", post(send)).route("/messages/{message_id}", get(message));
     routes
+        .route("/chat/commands", post(command))
         .route("/conversations/{conversation_id}/history", get(history))
         .layer(DefaultBodyLimit::max(MAX_MESSAGE_BODY_BYTES))
 }

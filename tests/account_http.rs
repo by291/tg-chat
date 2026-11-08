@@ -359,4 +359,48 @@ async fn messaging_replay_preserves_identity_and_requires_session_csrf(pool: PgP
     let count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM messages").fetch_one(&pool).await.unwrap();
     assert_eq!(count, 1);
+
+    let mut edit = json!({
+        "operation_id": Uuid::new_v4(),
+        "conversation_id": first["conversation"]["id"],
+        "action": {
+            "kind": "edit",
+            "message_id": first["message"]["id"],
+            "expected_version": "1",
+            "content": {
+                "schema_version": 1,
+                "text": "Edited through HTTP",
+                "custom_emoji": []
+            }
+        }
+    });
+    let (status, _, _) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/chat/commands",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: Some(csrf),
+            body: edit.clone(),
+        },
+    )
+    .await;
+    assert_eq!(status, 200);
+    edit["operation_id"] = json!(Uuid::new_v4());
+    let (status, _, conflict) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/chat/commands",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: Some(csrf),
+            body: edit,
+        },
+    )
+    .await;
+    assert_eq!(status, 409);
+    assert_eq!(conflict["current"]["message"]["version"], "2");
+    assert_eq!(conflict["error"]["code"], "message_conflict");
 }

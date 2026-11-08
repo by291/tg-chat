@@ -28,6 +28,8 @@ pub struct SendMessage {
     pub content: MessageContent,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reply: Option<ReplyInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft_version: Option<String>,
 }
 
 #[derive(Clone, FromRow, Serialize, ToSchema)]

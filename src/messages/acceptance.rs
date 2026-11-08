@@ -108,7 +108,8 @@ pub(crate) async fn insert(
         .bind(sqlx::types::Json(&message.input.content));
     insert.execute(&mut *connection).await?;
     sqlx::query(
-        "UPDATE conversation_members SET unread_count = unread_count + 1
+        "UPDATE conversation_members SET unread_count = unread_count + 1, is_hidden = false,
+         is_archived = CASE WHEN keep_archived OR muted_until > now() THEN is_archived ELSE false END
          WHERE conversation_id = $1 AND user_id != $2",
     )
     .bind(message.conversation.id)
@@ -123,22 +124,15 @@ pub(crate) async fn insert(
     .bind(message.input.message_id);
     receipt_insert.execute(&mut *connection).await?;
     if let Some(reply) = &message.input.reply {
-        let mut statement = sqlx::QueryBuilder::new(
-            "SELECT message.content->>'text' FROM messages message WHERE message.id = ",
-        );
-        statement.push_bind(reply.message_id);
-        statement.push(" AND message.conversation_id = ").push_bind(message.conversation.id);
-        super::projection::restrict_visible(&mut statement, message.actor.user_id);
-        let source: String = statement
-            .build_query_scalar()
-            .fetch_optional(&mut *connection)
-            .await?
-            .ok_or(AccountError::NotFound)?;
-        let is_invalid_quote =
-            reply.quote.as_ref().is_some_and(|quote| quote.is_empty() || !source.contains(quote));
-        if is_invalid_quote {
-            return Err(AccountError::Validation("quote must occur in the reply target").into());
-        }
+        super::projection::validate_reply(
+            connection,
+            super::projection::ReplyCheck {
+                user_id: message.actor.user_id,
+                conversation_id: message.conversation.id,
+                reply,
+            },
+        )
+        .await?;
         let update =
             sqlx::query("UPDATE messages SET reply_id = $2, reply_quote = $3 WHERE id = $1")
                 .bind(message.input.message_id)
@@ -155,6 +149,18 @@ pub(crate) async fn insert(
     .bind(message.input.message_id)
     .execute(&mut *connection)
     .await?;
+    if let Some(expected_version) = &message.input.draft_version {
+        let expected_version = super::history::parse_sequence(expected_version)?;
+        let clear = sqlx::query(
+            "UPDATE conversation_members SET draft_version = draft_version + 1,
+             draft_content = NULL, draft_reply = NULL
+             WHERE conversation_id = $1 AND user_id = $2 AND draft_version = $3",
+        )
+        .bind(message.conversation.id)
+        .bind(message.actor.user_id)
+        .bind(expected_version);
+        clear.execute(&mut *connection).await?;
+    }
     changes::append(
         connection,
         ChangeGroup {

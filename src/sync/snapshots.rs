@@ -91,7 +91,11 @@ impl MessageService {
             .push(" WHERE member.directory_active AND member.user_id = ")
             .push_bind(actor.user_id);
         statement.push(" ORDER BY conversation.updated_at DESC, conversation.id");
-        let conversations = statement.build_query_as().fetch_all(&mut *transaction).await?;
+        let mut conversations: Vec<ConversationView> =
+            statement.build_query_as().fetch_all(&mut *transaction).await?;
+        for conversation in &mut conversations {
+            conversations::scrub_draft_reply(&mut transaction, actor.user_id, conversation).await?;
+        }
         let scope = CursorScope::read(&mut transaction, actor.user_id).await?;
         transaction.commit().await?;
 
