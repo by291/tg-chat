@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHistoryMessages } from '../demo/historyFixtures';
 import { createHistoryRows } from './historyRows';
 import type { MessageNavigation } from './MessageTimeline';
@@ -15,6 +15,7 @@ const VIEWPORT_HEIGHT = 400;
 const ROW_HEIGHT = 80.5;
 const HISTORY_MESSAGE_COUNT = 100;
 const SHORT_HISTORY_MESSAGE_COUNT = 2;
+const FRAME_DURATION_MS = 16;
 const ANIMATION_SAMPLE_DELAY_MS = 80;
 const LATE_REVEAL_DELAY_MS = 210;
 const ANIMATION_SETTLE_DELAY_MS = 650;
@@ -62,7 +63,23 @@ beforeAll(() => {
   };
 });
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.useFakeTimers({
+    toFake: [
+      'setTimeout',
+      'clearTimeout',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'performance',
+      'Date',
+    ],
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 interface HistoryScreenProps {
   navigation?: MessageNavigation;
@@ -120,9 +137,8 @@ function HistoryScreen({ navigation, historyRows = rows, overlayInsets }: Histor
 }
 
 async function settleInitialFrame() {
-  await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
+  await advanceAnimation(FRAME_DURATION_MS);
+  await advanceAnimation(FRAME_DURATION_MS);
 }
 
 function appendMessage({ authorId }: { authorId: string }) {
@@ -133,7 +149,7 @@ function appendMessage({ authorId }: { authorId: string }) {
 
 async function advanceAnimation(milliseconds: number) {
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, milliseconds));
+    await vi.advanceTimersByTimeAsync(milliseconds);
   });
 }
 
@@ -142,7 +158,7 @@ describe('initial virtual positioning', () => {
     render(<HistoryScreen />);
     await settleInitialFrame();
 
-    const previousRow = await screen.findByText('lab-history-99');
+    const previousRow = screen.getByText('lab-history-99');
     const lastRow = screen.getByText('lab-history-100');
     const distance =
       Number.parseFloat(lastRow.style.top) - Number.parseFloat(previousRow.style.top);
@@ -153,7 +169,7 @@ describe('initial virtual positioning', () => {
   it('keeps an initial reply navigation instead of overwriting it with a bottom jump', async () => {
     render(<HistoryScreen navigation={{ messageId: 'lab-history-12', requestId: 1 }} />);
     await settleInitialFrame();
-    await waitFor(() => expect(screen.getByText('lab-history-12')).toBeTruthy());
+    expect(screen.getByText('lab-history-12')).toBeTruthy();
     expect(screen.queryByText('lab-history-100')).toBeNull();
   });
 
@@ -164,7 +180,7 @@ describe('initial virtual positioning', () => {
       </StrictMode>,
     );
     await settleInitialFrame();
-    await waitFor(() => expect(screen.getByText('lab-history-100')).toBeTruthy());
+    expect(screen.getByText('lab-history-100')).toBeTruthy();
     expect(screen.queryByText('lab-history-1')).toBeNull();
   });
 });
@@ -187,9 +203,7 @@ describe('latest message navigation', () => {
     expect(viewport.scrollTop).toBe(startingOffset);
     expect(screen.getByTestId('animated-rows').style.transform).toBe('');
     await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
-    await waitFor(() => {
-      expect(viewport.scrollTop).toBeCloseTo(viewport.scrollHeight - viewport.clientHeight, 0);
-    });
+    expect(viewport.scrollTop).toBeCloseTo(viewport.scrollHeight - viewport.clientHeight, 0);
   });
 
   it('does not resume a cancelled bottom navigation after the next layout update', async () => {
@@ -245,7 +259,8 @@ describe('new message reveal', () => {
     expect(viewport.scrollTop).toBeGreaterThan(startingOffset);
     expect(viewport.scrollTop).toBeLessThan(endingOffset - 1);
 
-    await waitFor(() => expect(viewport.scrollTop).toBeCloseTo(endingOffset, 0));
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+    expect(viewport.scrollTop).toBeCloseTo(endingOffset, 0);
   });
 
   it('preserves the reading position when an incoming message arrives away from the bottom', async () => {

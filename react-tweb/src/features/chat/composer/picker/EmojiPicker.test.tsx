@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmojiPicker } from './EmojiPicker';
@@ -23,17 +23,18 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe('field emoji picker', () => {
   it('waits for a click instead of opening a field palette on hover', async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
     render(<EmojiPicker variant="field" label="Option emoji" onSelectEmoji={() => {}} />);
     const trigger = screen.getByRole('button', { name: 'Option emoji' });
-    await user.hover(trigger);
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, HOVER_OBSERVATION_TIME));
+      await vi.advanceTimersByTimeAsync(HOVER_OBSERVATION_TIME);
     });
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
