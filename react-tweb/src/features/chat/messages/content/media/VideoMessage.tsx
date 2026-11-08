@@ -6,7 +6,7 @@ import type { MessageMedia } from '@/domain/messages/media';
 import { formatMediaDuration } from './VoiceMessage';
 import { useDeferredMediaSource } from './deferredMedia';
 import { useVideoPreview } from './useVideoPreview';
-import { pauseOtherMedia } from '@/lib/media/playback';
+import { pauseOtherMedia } from '@/lib/mediaPlayback';
 import styles from './VideoMessage.module.css';
 
 const ROUND_DESKTOP_SIZE = 280;

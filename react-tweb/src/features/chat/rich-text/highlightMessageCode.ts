@@ -1,6 +1,6 @@
 import Prism from 'prismjs';
 import { detectCodeLanguage } from './detectCodeLanguage';
-import { getCodeLanguageDependencies, resolveCodeLanguage } from '@/lib/code/codeLanguageLabels';
+import { getCodeLanguageDependencies, resolveCodeLanguage } from '@/lib/codeLanguages';
 
 const grammarModules = import.meta.glob([
   '/node_modules/prismjs/components/prism-*.js',

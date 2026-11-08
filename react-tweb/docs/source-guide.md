@@ -5,7 +5,7 @@
 Read these files in order:
 
 1. `index.html` paints the initial background and sidebar before application modules arrive.
-2. `src/main.tsx` mounts React and global styles; `src/app/App.tsx` installs navigation and input policy.
+2. `src/main.tsx` mounts React and global styles; `src/App.tsx` installs navigation and input policy.
 3. `src/pages/chat/ChatPage.tsx` coordinates URL selection, chat state, and feature panels.
 4. `src/layouts/chat/ChatLayout.tsx` arranges the sidebar, conversation, details, and overlay slots.
 5. `src/features/chat/state/useChatState.ts` restores IndexedDB and persists reducer snapshots.
@@ -57,7 +57,7 @@ than collecting every component or hook in one large directory. Styles and tests
 
 | Directory                         | Responsibility                                                               |
 | --------------------------------- | ---------------------------------------------------------------------------- |
-| `src/app/`                        | Router setup and application-wide input policy                               |
+| `src/App.tsx`                     | Router setup and application-wide input policy                               |
 | `src/pages/chat/`                 | Workspace state and cross-feature orchestration                              |
 | `src/layouts/`                    | Responsive chat geometry, startup handoff, and sidebar transitions           |
 | `src/domain/messages/`            | Message/media schemas, interactions, emoji entities, safe rich text          |
@@ -107,7 +107,7 @@ and imperative palette operations respectively.
 `useViewerTransform` owns transform state, geometry, and settling. `useViewerPointerInput` adapts
 drag/pinch/pointer continuation and `useViewerWheelInput` adapts wheel/modifier input to that owner.
 `viewerGeometry` measures layout and `viewerGesture` calculates pan, inertia, and swipe decisions.
-`lib/media/playback` arbitrates audible playback across messages and the viewer; message visibility
+`lib/mediaPlayback` arbitrates audible playback across messages and the viewer; message visibility
 observation stays with message rendering. `historyViewportPolicy` defines read and prefetch decisions;
 `useVirtualHistory` retains scroll scheduling, request deduplication, navigation, and anchor recovery.
 
@@ -119,7 +119,8 @@ policy and still runs before storage/restoration and rendering.
 `ChatState` and `ChatAction` remain under chat state because they describe application coordination,
 not reusable message values. Shared components, hooks, and infrastructure must not import features.
 Generic overlay styles live under `components/overlays`; mute-specific controls keep their styles
-beside `ConversationMuteDialog`.
+beside `ConversationMuteDialog`. Small shared tools live directly under `lib`; `codeLanguages.ts`
+keeps language aliases, labels, grammar dependencies, and syntax hints together.
 
 The source guide is the current ownership map. Dated implementation plans retain the paths used
 when they were written. No storage migration, new feature loading boundary, or public asset change
@@ -164,7 +165,7 @@ storage notice. One tab is the supported editing owner; cross-tab reconciliation
 
 ### URL navigation and preference ownership
 
-`src/app/App.tsx` mounts `BrowserRouter`. `src/routes/useAppNavigation.ts` owns the `chat`, `sidebar`,
+`src/App.tsx` mounts `BrowserRouter`. `src/routes/useAppNavigation.ts` owns the `chat`, `sidebar`,
 `settings`, and `settingsPage` search parameters. Existing `?chat=` links continue to work, and
 unrelated parameters survive navigation. Settings categories and search results use stable catalog
 IDs; General Settings also supports the nested `power` and `wallpaper` destinations. Invalid settings
@@ -176,7 +177,7 @@ deleted chats show the unselected screen and cannot be resurrected by browser hi
 selection may reopen a deleted local contact. Sidebar panels retain their mounted contents, focus,
 and scroll positions; menus, confirmation dialogs, creation forms, and search text remain local UI state.
 
-`src/lib/preferences/createPreferenceStore.ts` uses Zustand for snapshots and subscriptions while retaining
+`src/lib/createPreferenceStore.ts` uses Zustand for snapshots and subscriptions while retaining
 the existing localStorage keys, raw JSON shapes, Zod validation, and cross-tab storage events. Hot
 rendering paths select individual preferences, such as time format or large emoji, so unrelated
 settings do not invalidate their subscriptions. Imperative readers remain available to playback

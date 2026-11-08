@@ -13,7 +13,7 @@ import {
 } from 'lexical';
 import { useEffect, useRef } from 'react';
 import { getAppPreferences } from '@/features/settings/appPreferences';
-import { isAppleKeyboard } from '@/lib/platform/keyboardPlatform';
+import { isAppleKeyboard } from '@/lib/keyboardPlatform';
 import { shouldSubmitMessage } from './composerKeyboard';
 import { parseRichEditorHtml } from './richEditorHtml';
 

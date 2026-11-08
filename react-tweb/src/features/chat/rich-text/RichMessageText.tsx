@@ -10,7 +10,7 @@ import { MessageCode } from './MessageCode';
 import { MessageQuote } from './MessageQuote';
 import { CustomEmojiText } from '@/features/emoji/CustomEmojiText';
 import { sanitizeRichText } from '@/domain/messages/richText';
-import { renderFormulaHtml } from '@/lib/math/renderFormula';
+import { renderFormulaHtml } from '@/lib/renderFormula';
 import 'katex/dist/katex.min.css';
 import styles from './RichMessageText.module.css';
 

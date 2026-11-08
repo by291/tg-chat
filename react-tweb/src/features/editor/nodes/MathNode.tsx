@@ -6,7 +6,7 @@ import {
   type SerializedLexicalNode,
 } from 'lexical';
 import { useMemo, type ReactElement } from 'react';
-import { renderFormulaHtml } from '@/lib/math/renderFormula';
+import { renderFormulaHtml } from '@/lib/renderFormula';
 import 'katex/dist/katex.min.css';
 import styles from './RichEditorNodes.module.css';
 

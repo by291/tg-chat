@@ -1,6 +1,6 @@
 import { Menu } from '@ark-ui/react/menu';
 import { Fragment, useState, type ReactNode } from 'react';
-import { isAppleKeyboard } from '@/lib/platform/keyboardPlatform';
+import { isAppleKeyboard } from '@/lib/keyboardPlatform';
 import { setAppPreferences, useAppPreferences } from '../appPreferences';
 import { Ripple } from '@/components/Ripple';
 import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';

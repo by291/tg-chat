@@ -1,4 +1,4 @@
-import { createPreferenceStore } from '@/lib/preferences/createPreferenceStore';
+import { createPreferenceStore } from '@/lib/createPreferenceStore';
 import { z } from 'zod';
 
 export const APP_PREFERENCES_KEY = 'react-tweb.preferences.v1';
