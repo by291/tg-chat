@@ -30,7 +30,11 @@ interface EnqueueOptions {
 }
 
 function emptySnapshot(): PendingSnapshot {
-  return { isActive: true, pending: [], drafts: {} };
+  return {
+    isActive: true,
+    pending: [],
+    drafts: {},
+  };
 }
 
 function requireActive(snapshot: PendingSnapshot | undefined): PendingSnapshot {
@@ -87,6 +91,23 @@ export class PendingMessages {
         delete snapshot.drafts[options.draft.destination];
       }
     });
+  }
+
+  /** Change an existing operation without reviving one removed by another task or tab. */
+  async updatePending(message: PendingMessage): Promise<boolean> {
+    let wasUpdated = false;
+    await this.mutate((snapshot) => {
+      const index = snapshot.pending.findIndex((current) => {
+        return current.request.message_id === message.request.message_id;
+      });
+      if (index < 0) {
+        return;
+      }
+      snapshot.pending[index] = message;
+      wasUpdated = true;
+    });
+
+    return wasUpdated;
   }
 
   /** Remove reconciled or explicitly discarded work while retaining the ownership tombstone. */

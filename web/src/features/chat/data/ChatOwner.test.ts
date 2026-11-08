@@ -41,7 +41,7 @@ function fixture(options: {
   transport?: (request: Request) => Promise<Response>;
   store?: PendingMessages;
   sessionId?: string;
-  history?: () => Promise<Response>;
+  history?: (request: Request) => Promise<Response>;
 }) {
   const sessionId = options.sessionId ?? crypto.randomUUID();
   const session = new SessionOwner({
@@ -52,7 +52,11 @@ function fixture(options: {
         return Response.json({
           deployment_id: 'test-deployment',
           user: USER,
-          privacy: { direct_messages: 'everyone', calls: 'contacts', presence: 'contacts' },
+          privacy: {
+            direct_messages: 'everyone',
+            calls: 'contacts',
+            presence: 'contacts',
+          },
           contacts: [],
           blocks: [],
           conversations: [SAVED],
@@ -61,7 +65,7 @@ function fixture(options: {
       }
       if (path.endsWith('/history')) {
         if (options.history) {
-          return options.history();
+          return options.history(request);
         }
         return Response.json({
           messages: [],
@@ -94,7 +98,11 @@ function fixture(options: {
 
 function receipt(request: components['schemas']['SendMessage']) {
   return {
-    conversation: { ...SAVED, last_sequence: '1', version: '2' },
+    conversation: {
+      ...SAVED,
+      last_sequence: '1',
+      version: '2',
+    },
     message: {
       id: request.message_id,
       conversation_id: SAVED.id,
@@ -106,6 +114,65 @@ function receipt(request: components['schemas']['SendMessage']) {
       content: request.content,
     },
   };
+}
+
+function deferredResponse() {
+  let release: (response: Response) => void = () => undefined;
+  const promise = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
+function historyMessage(sequence: number): components['schemas']['CanonicalMessage'] {
+  return {
+    id: `message-${sequence}`,
+    conversation_id: SAVED.id,
+    author_id: USER.id,
+    author_name: USER.display_name,
+    sequence: String(sequence),
+    version: '1',
+    created_at: '2026-11-09T00:00:00Z',
+    content: {
+      schema_version: 1,
+      text: `Message ${sequence}`,
+      rich_text: null,
+      custom_emoji: [],
+    },
+  };
+}
+
+function historyPage(options: { first: number; last: number; hasNewer?: boolean }) {
+  const messages = Array.from({ length: options.last - options.first + 1 }, (_, index) => {
+    return historyMessage(options.first + index);
+  });
+  return Response.json({
+    messages,
+    preceding_message: options.first > 1 ? historyMessage(options.first - 1) : null,
+    has_older: options.first > 1,
+    has_newer: options.hasNewer ?? false,
+  });
+}
+
+function syncPage(options: { first: number; last: number }) {
+  const groups = Array.from({ length: options.last - options.first + 1 }, (_, index) => {
+    const sequence = options.first + index;
+    return {
+      position: String(sequence),
+      conversation: {
+        ...SAVED,
+        version: String(options.last),
+        last_sequence: String(options.last),
+      },
+      message: historyMessage(sequence),
+    };
+  });
+  return Response.json({
+    groups,
+    cursor: String(options.last),
+    observation_cursor: String(options.last),
+    has_more: false,
+  });
 }
 
 describe('connected chat ownership', () => {
@@ -228,7 +295,12 @@ describe('connected chat ownership', () => {
           operation_id: crypto.randomUUID(),
           message_id: crypto.randomUUID(),
           destination: { kind: 'saved' },
-          content: { schema_version: 1, text: 'Old operation', rich_text: null, custom_emoji: [] },
+          content: {
+            schema_version: 1,
+            text: 'Old operation',
+            rich_text: null,
+            custom_emoji: [],
+          },
         },
       },
     });
@@ -245,6 +317,137 @@ describe('connected chat ownership', () => {
     expect(submissions).toBe(0);
     expect(owner.getSnapshot().pending[0].status).toBe('failed');
     expect(owner.getSnapshot().pending[0].request.content.text).toBe('Old operation');
+    owner.dispose();
+  });
+  it('keeps sync messages consumed while an older view is loading its latest snapshot', async () => {
+    const latest = deferredResponse();
+    let latestRequests = 0;
+    const { owner } = fixture({
+      history: async (request) => {
+        if (new URL(request.url).searchParams.has('before')) {
+          return historyPage({
+            first: 101,
+            last: 150,
+            hasNewer: true,
+          });
+        }
+        latestRequests += 1;
+        return latestRequests === 1 ? historyPage({ first: 151, last: 200 }) : latest.promise;
+      },
+      transport: async () => syncPage({ first: 201, last: 201 }),
+    });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.loadHistory('older');
+    const loading = owner.loadHistory('latest');
+    await owner.catchUp();
+    latest.release(historyPage({ first: 151, last: 200 }));
+    await loading;
+    expect(owner.getSnapshot().messages.at(-1)?.sequence).toBe('201');
+    expect(owner.getSnapshot().hasNewer).toBe(false);
+    owner.dispose();
+  });
+
+  it('preserves a continuous older window when sync arrives at the 200-message boundary', async () => {
+    const older = deferredResponse();
+    let syncRequests = 0;
+    const { owner } = fixture({
+      history: async (request) => {
+        return new URL(request.url).searchParams.has('before')
+          ? older.promise
+          : historyPage({ first: 101, last: 200 });
+      },
+      transport: async () => {
+        syncRequests += 1;
+        return syncRequests === 1
+          ? syncPage({ first: 201, last: 300 })
+          : syncPage({ first: 301, last: 301 });
+      },
+    });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.catchUp();
+    const loading = owner.loadHistory('older');
+    await owner.catchUp();
+    older.release(
+      historyPage({
+        first: 51,
+        last: 100,
+        hasNewer: true,
+      }),
+    );
+    await loading;
+    const sequences = owner.getSnapshot().messages.map((message) => Number(message.sequence));
+    expect(sequences).toEqual(Array.from({ length: 200 }, (_, index) => index + 51));
+    expect(owner.getSnapshot().hasNewer).toBe(true);
+    owner.dispose();
+  });
+
+  it('does not recreate a discarded operation after a delayed permanent send failure', async () => {
+    const response = deferredResponse();
+    const store = new PendingMessages({ key: crypto.randomUUID() });
+    const { owner } = fixture({ store, transport: async () => response.promise });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.queueSend({ text: 'Removed while sending' });
+    const sending = owner.flush();
+    const messageId = owner.getSnapshot().pending[0].request.message_id;
+    await owner.discard(messageId);
+    response.release(
+      Response.json(
+        {
+          error: {
+            code: 'conversation_unavailable',
+            message: 'Conversation unavailable',
+            request_id: 'test',
+          },
+        },
+        { status: 409 },
+      ),
+    );
+    await sending;
+    expect(owner.getSnapshot().pending).toHaveLength(0);
+    expect((await store.read()).pending).toHaveLength(0);
+    owner.dispose();
+  });
+
+  it('allows one explicit expired retry without resetting identity or automatic retry age', async () => {
+    const store = new PendingMessages({ key: crypto.randomUUID() });
+    await store.open();
+    const request: components['schemas']['SendMessage'] = {
+      operation_id: crypto.randomUUID(),
+      message_id: crypto.randomUUID(),
+      destination: { kind: 'saved' },
+      content: {
+        schema_version: 1,
+        text: 'An old ambiguous operation',
+        rich_text: null,
+        custom_emoji: [],
+      },
+    };
+    const createdAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    await store.enqueue({
+      message: {
+        request,
+        createdAt,
+        status: 'queued',
+      },
+    });
+    const submitted: unknown[] = [];
+    const { owner } = fixture({
+      store,
+      transport: async (submission) => {
+        submitted.push(await submission.json());
+        throw new TypeError('Still unavailable');
+      },
+    });
+    await owner.start();
+    await owner.flush();
+    await owner.retry(request.message_id);
+    expect(submitted).toEqual([request]);
+    await owner.flush();
+    expect(submitted).toHaveLength(1);
+    expect((await store.read()).pending[0].createdAt).toBe(createdAt);
     owner.dispose();
   });
 });

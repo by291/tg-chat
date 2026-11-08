@@ -15,6 +15,18 @@ import { PendingMessages, type Draft, type PendingMessage } from './pendingMessa
 const RETRY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const POLL_INTERVAL_MS = 3000;
 const MAX_BACKOFF_MS = 30_000;
+// prettier-ignore
+const TRANSIENT_ERROR_CODES = new Set([
+  'dependency_unavailable',
+  'rate_limited',
+  'network_unavailable',
+]);
+
+interface HistoryLoad {
+  generation: number;
+  edge: 'older' | 'latest';
+  concurrentMessages: CanonicalMessage[];
+}
 
 interface Selection {
   destination: Destination;
@@ -68,9 +80,11 @@ export class ChatOwner {
   private readonly unsubscribe: () => void;
   private cursor = '';
   private viewGeneration = 0;
+  private historyLoad?: HistoryLoad;
   private isDisposed = false;
   private syncPromise?: Promise<void>;
   private sendPromise?: Promise<void>;
+  private readonly explicitRetries = new Set<string>();
 
   /** Own connected projections and pending work within one authenticated session generation. */
   constructor(options: { session: SessionOwner; store?: PendingMessages }) {
@@ -172,6 +186,7 @@ export class ChatOwner {
   async select(selection: Selection): Promise<void> {
     this.ensureCurrent();
     const generation = ++this.viewGeneration;
+    this.historyLoad = undefined;
     this.publish({
       selection,
       isLoading: false,
@@ -253,20 +268,30 @@ export class ChatOwner {
 
   /** Retry a visible failed operation after an explicit user decision. */
   async retry(messageId: string): Promise<void> {
+    await this.sendPromise;
     const pending = this.snapshot.pending.find(
       (message) => message.request.message_id === messageId,
     );
     if (!pending) {
       return;
     }
-    const queued: PendingMessage = { ...pending, status: 'queued', error: undefined };
-    await this.requireStore().enqueue({ message: queued });
+    const queued: PendingMessage = {
+      ...pending,
+      status: 'queued',
+      error: undefined,
+    };
+    const wasUpdated = await this.requireStore().updatePending(queued);
+    if (!wasUpdated) {
+      return;
+    }
+    this.explicitRetries.add(messageId);
     this.replacePending(queued);
     await this.flush();
   }
 
   /** Remove a pending item without claiming that an ambiguous server send was cancelled. */
   async discard(messageId: string): Promise<void> {
+    this.explicitRetries.delete(messageId);
     await this.requireStore().remove(messageId);
     this.ensureCurrent();
     this.publish({
@@ -299,6 +324,12 @@ export class ChatOwner {
     }
     const generation = this.viewGeneration;
     const first = this.snapshot.messages[0];
+    const load: HistoryLoad = {
+      generation,
+      edge,
+      concurrentMessages: [],
+    };
+    this.historyLoad = load;
     this.publish({ isLoading: true });
     try {
       const reply = await this.session.client.GET(
@@ -316,19 +347,24 @@ export class ChatOwner {
       const page = requirePayload(reply);
       // A send or sync may have committed after the history snapshot began. Keep those newer rows.
       const firstSequence = page.messages[0]?.sequence;
-      const current = this.snapshot.messages.filter((message) => {
+      const candidates = [...this.snapshot.messages, ...load.concurrentMessages];
+      const current = candidates.filter((message) => {
         return (
           edge === 'older' || !firstSequence || compareCounter(message.sequence, firstSequence) >= 0
         );
       });
-      const messages = mergeMessages({ current, incoming: page.messages, edge });
+      const messages = mergeMessages({
+        current,
+        incoming: page.messages,
+        edge,
+      });
       const combinedIds = new Set([...current, ...page.messages].map((message) => message.id));
       const hasTrimmedNewer = edge === 'older' && combinedIds.size > MAX_VISIBLE_MESSAGES;
       this.publish({
         messages,
         precedingMessage: page.preceding_message ?? undefined,
         hasOlder: page.has_older,
-        hasNewer: page.has_newer || hasTrimmedNewer,
+        hasNewer: page.has_newer || hasTrimmedNewer || (edge === 'older' && this.snapshot.hasNewer),
         error: '',
       });
     } catch (error) {
@@ -337,6 +373,7 @@ export class ChatOwner {
       }
     } finally {
       if (this.isCurrentView(generation)) {
+        this.historyLoad = undefined;
         this.publish({ isLoading: false });
       }
     }
@@ -392,14 +429,21 @@ export class ChatOwner {
       if (this.isDisposed || pending.status === 'failed') {
         continue;
       }
-      if (Date.now() - pending.createdAt > RETRY_LIFETIME_MS) {
+      // Manual recovery grants one attempt without extending the operation's automatic retry age.
+      const isExplicitRetry = this.explicitRetries.delete(pending.request.message_id);
+      const isExpired = Date.now() - pending.createdAt > RETRY_LIFETIME_MS;
+      if (isExpired && !isExplicitRetry) {
         await this.failPending(
           pending,
           'Automatic retry expired. Check history before discarding.',
         );
         continue;
       }
-      this.replacePending({ ...pending, status: 'sending', error: undefined });
+      this.replacePending({
+        ...pending,
+        status: 'sending',
+        error: undefined,
+      });
       try {
         const reply = await this.session.client.POST('/api/v1/messages', { body: pending.request });
         this.ensureCurrent();
@@ -410,19 +454,22 @@ export class ChatOwner {
         if (isCancelled(error) || this.isDisposed) {
           return;
         }
-        const isPermanent =
-          error instanceof ApiError &&
-          !['dependency_unavailable', 'rate_limited', 'network_unavailable'].includes(error.code);
+        const isPermanent = error instanceof ApiError && !TRANSIENT_ERROR_CODES.has(error.code);
         if (isPermanent) {
           await this.failPending(pending, failureMessage(error));
         } else {
-          this.replacePending({ ...pending, status: 'queued', error: 'Waiting to retry safely.' });
+          this.replacePending({
+            ...pending,
+            status: 'queued',
+            error: 'Waiting to retry safely.',
+          });
         }
       }
     }
   }
 
   private async acceptMessage(message: CanonicalMessage): Promise<void> {
+    this.explicitRetries.delete(message.id);
     const isPending = this.snapshot.pending.some(
       (pending) => pending.request.message_id === message.id,
     );
@@ -435,9 +482,24 @@ export class ChatOwner {
     );
     const isSelected = this.selectedConversation()?.id === message.conversation_id;
     const isVisible = this.snapshot.messages.some((candidate) => candidate.id === message.id);
-    const canAppend = isSelected && (!this.snapshot.hasNewer || isVisible);
+    const load = this.historyLoad;
+    if (isSelected && load?.edge === 'latest' && load.generation === this.viewGeneration) {
+      // Sync advances independently of HTTP snapshots; retain arrivals until this page is installed.
+      load.concurrentMessages = mergeMessages({
+        current: load.concurrentMessages,
+        incoming: [message],
+        edge: 'latest',
+      });
+    }
+    // An older request owns its original left edge. Appending here could evict the bridge row.
+    const isLoadingOlder = load?.edge === 'older';
+    const canAppend = isSelected && (isVisible || (!this.snapshot.hasNewer && !isLoadingOlder));
     const messages = canAppend
-      ? mergeMessages({ current: this.snapshot.messages, incoming: [message], edge: 'latest' })
+      ? mergeMessages({
+          current: this.snapshot.messages,
+          incoming: [message],
+          edge: 'latest',
+        })
       : this.snapshot.messages;
     this.publish({
       pending,
@@ -463,9 +525,15 @@ export class ChatOwner {
   }
 
   private async failPending(pending: PendingMessage, error: string): Promise<void> {
-    const failed: PendingMessage = { ...pending, status: 'failed', error };
-    await this.requireStore().enqueue({ message: failed });
-    this.replacePending(failed);
+    const failed: PendingMessage = {
+      ...pending,
+      status: 'failed',
+      error,
+    };
+    // A delayed failure may arrive after discard or sync reconciliation removed this operation.
+    if (await this.requireStore().updatePending(failed)) {
+      this.replacePending(failed);
+    }
   }
 
   private replacePending(pending: PendingMessage): void {
@@ -497,6 +565,8 @@ export class ChatOwner {
   private invalidate(): void {
     this.isDisposed = true;
     this.snapshot = initialSnapshot();
+    this.explicitRetries.clear();
+    this.historyLoad = undefined;
     for (const listener of this.listeners) {
       listener();
     }
