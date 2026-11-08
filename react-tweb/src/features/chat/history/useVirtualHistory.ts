@@ -10,13 +10,12 @@ import type { MessageNavigation } from './MessageTimeline';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import { animateHistoryInset } from './animateHistoryInset';
 import { createHistoryScroll } from './createHistoryScroll';
+import { canMarkLatestRead, shouldLoadOlderHistory } from './historyViewportPolicy';
 
 const OVERSCAN_ROWS = 8;
 const WIDTH_SETTLE_DELAY_MS = 100;
 const FOLLOW_BOTTOM_DISTANCE = 80;
-const MIN_HISTORY_PREFETCH_DISTANCE = 360;
 const SHOW_JUMP_DISTANCE = 160;
-const READ_BOTTOM_DISTANCE = 1;
 const HISTORY_TOP_PADDING = 8;
 const HISTORY_BOTTOM_PADDING = 12;
 const NO_OVERLAYS: ChatOverlayInsets = { top: 0, bottom: 0 };
@@ -485,56 +484,40 @@ export function useVirtualHistory({
     };
   }, []);
 
-  function markVisibleLatestRead() {
-    const viewport = viewportRef.current;
-    const canRead =
-      isInitializedRef.current &&
-      !isResizingRef.current &&
-      !cancelNavigationRef.current &&
-      !navigationWindow &&
-      document.visibilityState === 'visible' &&
-      document.hasFocus();
-    if (!canRead || !viewport?.clientHeight || !viewport.clientWidth) {
-      return;
-    }
-
-    // Use the rendered bottom, not the looser threshold that merely shows the jump button.
-    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-    if (distanceFromBottom <= READ_BOTTOM_DISTANCE) {
-      onReachLatest?.();
-    }
-  }
-
   function updateScrollPosition() {
     rememberReadingPosition();
-    markVisibleLatestRead();
-    // User scrolling needs history ahead of the viewport, including during momentum. Only layout
-    // rebuilding and explicit message navigation defer pagination; waiting for scroll idle hits
-    // the loaded boundary and stops the gesture before the next page can be inserted.
-    if (
-      !isInitializedRef.current ||
-      isResizingRef.current ||
-      navigationWindow ||
-      cancelNavigationRef.current ||
-      !hasUserInteractedRef.current ||
-      !hasOlder ||
-      !viewportRef.current
-    ) {
-      return;
-    }
     const viewport = viewportRef.current;
-    const prefetchDistance = Math.max(MIN_HISTORY_PREFETCH_DISTANCE, viewport.clientHeight);
-    const isApproachingStart = virtualizer.scrollDirection !== 'forward';
-    if (!isApproachingStart || viewport.scrollTop > prefetchDistance) {
-      return;
+    const activity = {
+      isInitialized: isInitializedRef.current,
+      isResizing: isResizingRef.current,
+      isNavigating: Boolean(cancelNavigationRef.current || navigationWindow),
+    };
+    const canRead = canMarkLatestRead({
+      activity,
+      viewport,
+      isPageVisible: document.visibilityState === 'visible',
+      hasPageFocus: document.hasFocus(),
+    });
+    if (canRead) {
+      onReachLatest?.();
     }
 
     const firstRowKey = rows[0]?.key;
-    if (!firstRowKey || requestedHistoryStartRef.current === firstRowKey) {
+    const shouldPrefetch = shouldLoadOlderHistory({
+      activity,
+      viewport,
+      hasUserInteracted: hasUserInteractedRef.current,
+      hasOlder,
+      scrollDirection: virtualizer.scrollDirection,
+      firstRowKey,
+      requestedStartKey: requestedHistoryStartRef.current,
+    });
+    if (!shouldPrefetch) {
       return;
     }
-    // Scroll and measurement callbacks may share the same loaded boundary until React commits.
-    // Request it once; anchorTo: 'end' preserves the reading position when the prefix is inserted.
+
+    // Scroll and measurement callbacks may share the loaded boundary until React commits.
+    // Record ownership before requesting; anchorTo: 'end' preserves the reading position.
     requestedHistoryStartRef.current = firstRowKey;
     loadOlder();
   }
