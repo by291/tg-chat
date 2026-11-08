@@ -21,6 +21,7 @@ interface PointerOptions {
   type: string;
   pointerId?: number;
   pointerType?: string;
+  target?: Element;
   left: number;
   top: number;
 }
@@ -54,6 +55,9 @@ function TransformScreen({
         data-dragging={viewer.isDragging}
       >
         <div ref={mediaElementRef} />
+        <button>
+          <span data-testid="nested-control">Viewer control</span>
+        </button>
       </div>
       <button onClick={viewer.toggleZoom}>Toggle zoom</button>
       <button onClick={viewer.zoomIn}>Zoom in</button>
@@ -75,7 +79,14 @@ function TransformScreen({
   );
 }
 
-function sendPointer({ type, pointerId = 1, pointerType = 'mouse', left, top }: PointerOptions) {
+function sendPointer({
+  type,
+  pointerId = 1,
+  pointerType = 'mouse',
+  target = screen.getByTestId('surface'),
+  left,
+  top,
+}: PointerOptions) {
   const event = new MouseEvent(type, {
     bubbles: true,
     clientX: left,
@@ -85,7 +96,7 @@ function sendPointer({ type, pointerId = 1, pointerType = 'mouse', left, top }: 
   });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
   Object.defineProperty(event, 'pointerType', { value: pointerType });
-  fireEvent(screen.getByTestId('surface'), event);
+  fireEvent(target, event);
 }
 
 function readTransform() {
@@ -116,6 +127,48 @@ afterEach(() => {
 });
 
 describe('viewer gesture controls', () => {
+  it('leaves nested controls outside wheel, double-click, and touch gesture ownership', () => {
+    const onNavigate = vi.fn();
+    const onDismiss = vi.fn();
+    const onClick = vi.fn();
+    render(<TransformScreen onNavigate={onNavigate} onDismiss={onDismiss} onClick={onClick} />);
+    const control = screen.getByTestId('nested-control');
+    const initialTransform = readTransform();
+
+    fireEvent.wheel(control, {
+      ctrlKey: true,
+      deltaY: -100,
+      clientX: 500,
+      clientY: 400,
+    });
+    fireEvent.doubleClick(control, { clientX: 500, clientY: 400 });
+    sendPointer({
+      type: 'pointerdown',
+      pointerType: 'touch',
+      target: control,
+      left: 300,
+      top: 400,
+    });
+    sendPointer({
+      type: 'pointermove',
+      pointerType: 'touch',
+      left: 700,
+      top: 400,
+    });
+    sendPointer({
+      type: 'pointerup',
+      pointerType: 'touch',
+      left: 700,
+      top: 400,
+    });
+    fireEvent.click(control);
+
+    expect(readTransform()).toEqual(initialTransform);
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(onClick).toHaveBeenCalled();
+  });
+
   it('returns from one-finger continuation to pinch without applying a second pan', () => {
     render(<TransformScreen />);
     const sendTouch = (type: string, pointerId: number, left: number) => {
