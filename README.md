@@ -1,9 +1,7 @@
 # TG Chat
 
-A React chat application with a Telegram-inspired interface.
-
-The runnable application lives in [web](./web/README.md).
-It uses simulated conversations and stores changes on the current device.
+A React chat application with a Telegram-inspired interface. The frontend currently runs with
+local conversations and device storage; a backend is not required to explore its functionality.
 
 ```sh
 cd web
@@ -11,8 +9,20 @@ pnpm install
 pnpm dev
 ```
 
-Read the architecture and development notes in the [source guide](./web/docs/source-guide.md).
+## Documentation
 
-Text files use LF line endings on every platform, including Windows. Repository Git attributes,
-EditorConfig, and Prettier enforce the same convention without changing global Git settings.
-Git detects binary assets automatically and leaves their contents unchanged.
+- [Frontend overview](./web/README.md): setup, capabilities, and current scope.
+- [Architecture](./web/docs/architecture.md): module boundaries, state ownership, and data flow.
+- [Startup and appearance](./web/docs/startup-and-appearance.md): progressive startup and
+  coordinated appearance changes.
+- [Messages and history](./web/docs/message-history.md): message rendering, virtualization, and
+  preserving the reader's position.
+- [Editing and interactions](./web/docs/editing-and-interactions.md): composition, focus, selection,
+  gestures, and forms.
+- [Development](./web/docs/development.md): local commands and verification strategy.
+
+The project uses GPL-3.0. See [LICENSE](./web/LICENSE) and
+[third-party notices](./web/THIRD_PARTY_NOTICES.md) for asset attribution.
+
+Completed Superpowers plans are periodically consolidated into the topic documents. Future work
+can continue using Superpowers; the [documentation rules](./AGENTS.md) describe this lifecycle.
