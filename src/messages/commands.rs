@@ -78,6 +78,7 @@ pub enum CommandAction {
 
 #[derive(Serialize, ToSchema)]
 pub struct CommandReceipt {
+    pub observation_cursor: String,
     pub conversation: Option<ConversationView>,
     pub message: Option<CanonicalMessage>,
 }
@@ -334,9 +335,11 @@ impl MessageService {
         } else {
             None
         };
+        let scope = crate::sync::cursor::CursorScope::read(&mut transaction, actor.user_id).await?;
         transaction.commit().await?;
 
         Ok(CommandReceipt {
+            observation_cursor: scope.encode(scope.position),
             conversation,
             message,
         })
@@ -460,9 +463,11 @@ impl MessageService {
         } else {
             None
         };
+        let scope = crate::sync::cursor::CursorScope::read(&mut transaction, actor.user_id).await?;
         transaction.commit().await?;
 
         Ok(CommandReceipt {
+            observation_cursor: scope.encode(scope.position),
             conversation,
             message,
         })

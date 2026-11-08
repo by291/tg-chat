@@ -767,13 +767,15 @@
       },
       "CommandReceipt": {
         "type": "object",
+        "required": ["observation_cursor"],
         "properties": {
           "conversation": {
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ConversationView" }]
           },
           "message": {
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CanonicalMessage" }]
-          }
+          },
+          "observation_cursor": { "type": "string" }
         }
       },
       "ConversationView": {
@@ -1096,10 +1098,11 @@
       },
       "SendReceipt": {
         "type": "object",
-        "required": ["message", "conversation"],
+        "required": ["observation_cursor", "message", "conversation"],
         "properties": {
           "conversation": { "$ref": "#/components/schemas/ConversationView" },
-          "message": { "$ref": "#/components/schemas/CanonicalMessage" }
+          "message": { "$ref": "#/components/schemas/CanonicalMessage" },
+          "observation_cursor": { "type": "string" }
         }
       },
       "ServiceKind": { "type": "string", "enum": ["api", "worker"] },

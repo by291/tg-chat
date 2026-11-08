@@ -206,7 +206,10 @@ pub(crate) async fn receipt(
     super::projection::personalize(connection, user_id, &mut message).await?;
     let conversation = conversations::view(connection, user_id, message.conversation_id).await?;
 
+    let scope = crate::sync::cursor::CursorScope::read(connection, user_id).await?;
+
     Ok(SendReceipt {
+        observation_cursor: scope.encode(scope.position),
         message,
         conversation,
     })

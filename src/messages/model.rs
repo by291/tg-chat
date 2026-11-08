@@ -61,6 +61,7 @@ pub struct CanonicalMessage {
 
 #[derive(Serialize, ToSchema)]
 pub struct SendReceipt {
+    pub observation_cursor: String,
     pub message: CanonicalMessage,
     pub conversation: ConversationView,
 }

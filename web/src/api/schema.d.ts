@@ -580,6 +580,7 @@ export interface components {
     CommandReceipt: {
       conversation?: null | components['schemas']['ConversationView'];
       message?: null | components['schemas']['CanonicalMessage'];
+      observation_cursor: string;
     };
     ConversationView: {
       clear_through: string;
@@ -774,6 +775,7 @@ export interface components {
     SendReceipt: {
       conversation: components['schemas']['ConversationView'];
       message: components['schemas']['CanonicalMessage'];
+      observation_cursor: string;
     };
     /** @enum {string} */
     ServiceKind: 'api' | 'worker';
