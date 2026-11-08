@@ -509,3 +509,19 @@ Selected and menu-active rows share `--message-highlighting-color` and a 200ms l
 following `_chatBubble.scss`. This color is supplied by the chat theme, not a universal black tint:
 the reference wallpaper currently resolves it to `rgba(77, 88, 200, 0.4)`. The local wallpaper uses
 that token; a future custom theme should supply its own value as tweb's `themeController.ts` does.
+
+## Sorting, viewer gestures, and structured forms
+
+`sidebar/PinnedConversationSorting.tsx` gives dnd-kit explicit drag handles and drop targets.
+Its cloned feedback leaves virtual row children in place; committed order is resolved from IDs
+against all pinned conversations, including those outside the visible window. Selecting a chat
+keeps the same mounted viewport and does not load another component.
+
+`components/SortableList.tsx` owns poll sorting cancellation and keyboard focus restoration.
+`composer/FormListRow.tsx` exposes each row's drag handle while retaining entry/exit animation.
+`composer/useListForm.ts` owns React Hook Form state and field-array operations;
+`composer/listFormSchema.ts` validates poll/checklist limits and dependent correct answers.
+
+`media/useViewerTransform.ts` uses use-gesture for drag/pinch recognition while preserving viewer
+geometry, wheel behavior, swipe thresholds, and momentum. Post-pinch continuation transfers to
+the remaining pointer and ends when another pinch begins. Window blur cancels active input.
