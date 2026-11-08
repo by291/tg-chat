@@ -7,6 +7,8 @@
 - Source: https://github.com/morethanwords/tweb
 - Local source: `/Users/by291/code/js/tweb/public/assets/img/pattern.svg`
 - Included asset: `public/assets/telegram-pattern.svg`, copied without modification
+- Included sounds: `public/assets/audio/notification.mp3` and `message_sent.mp3`, copied
+  without modification from tweb's `public/assets/audio/` directory
 - Included geometry: the `message-tail-filled` SVG path from tweb's `index.html`, used in
   `src/chat/messages/MessageTail.tsx`
 - Adapted album layout: `src/components/groupedLayout.ts`, used in

@@ -19,7 +19,10 @@ import { useAppearanceTheme } from './appearance/useAppearanceTheme';
 import { ChatWallpaper } from './appearance/ChatWallpaper';
 import { ToastViewport } from '../components/Toast';
 import { showToast } from '../components/toastStore';
+import { useMessageNotifications } from './notifications/useMessageNotifications';
 import styles from './ChatApp.module.css';
+
+const MOBILE_CHAT_BREAKPOINT = 760;
 
 /** Compose the application shell around persistent conversation state and transient panels. */
 export function ChatApp() {
@@ -73,6 +76,14 @@ export function ChatApp() {
     setRequestedMediaCommand(undefined);
     setMediaReturnMessage(undefined);
   }
+
+  useMessageNotifications({
+    state,
+    isReady,
+    isConversationVisible:
+      hasConversation && (window.innerWidth > MOBILE_CHAT_BREAKPOINT || isMobileChatOpen),
+    onOpen: selectConversation,
+  });
 
   function runMediaViewerCommand(command: MediaViewerCommand) {
     const resolvedCommand = resolveMediaViewerCommand({ command, messages: state.messages });
