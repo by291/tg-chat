@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reserveAnimationPlayback } from '../stickers/stickerPlayback';
+import { setAppPreferences } from '../../app/settings/appPreferences';
 import { VideoFrame } from './MessageMediaFrames';
 
 const videoMedia = {
@@ -57,6 +58,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  setAppPreferences({ shouldAutoplayVideos: true });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -89,6 +91,20 @@ function showVideo() {
 }
 
 describe('video message playback', () => {
+  it('pauses previews when autoplay is disabled but permits explicit round playback', async () => {
+    const { container } = render(
+      <VideoFrame media={{ ...videoMedia, isRound: true }} hasCaption={false} />,
+    );
+    showVideo();
+    const video = container.querySelector('video')!;
+    expect(video.paused).toBe(false);
+    act(() => setAppPreferences({ shouldAutoplayVideos: false }));
+    expect(video.paused).toBe(true);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /Play/ })));
+    expect(video.paused).toBe(false);
+    expect(video.muted).toBe(false);
+  });
+
   it('uses the final batched visibility when scrolling out of the viewport', () => {
     const { container } = render(<VideoFrame media={videoMedia} hasCaption={false} />);
     showVideo();

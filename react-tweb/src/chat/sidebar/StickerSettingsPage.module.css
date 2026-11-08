@@ -1,93 +1,30 @@
-.page {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
+.packImage {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin-right: -6px;
+  object-fit: contain;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  flex: 0 0 56px;
-  gap: 8px;
-  padding: 6px 16px;
-}
-
-.header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 500;
-}
-
-.content {
-  flex: 1;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  padding: 16px;
-  background: var(--panel-color);
-}
-
-.content p {
-  margin: 12px 16px;
+.packCount {
+  display: block;
   color: var(--secondary-color);
   font-size: 14px;
   line-height: 20px;
 }
 
-.switchRow {
+.previewGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  max-height: min(55dvh, 420px);
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.previewItem {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 56px;
-  padding: 12px 16px;
-  overflow: hidden;
-  border-radius: 16px;
-  background: var(--surface-color);
-  cursor: pointer;
-}
-
-:global(:where(:root[data-touch-supported='false'])) .switchRow:is(:hover, :active) {
-  background: var(--hover-color);
-}
-
-.icon {
-  flex-shrink: 0;
-  color: var(--secondary-color);
-}
-
-.switchControl {
-  display: flex;
-  align-items: center;
-  flex: 0 0 32px;
-  height: 14px;
-  margin-left: auto;
-  border-radius: 7px;
-  background: var(--secondary-color);
-  transition: background-color 200ms ease;
-}
-
-.switchThumb {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--secondary-color);
-  border-radius: 50%;
-  background: var(--surface-color);
-  transition:
-    transform 200ms ease,
-    border-color 200ms ease;
-}
-
-.switchControl[data-state='checked'] {
-  background: var(--accent-color);
-}
-
-.switchThumb[data-state='checked'] {
-  transform: translateX(12px);
-  border-color: var(--accent-color);
-}
-
-:global(:root[data-input-method='keyboard']) .switchControl[data-focus-visible] {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 4px;
+  aspect-ratio: 1;
+  min-width: 0;
 }

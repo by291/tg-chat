@@ -1,5 +1,5 @@
 import { Menu } from '@ark-ui/react/menu';
-import { Archive, Bookmark, Moon, Sticker } from 'lucide-react';
+import { Archive, Bookmark, Moon, Settings } from 'lucide-react';
 import { useRef, useState, type Ref } from 'react';
 import type { ThemeOrigin } from '../../app/useThemeTransition';
 import { IconButton } from '../../components/IconButton';
@@ -16,7 +16,7 @@ interface SidebarMenuProps {
   onSelectChat: (chatId: string) => void;
   onToggleTheme: (origin?: ThemeOrigin) => void;
   onOpenArchive: () => void;
-  onOpenStickerSettings: () => void;
+  onOpenSettings: () => void;
   archiveUnreadCount: number;
 }
 
@@ -29,7 +29,7 @@ export function SidebarMenu({
   onSelectChat,
   onToggleTheme,
   onOpenArchive,
-  onOpenStickerSettings,
+  onOpenSettings,
   archiveUnreadCount,
 }: SidebarMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -97,12 +97,8 @@ export function SidebarMenu({
                 <Moon ref={themeIconRef} /> {isDark ? 'Light mode' : 'Dark mode'}
                 <Ripple />
               </Menu.Item>
-              <Menu.Item
-                value="stickers"
-                className={overlays.menuItem}
-                onSelect={onOpenStickerSettings}
-              >
-                <Sticker /> Stickers and Emoji
+              <Menu.Item value="settings" className={overlays.menuItem} onSelect={onOpenSettings}>
+                <Settings /> Settings
                 <Ripple />
               </Menu.Item>
             </Menu.Content>

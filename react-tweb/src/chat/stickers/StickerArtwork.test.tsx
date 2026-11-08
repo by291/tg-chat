@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '../../app/settings/appPreferences';
 import { StickerArtwork } from './StickerArtwork';
 
 const { animation } = vi.hoisted(() => ({
@@ -47,6 +48,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  setAppPreferences(DEFAULT_APP_PREFERENCES);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -81,4 +83,28 @@ it('pauses a sticker when the final batched intersection leaves the viewport', a
   });
 
   expect(animation.isPaused).toBe(true);
+});
+
+it('applies animation preferences to an already visible sticker', async () => {
+  render(
+    <StickerArtwork
+      sticker={{
+        name: 'Animated sticker',
+        source: '/sticker.json',
+        preview: '/sticker.webp',
+        renderer: 'svg',
+      }}
+    />,
+  );
+  act(() => {
+    notifyVisibility(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+  });
+  await waitFor(() => expect(animation.isPaused).toBe(false));
+  act(() => setAppPreferences({ shouldAnimateStickers: false }));
+  expect(animation.isPaused).toBe(true);
+  act(() => setAppPreferences({ shouldAnimateStickers: true }));
+  await waitFor(() => expect(animation.isPaused).toBe(false));
 });

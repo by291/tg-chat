@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { ChatDetails } from '../chat/details/ChatDetails';
 import { ChatSidebar } from '../chat/sidebar/ChatSidebar';
 import { ConversationPane } from '../chat/ConversationPane';
@@ -14,6 +14,7 @@ import type { Message } from '../chat/model';
 import { useConversationList } from '../chat/sidebar/conversationList';
 import { useChatState } from '../chat/state/useChatState';
 import { useInputModality } from './useInputModality';
+import { useAppPreferences } from './settings/appPreferences';
 import { useThemeTransition } from './useThemeTransition';
 import styles from './ChatApp.module.css';
 
@@ -22,6 +23,7 @@ const NOTICE_DURATION = 4000;
 /** Compose the application shell around persistent conversation state and transient panels. */
 export function ChatApp() {
   useInputModality();
+  const { messageTextSize } = useAppPreferences();
   const { state, dispatch, isReady, storageError } = useChatState();
   const conversationEntries = useConversationList(state);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -140,6 +142,7 @@ export function ChatApp() {
     >
       <div
         className={styles.app}
+        style={{ '--message-text-size': `${messageTextSize}px` } as CSSProperties}
         data-details-open={hasDetails}
         data-mobile-chat-open={isMobileChatOpen && hasConversation}
       >

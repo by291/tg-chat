@@ -1,8 +1,9 @@
+import { useAppPreferences } from '../../app/settings/appPreferences';
 import { BadgeCheck, Check, CheckCheck, GripVertical, Pin, VolumeX } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Avatar } from '../../components/Avatar';
 import { Ripple } from '../../components/Ripple';
-import { describeMessage, formatMessageTime } from '../messageFormatting';
+import { describeMessage, formatConversationTime, formatMessageTime } from '../messageFormatting';
 import type { ChatState } from '../model';
 import { ConversationMenu } from './ConversationMenu';
 import type { ConversationListEntry, ConversationMenuAction } from './conversationList';
@@ -44,7 +45,10 @@ export function ChatRow({
   const hasUnread = conversation.hasUnread;
   const fallbackPreview = conversation.hasClearedHistory ? '' : conversation.preview;
   const preview = lastMessage ? describeMessage(lastMessage) : fallbackPreview;
-  const time = lastMessage ? formatMessageTime(lastMessage.createdAt) : conversation.time;
+  const { timeFormat } = useAppPreferences();
+  const time = lastMessage
+    ? formatMessageTime(lastMessage.createdAt, { timeFormat })
+    : formatConversationTime(conversation.time, { timeFormat });
   const shouldReduceMotion = useReducedMotion();
   const badgeDuration = shouldReduceMotion ? 0 : BADGE_SCALE_SECONDS;
   const canReorder = isSelecting && conversation.isPinned;

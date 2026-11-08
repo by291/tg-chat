@@ -1,3 +1,4 @@
+import { useAppPreferences } from '../../app/settings/appPreferences';
 import { Pin } from 'lucide-react';
 import { formatMessageTime } from '../messageFormatting';
 import type { Message } from '../model';
@@ -23,12 +24,13 @@ function SendingStatus() {
 }
 
 function MetadataContent({ message }: { message: Message }) {
+  const { timeFormat } = useAppPreferences();
   return (
     <>
       {message.isPinned && <Pin size={12} className={styles.metadataPinned} />}
       {message.isEdited && <span className={styles.metadataEdited}>edited</span>}
       <time dateTime={new Date(message.createdAt).toISOString()}>
-        {formatMessageTime(message.createdAt)}
+        {formatMessageTime(message.createdAt, { timeFormat })}
       </time>
       {message.authorId === CURRENT_USER_ID && <SendingStatus />}
     </>

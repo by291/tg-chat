@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getAppPreferences, subscribeAppPreferences } from '../../app/settings/appPreferences';
 import type { AnimationItem } from 'lottie-web';
 import type { Sticker } from './stickerCatalog';
 import { loadStickerAnimation } from './loadStickerAnimation';
@@ -47,7 +48,11 @@ export function StickerArtwork({
       const policy = getStickerPlaybackState();
       const isGroupAllowed = !policy.exclusiveGroup || policy.exclusiveGroup === playbackGroup;
       const shouldPlay =
-        isVisible && policy.isWindowActive && !policy.isReducedMotion && isGroupAllowed;
+        isVisible &&
+        policy.isWindowActive &&
+        !policy.isReducedMotion &&
+        isGroupAllowed &&
+        getAppPreferences().shouldAnimateStickers;
 
       // Disabling looping finishes the current lap; re-enabling it releases a completed player.
       animation.loop = policy.shouldLoop;
@@ -125,11 +130,13 @@ export function StickerArtwork({
       synchronizePlayback();
     });
     const unsubscribePlayback = subscribeStickerPlayback(synchronizePlayback);
+    const unsubscribePreferences = subscribeAppPreferences(synchronizePlayback);
     observer.observe(container);
     return () => {
       isDisposed = true;
       observer.disconnect();
       unsubscribePlayback();
+      unsubscribePreferences();
       pausePlayback();
       animation?.destroy();
     };

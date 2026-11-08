@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
+import { useAppPreferences } from '../../app/settings/appPreferences';
 import { getStickerPlaybackState, subscribeStickerPlayback } from '../stickers/stickerPlayback';
 
 interface VideoPreviewOptions {
@@ -19,6 +20,7 @@ function hasAudibleRoundVideo() {
 
 /** Load visible clips lazily and keep only muted previews eligible for automatic playback. */
 export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOptions) {
+  const { shouldAutoplayVideos } = useAppPreferences();
   const [isVisible, setIsVisible] = useState(false);
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
@@ -102,7 +104,11 @@ export function useVideoPreview({ videoRef, source, isPreview }: VideoPreviewOpt
   }, [videoRef]);
 
   const isPreviewBlocked =
-    isPreview && (policy.isReducedMotion || Boolean(policy.exclusiveGroup) || isRoundPlaying);
+    isPreview &&
+    (!shouldAutoplayVideos ||
+      policy.isReducedMotion ||
+      Boolean(policy.exclusiveGroup) ||
+      isRoundPlaying);
   const isViewerBlockingPlayback = policy.exclusiveGroup === 'viewer';
   const canPlayAudibly =
     isVisible &&

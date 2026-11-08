@@ -1,3 +1,4 @@
+import { useAppPreferences } from '../../app/settings/appPreferences';
 import { useEffect, useState } from 'react';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Menu } from '@ark-ui/react/menu';
@@ -49,6 +50,7 @@ export function ViewerToolbar({
   onNotify,
   onMenuOpenChange,
 }: ViewerToolbarProps) {
+  const { timeFormat } = useAppPreferences();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_VIEWPORT_QUERY).matches);
   useEffect(() => {
     const viewport = window.matchMedia(MOBILE_VIEWPORT_QUERY);
@@ -79,7 +81,7 @@ export function ViewerToolbar({
           <Dialog.Title>{message.authorName}</Dialog.Title>
           <Dialog.Description>
             {activeIndex + 1} of {count} • {formatMessageDate(message.createdAt)} at{' '}
-            {formatMessageTime(message.createdAt)}
+            {formatMessageTime(message.createdAt, { timeFormat })}
           </Dialog.Description>
         </span>
       </button>

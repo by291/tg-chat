@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
 import { messageSchema } from '../model';
+import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '../../app/settings/appPreferences';
 import { MessageBubble } from './MessageBubble';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  setAppPreferences(DEFAULT_APP_PREFERENCES);
+});
 
 const message = {
   ...createInitialState().messages[0],
@@ -115,4 +119,12 @@ describe('message replies', () => {
     expect(replyButton.textContent).toContain('Several selected lines\nfrom the original message.');
     expect(replyButton.textContent).not.toContain(originalMessage.text);
   });
+});
+
+it('updates visible message timestamps when the time format changes', () => {
+  const { container } = renderTextBubble({ shouldShowSender: false });
+  const previousTime = container.querySelector('time')!.textContent;
+  expect(previousTime).toMatch(/AM|PM/);
+  act(() => setAppPreferences({ timeFormat: 'h23' }));
+  expect(container.querySelector('time')!.textContent).toMatch(/^\d{2}:\d{2}$/);
 });

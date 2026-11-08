@@ -47,6 +47,46 @@ function SidebarTestScreen() {
 }
 
 describe('sidebar search', () => {
+  it('opens sticker preferences through settings and returns one level at a time', async () => {
+    const user = userEvent.setup();
+    render(<SidebarTestScreen />);
+
+    await user.click(screen.getByRole('button', { name: 'Main menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Settings' }));
+    await user.click(screen.getByRole('button', { name: 'Stickers and Emoji' }));
+    const loopSwitch = screen.getByRole('checkbox', { name: 'Loop Animated Stickers' });
+    const wasChecked = (loopSwitch as HTMLInputElement).checked;
+    await user.click(loopSwitch);
+    expect((loopSwitch as HTMLInputElement).checked).toBe(!wasChecked);
+    expect(localStorage.getItem('react-tweb.sticker-playback.v1')).toBe(String(!wasChecked));
+    await user.click(loopSwitch);
+
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Main menu' })).toBeTruthy();
+    expect(screen.getByLabelText('Selected conversation').textContent).toBe('');
+  });
+
+  it('finds preferences from settings search and keeps the query on return', async () => {
+    const user = userEvent.setup();
+    render(<SidebarTestScreen />);
+
+    await user.click(screen.getByRole('button', { name: 'Main menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Settings' }));
+    await user.click(screen.getByRole('button', { name: 'Search settings' }));
+    await user.type(screen.getByRole('textbox', { name: 'Search settings' }), 'dark');
+    await user.click(screen.getByRole('button', { name: 'General Settings' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Dark Mode' }));
+    expect((screen.getByRole('checkbox', { name: 'Dark Mode' }) as HTMLInputElement).checked).toBe(
+      true,
+    );
+    await user.click(screen.getByRole('button', { name: 'Back from general settings' }));
+    expect(
+      (screen.getByRole('textbox', { name: 'Search settings' }) as HTMLInputElement).value,
+    ).toBe('dark');
+  });
+
   it('requires a group name and opens the created local group', async () => {
     const user = userEvent.setup();
     render(<SidebarTestScreen />);
