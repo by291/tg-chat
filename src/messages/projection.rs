@@ -1,8 +1,35 @@
+use chrono::{DateTime, Utc};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use super::{CanonicalMessage, ReactionView, ReplyView};
 use crate::accounts::AccountError;
+
+#[derive(sqlx::FromRow)]
+pub(crate) struct ReplySource {
+    pub text: String,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+pub(crate) struct ReplySourceQuery {
+    pub user_id: Uuid,
+    pub conversation_id: Uuid,
+    pub message_id: Uuid,
+}
+
+/// Resolve the currently visible source and deadline shared by message and draft reply projections.
+pub(crate) async fn reply_source(
+    connection: &mut PgConnection,
+    query: ReplySourceQuery,
+) -> Result<Option<ReplySource>, AccountError> {
+    let mut statement = QueryBuilder::new(
+        "SELECT message.content->>'text' AS text, message.expires_at FROM messages message WHERE message.id = ",
+    );
+    statement.push_bind(query.message_id);
+    statement.push(" AND message.conversation_id = ").push_bind(query.conversation_id);
+    restrict_visible(&mut statement, query.user_id);
+    Ok(statement.build_query_as().fetch_optional(connection).await?)
+}
 
 /// Add the common account visibility predicate before pagination or direct lookup.
 pub(crate) fn restrict_visible(statement: &mut QueryBuilder<Postgres>, user_id: Uuid) {
@@ -42,19 +69,23 @@ pub(crate) async fn personalize(
     let Some(target_id) = message.reply_id else {
         return Ok(());
     };
-    let mut statement = QueryBuilder::new(
-        "SELECT message.content->>'text' FROM messages message WHERE message.id = ",
-    );
-    statement.push_bind(target_id);
-    restrict_visible(&mut statement, user_id);
-    let source: Option<String> = statement.build_query_scalar().fetch_optional(connection).await?;
+    let source = reply_source(
+        connection,
+        ReplySourceQuery {
+            user_id,
+            conversation_id: message.conversation_id,
+            message_id: target_id,
+        },
+    )
+    .await?;
     // Never retain an old quote after its target is hidden, cleared, deleted, or expired.
-    let quote = source.as_ref().and_then(|text| {
-        message.reply_quote.as_ref().filter(|quote| text.contains(quote.as_str())).cloned()
+    let quote = source.as_ref().and_then(|source| {
+        message.reply_quote.as_ref().filter(|quote| source.text.contains(quote.as_str())).cloned()
     });
     message.reply = Some(ReplyView {
         message_id: target_id,
         is_unavailable: source.is_none(),
+        expires_at: source.as_ref().and_then(|source| source.expires_at),
         quote,
     });
 
@@ -72,16 +103,21 @@ pub(crate) async fn validate_reply(
     connection: &mut PgConnection,
     check: ReplyCheck<'_>,
 ) -> Result<(), AccountError> {
-    let mut statement = QueryBuilder::new(
-        "SELECT message.content->>'text' FROM messages message WHERE message.id = ",
-    );
-    statement.push_bind(check.reply.message_id);
-    statement.push(" AND message.conversation_id = ").push_bind(check.conversation_id);
-    restrict_visible(&mut statement, check.user_id);
-    let source: Option<String> = statement.build_query_scalar().fetch_optional(connection).await?;
+    let source = reply_source(
+        connection,
+        ReplySourceQuery {
+            user_id: check.user_id,
+            conversation_id: check.conversation_id,
+            message_id: check.reply.message_id,
+        },
+    )
+    .await?;
     let source = source.ok_or(AccountError::NotFound)?;
-    let is_invalid_quote =
-        check.reply.quote.as_ref().is_some_and(|quote| quote.is_empty() || !source.contains(quote));
+    let is_invalid_quote = check
+        .reply
+        .quote
+        .as_ref()
+        .is_some_and(|quote| quote.is_empty() || !source.text.contains(quote));
     if is_invalid_quote {
         return Err(AccountError::Validation("quote must occur in the reply target"));
     }

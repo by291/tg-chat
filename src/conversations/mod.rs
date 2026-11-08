@@ -20,13 +20,7 @@ pub(crate) const VIEW_SELECT: &str =
     "SELECT conversation.id, conversation.kind, peer.id AS peer_id,
             peer.username AS peer_username, peer.display_name AS peer_name,
             conversation.last_sequence::text, conversation.version::text,
-            COALESCE((SELECT message.content->>'text' FROM messages message
-                WHERE message.conversation_id = conversation.id
-                  AND message.sequence > member.clear_through AND message.deleted_at IS NULL
-                  AND (message.expires_at IS NULL OR message.expires_at > now())
-                  AND NOT EXISTS (SELECT 1 FROM hidden_messages hidden
-                      WHERE hidden.user_id = member.user_id AND hidden.message_id = message.id)
-                ORDER BY message.sequence DESC LIMIT 1), '') AS summary_text,
+            COALESCE(summary.text, '') AS summary_text, summary.expires_at AS summary_expires_at,
             conversation.updated_at,
             member.generation::text,
             (SELECT count(*)::text FROM messages message
@@ -48,7 +42,16 @@ pub(crate) const VIEW_SELECT: &str =
      FROM conversations conversation
      JOIN conversation_members member ON member.conversation_id = conversation.id
      JOIN users peer ON peer.id = CASE WHEN conversation.participant_low = member.user_id
-         THEN conversation.participant_high ELSE conversation.participant_low END";
+         THEN conversation.participant_high ELSE conversation.participant_low END
+     LEFT JOIN LATERAL (
+         SELECT message.content->>'text' AS text, message.expires_at FROM messages message
+         WHERE message.conversation_id = conversation.id
+           AND message.sequence > member.clear_through AND message.deleted_at IS NULL
+           AND (message.expires_at IS NULL OR message.expires_at > now())
+           AND NOT EXISTS (SELECT 1 FROM hidden_messages hidden
+               WHERE hidden.user_id = member.user_id AND hidden.message_id = message.id)
+         ORDER BY message.sequence DESC LIMIT 1
+     ) summary ON true";
 
 #[derive(Clone, FromRow, Serialize, ToSchema)]
 pub struct ConversationView {
@@ -60,6 +63,7 @@ pub struct ConversationView {
     pub last_sequence: String,
     pub version: String,
     pub summary_text: String,
+    pub summary_expires_at: Option<DateTime<Utc>>,
     pub updated_at: DateTime<Utc>,
     pub generation: String,
     pub unread_count: String,
@@ -101,6 +105,8 @@ pub struct DraftView {
     pub version: String,
     pub content: Option<MessageContent>,
     pub reply: Option<ReplyInput>,
+    pub reply_expires_at: Option<DateTime<Utc>>,
+    pub is_reply_unavailable: Option<bool>,
 }
 
 /// Remove draft quote excerpts when their source is no longer visible in this snapshot.
@@ -112,16 +118,20 @@ pub(crate) async fn scrub_draft_reply(
     let Some(reply) = &mut conversation.draft.reply else {
         return Ok(());
     };
-    let mut statement = sqlx::QueryBuilder::new(
-        "SELECT message.content->>'text' FROM messages message WHERE message.id = ",
-    );
-    statement.push_bind(reply.message_id);
-    statement.push(" AND message.conversation_id = ").push_bind(conversation.id);
-    crate::messages::projection::restrict_visible(&mut statement, user_id);
-    let source: Option<String> = statement.build_query_scalar().fetch_optional(connection).await?;
-    let is_valid_quote = source
-        .as_ref()
-        .is_some_and(|text| reply.quote.as_ref().is_some_and(|quote| text.contains(quote)));
+    let source = crate::messages::projection::reply_source(
+        connection,
+        crate::messages::projection::ReplySourceQuery {
+            user_id,
+            conversation_id: conversation.id,
+            message_id: reply.message_id,
+        },
+    )
+    .await?;
+    conversation.draft.is_reply_unavailable = Some(source.is_none());
+    conversation.draft.reply_expires_at = source.as_ref().and_then(|source| source.expires_at);
+    let is_valid_quote = source.as_ref().is_some_and(|source| {
+        reply.quote.as_ref().is_some_and(|quote| source.text.contains(quote))
+    });
     if !is_valid_quote {
         reply.quote = None;
     }

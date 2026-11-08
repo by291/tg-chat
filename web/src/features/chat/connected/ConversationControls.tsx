@@ -5,7 +5,7 @@ import styles from './ConnectedChat.module.css';
 
 const MUTE_DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Present account-owned preferences separately from shared message expiry and destructive actions. */
+/** Present personal preferences, shared expiry, and destructive conversation actions. */
 export function ConversationControls(props: {
   conversation: Conversation;
   onCommand: (action: components['schemas']['CommandAction']) => Promise<void>;
@@ -17,15 +17,10 @@ export function ConversationControls(props: {
   const isMuted = Boolean(
     conversation.muted_until && Date.parse(conversation.muted_until) > Date.now(),
   );
-  const preferences = {
-    kind: 'preferences' as const,
-    is_archived: conversation.is_archived,
-    is_hidden: conversation.is_hidden,
-    is_manually_unread: conversation.is_manually_unread,
-    pin_rank: conversation.pin_rank,
-    muted_until: conversation.muted_until,
-    keep_archived: conversation.keep_archived,
-  };
+
+  function preference(change: components['schemas']['PreferenceChange']) {
+    void props.onCommand({ kind: 'preferences', change }).catch(props.onError);
+  }
 
   function change(action: components['schemas']['CommandAction']) {
     void props.onCommand(action).catch(props.onError);
@@ -55,20 +50,20 @@ export function ConversationControls(props: {
         </button>
         <button
           type="button"
-          onClick={() => change({ ...preferences, is_archived: !conversation.is_archived })}
+          onClick={() => preference({ field: 'archive', is_archived: !conversation.is_archived })}
         >
           {conversation.is_archived ? 'Unarchive' : 'Archive'}
         </button>
         <button
           type="button"
-          onClick={() => change({ ...preferences, is_hidden: !conversation.is_hidden })}
+          onClick={() => preference({ field: 'hidden', is_hidden: !conversation.is_hidden })}
         >
           {conversation.is_hidden ? 'Show conversation' : 'Hide conversation'}
         </button>
         <button
           type="button"
           onClick={() =>
-            change({ ...preferences, is_manually_unread: !conversation.is_manually_unread })
+            preference({ field: 'unread', is_manually_unread: !conversation.is_manually_unread })
           }
         >
           {conversation.is_manually_unread ? 'Remove unread mark' : 'Mark unread'}
@@ -76,7 +71,7 @@ export function ConversationControls(props: {
         <button
           type="button"
           onClick={() =>
-            change({ ...preferences, pin_rank: conversation.pin_rank === null ? 0 : null })
+            preference({ field: 'pin', rank: conversation.pin_rank === null ? 0 : null })
           }
         >
           {conversation.pin_rank === null ? 'Pin conversation' : 'Unpin conversation'}
@@ -84,9 +79,9 @@ export function ConversationControls(props: {
         <button
           type="button"
           onClick={() =>
-            change({
-              ...preferences,
-              muted_until: isMuted ? null : new Date(Date.now() + MUTE_DAY_MS).toISOString(),
+            preference({
+              field: 'mute',
+              until: isMuted ? null : new Date(Date.now() + MUTE_DAY_MS).toISOString(),
             })
           }
         >
@@ -96,7 +91,9 @@ export function ConversationControls(props: {
           <input
             type="checkbox"
             checked={conversation.keep_archived}
-            onChange={(event) => change({ ...preferences, keep_archived: event.target.checked })}
+            onChange={(event) =>
+              preference({ field: 'archive_retention', keep_archived: event.target.checked })
+            }
           />
           Keep archived when messages arrive
         </label>

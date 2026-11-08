@@ -5,7 +5,7 @@ use crate::{
     accounts::AccountError,
     messages::{
         CommandAction,
-        commands::CommandContext,
+        commands::{CommandContext, PreferenceChange},
         content::{MessageContent, validate_content},
         history::parse_sequence,
         service::AcceptanceError,
@@ -100,29 +100,54 @@ async fn preferences(
     context: &CommandContext<'_>,
 ) -> Result<(), AcceptanceError> {
     let CommandAction::Preferences {
-        is_archived,
-        is_hidden,
-        is_manually_unread,
-        pin_rank,
-        muted_until,
-        keep_archived,
+        change,
     } = &context.input.action
     else {
-        return Ok(());
+        return Err(AccountError::Validation("expected a preference change").into());
     };
-    if pin_rank.is_some_and(|rank| !(0..=MAX_PIN_RANK).contains(&rank)) {
-        return Err(AccountError::Validation("pin rank is outside the supported directory").into());
+    let mut update = sqlx::QueryBuilder::new("UPDATE conversation_members SET ");
+    match change {
+        PreferenceChange::Archive {
+            is_archived,
+        } => {
+            update.push("is_archived = ").push_bind(is_archived);
+        }
+        PreferenceChange::Hidden {
+            is_hidden,
+        } => {
+            update.push("is_hidden = ").push_bind(is_hidden);
+        }
+        PreferenceChange::Unread {
+            is_manually_unread,
+        } => {
+            update.push("is_manually_unread = ").push_bind(is_manually_unread);
+        }
+        PreferenceChange::Pin {
+            rank,
+        } => {
+            if rank.is_some_and(|rank| !(0..=MAX_PIN_RANK).contains(&rank)) {
+                return Err(AccountError::Validation(
+                    "pin rank is outside the supported directory",
+                )
+                .into());
+            }
+            update.push("pin_rank = ").push_bind(rank);
+        }
+        PreferenceChange::Mute {
+            until,
+        } => {
+            update.push("muted_until = ").push_bind(until);
+        }
+        PreferenceChange::ArchiveRetention {
+            keep_archived,
+        } => {
+            update.push("keep_archived = ").push_bind(keep_archived);
+        }
     }
-    let update = sqlx::query(
-        "UPDATE conversation_members SET is_archived = $3, is_hidden = $4,
-         is_manually_unread = $5, pin_rank = $6, muted_until = $7, keep_archived = $8
-         WHERE conversation_id = $1 AND user_id = $2",
-    )
-    .bind(context.conversation.id)
-    .bind(context.actor.user_id);
-    let update = update.bind(is_archived).bind(is_hidden).bind(is_manually_unread);
-    let update = update.bind(pin_rank).bind(muted_until).bind(keep_archived);
-    update.execute(connection).await?;
+    // A command writes exactly the chosen field, so unrelated device preferences cannot be lost.
+    update.push(" WHERE conversation_id = ").push_bind(context.conversation.id);
+    update.push(" AND user_id = ").push_bind(context.actor.user_id);
+    update.build().execute(connection).await?;
 
     Ok(())
 }

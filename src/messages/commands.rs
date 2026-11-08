@@ -54,12 +54,7 @@ pub enum CommandAction {
         through: String,
     },
     Preferences {
-        is_archived: bool,
-        is_hidden: bool,
-        is_manually_unread: bool,
-        pin_rank: Option<i32>,
-        muted_until: Option<DateTime<Utc>>,
-        keep_archived: bool,
+        change: PreferenceChange,
     },
     Clear,
     Close,
@@ -85,6 +80,29 @@ pub enum CommandAction {
     Pin {
         message_id: Uuid,
         is_pinned: bool,
+    },
+}
+
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[serde(tag = "field", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PreferenceChange {
+    Archive {
+        is_archived: bool,
+    },
+    Hidden {
+        is_hidden: bool,
+    },
+    Unread {
+        is_manually_unread: bool,
+    },
+    Pin {
+        rank: Option<i32>,
+    },
+    Mute {
+        until: Option<DateTime<Utc>>,
+    },
+    ArchiveRetention {
+        keep_archived: bool,
     },
 }
 

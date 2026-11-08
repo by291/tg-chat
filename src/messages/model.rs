@@ -77,6 +77,7 @@ pub struct ReplyInput {
 pub struct ReplyView {
     pub message_id: Uuid,
     pub is_unavailable: bool,
+    pub expires_at: Option<DateTime<Utc>>,
     pub quote: Option<String>,
 }
 

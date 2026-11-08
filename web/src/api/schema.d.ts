@@ -513,16 +513,9 @@ export interface components {
           through: string;
         }
       | {
-          is_archived: boolean;
-          is_hidden: boolean;
-          is_manually_unread: boolean;
-          keep_archived: boolean;
+          change: components['schemas']['PreferenceChange'];
           /** @enum {string} */
           kind: 'preferences';
-          /** Format: date-time */
-          muted_until?: string | null;
-          /** Format: int32 */
-          pin_rank?: number | null;
         }
       | {
           /** @enum {string} */
@@ -606,6 +599,8 @@ export interface components {
       /** Format: int32 */
       pin_rank?: number | null;
       read_through: string;
+      /** Format: date-time */
+      summary_expires_at?: string | null;
       summary_text: string;
       unread_count: string;
       /** Format: date-time */
@@ -646,7 +641,10 @@ export interface components {
     };
     DraftView: {
       content?: null | components['schemas']['MessageContent'];
+      is_reply_unavailable?: boolean | null;
       reply?: null | components['schemas']['ReplyInput'];
+      /** Format: date-time */
+      reply_expires_at?: string | null;
       version: string;
     };
     EmailAddress: {
@@ -707,6 +705,39 @@ export interface components {
       new_password: string;
       token: string;
     };
+    PreferenceChange:
+      | {
+          /** @enum {string} */
+          field: 'archive';
+          is_archived: boolean;
+        }
+      | {
+          /** @enum {string} */
+          field: 'hidden';
+          is_hidden: boolean;
+        }
+      | {
+          /** @enum {string} */
+          field: 'unread';
+          is_manually_unread: boolean;
+        }
+      | {
+          /** @enum {string} */
+          field: 'pin';
+          /** Format: int32 */
+          rank?: number | null;
+        }
+      | {
+          /** @enum {string} */
+          field: 'mute';
+          /** Format: date-time */
+          until?: string | null;
+        }
+      | {
+          /** @enum {string} */
+          field: 'archive_retention';
+          keep_archived: boolean;
+        };
     PrivacySettings: {
       calls: components['schemas']['Audience'];
       direct_messages: components['schemas']['Audience'];
@@ -757,6 +788,8 @@ export interface components {
       quote?: string | null;
     };
     ReplyView: {
+      /** Format: date-time */
+      expires_at?: string | null;
       is_unavailable: boolean;
       /** Format: uuid */
       message_id: string;

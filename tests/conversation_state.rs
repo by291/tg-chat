@@ -179,3 +179,28 @@ async fn reopening_checks_capacity_and_rolls_back_without_revealing_cleared_hist
     let retained: (bool, i64) = retained.fetch_one(&pool).await.unwrap();
     assert_eq!(retained, (false, 1));
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn independent_preference_commands_preserve_other_devices_fields(pool: PgPool) {
+    let (service, alice, bobby) = fixture(pool).await;
+    let sent = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    let archive = command(
+        sent.conversation.id,
+        json!({
+            "kind": "preferences",
+            "change": {"field": "archive", "is_archived": true}
+        }),
+    );
+    let mute = command(
+        sent.conversation.id,
+        json!({
+            "kind": "preferences",
+            "change": {"field": "mute", "until": "2099-01-01T00:00:00Z"}
+        }),
+    );
+    service.command(alice.clone(), archive).await.unwrap();
+    let changed = service.command(alice, mute).await.unwrap().conversation.unwrap();
+    assert!(changed.is_archived);
+    assert!(changed.muted_until.is_some());
+}

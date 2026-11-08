@@ -322,3 +322,54 @@ async fn pinned_history_uses_personal_visibility_and_pagination(pool: PgPool) {
         .unwrap();
     assert!(service.history(bobby, query()).await.unwrap().messages.is_empty());
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn reply_and_summary_deadlines_follow_the_current_visible_source(pool: PgPool) {
+    let (service, alice, bobby) = fixture(pool.clone()).await;
+    let first = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    service
+        .command(
+            alice.clone(),
+            command(
+                first.conversation.id,
+                json!({
+                    "kind": "expiry",
+                    "days": 1
+                }),
+            ),
+        )
+        .await
+        .unwrap();
+    let expiring = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    assert_eq!(expiring.conversation.summary_expires_at, expiring.message.expires_at);
+    let mut reply = serde_json::to_value(send_input(alice.user_id)).unwrap();
+    reply["reply"] = json!({"message_id": expiring.message.id, "quote": "Original"});
+    let reply = service.send(bobby.clone(), serde_json::from_value(reply).unwrap()).await.unwrap();
+    assert_eq!(reply.message.reply.unwrap().expires_at, expiring.message.expires_at);
+    service
+        .command(
+            bobby.clone(),
+            command(
+                first.conversation.id,
+                json!({
+                    "kind": "draft",
+                    "expected_version": "0",
+                    "reply": {"message_id": expiring.message.id, "quote": "Original"}
+                }),
+            ),
+        )
+        .await
+        .unwrap();
+    let expire =
+        sqlx::query("UPDATE messages SET expires_at = now() - interval '1 second' WHERE id = $1")
+            .bind(expiring.message.id);
+    expire.execute(&pool).await.unwrap();
+    let current = service.message(bobby.clone(), reply.message.id).await.unwrap();
+    assert!(current.reply.unwrap().is_unavailable);
+    let bootstrap = service.bootstrap(bobby).await.unwrap();
+    let conversation =
+        bootstrap.conversations.iter().find(|entry| entry.id == first.conversation.id).unwrap();
+    assert_eq!(conversation.draft.is_reply_unavailable, Some(true));
+    assert!(conversation.draft.reply.as_ref().unwrap().quote.is_none());
+}

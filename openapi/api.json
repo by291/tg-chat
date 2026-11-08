@@ -682,15 +682,10 @@
           },
           {
             "type": "object",
-            "required": ["is_archived", "is_hidden", "is_manually_unread", "keep_archived", "kind"],
+            "required": ["change", "kind"],
             "properties": {
-              "is_archived": { "type": "boolean" },
-              "is_hidden": { "type": "boolean" },
-              "is_manually_unread": { "type": "boolean" },
-              "keep_archived": { "type": "boolean" },
-              "kind": { "type": "string", "enum": ["preferences"] },
-              "muted_until": { "type": ["string", "null"], "format": "date-time" },
-              "pin_rank": { "type": ["integer", "null"], "format": "int32" }
+              "change": { "$ref": "#/components/schemas/PreferenceChange" },
+              "kind": { "type": "string", "enum": ["preferences"] }
             }
           },
           {
@@ -822,6 +817,7 @@
           "peer_username": { "type": "string" },
           "pin_rank": { "type": ["integer", "null"], "format": "int32" },
           "read_through": { "type": "string" },
+          "summary_expires_at": { "type": ["string", "null"], "format": "date-time" },
           "summary_text": { "type": "string" },
           "unread_count": { "type": "string" },
           "updated_at": { "type": "string", "format": "date-time" },
@@ -884,7 +880,9 @@
           "content": {
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/MessageContent" }]
           },
+          "is_reply_unavailable": { "type": ["boolean", "null"] },
           "reply": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ReplyInput" }] },
+          "reply_expires_at": { "type": ["string", "null"], "format": "date-time" },
           "version": { "type": "string" }
         }
       },
@@ -995,6 +993,58 @@
         "properties": { "new_password": { "type": "string" }, "token": { "type": "string" } },
         "additionalProperties": false
       },
+      "PreferenceChange": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["is_archived", "field"],
+            "properties": {
+              "field": { "type": "string", "enum": ["archive"] },
+              "is_archived": { "type": "boolean" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["is_hidden", "field"],
+            "properties": {
+              "field": { "type": "string", "enum": ["hidden"] },
+              "is_hidden": { "type": "boolean" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["is_manually_unread", "field"],
+            "properties": {
+              "field": { "type": "string", "enum": ["unread"] },
+              "is_manually_unread": { "type": "boolean" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["field"],
+            "properties": {
+              "field": { "type": "string", "enum": ["pin"] },
+              "rank": { "type": ["integer", "null"], "format": "int32" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["field"],
+            "properties": {
+              "field": { "type": "string", "enum": ["mute"] },
+              "until": { "type": ["string", "null"], "format": "date-time" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["keep_archived", "field"],
+            "properties": {
+              "field": { "type": "string", "enum": ["archive_retention"] },
+              "keep_archived": { "type": "boolean" }
+            }
+          }
+        ]
+      },
       "PrivacySettings": {
         "type": "object",
         "required": ["direct_messages", "calls", "presence"],
@@ -1079,6 +1129,7 @@
         "type": "object",
         "required": ["message_id", "is_unavailable"],
         "properties": {
+          "expires_at": { "type": ["string", "null"], "format": "date-time" },
           "is_unavailable": { "type": "boolean" },
           "message_id": { "type": "string", "format": "uuid" },
           "quote": { "type": ["string", "null"] }
