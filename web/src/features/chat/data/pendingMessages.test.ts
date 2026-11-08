@@ -102,3 +102,60 @@ it('reuses an ambiguous command identity after reload and removes only its ackno
   await second.removeCommand(restored.operation_id);
   expect((await first.read()).commands).toEqual([]);
 });
+
+it('scrubs edited and unavailable reply quotes from active and recovered drafts', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  const original = {
+    id: 'first',
+    value: { text: 'First local text' },
+    reply: { message_id: 'source', quote: 'Old excerpt' },
+  };
+  const competing = {
+    ...original,
+    id: 'second',
+    value: { text: 'Second local text' },
+  };
+  await store.saveDraft({ destination: 'saved', draft: original });
+  await store.saveDraft({ destination: 'saved', draft: competing });
+
+  await store.scrubReplyQuote({ messageId: 'source', text: 'Replacement' });
+  const edited = await store.read();
+  expect(edited.drafts.saved.reply?.quote).toBeNull();
+  expect(edited.drafts.saved.isReplyUnavailable).not.toBe(true);
+  expect(edited.draftAlternatives?.saved[0].reply?.quote).toBeNull();
+
+  await store.redactReply('source');
+  const removed = await store.read();
+  expect(removed.drafts.saved.value.text).toBe('Second local text');
+  expect(removed.drafts.saved.isReplyUnavailable).toBe(true);
+  expect(removed.draftAlternatives?.saved[0].value.text).toBe('First local text');
+  expect(removed.draftAlternatives?.saved[0].isReplyUnavailable).toBe(true);
+});
+
+it('keeps the first prepared wire payload when another tab prepares or retries the same send', async () => {
+  const key = crypto.randomUUID();
+  const first = new PendingMessages({ key });
+  const second = new PendingMessages({ key });
+  await first.open();
+  await second.open();
+  const queued = { ...pending(), isPrepared: false };
+  await first.enqueue({ message: queued });
+  const prepared = {
+    ...queued,
+    isPrepared: true,
+    request: { ...queued.request, draft_version: '1' },
+  };
+  await first.updatePending(prepared);
+  const competing = {
+    ...prepared,
+    request: { ...prepared.request, draft_version: '2' },
+  };
+  const adopted = await second.updatePending(competing);
+  expect(adopted?.request.draft_version).toBe('1');
+
+  await second.updatePending(queued);
+  const restored = await first.read();
+  expect(restored.pending[0].request.draft_version).toBe('1');
+  expect(restored.pending[0].isPrepared).toBe(true);
+});

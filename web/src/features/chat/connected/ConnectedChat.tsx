@@ -98,7 +98,9 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
       chatId: conversation?.id ?? '',
       authorId: '',
       authorName: 'Reply to message',
-      text: reply.quote ?? 'Open the original message',
+      text: snapshot.draft.isReplyUnavailable
+        ? 'Message unavailable'
+        : (reply.quote ?? 'Open the original message'),
       createdAt: 0,
       reactions: [],
     };

@@ -9,6 +9,7 @@ const MAX_DRAFT_ALTERNATIVES = 5;
 export interface PendingMessage {
   request: components['schemas']['SendMessage'];
   createdAt: number;
+  isPrepared?: boolean;
   title?: string;
   status: 'queued' | 'sending' | 'failed';
   error?: string;
@@ -24,6 +25,8 @@ export interface Draft {
   value: EmojiText;
   serverVersion?: string;
   hasLocalChanges?: boolean;
+  isReplyUnavailable?: boolean;
+  replyExpiresAt?: string;
   reply?: components['schemas']['ReplyInput'];
 }
 
@@ -54,6 +57,30 @@ function requireActive(snapshot: PendingSnapshot | undefined): PendingSnapshot {
   }
 
   return snapshot;
+}
+
+/** Scrub only inaccessible reply context while preserving independent text and draft revision. */
+export function redactDraftReply(draft: Draft, messageId: string): Draft {
+  if (draft.reply?.message_id !== messageId) {
+    return draft;
+  }
+  return {
+    ...draft,
+    reply: { ...draft.reply, quote: null },
+    isReplyUnavailable: true,
+  };
+}
+
+/** Discard a stale excerpt after an edit without making its still-accessible source unavailable. */
+export function scrubDraftReplyQuote(
+  draft: Draft,
+  source: { messageId: string; text: string },
+): Draft {
+  const reply = draft.reply;
+  if (reply?.message_id !== source.messageId || !reply.quote || source.text.includes(reply.quote)) {
+    return draft;
+  }
+  return { ...draft, reply: { ...reply, quote: null } };
 }
 
 export class PendingMessages {
@@ -105,8 +132,8 @@ export class PendingMessages {
   }
 
   /** Change an existing operation without reviving one removed by another task or tab. */
-  async updatePending(message: PendingMessage): Promise<boolean> {
-    let wasUpdated = false;
+  async updatePending(message: PendingMessage): Promise<PendingMessage | undefined> {
+    let updated: PendingMessage | undefined;
     await this.mutate((snapshot) => {
       const index = snapshot.pending.findIndex((current) => {
         return current.request.message_id === message.request.message_id;
@@ -114,11 +141,18 @@ export class PendingMessages {
       if (index < 0) {
         return;
       }
-      snapshot.pending[index] = message;
-      wasUpdated = true;
+      const current = snapshot.pending[index];
+      // The first prepared payload wins across tabs; later status changes cannot change its hash.
+      const hasFrozenRequest = current.isPrepared !== false;
+      updated = {
+        ...message,
+        request: hasFrozenRequest ? current.request : message.request,
+        isPrepared: hasFrozenRequest ? current.isPrepared : message.isPrepared,
+      };
+      snapshot.pending[index] = updated;
     });
 
-    return wasUpdated;
+    return updated;
   }
 
   /** Remove reconciled or explicitly discarded work while retaining the ownership tombstone. */
@@ -201,7 +235,7 @@ export class PendingMessages {
     return conflict;
   }
 
-  /** Acknowledge only a still-owned draft revision, preserving typing and alternatives from other tabs. */
+  /** Acknowledge the owned draft revision while preserving newer typing and alternatives. */
   async acknowledgeDraft(options: { destination: string; draft: Draft }): Promise<void> {
     await this.mutate((snapshot) => {
       if (snapshot.drafts[options.destination]?.id === options.draft.id) {
@@ -214,6 +248,16 @@ export class PendingMessages {
         });
       }
     });
+  }
+
+  /** Remove inaccessible reply excerpts from active and recovered draft revisions. */
+  async redactReply(messageId: string): Promise<void> {
+    await this.transformDraftReplies((draft) => redactDraftReply(draft, messageId));
+  }
+
+  /** Scrub edited reply excerpts from active and recovered drafts. */
+  async scrubReplyQuote(source: { messageId: string; text: string }): Promise<void> {
+    await this.transformDraftReplies((draft) => scrubDraftReplyQuote(draft, source));
   }
 
   /** Remove an explicitly resolved alternative without discarding the active draft. */
@@ -236,6 +280,17 @@ export class PendingMessages {
       pending: [],
       drafts: {},
     }));
+  }
+
+  private async transformDraftReplies(transform: (draft: Draft) => Draft): Promise<void> {
+    await this.mutate((snapshot) => {
+      for (const [destination, draft] of Object.entries(snapshot.drafts)) {
+        snapshot.drafts[destination] = transform(draft);
+      }
+      for (const [destination, alternatives] of Object.entries(snapshot.draftAlternatives ?? {})) {
+        snapshot.draftAlternatives![destination] = alternatives.map(transform);
+      }
+    });
   }
 
   private ensureOpen(): void {

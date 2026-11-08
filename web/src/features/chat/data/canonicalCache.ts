@@ -159,6 +159,19 @@ function applyGroup(snapshot: CanonicalSnapshot, group: SyncPage['groups'][numbe
   }
 }
 
+function boundFences(snapshot: CanonicalSnapshot): void {
+  const fences =
+    Object.keys(snapshot.removedMessages).length + snapshot.removedConversations.length;
+  if (fences > MAX_REMOVAL_FENCES) {
+    // Dropping tombstones also invalidates every old history/ack writer through a new epoch.
+    snapshot.epoch = crypto.randomUUID();
+    snapshot.pages = {};
+    snapshot.invalidations = {};
+    snapshot.removedMessages = {};
+    snapshot.removedConversations = [];
+  }
+}
+
 export class CanonicalCache {
   private readonly key: string;
   private isClosed = false;
@@ -219,22 +232,56 @@ export class CanonicalCache {
         }
       }
       snapshot.cursor = options.page.cursor;
-      const fences =
-        Object.keys(snapshot.removedMessages).length + snapshot.removedConversations.length;
-      if (fences > MAX_REMOVAL_FENCES) {
-        // Dropping tombstones also invalidates every old history/ack writer through a new epoch.
-        snapshot.epoch = crypto.randomUUID();
-        snapshot.pages = {};
-        snapshot.invalidations = {};
-        snapshot.removedMessages = {};
-        snapshot.removedConversations = [];
-      }
+      boundFences(snapshot);
       boundPages(snapshot);
       return true;
     });
   }
 
-  /** Persist a history snapshot only if no newer invalidation or access generation supersedes it. */
+  /** Persist receipt invalidations immediately without consuming the ordered personal feed. */
+  async applyReceipt(options: {
+    epoch: string;
+    conversationId: string;
+    receipt: components['schemas']['CommandReceipt'];
+  }): Promise<boolean> {
+    let didApply = false;
+    await update<CanonicalSnapshot>(this.key, (existing) => {
+      this.ensureOpen();
+      const snapshot = active(existing);
+      const invalidated = snapshot.invalidations[options.conversationId];
+      const isCurrent =
+        snapshot.epoch === options.epoch &&
+        (!invalidated || observedAtLeast(options.receipt.observation_cursor, invalidated));
+      if (!isCurrent) {
+        return snapshot;
+      }
+      const previous = snapshot.conversations.find((entry) => entry.id === options.conversationId);
+      const message = options.receipt.message;
+      applyGroup(snapshot, {
+        position: '0',
+        conversation_id: options.conversationId,
+        conversation: options.receipt.conversation,
+        message,
+        removed_message_id: message?.is_deleted ? message.id : undefined,
+      });
+      const hasAccessChange = previous?.generation !== options.receipt.conversation?.generation;
+      const hasContentChange =
+        message && (message.is_deleted || compareCounter(message.version, '1') > 0);
+      if (hasAccessChange || hasContentChange) {
+        snapshot.invalidations[options.conversationId] = options.receipt.observation_cursor;
+      }
+      boundFences(snapshot);
+      boundPages(snapshot);
+      didApply = true;
+      return snapshot;
+    });
+    if (didApply) {
+      this.channel?.postMessage({ kind: 'changed' });
+    }
+    return didApply;
+  }
+
+  /** Persist history only while its invalidation and access generation remain current. */
   async saveHistory(options: {
     expected: CacheCheckpoint;
     conversationId: string;
@@ -251,15 +298,24 @@ export class CanonicalCache {
       if (invalidated && !observedAtLeast(options.page.observation_cursor, invalidated)) {
         return false;
       }
-      // Delete/reinsert records recency without a second unbounded index.
+      const existing = snapshot.pages[options.conversationId];
+      const incomingIds = new Set(options.page.messages.map((message) => message.id));
+      const overlap = existing?.messages.filter((message) => incomingIds.has(message.id)) ?? [];
+      const messages = mergeMessages({
+        current: overlap,
+        incoming: options.page.messages,
+        edge: 'latest',
+      });
+      // Preserve independent revisions without stitching unrelated cached and requested windows.
+      const page = { ...options.page, messages };
       delete snapshot.pages[options.conversationId];
-      snapshot.pages[options.conversationId] = options.page;
+      snapshot.pages[options.conversationId] = page;
       boundPages(snapshot);
       return true;
     });
   }
 
-  /** Replace server-derived projections and fence pre-reset requests without touching pending work. */
+  /** Replace canonical projections and fence old requests while preserving pending work. */
   async reset(options: { expected: CacheCheckpoint; bootstrap: Bootstrap }): Promise<boolean> {
     let didReset = false;
     await update<CanonicalSnapshot>(this.key, (existing) => {

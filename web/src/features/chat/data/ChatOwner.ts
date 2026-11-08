@@ -16,6 +16,8 @@ import {
   type Destination,
 } from './messageModels';
 import {
+  redactDraftReply,
+  scrubDraftReplyQuote,
   PendingMessages,
   type Draft,
   type PendingMessage,
@@ -127,6 +129,7 @@ export class ChatOwner {
   private draftPromise?: Promise<void>;
   private draftTimer?: ReturnType<typeof setTimeout>;
   private expiryTimer?: ReturnType<typeof setTimeout>;
+  private readonly summaryExpirations = new Map<string, string>();
   private readonly explicitRetries = new Set<string>();
 
   /** Own connected projections and pending work within one authenticated session generation. */
@@ -319,6 +322,7 @@ export class ChatOwner {
     }
     const previous = this.snapshot.draft;
     const draft: Draft = {
+      ...previous,
       id: crypto.randomUUID(),
       value,
       reply: previous.reply,
@@ -372,7 +376,7 @@ export class ChatOwner {
     });
   }
 
-  /** Rebase local text only after the user explicitly chooses it over the competing server version. */
+  /** Rebase local text only after the user chooses it over the competing server draft. */
   async keepLocalDraft(): Promise<void> {
     const conflict = this.snapshot.draftConflict;
     if (!conflict) {
@@ -386,7 +390,15 @@ export class ChatOwner {
 
   /** Add or clear reply context without changing unrelated text in the composer. */
   async setReply(reply?: components['schemas']['ReplyInput']): Promise<void> {
-    this.publish({ draft: { ...this.snapshot.draft, reply } });
+    const target = this.snapshot.messages.find((message) => message.id === reply?.message_id);
+    this.publish({
+      draft: {
+        ...this.snapshot.draft,
+        reply,
+        isReplyUnavailable: false,
+        replyExpiresAt: target?.expires_at ?? undefined,
+      },
+    });
     await this.setDraft(this.snapshot.draft.value);
   }
 
@@ -400,27 +412,23 @@ export class ChatOwner {
     const capturedDraft = this.snapshot.draft;
     const draftId = capturedDraft.id;
     const generation = this.viewGeneration;
-    await this.flushDraft();
-    this.ensureCurrent();
-    const serverDraft = this.findConversation(selection.destination)?.draft;
+    if (capturedDraft.isReplyUnavailable) {
+      throw new Error('Remove the unavailable reply context before sending.');
+    }
+    // Draft delivery can help conditional clearing, but must never gate durable send admission.
+    void this.flushDraft().catch((error) => this.report(error));
     const content = canonicalMessageContent(value);
-    const isMatchingDraft =
-      serverDraft?.content?.text === content.text &&
-      (serverDraft.content.rich_text ?? null) === (content.rich_text ?? null) &&
-      JSON.stringify(serverDraft.content.custom_emoji) === JSON.stringify(content.custom_emoji) &&
-      serverDraft?.reply?.message_id === capturedDraft.reply?.message_id &&
-      (serverDraft?.reply?.quote ?? null) === (capturedDraft.reply?.quote ?? null);
     const pending: PendingMessage = {
       createdAt: Date.now(),
       title: selection.title,
       status: 'queued',
+      isPrepared: false,
       request: {
         operation_id: crypto.randomUUID(),
         message_id: crypto.randomUUID(),
         destination: selection.destination,
         content,
         reply: capturedDraft.reply,
-        draft_version: isMatchingDraft ? serverDraft?.version : undefined,
       },
     };
     await this.requireStore().enqueue({
@@ -431,7 +439,9 @@ export class ChatOwner {
     const canClearDraft = this.isCurrentView(generation) && this.snapshot.draft.id === draftId;
     this.publish({
       pending: [...this.snapshot.pending, pending],
-      draft: canClearDraft ? emptyDraft() : this.snapshot.draft,
+      draft: canClearDraft
+        ? { ...emptyDraft(), serverVersion: capturedDraft.serverVersion }
+        : this.snapshot.draft,
       error: '',
     });
     void this.flush().catch((error) => this.report(error));
@@ -459,12 +469,12 @@ export class ChatOwner {
       status: 'queued',
       error: undefined,
     };
-    const wasUpdated = await this.requireStore().updatePending(queued);
-    if (!wasUpdated) {
+    const updated = await this.requireStore().updatePending(queued);
+    if (!updated) {
       return;
     }
     this.explicitRetries.add(messageId);
-    this.replacePending(queued);
+    this.replacePending(updated);
     await this.flush();
   }
 
@@ -494,7 +504,7 @@ export class ChatOwner {
     return this.syncPromise;
   }
 
-  /** Apply a desired-state action, retaining its identity if transport confirmation is ambiguous. */
+  /** Apply a desired-state action and retain its identity when confirmation is ambiguous. */
   async command(action: components['schemas']['CommandAction']): Promise<void> {
     const conversation = this.selectedConversation();
     if (!conversation) {
@@ -508,7 +518,7 @@ export class ChatOwner {
     await this.retryCommand(request.operation_id);
   }
 
-  /** Retry the exact persisted action, refusing an automatic reapplication beyond receipt retention. */
+  /** Retry the persisted action only within receipt retention. */
   async retryCommand(operationId: string): Promise<void> {
     const persisted = await this.requireStore().read();
     this.publish({ pendingCommands: persisted.commands ?? [] });
@@ -537,10 +547,21 @@ export class ChatOwner {
       throw error;
     }
     this.ensureCurrent();
+    const didPersist = epoch
+      ? await this.requireCache().applyReceipt({
+          epoch,
+          conversationId,
+          receipt: result.receipt,
+        })
+      : false;
     await this.discardCommand(operationId);
     const cached = await this.requireCache().read();
+    if (epoch !== cached.epoch) {
+      await this.reloadSharedCache();
+    }
     const invalidated = cached.invalidations[conversationId];
     const isCurrent =
+      didPersist &&
       epoch === cached.epoch &&
       (!invalidated || observedAtLeast(result.receipt.observation_cursor, invalidated));
     if (isCurrent && result.receipt.conversation) {
@@ -634,7 +655,7 @@ export class ChatOwner {
     await this.command({ kind: 'read', through: reached.sequence });
   }
 
-  /** Reveal a reply target in a bounded authorized neighborhood, including targets outside memory. */
+  /** Reveal a reply target through its bounded authorized neighborhood. */
   async jumpToMessage(messageId: string): Promise<void> {
     const existing = this.snapshot.messages.find((message) => message.id === messageId);
     if (existing) {
@@ -786,6 +807,15 @@ export class ChatOwner {
       this.ensureCurrent();
       if (!didCommit) {
         await this.reloadSharedCache();
+        const cached = this.cacheSnapshot!;
+        const canApplyToView =
+          cached.epoch === expected.epoch &&
+          observedAtLeast(cached.cursor, page.cursor) &&
+          observedAtLeast(page.observation_cursor, cached.cursor);
+        if (canApplyToView) {
+          await this.applyViewChanges(page);
+          hasMore = page.has_more;
+        }
         continue;
       }
       const committed = await this.requireCache().read();
@@ -795,28 +825,73 @@ export class ChatOwner {
         continue;
       }
       this.cacheSnapshot = committed;
-      for (const group of page.groups) {
-        if (group.conversation) {
-          this.mergeConversation(group.conversation);
-        } else {
-          this.removeConversation(group.conversation_id);
-        }
-        if (group.removed_message_id) {
-          this.removeMessage(group.removed_message_id);
-        }
-        if (group.message) {
-          await this.acceptMessage(group.message);
-        }
-      }
-      this.cursor = page.cursor;
+      await this.applyViewChanges(page);
       hasMore = page.has_more;
     }
     this.publish({ error: '' });
   }
 
+  private async applyViewChanges(page: components['schemas']['SyncPage']): Promise<void> {
+    for (const group of page.groups) {
+      if (group.conversation) {
+        this.mergeConversation(group.conversation);
+      } else {
+        this.removeConversation(group.conversation_id);
+      }
+      if (group.removed_message_id) {
+        await this.invalidateMessage(group.removed_message_id);
+      }
+      if (group.message) {
+        await this.acceptMessage(group.message);
+      }
+    }
+    // Shared cache progress does not prove that this tab's independent window consumed the groups.
+    this.cursor = page.cursor;
+  }
+
+  private async prepareSend(pending: PendingMessage): Promise<PendingMessage | undefined> {
+    if (pending.isPrepared !== false) {
+      return pending;
+    }
+    try {
+      await this.draftPromise;
+    } catch (error) {
+      if (isCancelled(error)) {
+        throw error;
+      }
+    }
+    const serverDraft = this.findConversation(pending.request.destination)?.draft;
+    const content = pending.request.content;
+    const reply = pending.request.reply;
+    const isMatchingDraft =
+      serverDraft?.content?.text === content.text &&
+      (serverDraft.content.rich_text ?? null) === (content.rich_text ?? null) &&
+      JSON.stringify(serverDraft.content.custom_emoji) === JSON.stringify(content.custom_emoji) &&
+      serverDraft.reply?.message_id === reply?.message_id &&
+      (serverDraft.reply?.quote ?? null) === (reply?.quote ?? null);
+    const prepared: PendingMessage = {
+      ...pending,
+      isPrepared: true,
+      request: {
+        ...pending.request,
+        draft_version: isMatchingDraft ? serverDraft?.version : undefined,
+      },
+    };
+    // Freeze the wire payload durably before its first attempt, including after reload.
+    const updated = await this.requireStore().updatePending(prepared);
+    if (updated) {
+      this.replacePending(updated);
+    }
+    return updated;
+  }
+
   private async sendQueued(): Promise<void> {
-    for (const pending of this.snapshot.pending) {
-      if (this.isDisposed || pending.status === 'failed') {
+    for (const entry of this.snapshot.pending) {
+      if (this.isDisposed || entry.status === 'failed') {
+        continue;
+      }
+      const pending = await this.prepareSend(entry);
+      if (!pending) {
         continue;
       }
       // Manual recovery grants one attempt without extending the operation's automatic retry age.
@@ -839,9 +914,20 @@ export class ChatOwner {
         const reply = await this.session.client.POST('/api/v1/messages', { body: pending.request });
         this.ensureCurrent();
         const receipt = requirePayload(reply);
+        const didPersist = epoch
+          ? await this.requireCache().applyReceipt({
+              epoch,
+              conversationId: receipt.conversation.id,
+              receipt,
+            })
+          : false;
         const cached = await this.requireCache().read();
+        if (epoch !== cached.epoch) {
+          await this.reloadSharedCache();
+        }
         const invalidated = cached.invalidations[receipt.conversation.id];
         const isCurrentReceipt =
+          didPersist &&
           epoch === cached.epoch &&
           (!invalidated || observedAtLeast(receipt.observation_cursor, invalidated));
         if (isCurrentReceipt) {
@@ -881,15 +967,28 @@ export class ChatOwner {
       (candidate) => candidate.request.message_id !== message.id,
     );
     if (message.is_deleted) {
-      this.removeMessage(message.id);
+      await this.invalidateMessage(message.id);
       this.publish({ pending });
       return;
+    }
+    if (compareCounter(message.version, '1') > 0) {
+      const source = { messageId: message.id, text: message.content.text };
+      const conflict = this.snapshot.draftConflict;
+      this.publish({
+        draft: scrubDraftReplyQuote(this.snapshot.draft, source),
+        draftConflict: conflict ? scrubDraftReplyQuote(conflict, source) : undefined,
+        draftAlternatives: this.snapshot.draftAlternatives?.map((draft) =>
+          scrubDraftReplyQuote(draft, source),
+        ),
+      });
+      await this.requireStore().scrubReplyQuote(source);
+      this.ensureCurrent();
     }
     const isSelected = this.selectedConversation()?.id === message.conversation_id;
     const isVisible = this.snapshot.messages.some((candidate) => candidate.id === message.id);
     const load = this.historyLoad;
     if (isSelected && load?.edge === 'latest' && load.generation === this.viewGeneration) {
-      // Sync advances independently of HTTP snapshots; retain arrivals until this page is installed.
+      // Sync advances independently of HTTP; retain arrivals until this page is installed.
       load.concurrentMessages = mergeMessages({
         current: load.concurrentMessages,
         incoming: [message],
@@ -928,7 +1027,7 @@ export class ChatOwner {
         this.snapshot.hasOlder || (messages[0] !== undefined && messages[0].sequence !== '1'),
     });
     if (shouldRefreshLatest) {
-      // A send receipt can overtake polling. Fetch a continuous latest page instead of stitching a gap.
+      // Receipts can overtake polling; fetch a continuous latest page to avoid a gap.
       void this.loadHistory('latest').catch((error) => this.report(error));
     }
   }
@@ -940,11 +1039,15 @@ export class ChatOwner {
     if (current && compareCounter(current.version, incoming.version) > 0) {
       return;
     }
+    if (current?.last_sequence !== incoming.last_sequence) {
+      this.summaryExpirations.delete(incoming.id);
+    }
     if (
       current &&
       current.generation !== incoming.generation &&
       this.selectedConversation()?.id === incoming.id
     ) {
+      this.redactAccessReplies(incoming.clear_through);
       this.viewGeneration += 1;
       this.historyLoad = undefined;
       this.publish({
@@ -955,6 +1058,13 @@ export class ChatOwner {
       });
     }
     if (this.selectedConversation()?.id === incoming.id) {
+      const targetId = incoming.draft.reply?.message_id;
+      if (targetId && incoming.draft.is_reply_unavailable) {
+        this.removeMessage(targetId);
+        void this.requireStore()
+          .redactReply(targetId)
+          .catch((error) => this.report(error));
+      }
       const local = this.snapshot.draft;
       const remote = restoreServerDraft(incoming.draft);
       const hasNewerDraft = compareCounter(incoming.draft.version, local.serverVersion ?? '0') > 0;
@@ -970,6 +1080,11 @@ export class ChatOwner {
     conversations.push(incoming);
     conversations.sort((first, second) => second.updated_at.localeCompare(first.updated_at));
     this.publish({ conversations });
+  }
+
+  private async invalidateMessage(messageId: string): Promise<void> {
+    this.removeMessage(messageId);
+    await this.requireStore().redactReply(messageId);
   }
 
   private removeMessage(messageId: string): void {
@@ -994,11 +1109,44 @@ export class ChatOwner {
     }
     const precedingMessage =
       this.snapshot.precedingMessage?.id === messageId ? undefined : this.snapshot.precedingMessage;
-    this.publish({ messages, precedingMessage });
+    this.publish({
+      messages,
+      precedingMessage,
+      draft: redactDraftReply(this.snapshot.draft, messageId),
+      draftConflict: this.snapshot.draftConflict
+        ? redactDraftReply(this.snapshot.draftConflict, messageId)
+        : undefined,
+      draftAlternatives: this.snapshot.draftAlternatives?.map((draft) =>
+        redactDraftReply(draft, messageId),
+      ),
+    });
+  }
+
+  private redactAccessReplies(clearThrough?: string): void {
+    const drafts = [
+      this.snapshot.draft,
+      this.snapshot.draftConflict,
+      ...(this.snapshot.draftAlternatives ?? []),
+    ];
+    for (const draft of drafts) {
+      if (!draft?.reply) {
+        continue;
+      }
+      const targetId = draft.reply.message_id;
+      const target = this.snapshot.messages.find((message) => message.id === targetId);
+      if (target && clearThrough && compareCounter(target.sequence, clearThrough) > 0) {
+        continue;
+      }
+      this.removeMessage(targetId);
+      void this.requireStore()
+        .redactReply(targetId)
+        .catch((error) => this.report(error));
+    }
   }
 
   private removeConversation(conversationId: string): void {
     if (this.selectedConversation()?.id === conversationId) {
+      this.redactAccessReplies();
       this.viewGeneration += 1;
       this.historyLoad = undefined;
       this.publish({
@@ -1008,6 +1156,7 @@ export class ChatOwner {
       });
     }
     const conversations = this.snapshot.conversations.filter((item) => item.id !== conversationId);
+    this.summaryExpirations.delete(conversationId);
     this.publish({ conversations });
   }
 
@@ -1033,14 +1182,22 @@ export class ChatOwner {
         isLoading: false,
       });
     }
+    if (
+      selectedId &&
+      !cached.conversations.some((conversation) => conversation.id === selectedId)
+    ) {
+      this.removeConversation(selectedId);
+    }
     for (const conversation of cached.conversations) {
       this.mergeConversation(conversation);
     }
     this.cacheSnapshot = cached;
-    this.cursor = cached.cursor;
+    if (hasReset) {
+      this.cursor = cached.cursor;
+    }
     this.publish({ conversations: cached.conversations });
     for (const messageId of Object.keys(cached.removedMessages)) {
-      this.removeMessage(messageId);
+      await this.invalidateMessage(messageId);
     }
     for (const conversationId of cached.removedConversations) {
       this.removeConversation(conversationId);
@@ -1121,6 +1278,8 @@ export class ChatOwner {
       ...captured,
       hasLocalChanges: false,
       serverVersion: remote.version,
+      isReplyUnavailable: remote.is_reply_unavailable ?? captured.isReplyUnavailable,
+      replyExpiresAt: remote.reply_expires_at ?? captured.replyExpiresAt,
     };
     await this.requireStore().acknowledgeDraft({ destination, draft: acknowledged });
     this.ensureCurrent();
@@ -1147,8 +1306,9 @@ export class ChatOwner {
       error,
     };
     // A delayed failure may arrive after discard or sync reconciliation removed this operation.
-    if (await this.requireStore().updatePending(failed)) {
-      this.replacePending(failed);
+    const updated = await this.requireStore().updatePending(failed);
+    if (updated) {
+      this.replacePending(updated);
     }
   }
 
@@ -1204,19 +1364,60 @@ export class ChatOwner {
     const now = Date.now();
     let nextExpiry = Infinity;
     const expiredIds = new Set<string>();
-    const affectedConversations = new Set<string>();
-    for (const message of this.snapshot.messages) {
-      if (!message.expires_at) {
-        continue;
+    const conversationsById = new Map(
+      this.snapshot.conversations.map((entry) => [entry.id, entry]),
+    );
+    const observeSource = (messageId: string, expiresAt?: string | null) => {
+      if (!expiresAt) {
+        return;
       }
-      const deadline = Date.parse(message.expires_at);
+      const deadline = Date.parse(expiresAt);
       if (deadline <= now) {
-        expiredIds.add(message.id);
-        affectedConversations.add(message.conversation_id);
+        expiredIds.add(messageId);
       } else {
         nextExpiry = Math.min(nextExpiry, deadline);
       }
+    };
+    for (const message of this.snapshot.messages) {
+      observeSource(message.id, message.expires_at);
+      if (message.reply && !message.reply.is_unavailable) {
+        observeSource(message.reply.message_id, message.reply.expires_at);
+      }
+      const conversation = conversationsById.get(message.conversation_id);
+      if (message.expires_at && conversation?.last_sequence === message.sequence) {
+        this.summaryExpirations.set(conversation.id, message.expires_at);
+      }
     }
+    const drafts = [
+      this.snapshot.draft,
+      this.snapshot.draftConflict,
+      ...(this.snapshot.draftAlternatives ?? []),
+    ];
+    for (const draft of drafts) {
+      if (draft?.reply && !draft.isReplyUnavailable) {
+        observeSource(draft.reply.message_id, draft.replyExpiresAt);
+      }
+    }
+    const conversations = this.snapshot.conversations.map((conversation) => {
+      const expiresAt =
+        conversation.summary_expires_at === undefined
+          ? this.summaryExpirations.get(conversation.id)
+          : conversation.summary_expires_at;
+      if (!expiresAt) {
+        return conversation;
+      }
+      const deadline = Date.parse(expiresAt);
+      if (deadline > now) {
+        nextExpiry = Math.min(nextExpiry, deadline);
+        return conversation;
+      }
+      return {
+        ...conversation,
+        summary_text: '',
+        summary_expires_at: null,
+      };
+    });
+    this.snapshot = { ...this.snapshot, conversations };
     if (expiredIds.size > 0) {
       const retained = this.snapshot.messages.filter((message) => !expiredIds.has(message.id));
       const messages = retained.map((message) => {
@@ -1232,19 +1433,25 @@ export class ChatOwner {
           },
         };
       });
-      const conversations = this.snapshot.conversations.map((conversation) => {
-        return affectedConversations.has(conversation.id)
-          ? { ...conversation, summary_text: '' }
-          : conversation;
-      });
+      let draft = this.snapshot.draft;
+      let draftConflict = this.snapshot.draftConflict;
+      let draftAlternatives = this.snapshot.draftAlternatives;
+      for (const messageId of expiredIds) {
+        draft = redactDraftReply(draft, messageId);
+        draftConflict = draftConflict ? redactDraftReply(draftConflict, messageId) : undefined;
+        draftAlternatives = draftAlternatives?.map((entry) => redactDraftReply(entry, messageId));
+        void this.store?.redactReply(messageId).catch((error) => this.report(error));
+      }
       this.snapshot = {
         ...this.snapshot,
         messages,
-        conversations,
+        draft,
+        draftConflict,
+        draftAlternatives,
       };
     }
     if (Number.isFinite(nextExpiry)) {
-      // Local expiry remains active even when realtime and HTTP are both unavailable.
+      // All visible projections own their deadline independently of Worker or network availability.
       const delay = Math.min(nextExpiry - now, MAX_TIMER_DELAY_MS);
       this.expiryTimer = setTimeout(() => this.publish({}), delay);
     }

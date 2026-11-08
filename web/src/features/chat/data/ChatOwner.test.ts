@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { SessionOwner } from '@/features/auth/SessionOwner';
 import { ChatOwner } from './ChatOwner';
 import { PendingMessages } from './pendingMessages';
+import { CanonicalCache } from './canonicalCache';
 import { cursorFixture } from './messageFixtures.test-support';
 
 const USER = {
@@ -42,7 +43,15 @@ const SAVED: components['schemas']['ConversationView'] = {
   draft: { version: '0' },
 };
 
+const DIRECT: components['schemas']['ConversationView'] = { ...SAVED, kind: 'direct' };
+
+const SELECTION = {
+  destination: { kind: 'conversation' as const, conversation_id: DIRECT.id },
+  title: 'Direct chat',
+};
+
 function fixture(options: {
+  conversation?: components['schemas']['ConversationView'];
   transport?: (request: Request) => Promise<Response>;
   store?: PendingMessages;
   sessionId?: string;
@@ -65,7 +74,7 @@ function fixture(options: {
           },
           contacts: [],
           blocks: [],
-          conversations: [SAVED],
+          conversations: [options.conversation ?? SAVED],
           cursor: cursorFixture(0),
         });
       }
@@ -213,6 +222,35 @@ function syncPage(options: { first: number; last: number }) {
   });
 }
 
+function changePage(options: {
+  position: number;
+  conversation: components['schemas']['ConversationView'] | null;
+  message?: components['schemas']['CanonicalMessage'];
+  removedMessageId?: string;
+}) {
+  return {
+    groups: [
+      {
+        position: String(options.position),
+        conversation_id: DIRECT.id,
+        conversation: options.conversation,
+        message: options.message,
+        removed_message_id: options.removedMessageId,
+      },
+    ],
+    cursor: cursorFixture(options.position),
+    observation_cursor: cursorFixture(options.position),
+    has_more: false,
+  };
+}
+
+function syncTransport(page: ReturnType<typeof changePage>) {
+  return async (request: Request) => {
+    const cursor = new URL(request.url).searchParams.get('cursor');
+    return Response.json(cursor === page.cursor ? { ...page, groups: [] } : page);
+  };
+}
+
 describe('connected chat ownership', () => {
   it('retries an ambiguous send with stable identity after reload and reconciles one row', async () => {
     const storeKey = crypto.randomUUID();
@@ -285,7 +323,7 @@ describe('connected chat ownership', () => {
     await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
     await owner.queueSend({ text: 'Private operation' });
     const sending = owner.flush();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(submitted).toBeDefined());
     session.invalidate({ shouldBroadcast: false });
     release(Response.json(receipt(submitted!)));
     await sending;
@@ -860,7 +898,11 @@ it('scrubs a quote already on screen when its source text changes', async () => 
   });
   await owner.start();
   await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.setReply({ message_id: original.id, quote: original.content.text });
+  await owner.setDraft({ text: 'Independent draft' });
   await owner.catchUp();
+  expect(owner.getSnapshot().draft.reply?.quote).toBeNull();
+  expect(owner.getSnapshot().draft.value.text).toBe('Independent draft');
   expect(owner.getSnapshot().messages[1].reply?.quote).toBeNull();
   owner.dispose();
 });
@@ -899,33 +941,37 @@ it('conditionally clears a matching reply draft when the server normalizes an ab
   owner.dispose();
 });
 
-it('removes visible expired content and its reply excerpt without waiting for a worker wakeup', async () => {
-  const expiring = historyMessage(1);
-  expiring.expires_at = new Date(Date.now() + 150).toISOString();
-  const reply = historyMessage(2);
-  reply.reply = {
-    message_id: expiring.id,
-    quote: expiring.content.text,
-    is_unavailable: false,
-  };
-  const { owner } = fixture({
-    history: async () =>
-      Response.json({
-        messages: [expiring, reply],
-        generation: '1',
-        observation_cursor: cursorFixture(0),
-        has_older: false,
-        has_newer: false,
-      }),
-  });
-  await owner.start();
-  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  expect(owner.getSnapshot().messages.map((message) => message.id)).toEqual([reply.id]);
-  expect(owner.getSnapshot().messages[0].reply?.is_unavailable).toBe(true);
-  expect(owner.getSnapshot().messages[0].reply?.quote).toBeNull();
-  owner.dispose();
-});
+it.each([true, false])(
+  'expires reply context without Worker delivery when the source is in the window: %s',
+  async (isSourceInWindow) => {
+    const expiring = historyMessage(1);
+    expiring.expires_at = new Date(Date.now() + 150).toISOString();
+    const reply = historyMessage(2);
+    reply.reply = {
+      message_id: expiring.id,
+      quote: expiring.content.text,
+      is_unavailable: false,
+      expires_at: expiring.expires_at,
+    };
+    const { owner } = fixture({
+      history: async () =>
+        Response.json({
+          messages: isSourceInWindow ? [expiring, reply] : [reply],
+          generation: '1',
+          observation_cursor: cursorFixture(0),
+          has_older: false,
+          has_newer: false,
+        }),
+    });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(owner.getSnapshot().messages.map((message) => message.id)).toEqual([reply.id]);
+    expect(owner.getSnapshot().messages[0].reply?.is_unavailable).toBe(true);
+    expect(owner.getSnapshot().messages[0].reply?.quote).toBeNull();
+    owner.dispose();
+  },
+);
 
 it('restores the newer server draft instead of a stale acknowledged local copy', async () => {
   const store = new PendingMessages({ key: crypto.randomUUID() });
@@ -971,4 +1017,277 @@ it('restores the newer server draft instead of a stale acknowledged local copy',
   await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
   expect(owner.getSnapshot().draft.value.text).toBe('New server draft');
   owner.dispose();
+});
+
+it('propagates an edit to an older window after another tab advanced the shared checkpoint', async () => {
+  const sessionId = crypto.randomUUID();
+  const edited = historyMessage(1);
+  edited.version = '2';
+  edited.content.text = 'Edited remotely';
+  const page = changePage({
+    position: 101,
+    conversation: {
+      ...DIRECT,
+      version: '101',
+      last_sequence: '100',
+    },
+    message: edited,
+  });
+  const first = fixture({
+    conversation: DIRECT,
+    sessionId,
+    history: async () =>
+      historyPage({
+        first: 1,
+        last: 50,
+        hasNewer: true,
+      }),
+    transport: syncTransport(page),
+  }).owner;
+  const second = fixture({
+    conversation: DIRECT,
+    sessionId,
+    history: async () => historyPage({ first: 51, last: 100 }),
+    transport: syncTransport(page),
+  }).owner;
+  try {
+    await first.start();
+    await second.start();
+    await first.select(SELECTION);
+    await second.select(SELECTION);
+    await second.catchUp();
+    await first.catchUp();
+    expect(
+      first.getSnapshot().messages.find((message) => message.id === edited.id)?.content.text,
+    ).toBe('Edited remotely');
+  } finally {
+    first.dispose();
+    second.dispose();
+  }
+});
+
+it('retains synchronized reactions when an earlier history response reaches the durable cache', async () => {
+  const cache = new CanonicalCache({ key: crypto.randomUUID() });
+  const initial = await cache.open({ cursor: cursorFixture(0), conversations: [DIRECT] });
+  const oldHistory = {
+    messages: [historyMessage(1)],
+    generation: '1',
+    observation_cursor: cursorFixture(0),
+    has_older: false,
+    has_newer: false,
+    preceding_message: null,
+  };
+  await cache.saveHistory({
+    expected: initial,
+    conversationId: DIRECT.id,
+    page: oldHistory,
+  });
+  const reacted = historyMessage(1);
+  reacted.interaction_version = '2';
+  reacted.reactions = [
+    {
+      emoji: '👍',
+      count: '1',
+      is_selected: true,
+    },
+  ];
+  await cache.applySync({
+    expected: initial,
+    page: changePage({
+      position: 1,
+      conversation: { ...DIRECT, version: '2' },
+      message: reacted,
+    }),
+  });
+  await cache.saveHistory({
+    expected: await cache.read(),
+    conversationId: DIRECT.id,
+    page: oldHistory,
+  });
+  const cached = await cache.read();
+  expect(cached.pages[DIRECT.id].messages[0].interaction_version).toBe('2');
+});
+
+it('scrubs an active draft quote when its target is hidden without a draft-version change', async () => {
+  const content = {
+    schema_version: 1,
+    text: 'Reply draft',
+    custom_emoji: [],
+  };
+  const owner = fixture({
+    conversation: DIRECT,
+    history: async () => historyPage({ first: 1, last: 1 }),
+    commands: async () =>
+      Response.json({
+        observation_cursor: cursorFixture(1),
+        conversation: {
+          ...DIRECT,
+          version: '2',
+          draft: {
+            version: '1',
+            content,
+            reply: { message_id: 'message-1', quote: 'Message 1' },
+          },
+        },
+      }),
+    transport: syncTransport(
+      changePage({
+        position: 2,
+        conversation: {
+          ...DIRECT,
+          version: '3',
+          draft: {
+            version: '1',
+            content,
+            reply: { message_id: 'message-1', quote: null },
+          },
+        },
+        removedMessageId: 'message-1',
+      }),
+    ),
+  }).owner;
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    await owner.setReply({ message_id: 'message-1', quote: 'Message 1' });
+    await owner.setDraft({ text: 'Reply draft' });
+    await owner.flushDraft();
+    await owner.catchUp();
+    expect(owner.getSnapshot().draft.reply?.quote).toBeNull();
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('purges a selected conversation after another tab consumed its access-removal change', async () => {
+  const sessionId = crypto.randomUUID();
+  const page = changePage({ position: 2, conversation: null });
+  const first = fixture({
+    conversation: DIRECT,
+    sessionId,
+    history: async () => historyPage({ first: 1, last: 1 }),
+    transport: syncTransport(page),
+  }).owner;
+  const second = fixture({
+    conversation: DIRECT,
+    sessionId,
+    transport: syncTransport(page),
+  }).owner;
+  try {
+    await first.start();
+    await second.start();
+    await first.select(SELECTION);
+    await second.catchUp();
+    await first.catchUp();
+    expect(first.getSnapshot().messages).toEqual([]);
+  } finally {
+    first.dispose();
+    second.dispose();
+  }
+});
+
+it('persists an offline send even when draft synchronization cannot reach the server', async () => {
+  const owner = fixture({
+    conversation: DIRECT,
+    commands: async () => {
+      throw new TypeError('Network unavailable');
+    },
+  }).owner;
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    await owner.setDraft({ text: 'Send while offline' });
+    await owner.queueSend({ text: 'Send while offline' }).catch(() => undefined);
+    expect(owner.getSnapshot().pending).toHaveLength(1);
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('fences old history as soon as deletion is acknowledged even while sync is delayed', async () => {
+  const oldHistory = deferredResponse();
+  const delayedSync = deferredResponse();
+  let historyCount = 0;
+  const deleted = historyMessage(1);
+  deleted.is_deleted = true;
+  deleted.version = '2';
+  deleted.content.text = '';
+  const owner = fixture({
+    conversation: DIRECT,
+    history: async () => {
+      historyCount += 1;
+      return historyCount === 1 ? historyPage({ first: 1, last: 1 }) : oldHistory.promise;
+    },
+    commands: async () =>
+      Response.json({
+        observation_cursor: cursorFixture(2),
+        conversation: {
+          ...DIRECT,
+          version: '3',
+          last_sequence: '1',
+        },
+        message: deleted,
+      }),
+    transport: async () => delayedSync.promise,
+  }).owner;
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    const loading = owner.loadHistory('latest');
+    await owner.command({ kind: 'delete', message_id: 'message-1' });
+    oldHistory.release(historyPage({ first: 1, last: 1 }));
+    await loading;
+    expect(owner.getSnapshot().messages).toEqual([]);
+  } finally {
+    owner.dispose();
+    delayedSync.release(
+      Response.json({
+        groups: [],
+        cursor: cursorFixture(2),
+        observation_cursor: cursorFixture(2),
+        has_more: false,
+      }),
+    );
+  }
+});
+
+it('expires a directory excerpt after leaving the conversation while the worker is unavailable', async () => {
+  const expiring = historyMessage(1);
+  expiring.expires_at = new Date(Date.now() + 150).toISOString();
+  const page = changePage({
+    position: 1,
+    conversation: {
+      ...DIRECT,
+      version: '2',
+      last_sequence: '1',
+      summary_text: expiring.content.text,
+    },
+    message: expiring,
+  });
+  const owner = fixture({
+    conversation: DIRECT,
+    history: async () =>
+      Response.json({
+        messages: [expiring],
+        generation: '1',
+        observation_cursor: cursorFixture(0),
+        has_older: false,
+        has_newer: false,
+      }),
+    transport: syncTransport(page),
+  }).owner;
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    await owner.catchUp();
+    await owner.select({
+      destination: { kind: 'recipient', user_id: 'another-contact' },
+      title: 'Another chat',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await owner.catchUp();
+    expect(owner.getSnapshot().conversations[0].summary_text).toBe('');
+  } finally {
+    owner.dispose();
+  }
 });

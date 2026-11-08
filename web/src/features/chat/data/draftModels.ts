@@ -20,5 +20,7 @@ export function restoreServerDraft(server: Conversation['draft']): Draft {
     hasLocalChanges: false,
     value,
     reply: server.reply ?? undefined,
+    replyExpiresAt: server.reply_expires_at ?? undefined,
+    isReplyUnavailable: server.is_reply_unavailable ?? false,
   };
 }
