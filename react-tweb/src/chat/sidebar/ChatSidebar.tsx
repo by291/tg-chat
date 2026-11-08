@@ -1,3 +1,4 @@
+import { useAppNavigation } from '../../app/navigation/useAppNavigation';
 import { Archive, ArrowLeft, MoreVertical, Search, X } from 'lucide-react';
 import { NewChatMenu, type NewChatMode } from './NewChatMenu';
 import { NewChatPage } from './NewChatPage';
@@ -49,8 +50,8 @@ export function ChatSidebar({
   isDark = state.isDark,
 }: ChatSidebarProps) {
   const [query, setQuery] = useState('');
-  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const navigation = useAppNavigation();
+  const { isArchiveOpen, isSettingsOpen } = navigation;
   const [newChatMode, setNewChatMode] = useState<NewChatMode>();
   const [creationSession, setCreationSession] = useState(0);
   const closingNewChatMode = useClosingDialogValue(newChatMode);
@@ -116,7 +117,7 @@ export function ChatSidebar({
 
   function openArchiveSearch() {
     shouldFocusArchiveSearch.current = true;
-    setIsArchiveOpen(false);
+    navigation.closeArchive();
     setSearchScope('archive');
     setQuery('');
     setIsSearching(true);
@@ -136,7 +137,11 @@ export function ChatSidebar({
       setIsSearching(false);
       setQuery('');
       setSearchScope('all');
-      setIsArchiveOpen(conversation.isArchived);
+      if (conversation.isArchived) {
+        navigation.openArchive();
+      } else {
+        navigation.closeArchive();
+      }
     }
     actions.runMenuAction(conversation, action, anchor);
   }
@@ -154,12 +159,12 @@ export function ChatSidebar({
     setIsSearching(false);
     setQuery('');
     setSearchScope('all');
-    setIsArchiveOpen(true);
+    navigation.openArchive();
   }
 
   function closeArchive() {
     actions.clearSelection();
-    setIsArchiveOpen(false);
+    navigation.closeArchive();
   }
 
   function renderConversationRow(conversation: ConversationListEntry) {
@@ -202,7 +207,7 @@ export function ChatSidebar({
             onSelectChat={selectChat}
             onToggleTheme={onToggleTheme}
             onOpenArchive={openArchive}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => navigation.openSettings()}
             archiveUnreadCount={archive.unreadCount}
           />
           <div className={styles.searchField} data-archive={searchScope === 'archive'}>
@@ -394,7 +399,7 @@ export function ChatSidebar({
         }
         if (isSettingsOpen && event.key === 'Escape') {
           event.preventDefault();
-          setIsSettingsOpen(false);
+          navigation.closeSettings();
           return;
         }
         if (isSelecting && event.key === 'Escape') {
@@ -449,7 +454,7 @@ export function ChatSidebar({
                 />
               ) : (
                 <SettingsPage
-                  onBack={() => setIsSettingsOpen(false)}
+                  onBack={() => navigation.closeSettings()}
                   conversations={conversations}
                   onSetMuted={({ chatId, isMuted }) =>
                     dispatch({

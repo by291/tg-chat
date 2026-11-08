@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { SenderProfileProvider } from '../chat/details/SenderProfileProvider';
 import { ChatDetails } from '../chat/details/ChatDetails';
 import { ChatSidebar } from '../chat/sidebar/ChatSidebar';
 import { ConversationPane } from '../chat/ConversationPane';
 import { ContactActionsProvider } from '../chat/messages/ContactActions';
-import { getConversations } from '../chat/state/conversations';
 import { MediaViewer } from '../chat/media/MediaViewer';
 import { getGalleryMessages } from '../chat/media/photoGallery';
 import {
@@ -14,6 +13,8 @@ import {
 import type { Message } from '../chat/model';
 import { useConversationList } from '../chat/sidebar/conversationList';
 import { useChatState } from '../chat/state/useChatState';
+import { useChatRoute } from './navigation/useChatRoute';
+import { useAppNavigation } from './navigation/useAppNavigation';
 import { useInputModality } from './useInputModality';
 import { useAppPreferences } from './settings/appPreferences';
 import { useAppearanceTheme } from './appearance/useAppearanceTheme';
@@ -33,12 +34,14 @@ export function ChatApp() {
   const conversationEntries = useConversationList(state);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [hasOpenedDetails, setHasOpenedDetails] = useState(false);
-  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+  const navigation = useAppNavigation();
+  const previousChatId = useRef(navigation.chatId);
+  const isMobileChatOpen = Boolean(navigation.chatId);
   const [mediaMessage, setMediaMessage] = useState<Message>();
   const [requestedMediaCommand, setRequestedMediaCommand] = useState<MediaViewerCommand>();
   const [mediaReturnMessage, setMediaReturnMessage] = useState<Message>();
   const [forwardDrafts, setForwardDrafts] = useState<Record<string, Message[]>>({});
-  const [requestedChatId] = useState(() => new URL(window.location.href).searchParams.get('chat'));
+
   const isConversationDeleted =
     state.conversationPreferences?.[state.activeChatId]?.isDeleted ?? false;
   const conversation = conversationEntries.find((entry) => entry.id === state.activeChatId);
@@ -51,27 +54,29 @@ export function ChatApp() {
     isLegacyDark: state.isDark,
   });
 
-  useEffect(
-    () => {
-      const isKnownConversation = getConversations(state).some(
-        (entry) => entry.id === requestedChatId,
-      );
-      if (isReady && requestedChatId && isKnownConversation) {
-        dispatch({ type: 'select-chat', chatId: requestedChatId });
-        setIsMobileChatOpen(true);
-      }
-    },
-    // prettier-ignore
-    [
-    isReady,
-    requestedChatId,
+  useChatRoute({
+    chatId: navigation.chatId,
+    state,
     dispatch,
-  ],
-  );
+    isReady,
+  });
+
+  useEffect(() => {
+    // Browser history bypasses selectConversation, so it must also dismiss chat-specific overlays.
+    const hasChangedChat = previousChatId.current !== navigation.chatId;
+    previousChatId.current = navigation.chatId;
+    if (hasChangedChat && navigation.navigationType === 'POP') {
+      setIsDetailsOpen(false);
+      setMediaMessage(undefined);
+      setRequestedMediaCommand(undefined);
+      setMediaReturnMessage(undefined);
+    }
+  }, [navigation.chatId, navigation.navigationType]);
 
   function selectConversation(chatId: string) {
+    // Explicit selection also clears manual unread marks, even when the URL is unchanged.
     dispatch({ type: 'select-chat', chatId });
-    setIsMobileChatOpen(true);
+    navigation.openChat(chatId);
     setIsDetailsOpen(false);
     setMediaMessage(undefined);
     setRequestedMediaCommand(undefined);
@@ -185,7 +190,7 @@ export function ChatApp() {
                   setIsDetailsOpen((isOpen) => !isOpen);
                 }}
                 onOpenMedia={setMediaMessage}
-                onBack={() => setIsMobileChatOpen(false)}
+                onBack={navigation.closeChat}
                 onNotify={showToast}
               />
             )}

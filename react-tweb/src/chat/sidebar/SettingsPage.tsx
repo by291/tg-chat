@@ -1,3 +1,4 @@
+import { useAppNavigation } from '../../app/navigation/useAppNavigation';
 import { Search } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { IconButton } from '../../components/IconButton';
@@ -25,8 +26,12 @@ interface SettingsPageProps extends NotificationChatActions {
 
 /** Browse supported preferences without replacing the conversation or losing sidebar state. */
 export function SettingsPage({ onBack, ...notificationActions }: SettingsPageProps) {
-  const [destination, setDestination] = useState<SettingsSearchItem>();
-  const closingDestination = useClosingDialogValue(destination);
+  const navigation = useAppNavigation();
+  const closingDestination = useClosingDialogValue(navigation.settingsDestination);
+  // Closing the whole sidebar must not also animate its nested page back to the overview.
+  const destination = navigation.isSettingsOpen
+    ? navigation.settingsDestination
+    : closingDestination;
   const detailRef = useRef<HTMLDivElement>(null);
   useSettingsSearchTarget({ rootRef: detailRef, item: destination });
   const [isSearching, setIsSearching] = useState(false);
@@ -39,7 +44,7 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
 
   function navigateBack() {
     if (destination) {
-      setDestination(undefined);
+      navigation.openSettings();
       return;
     }
     if (isSearching) {
@@ -51,17 +56,11 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
 
   function openSearchResult(item: SettingsSearchItem) {
     rememberSetting(item.id);
-    setDestination(item);
+    navigation.openSettings(item);
   }
 
-  const closeCategory = () => setDestination(undefined);
-  let detailPage = (
-    <GeneralSettingsPage
-      key={closingDestination?.id}
-      initialPage={closingDestination?.page}
-      onBack={closeCategory}
-    />
-  );
+  const closeCategory = () => navigation.openSettings();
+  let detailPage = <GeneralSettingsPage onBack={closeCategory} />;
   if (closingDestination?.category === 'notifications') {
     detailPage = <NotificationSettingsPage {...notificationActions} onBack={closeCategory} />;
   } else if (closingDestination?.category === 'stickers') {
@@ -105,7 +104,7 @@ export function SettingsPage({ onBack, ...notificationActions }: SettingsPagePro
                 icon={entry.icon}
                 color={entry.color}
                 onClick={() =>
-                  setDestination({
+                  navigation.openSettings({
                     id: entry.id,
                     category: entry.id,
                     title: entry.label,

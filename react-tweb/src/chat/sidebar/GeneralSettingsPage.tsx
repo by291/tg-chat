@@ -1,3 +1,4 @@
+import { useAppNavigation } from '../../app/navigation/useAppNavigation';
 import { Palette, Rocket } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
@@ -23,15 +24,17 @@ import styles from './SettingsPage.module.css';
 const MINUTE_DURATION = 60_000;
 
 interface GeneralSettingsPageProps {
-  initialPage?: 'power' | 'wallpaper';
   onBack: () => void;
 }
 
 /** Edit message presentation and open the media power-saving preferences. */
-export function GeneralSettingsPage({ onBack, initialPage }: GeneralSettingsPageProps) {
+export function GeneralSettingsPage({ onBack }: GeneralSettingsPageProps) {
   const preferences = useAppPreferences();
-  const [page, setPage] = useState<'power' | 'wallpaper' | undefined>(initialPage);
-  const closingPage = useClosingDialogValue(page);
+  const navigation = useAppNavigation();
+  const closingPage = useClosingDialogValue(navigation.settingsPage);
+  const isGeneralDestination = navigation.settingsDestination?.category === 'general';
+  // A parent exit keeps the outgoing nested surface intact until it returns to General Settings.
+  const page = isGeneralDestination ? navigation.settingsPage : closingPage;
   const [previewTimestamp, setPreviewTimestamp] = useState(Date.now);
   const isPowerSaving =
     !preferences.shouldAutoplayVideos ||
@@ -65,14 +68,14 @@ export function GeneralSettingsPage({ onBack, initialPage }: GeneralSettingsPage
             label="Chat Wallpaper"
             icon={Palette}
             color="orange"
-            onClick={() => setPage('wallpaper')}
+            onClick={() => navigation.openSettingsPage('wallpaper')}
           />
           <SettingsRow
             label="Power Saving Mode"
             icon={Rocket}
             color="purple"
             value={isPowerSaving ? 'Enabled' : 'Disabled'}
-            onClick={() => setPage('power')}
+            onClick={() => navigation.openSettingsPage('power')}
           />
         </section>
         <ThemeSettings />
@@ -106,7 +109,7 @@ export function GeneralSettingsPage({ onBack, initialPage }: GeneralSettingsPage
         if (event.key === 'Escape' && page && !event.defaultPrevented) {
           event.preventDefault();
           event.stopPropagation();
-          setPage(undefined);
+          navigation.openSettingsPage(undefined);
         }
       }}
     >
@@ -115,9 +118,9 @@ export function GeneralSettingsPage({ onBack, initialPage }: GeneralSettingsPage
         primary={generalPage}
         secondary={
           closingPage === 'wallpaper' ? (
-            <WallpaperSettingsPage onBack={() => setPage(undefined)} />
+            <WallpaperSettingsPage onBack={() => navigation.openSettingsPage(undefined)} />
           ) : (
-            <PowerSavingPage onBack={() => setPage(undefined)} />
+            <PowerSavingPage onBack={() => navigation.openSettingsPage(undefined)} />
           )
         }
       />

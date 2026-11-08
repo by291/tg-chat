@@ -108,6 +108,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'restore':
       return action.state;
     case 'select-chat': {
+      if (!action.chatId) {
+        return { ...state, activeChatId: '' };
+      }
       const nextState = updateConversations({
         state,
         chatIds: [action.chatId],

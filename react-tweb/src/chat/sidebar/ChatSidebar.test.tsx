@@ -2,6 +2,7 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
+import { MemoryRouter } from 'react-router';
 import { chatReducer } from '../state/reducer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
@@ -34,7 +35,7 @@ function SidebarTestScreen() {
   const [state, dispatch] = useReducer(chatReducer, undefined, createInitialState);
 
   return (
-    <>
+    <MemoryRouter>
       <ChatSidebar
         state={state}
         dispatch={dispatch}
@@ -42,7 +43,7 @@ function SidebarTestScreen() {
         onToggleTheme={() => dispatch({ type: 'toggle-theme' })}
       />
       <output aria-label="Selected conversation">{state.activeChatId}</output>
-    </>
+    </MemoryRouter>
   );
 }
 
@@ -53,7 +54,7 @@ describe('sidebar search', () => {
 
     await user.click(screen.getByRole('button', { name: 'Main menu' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Settings' }));
-    await user.click(screen.getByRole('button', { name: 'Stickers and Emoji' }));
+    await user.click(await screen.findByRole('button', { name: 'Stickers and Emoji' }));
     const loopSwitch = screen.getByRole('checkbox', { name: 'Loop Animated Stickers' });
     const wasChecked = (loopSwitch as HTMLInputElement).checked;
     await user.click(loopSwitch);
@@ -74,7 +75,7 @@ describe('sidebar search', () => {
 
     await user.click(screen.getByRole('button', { name: 'Main menu' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Settings' }));
-    await user.click(screen.getByRole('button', { name: 'Search settings' }));
+    await user.click(await screen.findByRole('button', { name: 'Search settings' }));
     await user.type(screen.getByRole('textbox', { name: 'Search settings' }), 'dark');
     await user.click(screen.getByRole('button', { name: 'General Settings' }));
     await user.click(screen.getByRole('radio', { name: 'Dark' }));

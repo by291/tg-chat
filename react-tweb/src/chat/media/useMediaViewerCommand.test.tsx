@@ -16,6 +16,7 @@ describe('viewer command handoff', () => {
     const onJumpToMessage = vi.fn();
     const view = renderHook(useMediaViewerCommand, {
       initialProps: {
+        chatId: message.chatId,
         command,
         onMessageCommand,
         onJumpToMessage,
@@ -25,6 +26,7 @@ describe('viewer command handoff', () => {
 
     const nextMessageCommand = vi.fn();
     view.rerender({
+      chatId: message.chatId,
       command,
       onMessageCommand: nextMessageCommand,
       onJumpToMessage,
@@ -39,6 +41,7 @@ describe('viewer command handoff', () => {
     const command: MediaViewerCommand = { action: 'go-to-message', message };
     const view = renderHook(useMediaViewerCommand, {
       initialProps: {
+        chatId: message.chatId,
         command,
         onMessageCommand,
         onJumpToMessage,
@@ -48,6 +51,7 @@ describe('viewer command handoff', () => {
     onJumpToMessage.mockClear();
 
     view.rerender({
+      chatId: message.chatId,
       command: { action: 'go-to-message', message },
       onMessageCommand,
       onJumpToMessage,
@@ -55,5 +59,28 @@ describe('viewer command handoff', () => {
 
     expect(onJumpToMessage).toHaveBeenCalledWith(message.id);
     expect(onMessageCommand).not.toHaveBeenCalled();
+  });
+
+  it('waits for the owning conversation before applying a media command', () => {
+    const onMessageCommand = vi.fn();
+    const onJumpToMessage = vi.fn();
+    const command: MediaViewerCommand = { action: 'edit-caption', message };
+    const view = renderHook(useMediaViewerCommand, {
+      initialProps: {
+        chatId: 'another-conversation',
+        command,
+        onMessageCommand,
+        onJumpToMessage,
+      },
+    });
+    expect(onMessageCommand).not.toHaveBeenCalled();
+
+    view.rerender({
+      chatId: message.chatId,
+      command,
+      onMessageCommand,
+      onJumpToMessage,
+    });
+    expect(onMessageCommand).toHaveBeenCalledWith({ action: 'edit', message });
   });
 });

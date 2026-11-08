@@ -325,6 +325,7 @@ export function ConversationPane({
   }, []);
 
   useMediaViewerCommand({
+    chatId: conversation.id,
     command: requestedMediaCommand,
     onMessageCommand: applyMessageCommand,
     onJumpToMessage: jumpToMessage,

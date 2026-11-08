@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router';
 import { SettingsPage } from './SettingsPage';
 
 vi.mock('./ThemeEmoji', () => ({ ThemeEmoji: () => null }));
@@ -31,12 +32,14 @@ afterEach(() => {
 function renderSettings() {
   const onBack = vi.fn();
   render(
-    <SettingsPage
-      conversations={[]}
-      onSetMuted={() => {}}
-      onResetMutes={() => {}}
-      onBack={onBack}
-    />,
+    <MemoryRouter initialEntries={['/?settings=overview']}>
+      <SettingsPage
+        conversations={[]}
+        onSetMuted={() => {}}
+        onResetMutes={() => {}}
+        onBack={onBack}
+      />
+    </MemoryRouter>,
   );
   return onBack;
 }

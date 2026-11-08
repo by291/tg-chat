@@ -31,6 +31,14 @@ function createState(): ChatState {
 }
 
 describe('conversation changes', () => {
+  it('clears navigation without creating preferences for an empty conversation', () => {
+    const state = createState();
+    const cleared = chatReducer(state, { type: 'select-chat', chatId: '' });
+    expect(cleared.activeChatId).toBe('');
+    expect(cleared.conversationPreferences).toEqual(state.conversationPreferences);
+    expect(cleared.drafts.dev).toBe('A draft');
+  });
+
   it('applies an explicit pin state without reversing an already confirmed change', () => {
     const pinAction = {
       type: 'pin' as const,

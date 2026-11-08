@@ -3,6 +3,7 @@ import type { MessageCommand } from '../model';
 import type { MediaViewerCommand } from './mediaViewerCommands';
 
 interface UseMediaViewerCommandOptions {
+  chatId: string;
   command?: MediaViewerCommand;
   onMessageCommand: (command: MessageCommand) => void;
   onJumpToMessage: (messageId: string) => void;
@@ -10,6 +11,7 @@ interface UseMediaViewerCommandOptions {
 
 /** Route each viewer request once through the conversation's existing commands. */
 export function useMediaViewerCommand({
+  chatId,
   command,
   onMessageCommand,
   onJumpToMessage,
@@ -18,7 +20,8 @@ export function useMediaViewerCommand({
 
   useEffect(
     () => {
-      if (!command || appliedCommand.current === command) {
+      const isTargetConversation = command?.message.chatId === chatId;
+      if (!command || !isTargetConversation || appliedCommand.current === command) {
         return;
       }
       // Callback identities change with conversation state; they must not replay a user request.
@@ -33,6 +36,7 @@ export function useMediaViewerCommand({
     },
     // prettier-ignore
     [
+      chatId,
       command,
       onMessageCommand,
       onJumpToMessage,

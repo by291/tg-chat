@@ -1,4 +1,5 @@
 import { StrictMode } from 'react';
+import { BrowserRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import { ChatApp } from './app/ChatApp';
 import './global.css';
@@ -14,6 +15,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ChatApp />
+    <BrowserRouter>
+      <ChatApp />
+    </BrowserRouter>
   </StrictMode>,
 );
