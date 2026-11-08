@@ -17,7 +17,10 @@ export type HistoryRow =
     };
 
 /** Compute groups before slicing so a virtual boundary never becomes a sender boundary. */
-export function createHistoryRows(messages: Message[]): HistoryRow[] {
+export function createHistoryRows(
+  messages: Message[],
+  options?: { precedingMessage?: Message },
+): HistoryRow[] {
   const rows: HistoryRow[] = [];
   let previousDate = '';
 
@@ -35,11 +38,12 @@ export function createHistoryRows(messages: Message[]): HistoryRow[] {
     }
 
     const nextMessage = messages[index + 1];
+    const previousMessage = index === 0 ? options?.precedingMessage : messages[index - 1];
     rows.push({
       kind: 'message',
       key: message.id,
       message,
-      isGroupStart: !belongsToSameGroup(message, messages[index - 1]),
+      isGroupStart: !belongsToSameGroup(message, previousMessage),
       isGroupEnd: !nextMessage || !belongsToSameGroup(nextMessage, message),
     });
   }

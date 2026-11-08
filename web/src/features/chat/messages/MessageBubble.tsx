@@ -10,7 +10,7 @@ import { finishReactionLayout } from './reactions/reactionLayoutTransition';
 import { MessageTail } from './MessageTail';
 import { useDeferredMediaSource } from './content/media/deferredMedia';
 import { describeMessage } from '../messageFormatting';
-import { CURRENT_USER_ID } from '@/domain/identity';
+import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { type Message } from '@/domain/messages/message';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import type { OutgoingMessageMount } from './transitions/outgoingMessageTransition';
@@ -88,7 +88,8 @@ export const MessageBubble = memo(function MessageBubble({
       onMount?.({ messageId: message.id, element });
     }
   }, [message.id, onMount]);
-  const isOwn = message.authorId === CURRENT_USER_ID;
+  const currentUserId = useCurrentUserId();
+  const isOwn = message.authorId === currentUserId;
   const isRoundVideo = message.media?.kind === 'video' && message.media.isRound;
   const isStandalone = Boolean(message.sticker || isRoundVideo || largeEmojiSize);
   const hasVisualMedia = Boolean(

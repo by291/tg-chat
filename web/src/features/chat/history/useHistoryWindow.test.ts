@@ -29,3 +29,20 @@ describe('local history paging', () => {
     expect(result.current.rows).toEqual(revealedRows);
   });
 });
+
+it('delegates older history to the remote source without slicing away newly loaded rows', () => {
+  const rows = createHistoryRows(createHistoryMessages().slice(0, 100));
+  let requests = 0;
+  const { result } = renderHook(() =>
+    useHistoryWindow(rows, {
+      hasOlder: true,
+      isLoading: false,
+      loadOlder: () => {
+        requests += 1;
+      },
+    }),
+  );
+  expect(result.current.rows).toEqual(rows);
+  act(() => result.current.loadOlder());
+  expect(requests).toBe(1);
+});

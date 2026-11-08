@@ -23,7 +23,8 @@ import { describeMessage } from '../messageFormatting';
 import type { Message } from '@/domain/messages/message';
 import type { MessageCommand } from '@/features/chat/messages/commands';
 import type { MessageInteraction } from '@/domain/messages/interaction';
-import { useHistoryWindow } from './useHistoryWindow';
+import { useHistoryWindow, type RemoteHistory } from './useHistoryWindow';
+import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { useVirtualHistory } from './useVirtualHistory';
 import { StickyDateHeaders } from './StickyDateHeaders';
 import { createHistoryDateGroups } from './historyDates';
@@ -48,6 +49,9 @@ interface MessageTimelineProps {
   shouldShowSender?: boolean;
   overlayInsets?: ChatOverlayInsets;
   isPreview?: boolean;
+  canUseMessageActions?: boolean;
+  remoteHistory?: RemoteHistory;
+  precedingMessage?: Message;
   messageIdPrefix?: string;
   searchQuery: string;
   unreadCount?: number;
@@ -83,6 +87,9 @@ function VirtualMessageHistory({
   onToggleSelection,
   onSetSelection,
   isPreview,
+  canUseMessageActions = true,
+  remoteHistory,
+  precedingMessage,
   messageIdPrefix,
   onCommand,
   onReact,
@@ -90,11 +97,15 @@ function VirtualMessageHistory({
   onOpenMedia,
   onJumpToMessage,
 }: VirtualMessageHistoryProps) {
-  const allRows = useMemo(() => createHistoryRows(messages), [messages]);
+  const currentUserId = useCurrentUserId();
+  const allRows = useMemo(
+    () => createHistoryRows(messages, { precedingMessage }),
+    [messages, precedingMessage],
+  );
   const [highlightedId, setHighlightedId] = useState('');
   const [calendarRequest, setCalendarRequest] = useState({ timestamp: Date.now(), id: 0 });
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const history = useHistoryWindow(allRows);
+  const history = useHistoryWindow(allRows, remoteHistory);
   const { rows, hasOlder, loadOlder } = history;
   const notifyMessageMount = isPreview ? undefined : onMessageMount;
   const scroll = useVirtualHistory({
@@ -136,7 +147,7 @@ function VirtualMessageHistory({
   );
   const menu = useMessageMenu({
     viewportRef: scroll.viewportRef,
-    isDisabled: isPreview,
+    isDisabled: isPreview || !canUseMessageActions,
     selectedIds,
     onSelectMessage: (messageId) => {
       const message = messageById.get(messageId);
@@ -148,7 +159,7 @@ function VirtualMessageHistory({
   const selectionGesture = useMessageSelectionGesture({
     messages,
     selectedIds,
-    isDisabled: isPreview || menu.isOpen,
+    isDisabled: isPreview || !canUseMessageActions || menu.isOpen,
     onToggleSelection,
     onSetSelection,
   });
@@ -168,6 +179,7 @@ function VirtualMessageHistory({
         measurements: scroll.virtualizer.measurementsCache,
         renderedItems: virtualItems,
         bottomAlignment,
+        currentUserId,
       })
     : [];
   const isJumpVisible = (scroll.canJumpToLatest || unreadCount > 0) && !searchQuery;
@@ -190,12 +202,16 @@ function VirtualMessageHistory({
   }, [navigation]);
 
   function openDatePicker(timestamp: number) {
+    if (!canUseMessageActions) {
+      return;
+    }
     setCalendarRequest((previous) => ({ timestamp, id: previous.id + 1 }));
     setIsCalendarOpen(true);
   }
 
   function replyToRow(event: MouseEvent<HTMLDivElement>) {
-    if (isPreview || selectedIds !== undefined || !(event.target instanceof Element)) {
+    const isDisabled = isPreview || !canUseMessageActions || selectedIds !== undefined;
+    if (isDisabled || !(event.target instanceof Element)) {
       return;
     }
 
@@ -324,7 +340,7 @@ function VirtualMessageHistory({
           </div>
         </div>
       </div>
-      {!isPreview && (
+      {!isPreview && canUseMessageActions && (
         <SearchDateDialog
           key={calendarRequest.id}
           isOpen={isCalendarOpen}
@@ -339,7 +355,7 @@ function VirtualMessageHistory({
           }}
         />
       )}
-      {!isPreview && (
+      {!isPreview && canUseMessageActions && (
         <MessageMenu
           contentId={menu.contentId}
           target={menu.target}

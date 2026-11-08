@@ -5,8 +5,14 @@ export const INITIAL_HISTORY_ROWS = 60;
 const HISTORY_PAGE_ROWS = 80;
 const NAVIGATION_CONTEXT_ROWS = 12;
 
+export interface RemoteHistory {
+  hasOlder: boolean;
+  isLoading: boolean;
+  loadOlder: () => void;
+}
+
 /** Expand locally available history without changing the identity of existing rows. */
-export function useHistoryWindow(allRows: HistoryRow[]) {
+export function useHistoryWindow(allRows: HistoryRow[], remote?: RemoteHistory) {
   const [firstLoadedKey, setFirstLoadedKey] = useState(() => {
     const initialIndex = Math.max(0, allRows.length - INITIAL_HISTORY_ROWS);
     return allRows[initialIndex]?.key;
@@ -19,6 +25,13 @@ export function useHistoryWindow(allRows: HistoryRow[]) {
   const rows = useMemo(() => allRows.slice(startIndex), [allRows, startIndex]);
 
   function loadOlder() {
+    if (remote) {
+      if (!remote.isLoading && remote.hasOlder) {
+        remote.loadOlder();
+      }
+      return;
+    }
+
     const nextIndex = Math.max(0, startIndex - HISTORY_PAGE_ROWS);
     setFirstLoadedKey(allRows[nextIndex]?.key);
   }
@@ -34,8 +47,8 @@ export function useHistoryWindow(allRows: HistoryRow[]) {
   }
 
   return {
-    rows,
-    hasOlder: startIndex > 0,
+    rows: remote ? allRows : rows,
+    hasOlder: remote ? remote.hasOlder && !remote.isLoading : startIndex > 0,
     loadOlder,
     revealMessage,
   };

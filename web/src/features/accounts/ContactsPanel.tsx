@@ -9,7 +9,13 @@ type DirectoryPage = components['schemas']['DirectoryPage'];
 type DirectoryScope = 'contacts' | 'blocks' | 'search';
 
 /** Browse account-owned relationships and search only bounded public directory fields. */
-export function ContactsPanel({ owner }: { owner: SessionOwner }) {
+export function ContactsPanel({
+  owner,
+  onStartChat,
+}: {
+  owner: SessionOwner;
+  onStartChat?: (person: components['schemas']['PublicProfile']) => void;
+}) {
   const [scope, setScope] = useState<DirectoryScope>('contacts');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string>();
@@ -146,6 +152,15 @@ export function ContactsPanel({ owner }: { owner: SessionOwner }) {
                 {person.biography && <p className={styles.hint}>{person.biography}</p>}
               </div>
               <div className={styles.rowActions}>
+                {onStartChat && scope !== 'blocks' && (
+                  <button
+                    type="button"
+                    className={styles.textButton}
+                    onClick={() => onStartChat(person)}
+                  >
+                    Message
+                  </button>
+                )}
                 {scope === 'search' && (
                   <button
                     type="button"

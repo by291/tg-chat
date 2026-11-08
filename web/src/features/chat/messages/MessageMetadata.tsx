@@ -2,10 +2,24 @@ import { useAppPreferences } from '@/features/settings/appPreferences';
 import { Pin } from 'lucide-react';
 import { formatMessageTime } from '../messageFormatting';
 import type { Message } from '@/domain/messages/message';
-import { CURRENT_USER_ID } from '@/domain/identity';
+import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import styles from './MessageBubble.module.css';
 
-function SendingStatus() {
+function SendingStatus({ status }: { status?: Message['deliveryStatus'] }) {
+  const labels = {
+    queued: 'Queued for sending',
+    sending: 'Sending',
+    accepted: 'Stored on server',
+    failed: 'Send failed',
+  };
+  if (status && status !== 'accepted') {
+    return (
+      <span role="img" aria-label={labels[status]}>
+        {status === 'failed' ? '!' : '·'}
+      </span>
+    );
+  }
+
   return (
     <svg
       className={styles.sendingStatus}
@@ -16,14 +30,15 @@ function SendingStatus() {
       strokeLinecap="round"
       strokeLinejoin="round"
       role="img"
-      aria-label="Stored locally"
+      aria-label={status ? labels[status] : 'Stored locally'}
     >
-      <path d="M2 8L5 11L12 3M9 10L10 11L17 3" />
+      <path d={status ? 'M2 8L5 11L12 3' : 'M2 8L5 11L12 3M9 10L10 11L17 3'} />
     </svg>
   );
 }
 
 function MetadataContent({ message }: { message: Message }) {
+  const currentUserId = useCurrentUserId();
   const timeFormat = useAppPreferences((preferences) => preferences.timeFormat);
   return (
     <>
@@ -32,7 +47,7 @@ function MetadataContent({ message }: { message: Message }) {
       <time dateTime={new Date(message.createdAt).toISOString()}>
         {formatMessageTime(message.createdAt, { timeFormat })}
       </time>
-      {message.authorId === CURRENT_USER_ID && <SendingStatus />}
+      {message.authorId === currentUserId && <SendingStatus status={message.deliveryStatus} />}
     </>
   );
 }

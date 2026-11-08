@@ -209,7 +209,7 @@ export class ChatOwner {
     });
   }
 
-  /** Persist identity and content before any HTTP request, preserving edits made during persistence. */
+  /** Persist before transport and preserve edits made while that write is pending. */
   async queueSend(value: EmojiText): Promise<void> {
     this.ensureCurrent();
     const selection = this.snapshot.selection;
@@ -220,6 +220,7 @@ export class ChatOwner {
     const generation = this.viewGeneration;
     const pending: PendingMessage = {
       createdAt: Date.now(),
+      title: selection.title,
       status: 'queued',
       request: {
         operation_id: crypto.randomUUID(),
@@ -264,7 +265,7 @@ export class ChatOwner {
     await this.flush();
   }
 
-  /** Discard a local pending operation without claiming that an ambiguous server send was cancelled. */
+  /** Remove a pending item without claiming that an ambiguous server send was cancelled. */
   async discard(messageId: string): Promise<void> {
     await this.requireStore().remove(messageId);
     this.ensureCurrent();
@@ -321,11 +322,13 @@ export class ChatOwner {
         );
       });
       const messages = mergeMessages({ current, incoming: page.messages, edge });
+      const combinedIds = new Set([...current, ...page.messages].map((message) => message.id));
+      const hasTrimmedNewer = edge === 'older' && combinedIds.size > MAX_VISIBLE_MESSAGES;
       this.publish({
         messages,
         precedingMessage: page.preceding_message ?? undefined,
         hasOlder: page.has_older,
-        hasNewer: page.has_newer || current.length + page.messages.length > MAX_VISIBLE_MESSAGES,
+        hasNewer: page.has_newer || hasTrimmedNewer,
         error: '',
       });
     } catch (error) {

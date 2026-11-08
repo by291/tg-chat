@@ -32,6 +32,8 @@ export interface ComposedMessage extends EmojiText {
 
 interface MessageComposerProps {
   draft: string;
+  isTextOnly?: boolean;
+  isDisabled?: boolean;
   draftCustomEmoji?: CustomEmojiEntity[];
   draftRichText?: string;
   replyMessage?: Message;
@@ -47,6 +49,8 @@ interface MessageComposerProps {
 /** Coordinate the editable draft, composition modes, and message submission boundary. */
 export function MessageComposer({
   draft,
+  isTextOnly = false,
+  isDisabled = false,
   draftCustomEmoji,
   draftRichText,
   replyMessage,
@@ -89,7 +93,7 @@ export function MessageComposer({
     Boolean(attachment || mediaAttachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
   const previousContextRef = useRef(contextMessage);
-  const canSubmit = Boolean(editingMessage) || hasContent;
+  const canSubmit = !isDisabled && (Boolean(editingMessage) || hasContent);
   const isPreparingAttachment = !editingMessage && isLoadingAttachment;
 
   useEffect(() => {
@@ -203,9 +207,9 @@ export function MessageComposer({
       data-dragging={attachments.isDragging}
       data-has-context={Boolean(contextMessage || forwardMessages?.length)}
       data-has-attachment={Boolean((attachment || mediaAttachment) && !editingMessage)}
-      onDragOver={attachments.dragOver}
-      onDragLeave={attachments.dragLeave}
-      onDrop={attachments.dropFile}
+      onDragOver={isTextOnly ? (event) => event.preventDefault() : attachments.dragOver}
+      onDragLeave={isTextOnly ? undefined : attachments.dragLeave}
+      onDrop={isTextOnly ? (event) => event.preventDefault() : attachments.dropFile}
     >
       <ComposerContextBar
         replyMessage={replyMessage}
@@ -222,19 +226,23 @@ export function MessageComposer({
         />
       )}
       <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
-        <AttachmentMenu
-          isDisabled={Boolean(editingMessage) || isLoadingAttachment}
-          isExpanded={isExpanded}
-          onSelect={selectAttachment}
-        />
-        <input
-          ref={attachments.fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
-          className={styles.fileInput}
-          aria-label="Choose an attachment"
-          onChange={attachments.changeFile}
-        />
+        {!isTextOnly && (
+          <>
+            <AttachmentMenu
+              isDisabled={Boolean(editingMessage) || isLoadingAttachment}
+              isExpanded={isExpanded}
+              onSelect={selectAttachment}
+            />
+            <input
+              ref={attachments.fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+              className={styles.fileInput}
+              aria-label="Choose an attachment"
+              onChange={attachments.changeFile}
+            />
+          </>
+        )}
         <EmojiEditor
           isComposer
           isExpanded={isExpanded}
@@ -246,7 +254,11 @@ export function MessageComposer({
           onChange={updateText}
           onSubmit={sendMessage}
           onCancel={cancelComposition}
-          onPasteImage={attachments.pasteImage}
+          onPasteImage={
+            isTextOnly
+              ? () => onNotify('Only text and emoji can be sent in this conversation.')
+              : attachments.pasteImage
+          }
           onError={onNotify}
         />
         {canExpand && (
@@ -265,7 +277,7 @@ export function MessageComposer({
           onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
           onDeleteCharacter={() => editorRef.current?.deleteCharacter()}
           onSelectSticker={
-            editingMessage ? undefined : (sticker) => onSubmit({ text: '', sticker })
+            editingMessage || isTextOnly ? undefined : (sticker) => onSubmit({ text: '', sticker })
           }
         />
         <ComposerSendButton

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { estimateHistoryRow } from './historyEstimate';
 import { animateHistoryNavigation, getHistoryNavigationWindow } from './animateHistoryNavigation';
 import type { HistoryRow } from './historyRows';
-import { CURRENT_USER_ID } from '@/domain/identity';
+import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import type { MessageNavigation } from './MessageTimeline';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import { animateHistoryInset } from './animateHistoryInset';
@@ -125,6 +125,7 @@ export function useVirtualHistory({
     [navigationWindow, rows],
   );
 
+  const currentUserId = useCurrentUserId();
   const lastRow = rows.at(-1);
   const previousLastKey = previousLastKeyRef.current;
   const hasAppended = Boolean(
@@ -132,7 +133,7 @@ export function useVirtualHistory({
     previousLastKey !== lastRow.key &&
     (previousLastKey === undefined || rows.some((row) => row.key === previousLastKey)),
   );
-  const isOwnMessage = lastRow?.kind === 'message' && lastRow.message.authorId === CURRENT_USER_ID;
+  const isOwnMessage = lastRow?.kind === 'message' && lastRow.message.authorId === currentUserId;
   const viewport = viewportRef.current;
   const scrollOffsetBeforeCommit = viewport?.scrollTop ?? 0;
   const isFollowingLatest = Boolean(

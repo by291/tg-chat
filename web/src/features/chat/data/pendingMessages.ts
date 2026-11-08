@@ -8,6 +8,7 @@ const MAX_DRAFTS = 201;
 export interface PendingMessage {
   request: components['schemas']['SendMessage'];
   createdAt: number;
+  title?: string;
   status: 'queued' | 'sending' | 'failed';
   error?: string;
 }

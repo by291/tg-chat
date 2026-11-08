@@ -20,11 +20,13 @@ interface SenderGroupOptions {
   measurements: VirtualItem[];
   renderedItems: VirtualItem[];
   bottomAlignment: number;
+  currentUserId?: string;
 }
 
 /** Preserve complete sender bounds even when the group's last message is not mounted. */
 export function createHistorySenderGroups(options: SenderGroupOptions): HistorySenderGroup[] {
   const { rows, measurements, renderedItems, bottomAlignment } = options;
+  const currentUserId = options.currentUserId ?? CURRENT_USER_ID;
   const groups: HistorySenderGroup[] = [];
   let currentGroup: HistorySenderGroup | undefined;
 
@@ -32,7 +34,7 @@ export function createHistorySenderGroups(options: SenderGroupOptions): HistoryS
     const row = rows[index];
     const measurement = measurements[index];
     const hasSender =
-      row.kind === 'message' && !row.message.isService && row.message.authorId !== CURRENT_USER_ID;
+      row.kind === 'message' && !row.message.isService && row.message.authorId !== currentUserId;
     if (!hasSender || row.kind !== 'message' || !measurement) {
       currentGroup = undefined;
       continue;

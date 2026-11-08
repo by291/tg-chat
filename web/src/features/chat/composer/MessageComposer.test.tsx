@@ -372,3 +372,10 @@ it('applies send shortcut changes to an already mounted composer', async () => {
   });
   expect(onSubmit).toHaveBeenCalledOnce();
 });
+
+it('keeps the text editor available while unsupported attachment controls are hidden', () => {
+  renderComposer({ isTextOnly: true });
+  expect(screen.queryByLabelText('Choose an attachment')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Attach' })).toBeNull();
+  expect(screen.getByRole('textbox', { name: 'Message' })).toBeTruthy();
+});
