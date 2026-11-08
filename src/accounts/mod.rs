@@ -5,7 +5,7 @@ pub mod email;
 pub(crate) mod email_http;
 pub(crate) mod extractors;
 pub mod http;
-mod model;
+pub(crate) mod model;
 pub mod operator;
 pub mod profile;
 mod rate_limit;

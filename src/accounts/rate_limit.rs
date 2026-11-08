@@ -11,6 +11,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 const WINDOW_SECONDS: u64 = 60;
 const IDENTITY_LIMIT: u64 = 10;
 const CLIENT_LIMIT: u64 = 20;
+const MESSAGE_LIMIT: u64 = 120;
 const REGISTRATION_LIMIT: u64 = 5;
 const REGISTRATION_WINDOW_SECONDS: u64 = 600;
 const COUNTER_SCRIPT: &str = "
@@ -60,6 +61,14 @@ impl RateLimiter {
             }
             Ok(())
         };
+
+        timeout(REQUEST_TIMEOUT, operation).await.map_err(|_| AccountError::Unavailable)?
+    }
+
+    /// Bound authenticated sends independently of the stricter credential admission limits.
+    pub(crate) async fn admit_message(&self, user_id: &str) -> Result<(), AccountError> {
+        let bucket = format!("message:{user_id}");
+        let operation = self.count(&bucket, MESSAGE_LIMIT, WINDOW_SECONDS);
 
         timeout(REQUEST_TIMEOUT, operation).await.map_err(|_| AccountError::Unavailable)?
     }

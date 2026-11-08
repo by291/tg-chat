@@ -288,6 +288,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/chat/bootstrap': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['bootstrap'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/chat/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['sync'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/contacts': {
     parameters: {
       query?: never;
@@ -299,6 +331,54 @@ export interface paths {
     put: operations['add_contact'];
     post?: never;
     delete: operations['remove_contact'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/conversations/{conversation_id}/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['history'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/messages': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['send'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/messages/{message_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['message'];
+    put?: never;
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -363,12 +443,85 @@ export interface components {
       session: components['schemas']['SessionView'];
       user: components['schemas']['PrivateProfile'];
     };
+    Bootstrap: {
+      blocks: components['schemas']['PublicProfile'][];
+      contacts: components['schemas']['PublicProfile'][];
+      conversations: components['schemas']['ConversationView'][];
+      cursor: string;
+      /** Format: uuid */
+      deployment_id: string;
+      privacy: components['schemas']['PrivacySettings'];
+      user: components['schemas']['PrivateProfile'];
+    };
+    CanonicalMessage: {
+      /** Format: uuid */
+      author_id: string;
+      author_name: string;
+      content: components['schemas']['MessageContent'];
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      sequence: string;
+      version: string;
+    };
     Capabilities: {
       avatars_available: boolean;
       email_recovery_available: boolean;
       messaging_available: boolean;
       registration_open: boolean;
     };
+    ConversationView: {
+      clear_through: string;
+      generation: string;
+      /** Format: uuid */
+      id: string;
+      is_archived: boolean;
+      is_hidden: boolean;
+      is_manually_unread: boolean;
+      kind: string;
+      last_sequence: string;
+      /** Format: date-time */
+      muted_until?: string | null;
+      /** Format: uuid */
+      peer_id: string;
+      peer_name: string;
+      peer_username: string;
+      /** Format: int32 */
+      pin_rank?: number | null;
+      read_through: string;
+      summary_text: string;
+      unread_count: string;
+      /** Format: date-time */
+      updated_at: string;
+      version: string;
+    };
+    CustomEmoji: {
+      document_id: string;
+      /** Format: int32 */
+      length: number;
+      /** Format: int32 */
+      offset: number;
+    };
+    Destination:
+      | {
+          /** @enum {string} */
+          kind: 'recipient';
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** Format: uuid */
+          conversation_id: string;
+          /** @enum {string} */
+          kind: 'conversation';
+        }
+      | {
+          /** @enum {string} */
+          kind: 'saved';
+        };
     DeviceRevocation: {
       /** Format: uuid */
       session_id: string;
@@ -397,10 +550,23 @@ export interface components {
     };
     /** @enum {string} */
     HealthStatus: 'ok';
+    HistoryPage: {
+      has_newer: boolean;
+      has_older: boolean;
+      messages: components['schemas']['CanonicalMessage'][];
+      preceding_message?: null | components['schemas']['CanonicalMessage'];
+    };
     Login: {
       device_name: string;
       password: string;
       username: string;
+    };
+    MessageContent: {
+      custom_emoji: components['schemas']['CustomEmoji'][];
+      rich_text?: string | null;
+      /** Format: int32 */
+      schema_version: number;
+      text: string;
     };
     PasswordProof: {
       password: string;
@@ -452,6 +618,18 @@ export interface components {
       /** Format: uuid */
       target_id: string;
     };
+    SendMessage: {
+      content: components['schemas']['MessageContent'];
+      destination: components['schemas']['Destination'];
+      /** Format: uuid */
+      message_id: string;
+      /** Format: uuid */
+      operation_id: string;
+    };
+    SendReceipt: {
+      conversation: components['schemas']['ConversationView'];
+      message: components['schemas']['CanonicalMessage'];
+    };
     /** @enum {string} */
     ServiceKind: 'api' | 'worker';
     SessionView: {
@@ -465,6 +643,17 @@ export interface components {
       is_current: boolean;
       /** Format: date-time */
       last_seen_at: string;
+    };
+    SyncGroup: {
+      conversation: components['schemas']['ConversationView'];
+      message?: null | components['schemas']['CanonicalMessage'];
+      position: string;
+    };
+    SyncPage: {
+      cursor: string;
+      groups: components['schemas']['SyncGroup'][];
+      has_more: boolean;
+      observation_cursor: string;
     };
   };
   responses: never;
@@ -927,6 +1116,47 @@ export interface operations {
       };
     };
   };
+  bootstrap: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Bootstrap'];
+        };
+      };
+    };
+  };
+  sync: {
+    parameters: {
+      query: {
+        cursor: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SyncPage'];
+        };
+      };
+    };
+  };
   contacts: {
     parameters: {
       query?: {
@@ -989,6 +1219,75 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  history: {
+    parameters: {
+      query?: {
+        before?: string;
+        after?: string;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HistoryPage'];
+        };
+      };
+    };
+  };
+  send: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SendMessage'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SendReceipt'];
+        };
+      };
+    };
+  };
+  message: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        message_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CanonicalMessage'];
+        };
       };
     };
   };

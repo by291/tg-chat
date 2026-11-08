@@ -141,7 +141,7 @@ async fn capabilities(
         registration_open,
         email_recovery_available: state.email.is_enabled(),
         avatars_available: false,
-        messaging_available: false,
+        messaging_available: true,
     }))
 }
 
@@ -401,9 +401,9 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.route("/account/devices/revoke-others", post(revoke_other_devices));
     let routes = routes.merge(crate::contacts::http::router());
     let routes = routes.merge(super::email_http::router());
-    let routes = routes
-        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
-        .layer(axum::middleware::from_fn(prevent_caching));
+    let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
+    let routes = routes.merge(crate::messages::http::router());
+    let routes = routes.layer(axum::middleware::from_fn(prevent_caching));
 
     Router::new().nest("/api/v1", routes).with_state(state)
 }

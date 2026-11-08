@@ -1,4 +1,5 @@
 use sha2::{Digest, Sha256};
+use sqlx::{PgConnection, Postgres, Transaction};
 
 use super::{Destination, SendMessage, SendReceipt, acceptance, content::validate_content};
 use crate::{
@@ -173,4 +174,39 @@ impl MessageService {
 
         Ok(view)
     }
+    /// Open a consistent authorized read snapshot without taking write locks on the account.
+    pub(crate) async fn snapshot(
+        &self,
+        actor: &Actor,
+    ) -> Result<Transaction<'_, Postgres>, AccountError> {
+        let mut transaction = self.accounts.pool.begin().await?;
+        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .execute(&mut *transaction)
+            .await?;
+        verify_actor(&mut transaction, actor, self.accounts.settings.idle_days).await?;
+
+        Ok(transaction)
+    }
+}
+
+/// Recheck revocation inside the same snapshot that supplies private message projections.
+pub(crate) async fn verify_actor(
+    connection: &mut PgConnection,
+    actor: &Actor,
+    idle_days: i64,
+) -> Result<(), AccountError> {
+    let query = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM sessions JOIN users ON users.id = sessions.user_id
+         WHERE sessions.id = $1 AND users.id = $2 AND NOT users.is_suspended
+           AND sessions.revoked_at IS NULL AND sessions.expires_at > now()
+           AND sessions.last_seen_at > now() - ($3::bigint * interval '1 day'))",
+    )
+    .bind(actor.session_id)
+    .bind(actor.user_id)
+    .bind(idle_days);
+    if !query.fetch_one(connection).await? {
+        return Err(AccountError::Unauthenticated);
+    }
+
+    Ok(())
 }

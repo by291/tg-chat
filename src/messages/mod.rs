@@ -3,9 +3,14 @@
 pub mod content;
 mod markup;
 
-mod acceptance;
+pub(crate) mod acceptance;
 mod model;
 pub(crate) mod service;
 
 pub use model::{CanonicalMessage, Destination, SendMessage, SendReceipt};
 pub use service::MessageService;
+
+pub(crate) mod history;
+pub use history::{HistoryPage, HistoryQuery};
+
+pub(crate) mod http;

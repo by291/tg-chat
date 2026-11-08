@@ -271,3 +271,92 @@ fn cookie_configuration_rejects_insecure_public_origins() {
     let settings = HttpSettings::from_values(&values).unwrap();
     assert!(settings.session_cookie("secret").contains("Secure"));
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and Valkey"]
+async fn messaging_replay_preserves_identity_and_requires_session_csrf(pool: PgPool) {
+    let application = application(pool.clone(), &valkey_url());
+    let (_, cookie, grant) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/auth/register",
+            origin: Some(ORIGIN),
+            cookie: None,
+            csrf: None,
+            body: registration(),
+        },
+    )
+    .await;
+    let cookie = cookie.unwrap();
+    let csrf = grant["csrf_token"].as_str().unwrap();
+    let message = json!({
+        "operation_id": Uuid::new_v4(),
+        "message_id": Uuid::new_v4(),
+        "destination": { "kind": "saved" },
+        "content": {
+            "schema_version": 1,
+            "text": "Durable HTTP message",
+            "rich_text": null,
+            "custom_emoji": [],
+        },
+    });
+    let (status, _, _) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/messages",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: None,
+            body: message.clone(),
+        },
+    )
+    .await;
+    assert_eq!(status, 403);
+    let (status, _, first) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/messages",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: Some(csrf),
+            body: message.clone(),
+        },
+    )
+    .await;
+    assert_eq!(status, 200, "{first}");
+    let (status, _, replay) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/messages",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: Some(csrf),
+            body: message,
+        },
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(first, replay);
+    let path = format!("/api/v1/messages/{}", first["message"]["id"].as_str().unwrap());
+    let (status, _, fetched) = send(
+        &application,
+        TestRequest {
+            method: "GET",
+            path: &path,
+            origin: None,
+            cookie: Some(&cookie),
+            csrf: None,
+            body: Value::Null,
+        },
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(fetched, first["message"]);
+    let count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM messages").fetch_one(&pool).await.unwrap();
+    assert_eq!(count, 1);
+}
