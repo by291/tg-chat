@@ -133,7 +133,8 @@ directory summaries, message replies, and draft replies include their source dea
 timers remove expired projections even after switching conversations, while offline, or while
 cleanup is unavailable; the pin directory also observes its own deadlines. Reply targets must be
 visible in the same conversation; an unavailable target retains only its unavailable identity, never
-its former quoted content. Attachments, forwarding, search, groups, and channels remain later work.
+its former quoted content. Attachments, forwarding, and message search remain later work. Groups and channels use the
+[community authorization contract](./communities.md).
 
 ## Realtime and maintenance
 

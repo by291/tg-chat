@@ -19,8 +19,8 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Product design approved on 2026-11-08. M1 through M4 are implemented and locally verified,
-including real Compose acceptance and independent review with findings resolved. M5 through M10
+**Status:** Product design approved on 2026-11-08. M1 through M5 are implemented and locally verified,
+including real Compose acceptance and independent review with findings resolved. M6 through M10
 remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes have
 not been pushed.
 
@@ -118,8 +118,8 @@ requires it; this is not a required identical directory template for every featu
   Integrate `web/src/features/chat/conversation/useConversationMessageCommands.ts`, message
   metadata, drafts, and `web/src/routes/useChatRoute.ts`; preserve existing viewport/editor
   ownership.
-- M5 extends conversations and existing UI under `web/src/features/conversations/`, including
-  `creation/NewChatPage.tsx`, directory, archive, profile, and membership surfaces.
+- M5 extends `src/conversations/` and connected workflows in `web/src/features/communities/`,
+  reusing account forms, ChatOwner, the pending store, and the connected conversation controls.
 - M6 owns `src/media/`, S3/processing adapters, and existing composer attachments and media viewers.
   Replace `web/src/features/chat/composer/attachments/attachments.ts` local durable Data URLs.
 - M7 extends messages/search and existing poll/checklist, forwarding, composer-form, search, and
@@ -294,17 +294,17 @@ channels with actual owner/admin/member permissions.
 **Produces:** Public/private discovery, roles/ownership, invitations/requests, bans/mutes, channel
 publisher identity, permission-filtered membership views, and access-removal/generation updates.
 
-- [ ] Deliver group/channel creation, public handles/discovery, public/private transitions, direct
+- [x] Deliver group/channel creation, public handles/discovery, public/private transitions, direct
       invitations, hashed expiring/use-limited links, join requests/approval, and membership caps.
-- [ ] Deliver owner/admin/member rules, ownership transfer, leaving, removal, mute/ban, conversation
+- [x] Deliver owner/admin/member rules, ownership transfer, leaving, removal, mute/ban, conversation
       deletion, and full retained-history access for admitted members. Quarantine state must already
       participate in shared authorization even though its admin UI arrives in M8.
-- [ ] Extend send/edit/delete/pin/expiry, feed fanout, history, and personal-list operations to real
+- [x] Extend send/edit/delete/pin/expiry, feed fanout, history, and personal-list operations to real
       membership. Channel messages retain the authenticated actor for auditing while displaying the
       channel identity. Do not disclose subscriber lists to ordinary subscribers.
-- [ ] Connect creation, discovery, invitation, details, and member-management frontend surfaces;
+- [x] Connect creation, discovery, invitation, details, and member-management frontend surfaces;
       remove local-only permission claims from connected mode.
-- [ ] Verify join/send and leave/send races, final invite-use races, approval after revocation,
+- [x] Verify join/send and leave/send races, final invite-use races, approval after revocation,
       normalized public-handle uniqueness, ownership transfer, banning/rejoining, directory limits,
       and public-to-private discovery removal. Check removed clients purge cached history.
 
@@ -313,8 +313,8 @@ member, nonmember, and banned accounts. Every history/action endpoint enforces t
 hiding is never the only protection.
 
 **Verification ownership:** `tests/conversations.rs`, extensions to sync/message tests, and
-`web/e2e/communities.spec.ts`. Include the configured 200-member/500-subscriber boundary behavior
-without claiming throughput until M10's measurements.
+`web/e2e-accounts/communities.spec.ts`. Include the configured 200-member/500-subscriber boundary
+behavior without claiming throughput until M10's measurements.
 
 ## M6: Private media and recorded voice messages
 

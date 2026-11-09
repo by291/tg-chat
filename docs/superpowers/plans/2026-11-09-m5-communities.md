@@ -59,12 +59,12 @@ Invitations do not reserve a directory slot. Public-to-private transitions cance
 provide `is_community`, `require_manager`, and membership-based send authorization. Extend directory
 projections with title, description, public handle, role, and explicit posting/management permissions.
 
-- [ ] Write real PG tests proving admitted members see retained history, outsiders cannot read,
+- [x] Write real PG tests proving admitted members see retained history, outsiders cannot read,
       muted members cannot post, channel subscribers cannot post, and quarantine removes access.
-- [ ] Observe the failing tests, implement schema and shared visibility/permission predicates, then
+- [x] Observe the failing tests, implement schema and shared visibility/permission predicates, then
       extend message fanout, moderator deletion, pin/expiry roles, and maintenance recipients.
-- [ ] Run the targeted real PG suite, Rustfmt, and full Rust suite; preserve all M3/M4 behavior.
-- [ ] Commit storage/authorization separately from later membership commands.
+- [x] Run the targeted real PG suite, Rustfmt, and full Rust suite; preserve all M3/M4 behavior.
+- [x] Commit storage/authorization separately from later membership commands.
 
 ### Task 2: Transactional community lifecycle and membership
 
@@ -75,11 +75,11 @@ projections with title, description, public handle, role, and explicit posting/m
 `MessageService::community_command(actor, CommunityCommand) -> CommunityReceipt`, each carrying a
 stable operation ID. Reuse the existing command identity boundary and return current authorized state.
 
-- [ ] Write failures for create/join/leave, ownership transfer, role escalation, remove/ban/unban,
+- [x] Write failures for create/join/leave, ownership transfer, role escalation, remove/ban/unban,
       personal clear on rejoin, deletion, normalized handle collisions, and directory/member limits.
-- [ ] Implement conversation-first transactions and account capacity locks, idempotent commands,
+- [x] Implement conversation-first transactions and account capacity locks, idempotent commands,
       role checks, membership generations, and feed changes including removed members.
-- [ ] Run concurrent join/send and leave/send tests plus complete backend tests; commit by ownership.
+- [x] Run concurrent join/send and leave/send tests plus complete backend tests; commit by ownership.
 
 ### Task 3: Invitations, approvals, discovery, and HTTP contracts
 
@@ -90,11 +90,11 @@ stable operation ID. Reuse the existing command identity boundary and return cur
 create/command endpoints reuse cookie, Origin, CSRF, body limits, and rate-limit boundaries.
 Invitation previews expose only minimal identity; direct invitation inbox is recipient-owned.
 
-- [ ] Write failures for final-use races, expiry/revocation, approval after revocation, targeted invite
+- [x] Write failures for final-use races, expiry/revocation, approval after revocation, targeted invite
       acceptance, banned rejoin, public-to-private discovery/request removal, and subscriber privacy.
-- [ ] Implement hashed secrets, bounded paginated views, current-state approval validation, and routes.
-- [ ] Generate OpenAPI/frontend types; run real PG/HTTP tests, full backend suite, and Clippy.
-- [ ] Commit invitation/discovery and API integration by responsibility.
+- [x] Implement hashed secrets, bounded paginated views, current-state approval validation, and routes.
+- [x] Generate OpenAPI/frontend types; run real PG/HTTP tests, full backend suite, and Clippy.
+- [x] Commit invitation/discovery and API integration by responsibility.
 
 ### Task 4: Connected community workflows
 
@@ -105,27 +105,27 @@ owner/UI behavior tests.
 Successful commands trigger existing feed catch-up; opening a community selects its conversation ID.
 Permissions come from server projections; channel rendering uses publisher identity.
 
-- [ ] Write failures for community selection, subscriber composer restrictions, membership revocation,
+- [x] Write failures for community selection, subscriber composer restrictions, membership revocation,
       and stable retries. Reuse existing generic cache-removal tests instead of duplicating them.
-- [ ] Connect create/discover/join/invitation inbox, details, settings, member roles, invitations,
+- [x] Connect create/discover/join/invitation inbox, details, settings, member roles, invitations,
       requests, leave/delete confirmations, and ban/mute controls to the actual API.
-- [ ] Run frontend unit tests, build, formatting, API drift, and demo browser checks.
-- [ ] Commit data integration and community UI by responsibility.
+- [x] Run frontend unit tests, build, formatting, API drift, and demo browser checks.
+- [x] Commit data integration and community UI by responsibility.
 
 ### Task 5: Full workflow acceptance and documentation
 
 **Files:** `web/e2e-accounts/communities.spec.ts`, browser configuration/package scripts,
 `scripts/check-runtime.mjs`, `docs/communities.md`, existing development/architecture docs and roadmap.
 
-- [ ] Exercise owner, admin, member, outsider, and banned accounts through real public/private group
+- [x] Exercise owner, admin, member, outsider, and banned accounts through real public/private group
       and channel flows; verify removed clients purge history and cannot reload it.
-- [ ] Run full Rust/frontend/static checks and isolated Compose acceptance including M3/M4 suites.
-- [ ] Document current membership/authorization ownership and repeatable checks; update M5 status.
-- [ ] Commit acceptance and documentation separately.
+- [x] Run full Rust/frontend/static checks and isolated Compose acceptance including M3/M4 suites.
+- [x] Document current membership/authorization ownership and repeatable checks; update M5 status.
+- [x] Commit acceptance and documentation separately.
 
 ### Task 6: Whole-change review and final verification
 
-- [ ] Dispatch one fresh independent reviewer with the complete baseline diff, spec, plan, and ledger.
-- [ ] Regrade findings by user effect; fix important issues in one consolidated RED→GREEN pass.
-- [ ] Run applicable final checks, commit fixes by responsibility, and verify a clean checkout.
-- [ ] Remove only this milestone's scratch/runtime; preserve local commits and report in Chinese.
+- [x] Dispatch one fresh independent reviewer with the complete baseline diff, spec, plan, and ledger.
+- [x] Regrade findings by user effect; fix important issues in one consolidated RED→GREEN pass.
+- [x] Run applicable final checks, commit fixes by responsibility, and verify a clean checkout.
+- [x] Remove only this milestone's scratch/runtime; preserve local commits and report in Chinese.

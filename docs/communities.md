@@ -37,7 +37,9 @@ manage ordinary members, invitations, requests, message pins, and automatic expi
 others' messages but cannot edit another author's content. The owner must transfer ownership or
 delete the community before leaving. Transfer makes the former owner an administrator.
 
-Group members can publish unless muted. Channel publication requires an owner or administrator.
+Group members can publish unless muted. The authorized projection includes a posting-mute deadline,
+so the browser restores the composer when it expires even if there are no new synchronization
+groups. The server independently checks the deadline on every publication. Channel publication requires an owner or administrator.
 Channel messages display the community title while retaining the authenticated actor identifier for
 audit and author-only editing. Ordinary channel subscribers can inspect only their own membership;
 administrators can inspect the subscriber directory. Group members can inspect their member list.
@@ -55,7 +57,10 @@ conversation ownership are deferred to preserve the account lock order.
 
 A transaction updates membership, roles, generations, and personal change groups together. Removed
 members receive a nullable conversation projection. Existing client cache rules purge the canonical
-history and reject stale acknowledgements after a reset or removal. Message fanout includes all
+history and reject stale acknowledgements after a reset or removal. Draft acknowledgements and edit
+conflicts use those same fences. Revocation scrubs active and inactive local draft quotes while
+preserving independent user text; persisted reply revisions also prevent delayed writers from
+restoring the revoked excerpts. Bootstrap reconciles drafts after removal while offline. Message fanout includes all
 current admitted members. Realtime is a wakeup hint; HTTP catch-up remains authoritative.
 
 Settings use an independent expected revision. A simultaneous metadata or privacy change conflicts
