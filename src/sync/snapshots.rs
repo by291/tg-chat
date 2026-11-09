@@ -88,7 +88,11 @@ impl MessageService {
         let blocks = relationships(&mut transaction, actor.user_id, "blocks").await?;
         let mut statement = QueryBuilder::new(conversations::VIEW_SELECT);
         statement
-            .push(" WHERE member.directory_active AND member.user_id = ")
+            .push(
+                " WHERE member.directory_active AND NOT member.is_banned
+                AND conversation.deleted_at IS NULL AND NOT conversation.is_quarantined
+                AND member.user_id = ",
+            )
             .push_bind(actor.user_id);
         statement.push(" ORDER BY conversation.updated_at DESC, conversation.id");
         let mut conversations: Vec<ConversationView> =

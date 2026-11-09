@@ -156,6 +156,9 @@ async fn clear_history(
     connection: &mut PgConnection,
     context: &CommandContext<'_>,
 ) -> Result<(), AcceptanceError> {
+    if context.conversation.is_community() && matches!(context.input.action, CommandAction::Close) {
+        return Err(AccountError::Validation("use the community leave action").into());
+    }
     let is_closing = matches!(context.input.action, CommandAction::Close);
     if is_closing && context.conversation.kind == "saved" {
         return Err(AccountError::Validation("Saved cannot be closed").into());
@@ -182,6 +185,7 @@ async fn change_expiry(
     connection: &mut PgConnection,
     context: &CommandContext<'_>,
 ) -> Result<Uuid, AcceptanceError> {
+    super::access::require_manager(connection, context.actor, context.conversation).await?;
     let CommandAction::Expiry {
         days,
     } = context.input.action

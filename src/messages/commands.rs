@@ -275,7 +275,10 @@ async fn apply(
             ..
         } => {
             if message.author_id != context.actor.user_id {
-                return Err(AccountError::NotFound.into());
+                if !context.conversation.is_community() {
+                    return Err(AccountError::NotFound.into());
+                }
+                access::require_manager(connection, context.actor, context.conversation).await?;
             }
             sqlx::query(
                 "UPDATE messages SET deleted_at = now(), version = version + 1,
@@ -322,6 +325,7 @@ async fn apply(
             is_pinned,
             ..
         } => {
+            access::require_manager(connection, context.actor, context.conversation).await?;
             sqlx::query(
                 "UPDATE messages SET is_pinned = $2, interaction_version = interaction_version + 1
                  WHERE id = $1",
@@ -462,7 +466,7 @@ impl MessageService {
             let participants = if is_personal {
                 vec![actor.user_id]
             } else {
-                conversation.participants()
+                access::participants(&mut transaction, &conversation).await?
             };
             changes::append(
                 &mut transaction,

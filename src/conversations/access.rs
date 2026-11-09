@@ -12,19 +12,59 @@ use super::DIRECTORY_LIMIT;
 pub(crate) struct LockedConversation {
     pub id: Uuid,
     pub kind: String,
-    pub participant_low: Uuid,
-    pub participant_high: Uuid,
+    pub participant_low: Option<Uuid>,
+    pub participant_high: Option<Uuid>,
 }
 
 impl LockedConversation {
-    /// Return each participant once in the global account-lock order.
-    pub(crate) fn participants(&self) -> Vec<Uuid> {
-        if self.participant_low == self.participant_high {
-            return vec![self.participant_low];
-        }
-
-        vec![self.participant_low, self.participant_high]
+    /// Distinguish membership-governed conversations from fixed participant pairs.
+    pub(crate) fn is_community(&self) -> bool {
+        matches!(self.kind.as_str(), "group" | "channel")
     }
+}
+
+/// Read the stable recipient set while the caller owns the conversation lock.
+pub(crate) async fn participants(
+    connection: &mut PgConnection,
+    conversation: &LockedConversation,
+) -> Result<Vec<Uuid>, sqlx::Error> {
+    if conversation.is_community() {
+        return sqlx::query_scalar(
+            "SELECT user_id FROM conversation_members WHERE conversation_id = $1
+             AND directory_active AND NOT is_banned ORDER BY user_id",
+        )
+        .bind(conversation.id)
+        .fetch_all(connection)
+        .await;
+    }
+    let mut participants: Vec<Uuid> = [conversation.participant_low, conversation.participant_high]
+        .into_iter()
+        .flatten()
+        .collect();
+    participants.sort();
+    participants.dedup();
+    Ok(participants)
+}
+
+/// Enforce management authority against membership protected by the conversation lock.
+pub(crate) async fn require_manager(
+    connection: &mut PgConnection,
+    actor: &Actor,
+    conversation: &LockedConversation,
+) -> Result<(), AcceptanceError> {
+    if !conversation.is_community() {
+        return Ok(());
+    }
+    let permitted = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM conversation_members WHERE conversation_id = $1
+         AND user_id = $2 AND directory_active AND NOT is_banned AND role IN ('owner', 'admin'))",
+    )
+    .bind(conversation.id)
+    .bind(actor.user_id);
+    if !permitted.fetch_one(connection).await? {
+        return Err(AccountError::NotFound.into());
+    }
+    Ok(())
 }
 
 /// Resolve and lock exactly one canonical conversation before locking participant accounts.
@@ -49,7 +89,11 @@ pub(crate) async fn lock_conversation(
     };
     let query = sqlx::query_as::<_, LockedConversation>(
         "SELECT * FROM conversations WHERE id = $1
-         AND ($2 = participant_low OR $2 = participant_high) FOR UPDATE",
+         AND deleted_at IS NULL AND NOT is_quarantined
+         AND ($2 = participant_low OR $2 = participant_high OR EXISTS (
+             SELECT 1 FROM conversation_members member WHERE member.conversation_id = conversations.id
+             AND member.user_id = $2 AND member.directory_active AND NOT member.is_banned))
+         FOR UPDATE",
     )
     .bind(conversation_id)
     .bind(actor.user_id);
@@ -85,7 +129,7 @@ pub(crate) async fn lock_participants(
     connection: &mut PgConnection,
     conversation: &LockedConversation,
 ) -> Result<(), AcceptanceError> {
-    let participants = conversation.participants();
+    let participants = participants(connection, conversation).await?;
     let locked: Vec<Uuid> =
         sqlx::query_scalar("SELECT id FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE")
             .bind(&participants)
@@ -108,7 +152,22 @@ pub(crate) async fn authorize_send(
         return Ok(());
     }
 
-    let recipient = if actor.user_id == conversation.participant_low {
+    if conversation.is_community() {
+        let permitted = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS (SELECT 1 FROM conversation_members WHERE conversation_id = $1
+             AND user_id = $2 AND directory_active AND NOT is_banned
+             AND (posting_muted_until IS NULL OR posting_muted_until <= now())
+             AND ($3 = 'group' OR role IN ('owner', 'admin')))",
+        )
+        .bind(conversation.id)
+        .bind(actor.user_id)
+        .bind(&conversation.kind);
+        if !permitted.fetch_one(connection).await? {
+            return Err(AccountError::ConversationUnavailable.into());
+        }
+        return Ok(());
+    }
+    let recipient = if Some(actor.user_id) == conversation.participant_low {
         conversation.participant_high
     } else {
         conversation.participant_low
@@ -136,7 +195,10 @@ pub(crate) async fn admit_members(
     connection: &mut PgConnection,
     conversation: &LockedConversation,
 ) -> Result<(), AcceptanceError> {
-    for user_id in conversation.participants() {
+    if conversation.is_community() {
+        return Ok(());
+    }
+    for user_id in participants(connection, conversation).await? {
         let exists: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM conversation_members
              WHERE conversation_id = $1 AND user_id = $2 AND directory_active)",
@@ -166,7 +228,8 @@ pub(crate) async fn admit_members(
     Ok(())
 }
 
-async fn check_capacity(
+/// Check the caller-locked account directory before activating a new membership.
+pub(crate) async fn check_capacity(
     connection: &mut PgConnection,
     user_id: Uuid,
 ) -> Result<(), AcceptanceError> {

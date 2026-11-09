@@ -164,11 +164,12 @@ impl MessageService {
         .fetch_one(&mut *transaction)
         .await?;
         access::admit_members(&mut transaction, &conversation).await?;
+        let participants = access::participants(&mut transaction, &conversation).await?;
         if !exists {
             changes::append(
                 &mut transaction,
                 ChangeGroup {
-                    participants: &conversation.participants(),
+                    participants: &participants,
                     conversation_id: conversation.id,
                     message_id: None,
                 },

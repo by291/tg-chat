@@ -1,4 +1,4 @@
-//! Canonical direct/Saved membership and personal directory projections.
+//! Authorized conversation membership and personal directory projections.
 
 pub(crate) mod access;
 
@@ -17,8 +17,15 @@ pub(crate) mod state;
 
 pub(crate) const DIRECTORY_LIMIT: i64 = 200;
 pub(crate) const VIEW_SELECT: &str =
-    "SELECT conversation.id, conversation.kind, peer.id AS peer_id,
-            peer.username AS peer_username, peer.display_name AS peer_name,
+    "SELECT conversation.id, conversation.kind, COALESCE(peer.id, conversation.id) AS peer_id,
+            COALESCE(peer.username, conversation.public_handle, '') AS peer_username,
+            COALESCE(peer.display_name, conversation.title) AS peer_name,
+            conversation.title, conversation.description, conversation.public_handle,
+            conversation.is_public, conversation.requires_approval, member.role,
+            (conversation.kind IN ('direct', 'saved') OR (
+                (member.posting_muted_until IS NULL OR member.posting_muted_until <= now())
+                AND (conversation.kind = 'group' OR member.role IN ('owner', 'admin')))) AS can_post,
+            (conversation.kind IN ('direct', 'saved') OR member.role IN ('owner', 'admin')) AS can_manage,
             conversation.last_sequence::text, conversation.version::text,
             COALESCE(summary.text, '') AS summary_text, summary.expires_at AS summary_expires_at,
             conversation.updated_at,
@@ -41,7 +48,7 @@ pub(crate) const VIEW_SELECT: &str =
                 'content', member.draft_content, 'reply', member.draft_reply) AS draft
      FROM conversations conversation
      JOIN conversation_members member ON member.conversation_id = conversation.id
-     JOIN users peer ON peer.id = CASE WHEN conversation.participant_low = member.user_id
+     LEFT JOIN users peer ON peer.id = CASE WHEN conversation.participant_low = member.user_id
          THEN conversation.participant_high ELSE conversation.participant_low END
      LEFT JOIN LATERAL (
          SELECT message.content->>'text' AS text, message.expires_at FROM messages message
@@ -60,6 +67,14 @@ pub struct ConversationView {
     pub peer_id: Uuid,
     pub peer_username: String,
     pub peer_name: String,
+    pub title: String,
+    pub description: String,
+    pub public_handle: Option<String>,
+    pub is_public: bool,
+    pub requires_approval: bool,
+    pub role: String,
+    pub can_post: bool,
+    pub can_manage: bool,
     pub last_sequence: String,
     pub version: String,
     pub summary_text: String,
@@ -90,7 +105,10 @@ pub(crate) async fn view(
     let mut statement = sqlx::QueryBuilder::new(VIEW_SELECT);
     statement.push(" WHERE member.user_id = ").push_bind(user_id);
     statement.push(" AND conversation.id = ").push_bind(conversation_id);
-    statement.push(" AND member.directory_active");
+    statement.push(
+        " AND member.directory_active AND NOT member.is_banned
+        AND conversation.deleted_at IS NULL AND NOT conversation.is_quarantined",
+    );
     let query = statement.build_query_as();
 
     let mut conversation =

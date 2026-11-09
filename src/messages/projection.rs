@@ -36,9 +36,12 @@ pub(crate) fn restrict_visible(statement: &mut QueryBuilder<Postgres>, user_id: 
     statement.push(
         " AND message.deleted_at IS NULL
           AND (message.expires_at IS NULL OR message.expires_at > now())
+          AND EXISTS (SELECT 1 FROM conversations authorized
+              WHERE authorized.id = message.conversation_id
+                AND authorized.deleted_at IS NULL AND NOT authorized.is_quarantined)
           AND EXISTS (SELECT 1 FROM conversation_members visibility
               WHERE visibility.conversation_id = message.conversation_id
-                AND visibility.directory_active AND visibility.user_id = ",
+                AND visibility.directory_active AND NOT visibility.is_banned AND visibility.user_id = ",
     );
     statement.push_bind(user_id);
     statement.push(" AND message.sequence > visibility.clear_through)");

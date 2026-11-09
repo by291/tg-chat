@@ -10,7 +10,8 @@ use crate::{
 
 pub(crate) const MESSAGE_SELECT: &str =
     "SELECT message.id, message.conversation_id, message.author_id,
-            author.display_name AS author_name, message.sequence::text,
+            CASE WHEN conversation.kind = 'channel' THEN conversation.title
+                 ELSE author.display_name END AS author_name, message.sequence::text,
             message.version::text, message.created_at, message.edited_at, message.expires_at,
             message.interaction_version::text, message.is_pinned, message.service_kind,
             message.reply_id, message.reply_quote,
@@ -18,7 +19,8 @@ pub(crate) const MESSAGE_SELECT: &str =
             CASE WHEN message.deleted_at IS NOT NULL OR message.expires_at <= now()
                 THEN '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb
                 ELSE message.content END AS content
-     FROM messages message JOIN users author ON author.id = message.author_id";
+     FROM messages message JOIN users author ON author.id = message.author_id
+     JOIN conversations conversation ON conversation.id = message.conversation_id";
 
 pub(crate) struct IdentityCheck<'a> {
     pub actor: &'a Actor,
@@ -110,7 +112,7 @@ pub(crate) async fn insert(
     sqlx::query(
         "UPDATE conversation_members SET unread_count = unread_count + 1, is_hidden = false,
          is_archived = CASE WHEN keep_archived OR muted_until > now() THEN is_archived ELSE false END
-         WHERE conversation_id = $1 AND user_id != $2",
+         WHERE conversation_id = $1 AND user_id != $2 AND directory_active AND NOT is_banned",
     )
     .bind(message.conversation.id)
     .bind(message.actor.user_id)
@@ -161,10 +163,12 @@ pub(crate) async fn insert(
         .bind(expected_version);
         clear.execute(&mut *connection).await?;
     }
+    let participants =
+        crate::conversations::access::participants(connection, message.conversation).await?;
     changes::append(
         connection,
         ChangeGroup {
-            participants: &message.conversation.participants(),
+            participants: &participants,
             conversation_id: message.conversation.id,
             message_id: Some(message.input.message_id),
         },

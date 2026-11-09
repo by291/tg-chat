@@ -54,10 +54,11 @@ pub async fn expire_one(pool: &PgPool) -> Result<bool, AccountError> {
         .execute(&mut *transaction)
         .await?;
     repair_unread(&mut transaction, conversation.id).await?;
+    let participants = access::participants(&mut transaction, &conversation).await?;
     changes::append(
         &mut transaction,
         ChangeGroup {
-            participants: &conversation.participants(),
+            participants: &participants,
             conversation_id: conversation.id,
             message_id: Some(message_id),
         },
