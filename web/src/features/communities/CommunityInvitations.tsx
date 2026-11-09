@@ -2,13 +2,13 @@ import { useCallback, useState } from 'react';
 import { requirePayload } from '@/features/auth/SessionOwner';
 import { AccountForm, Field, textField, useOperation } from '@/features/accounts/AccountForm';
 import { useAccountResource } from '@/features/accounts/useAccountResource';
+import { findInvitee } from './inviteeDirectory';
 import type { CommunityPanelProps } from './communityModels';
 import styles from '@/features/accounts/Accounts.module.css';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const INVITE_SECRET_BYTES = 32;
 const DEFAULT_INVITE_DAYS = 7;
-const DIRECTORY_PAGE_LIMIT = 50;
 
 function invitationSecret(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(INVITE_SECRET_BYTES));
@@ -63,11 +63,7 @@ export function CommunityInvitations(props: CommunityPanelProps) {
 
   async function invitePerson(fields: FormData) {
     const username = textField(fields, 'username').trim().replace(/^@/, '').toLowerCase();
-    const reply = await props.session.client.GET('/api/v1/users', {
-      params: { query: { search: username, limit: DIRECTORY_PAGE_LIMIT } },
-    });
-    const directory = requirePayload(reply);
-    const person = directory.users.find((entry) => entry.username === username);
+    const person = await findInvitee(props.session, username);
     if (!person) {
       throw new Error('No available account has that username.');
     }
