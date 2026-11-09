@@ -589,6 +589,9 @@ async function main() {
     console.log('Checking four-session browser convergence and full reset.');
     verifyAccountBrowsers(origin, 'test:sync');
     resetAdmissionFixtures();
+    console.log('Checking real community admission, moderation, and subscriber privacy.');
+    verifyAccountBrowsers(origin, 'test:communities');
+    resetAdmissionFixtures();
     console.log('Checking fail-closed admission and surviving reads during Valkey outage.');
     await verifyValkeyOutage(origin);
     console.log('Checking outages, graceful shutdown, and persistent private storage.');

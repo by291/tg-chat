@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "test:browser": "playwright test",
     "test:sync": "playwright test --config playwright.synchronization.config.ts",
+    "test:communities": "playwright test --config playwright.communities.config.ts",
     "test:accounts": "playwright test --config playwright.accounts.config.ts",
     "api:generate": "node scripts/generate-api.mjs",
     "api:check": "node scripts/generate-api.mjs --check"
