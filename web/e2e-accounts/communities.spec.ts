@@ -4,6 +4,7 @@ import type { components } from '../src/api/schema';
 
 const PASSWORD = 'a complete community workflow password phrase';
 const CONVERGENCE_TIMEOUT_MS = 15_000;
+const SHORT_POSTING_MUTE_MS = 2500;
 
 interface Account {
   context: BrowserContext;
@@ -181,11 +182,42 @@ test('five accounts observe admission, moderation, private links, and channel pe
       name: `Request ${member.grant.user.username}`,
     });
     await request.getByRole('button', { name: 'Approve', exact: true }).click();
+    await admin.page.getByRole('button', { name: 'Open conversation', exact: true }).click();
+    await publish(admin.page, 'Administrator publication');
     await openCommunity(member.page, group.title);
     await expect(
       member.page.getByRole('group', { name: 'Message: Retained group history', exact: true }),
     ).toBeVisible();
+    await expect(
+      member.page
+        .getByRole('group', {
+          name: 'Message: Retained group history',
+          exact: true,
+        })
+        .getByText(owner.grant.user.display_name, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      member.page
+        .getByRole('group', {
+          name: 'Message: Administrator publication',
+          exact: true,
+        })
+        .getByText(admin.grant.user.display_name, { exact: true }),
+    ).toBeVisible();
     await publish(member.page, 'Member publication');
+    await command({
+      account: admin,
+      conversationId: group.id,
+      action: {
+        kind: 'mute',
+        user_id: member.grant.user.id,
+        until: new Date(Date.now() + SHORT_POSTING_MUTE_MS).toISOString(),
+      },
+    });
+    await expect(member.page.getByRole('textbox', { name: 'Message', exact: true })).toHaveCount(0);
+    await expect(member.page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible({
+      timeout: CONVERGENCE_TIMEOUT_MS,
+    });
 
     await command({
       account: banned,
