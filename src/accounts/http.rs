@@ -403,6 +403,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(super::email_http::router());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
+    let routes = routes.merge(crate::conversations::http::router());
     let routes = routes.layer(axum::middleware::from_fn(prevent_caching));
 
     Router::new().nest("/api/v1", routes).with_state(state)

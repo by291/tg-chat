@@ -404,3 +404,74 @@ async fn messaging_replay_preserves_identity_and_requires_session_csrf(pool: PgP
     assert_eq!(conflict["current"]["message"]["version"], "2");
     assert_eq!(conflict["error"]["code"], "message_conflict");
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and Valkey"]
+async fn community_routes_require_session_csrf_and_server_owned_roles(pool: PgPool) {
+    let application = application(pool, &valkey_url());
+    let (_, cookie, grant) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/auth/register",
+            origin: Some(ORIGIN),
+            cookie: None,
+            csrf: None,
+            body: registration(),
+        },
+    )
+    .await;
+    let cookie = cookie.unwrap();
+    let csrf = grant["csrf_token"].as_str().unwrap();
+    let id = Uuid::new_v4();
+    let input = json!({
+        "operation_id": Uuid::new_v4(),
+        "conversation_id": id,
+        "kind": "group",
+        "title": "HTTP community",
+        "description": "Authenticated community",
+        "public_handle": "http_group",
+        "is_public": true,
+        "requires_approval": false
+    });
+    let (denied, _, _) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/communities",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: None,
+            body: input.clone(),
+        },
+    )
+    .await;
+    assert_eq!(denied, 403);
+    let (accepted, _, receipt) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/communities",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: Some(csrf),
+            body: input,
+        },
+    )
+    .await;
+    assert_eq!(accepted, 200, "{receipt}");
+    assert_eq!(receipt["conversation"]["role"], "owner");
+    let (anonymous, _, _) = send(
+        &application,
+        TestRequest {
+            method: "GET",
+            path: &format!("/api/v1/communities/{id}"),
+            origin: Some(ORIGIN),
+            cookie: None,
+            csrf: None,
+            body: Value::Null,
+        },
+    )
+    .await;
+    assert_eq!(anonymous, 401);
+}

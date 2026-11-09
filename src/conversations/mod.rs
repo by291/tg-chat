@@ -2,8 +2,16 @@
 
 pub(crate) mod access;
 mod community_model;
+mod community_queries;
 mod community_service;
+pub(crate) mod http;
+mod invitations;
 mod membership;
+pub use community_queries::{
+    CommunityListQuery, CommunityMember, CommunityMemberPage, CommunityPage, CommunityPageQuery,
+    CommunitySummary, InvitationPage, InvitationQuery, InvitationView, InvitePreview,
+    JoinRequestPage, JoinRequestView,
+};
 
 pub use community_model::{CommunityAction, CommunityCommand, CommunitySettings, CreateCommunity};
 

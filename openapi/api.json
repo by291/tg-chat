@@ -380,6 +380,251 @@
         }
       }
     },
+    "/api/v1/communities": {
+      "get": {
+        "tags": [],
+        "operationId": "community_discover",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CommunityPage" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [],
+        "operationId": "community_create",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateCommunity" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CommandReceipt" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/communities/commands": {
+      "post": {
+        "tags": [],
+        "operationId": "community_command",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CommunityCommand" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CommandReceipt" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/communities/{conversation_id}": {
+      "get": {
+        "tags": [],
+        "operationId": "community_details",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ConversationView" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/communities/{conversation_id}/invitations": {
+      "get": {
+        "tags": [],
+        "operationId": "community_invitations",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvitationPage" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/communities/{conversation_id}/members": {
+      "get": {
+        "tags": [],
+        "operationId": "community_members",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommunityMemberPage" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/communities/{conversation_id}/requests": {
+      "get": {
+        "tags": [],
+        "operationId": "community_requests",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/JoinRequestPage" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/community-invitations": {
+      "get": {
+        "tags": [],
+        "operationId": "community_inbox",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvitationPage" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/community-invitations/preview": {
+      "post": {
+        "tags": [],
+        "operationId": "community_preview",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/InvitePreviewInput" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InvitePreview" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/contacts": {
       "get": {
         "tags": [],
@@ -774,6 +1019,199 @@
           "observation_cursor": { "type": "string" }
         }
       },
+      "CommunityAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "invitation_id": { "type": ["string", "null"], "format": "uuid" },
+              "kind": { "type": "string", "enum": ["join"] },
+              "token": { "type": ["string", "null"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["invitation_id", "expires_at", "kind"],
+            "properties": {
+              "expires_at": { "type": "string", "format": "date-time" },
+              "invitation_id": { "type": "string", "format": "uuid" },
+              "kind": { "type": "string", "enum": ["invite"] },
+              "max_uses": { "type": ["integer", "null"], "format": "int64" },
+              "target_id": { "type": ["string", "null"], "format": "uuid" },
+              "token": { "type": ["string", "null"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["invitation_id", "kind"],
+            "properties": {
+              "invitation_id": { "type": "string", "format": "uuid" },
+              "kind": { "type": "string", "enum": ["revoke_invite"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["approve"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["reject"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "type": "string", "enum": ["leave"] } }
+          },
+          {
+            "type": "object",
+            "required": ["settings", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["settings"] },
+              "settings": { "$ref": "#/components/schemas/CommunitySettings" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "role", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["role"] },
+              "role": { "type": "string" },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["transfer"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["remove"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["ban"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["unban"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["mute"] },
+              "until": { "type": ["string", "null"], "format": "date-time" },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "type": "string", "enum": ["delete"] } }
+          }
+        ]
+      },
+      "CommunityCommand": {
+        "type": "object",
+        "required": ["operation_id", "conversation_id", "action"],
+        "properties": {
+          "action": { "$ref": "#/components/schemas/CommunityAction" },
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "operation_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "CommunityMember": {
+        "type": "object",
+        "required": ["id", "username", "display_name", "role", "is_banned", "is_active"],
+        "properties": {
+          "display_name": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "is_active": { "type": "boolean" },
+          "is_banned": { "type": "boolean" },
+          "posting_muted_until": { "type": ["string", "null"], "format": "date-time" },
+          "role": { "type": "string" },
+          "username": { "type": "string" }
+        }
+      },
+      "CommunityMemberPage": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CommunityMember" } },
+          "next": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "CommunityPage": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CommunitySummary" }
+          },
+          "next": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "CommunitySettings": {
+        "type": "object",
+        "required": ["title", "description", "is_public", "requires_approval"],
+        "properties": {
+          "description": { "type": "string" },
+          "is_public": { "type": "boolean" },
+          "public_handle": { "type": ["string", "null"] },
+          "requires_approval": { "type": "boolean" },
+          "title": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "CommunitySummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "description",
+          "is_public",
+          "requires_approval",
+          "member_count"
+        ],
+        "properties": {
+          "description": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "is_public": { "type": "boolean" },
+          "kind": { "type": "string" },
+          "member_count": { "type": "string" },
+          "public_handle": { "type": ["string", "null"] },
+          "requires_approval": { "type": "boolean" },
+          "title": { "type": "string" }
+        }
+      },
       "ConversationView": {
         "type": "object",
         "required": [
@@ -782,6 +1220,13 @@
           "peer_id",
           "peer_username",
           "peer_name",
+          "title",
+          "description",
+          "is_public",
+          "requires_approval",
+          "role",
+          "can_post",
+          "can_manage",
           "last_sequence",
           "version",
           "summary_text",
@@ -799,7 +1244,10 @@
           "draft"
         ],
         "properties": {
+          "can_manage": { "type": "boolean" },
+          "can_post": { "type": "boolean" },
           "clear_through": { "type": "string" },
+          "description": { "type": "string" },
           "draft": { "$ref": "#/components/schemas/DraftView" },
           "expiry_days": { "type": "integer", "format": "int32" },
           "generation": { "type": "string" },
@@ -807,6 +1255,7 @@
           "is_archived": { "type": "boolean" },
           "is_hidden": { "type": "boolean" },
           "is_manually_unread": { "type": "boolean" },
+          "is_public": { "type": "boolean" },
           "keep_archived": { "type": "boolean" },
           "kind": { "type": "string" },
           "last_sequence": { "type": "string" },
@@ -816,13 +1265,31 @@
           "peer_read_through": { "type": "string" },
           "peer_username": { "type": "string" },
           "pin_rank": { "type": ["integer", "null"], "format": "int32" },
+          "public_handle": { "type": ["string", "null"] },
           "read_through": { "type": "string" },
+          "requires_approval": { "type": "boolean" },
+          "role": { "type": "string" },
           "summary_expires_at": { "type": ["string", "null"], "format": "date-time" },
           "summary_text": { "type": "string" },
+          "title": { "type": "string" },
           "unread_count": { "type": "string" },
           "updated_at": { "type": "string", "format": "date-time" },
           "version": { "type": "string" }
         }
+      },
+      "CreateCommunity": {
+        "allOf": [
+          { "$ref": "#/components/schemas/CommunitySettings" },
+          {
+            "type": "object",
+            "required": ["operation_id", "conversation_id", "kind"],
+            "properties": {
+              "conversation_id": { "type": "string", "format": "uuid" },
+              "kind": { "type": "string" },
+              "operation_id": { "type": "string", "format": "uuid" }
+            }
+          }
+        ]
       },
       "CustomEmoji": {
         "type": "object",
@@ -936,6 +1403,62 @@
           "preceding_message": {
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CanonicalMessage" }]
           }
+        }
+      },
+      "InvitationPage": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/InvitationView" } },
+          "next": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "InvitationView": {
+        "type": "object",
+        "required": ["id", "conversation_id", "title", "expires_at", "uses"],
+        "properties": {
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "id": { "type": "string", "format": "uuid" },
+          "max_uses": { "type": ["integer", "null"], "format": "int64" },
+          "revoked_at": { "type": ["string", "null"], "format": "date-time" },
+          "target_id": { "type": ["string", "null"], "format": "uuid" },
+          "title": { "type": "string" },
+          "uses": { "type": "integer", "format": "int64" }
+        }
+      },
+      "InvitePreview": {
+        "type": "object",
+        "required": ["id", "kind", "title", "requires_approval"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "kind": { "type": "string" },
+          "requires_approval": { "type": "boolean" },
+          "title": { "type": "string" }
+        }
+      },
+      "InvitePreviewInput": {
+        "type": "object",
+        "required": ["token"],
+        "properties": { "token": { "type": "string" } },
+        "additionalProperties": false
+      },
+      "JoinRequestPage": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/JoinRequestView" } },
+          "next": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "JoinRequestView": {
+        "type": "object",
+        "required": ["id", "username", "display_name", "created_at"],
+        "properties": {
+          "created_at": { "type": "string", "format": "date-time" },
+          "display_name": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "username": { "type": "string" }
         }
       },
       "Login": {

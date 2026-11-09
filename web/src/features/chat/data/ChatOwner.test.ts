@@ -21,6 +21,13 @@ const USER = {
 const SAVED: components['schemas']['ConversationView'] = {
   id: '00000000-0000-4000-8000-000000000003',
   kind: 'saved',
+  title: '',
+  description: '',
+  is_public: false,
+  requires_approval: false,
+  role: 'member',
+  can_post: true,
+  can_manage: true,
   peer_id: USER.id,
   peer_name: USER.display_name,
   peer_username: USER.username,

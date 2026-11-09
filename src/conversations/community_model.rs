@@ -35,7 +35,26 @@ pub struct CommunityCommand {
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CommunityAction {
-    Join,
+    Join {
+        token: Option<String>,
+        invitation_id: Option<Uuid>,
+    },
+    Invite {
+        invitation_id: Uuid,
+        token: Option<String>,
+        target_id: Option<Uuid>,
+        expires_at: DateTime<Utc>,
+        max_uses: Option<i64>,
+    },
+    RevokeInvite {
+        invitation_id: Uuid,
+    },
+    Approve {
+        user_id: Uuid,
+    },
+    Reject {
+        user_id: Uuid,
+    },
     Leave,
     Settings {
         settings: CommunitySettings,
@@ -67,6 +86,16 @@ impl CommunityAction {
     /// Include a targeted account in the transaction's ordered capacity and policy locks.
     pub(crate) fn target_user(&self) -> Option<Uuid> {
         match self {
+            Self::Invite {
+                target_id,
+                ..
+            } => *target_id,
+            Self::Approve {
+                user_id,
+            }
+            | Self::Reject {
+                user_id,
+            } => Some(*user_id),
             Self::Role {
                 user_id,
                 ..

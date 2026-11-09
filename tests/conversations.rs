@@ -349,3 +349,173 @@ async fn full_personal_directory_rejects_creation_and_join_without_partial_state
             .bind(rejected_id);
     assert!(!exists.fetch_one(&pool).await.unwrap());
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn invite_last_use_is_atomic_and_revocation_blocks_stale_approval(pool: PgPool) {
+    let accounts = AccountService::new(pool, AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let first = support::account(&accounts, "first").await;
+    let second = support::account(&accounts, "second").await;
+    let service = MessageService::new(accounts);
+    let mut input = create_input();
+    input.settings.is_public = false;
+    let id = input.conversation_id;
+    service.create_community(owner.clone(), input).await.unwrap();
+    let invitation_id = Uuid::new_v4();
+    let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+    let invite = community_command(
+        id,
+        json!({
+            "kind": "invite",
+            "invitation_id": invitation_id,
+            "token": token,
+            "expires_at": chrono::Utc::now() + chrono::Duration::days(1),
+            "max_uses": 1
+        }),
+    );
+    service.community_command(owner.clone(), invite).await.unwrap();
+    let preview = service.invite_preview(first.clone(), token.clone()).await.unwrap();
+    assert_eq!(preview.id, id);
+    let join_first = community_command(id, json!({"kind": "join", "token": token}));
+    let join_second = community_command(id, json!({"kind": "join", "token": token}));
+    let (first_result, second_result) = tokio::join!(
+        service.community_command(first.clone(), join_first),
+        service.community_command(second.clone(), join_second),
+    );
+    assert_ne!(first_result.is_ok(), second_result.is_ok());
+    let applicant = if first_result.is_err() {
+        first
+    } else {
+        second
+    };
+    let mut settings = create_input().settings;
+    settings.is_public = false;
+    settings.requires_approval = true;
+    let settings = community_command(id, json!({"kind": "settings", "settings": settings}));
+    service.community_command(owner.clone(), settings).await.unwrap();
+    let invitation_id = Uuid::new_v4();
+    let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+    let invite = community_command(
+        id,
+        json!({
+            "kind": "invite",
+            "invitation_id": invitation_id,
+            "token": token,
+            "expires_at": chrono::Utc::now() + chrono::Duration::days(1),
+            "max_uses": 1
+        }),
+    );
+    service.community_command(owner.clone(), invite).await.unwrap();
+    let request = community_command(id, json!({"kind": "join", "token": token}));
+    let pending = service.community_command(applicant.clone(), request).await.unwrap();
+    assert!(pending.conversation.is_none());
+    let revoke =
+        community_command(id, json!({"kind": "revoke_invite", "invitation_id": invitation_id}));
+    service.community_command(owner.clone(), revoke).await.unwrap();
+    let approve = community_command(id, json!({"kind": "approve", "user_id": applicant.user_id}));
+    assert!(service.community_command(owner, approve).await.is_err());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalidation(pool: PgPool) {
+    let accounts = AccountService::new(pool, AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let member = support::account(&accounts, "member").await;
+    let outsider = support::account(&accounts, "outsider").await;
+    let service = MessageService::new(accounts);
+    let mut input = create_input();
+    input.kind = "channel".to_owned();
+    let id = input.conversation_id;
+    service.create_community(owner.clone(), input).await.unwrap();
+    let join = community_command(id, json!({"kind": "join"}));
+    service.community_command(member.clone(), join).await.unwrap();
+    let visible = service
+        .community_members(member, tg_chat::conversations::CommunityPageQuery::new(id))
+        .await
+        .unwrap();
+    assert_eq!(visible.items.len(), 1);
+    assert!(
+        service
+            .community_members(
+                outsider.clone(),
+                tg_chat::conversations::CommunityPageQuery::new(id)
+            )
+            .await
+            .is_err()
+    );
+    let found = service.discover_communities(outsider.clone(), Default::default()).await.unwrap();
+    assert_eq!(found.items.len(), 1);
+    let mut settings = create_input().settings;
+    settings.requires_approval = true;
+    let configure = community_command(id, json!({"kind": "settings", "settings": settings}));
+    service.community_command(owner.clone(), configure).await.unwrap();
+    let request = community_command(id, json!({"kind": "join"}));
+    service.community_command(outsider.clone(), request).await.unwrap();
+    settings.is_public = false;
+    let configure = community_command(id, json!({"kind": "settings", "settings": settings}));
+    service.community_command(owner.clone(), configure).await.unwrap();
+    let found = service.discover_communities(outsider, Default::default()).await.unwrap();
+    assert!(found.items.is_empty());
+    let requests = service
+        .community_requests(owner, tg_chat::conversations::CommunityPageQuery::new(id))
+        .await
+        .unwrap();
+    assert!(requests.items.is_empty());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn targeted_invitations_require_acceptance_and_expired_links_cannot_be_used(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let target = support::account(&accounts, "target").await;
+    let outsider = support::account(&accounts, "outsider").await;
+    let service = MessageService::new(accounts);
+    let mut input = create_input();
+    input.settings.is_public = false;
+    let id = input.conversation_id;
+    service.create_community(owner.clone(), input).await.unwrap();
+    let invitation_id = Uuid::new_v4();
+    let invite = community_command(
+        id,
+        json!({
+            "kind": "invite",
+            "invitation_id": invitation_id,
+            "target_id": target.user_id,
+            "expires_at": chrono::Utc::now() + chrono::Duration::days(1)
+        }),
+    );
+    service.community_command(owner.clone(), invite).await.unwrap();
+    assert!(service.community_details(target.clone(), id).await.is_err());
+    let join = community_command(id, json!({"kind": "join", "invitation_id": invitation_id}));
+    assert!(service.community_command(outsider.clone(), join.clone()).await.is_err());
+    service.community_command(target.clone(), join).await.unwrap();
+    let details = service.community_details(target, id).await.unwrap();
+    assert_eq!(details.role, "member");
+
+    let invitation_id = Uuid::new_v4();
+    let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+    let invite = community_command(
+        id,
+        json!({
+            "kind": "invite",
+            "invitation_id": invitation_id,
+            "token": token,
+            "expires_at": chrono::Utc::now() + chrono::Duration::days(1)
+        }),
+    );
+    service.community_command(owner, invite).await.unwrap();
+    let without_secret =
+        community_command(id, json!({"kind": "join", "invitation_id": invitation_id}));
+    assert!(service.community_command(outsider.clone(), without_secret).await.is_err());
+    let expire = sqlx::query(
+        "UPDATE community_invitations SET expires_at = now() - interval '1 second' WHERE id = $1",
+    )
+    .bind(invitation_id);
+    expire.execute(&pool).await.unwrap();
+    assert!(service.invite_preview(outsider.clone(), token.clone()).await.is_err());
+    let join = community_command(id, json!({"kind": "join", "token": token}));
+    assert!(service.community_command(outsider, join).await.is_err());
+}

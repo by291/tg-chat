@@ -9,7 +9,7 @@ use super::{
         CommunityAction, CommunityCommand, CommunityContext, CommunityRecord, CommunitySettings,
         CreateCommunity,
     },
-    membership,
+    invitations, membership,
 };
 use crate::{
     accounts::{AccountError, Actor, sessions::lock_actor},
@@ -183,7 +183,15 @@ async fn update_settings(
         .bind(settings.public_handle)
         .bind(settings.is_public)
         .bind(settings.requires_approval);
-    update.execute(connection).await?;
+    update.execute(&mut *connection).await?;
+    if context.community.is_public && !settings.is_public {
+        // A public request never becomes a private invitation when visibility changes.
+        let invalidate = sqlx::query(
+            "DELETE FROM community_join_requests WHERE conversation_id = $1 AND invitation_id IS NULL",
+        )
+        .bind(context.community.id);
+        invalidate.execute(connection).await?;
+    }
     Ok(())
 }
 
@@ -322,6 +330,23 @@ impl MessageService {
                     settings,
                 } => {
                     update_settings(&mut transaction, &context, settings.clone()).await?;
+                }
+                CommunityAction::Join {
+                    ..
+                }
+                | CommunityAction::Invite {
+                    ..
+                }
+                | CommunityAction::RevokeInvite {
+                    ..
+                }
+                | CommunityAction::Approve {
+                    ..
+                }
+                | CommunityAction::Reject {
+                    ..
+                } => {
+                    invitations::apply(&mut transaction, &context).await?;
                 }
                 _ => membership::apply(&mut transaction, &context).await?,
             }

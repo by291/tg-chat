@@ -224,12 +224,6 @@ pub(crate) async fn apply(
     context: &CommunityContext<'_>,
 ) -> Result<(), AcceptanceError> {
     match &context.command.action {
-        CommunityAction::Join => {
-            if !context.community.is_public || context.community.requires_approval {
-                return Err(AccountError::ConversationUnavailable.into());
-            }
-            admit(connection, context.community, context.actor.user_id).await?;
-        }
         CommunityAction::Leave => {
             role(connection, context.community.id, context.actor.user_id).await?;
             if context.actor.user_id == context.community.owner_id {

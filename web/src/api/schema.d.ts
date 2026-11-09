@@ -336,6 +336,134 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/communities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['community_discover'];
+    put?: never;
+    post: operations['community_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/communities/commands': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['community_command'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/communities/{conversation_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['community_details'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/communities/{conversation_id}/invitations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['community_invitations'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/communities/{conversation_id}/members': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['community_members'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/communities/{conversation_id}/requests': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['community_requests'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/community-invitations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['community_inbox'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/community-invitations/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['community_preview'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/contacts': {
     parameters: {
       query?: never;
@@ -575,8 +703,148 @@ export interface components {
       message?: null | components['schemas']['CanonicalMessage'];
       observation_cursor: string;
     };
+    CommunityAction:
+      | {
+          /** Format: uuid */
+          invitation_id?: string | null;
+          /** @enum {string} */
+          kind: 'join';
+          token?: string | null;
+        }
+      | {
+          /** Format: date-time */
+          expires_at: string;
+          /** Format: uuid */
+          invitation_id: string;
+          /** @enum {string} */
+          kind: 'invite';
+          /** Format: int64 */
+          max_uses?: number | null;
+          /** Format: uuid */
+          target_id?: string | null;
+          token?: string | null;
+        }
+      | {
+          /** Format: uuid */
+          invitation_id: string;
+          /** @enum {string} */
+          kind: 'revoke_invite';
+        }
+      | {
+          /** @enum {string} */
+          kind: 'approve';
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'reject';
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'leave';
+        }
+      | {
+          /** @enum {string} */
+          kind: 'settings';
+          settings: components['schemas']['CommunitySettings'];
+        }
+      | {
+          /** @enum {string} */
+          kind: 'role';
+          role: string;
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'transfer';
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'remove';
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'ban';
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'unban';
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'mute';
+          /** Format: date-time */
+          until?: string | null;
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'delete';
+        };
+    CommunityCommand: {
+      action: components['schemas']['CommunityAction'];
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: uuid */
+      operation_id: string;
+    };
+    CommunityMember: {
+      display_name: string;
+      /** Format: uuid */
+      id: string;
+      is_active: boolean;
+      is_banned: boolean;
+      /** Format: date-time */
+      posting_muted_until?: string | null;
+      role: string;
+      username: string;
+    };
+    CommunityMemberPage: {
+      items: components['schemas']['CommunityMember'][];
+      /** Format: uuid */
+      next?: string | null;
+    };
+    CommunityPage: {
+      items: components['schemas']['CommunitySummary'][];
+      /** Format: uuid */
+      next?: string | null;
+    };
+    CommunitySettings: {
+      description: string;
+      is_public: boolean;
+      public_handle?: string | null;
+      requires_approval: boolean;
+      title: string;
+    };
+    CommunitySummary: {
+      description: string;
+      /** Format: uuid */
+      id: string;
+      is_public: boolean;
+      kind: string;
+      member_count: string;
+      public_handle?: string | null;
+      requires_approval: boolean;
+      title: string;
+    };
     ConversationView: {
+      can_manage: boolean;
+      can_post: boolean;
       clear_through: string;
+      description: string;
       draft: components['schemas']['DraftView'];
       /** Format: int32 */
       expiry_days: number;
@@ -586,6 +854,7 @@ export interface components {
       is_archived: boolean;
       is_hidden: boolean;
       is_manually_unread: boolean;
+      is_public: boolean;
       keep_archived: boolean;
       kind: string;
       last_sequence: string;
@@ -598,14 +867,25 @@ export interface components {
       peer_username: string;
       /** Format: int32 */
       pin_rank?: number | null;
+      public_handle?: string | null;
       read_through: string;
+      requires_approval: boolean;
+      role: string;
       /** Format: date-time */
       summary_expires_at?: string | null;
       summary_text: string;
+      title: string;
       unread_count: string;
       /** Format: date-time */
       updated_at: string;
       version: string;
+    };
+    CreateCommunity: components['schemas']['CommunitySettings'] & {
+      /** Format: uuid */
+      conversation_id: string;
+      kind: string;
+      /** Format: uuid */
+      operation_id: string;
     };
     CustomEmoji: {
       document_id: string;
@@ -674,6 +954,51 @@ export interface components {
       messages: components['schemas']['CanonicalMessage'][];
       observation_cursor: string;
       preceding_message?: null | components['schemas']['CanonicalMessage'];
+    };
+    InvitationPage: {
+      items: components['schemas']['InvitationView'][];
+      /** Format: uuid */
+      next?: string | null;
+    };
+    InvitationView: {
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: date-time */
+      expires_at: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: int64 */
+      max_uses?: number | null;
+      /** Format: date-time */
+      revoked_at?: string | null;
+      /** Format: uuid */
+      target_id?: string | null;
+      title: string;
+      /** Format: int64 */
+      uses: number;
+    };
+    InvitePreview: {
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      requires_approval: boolean;
+      title: string;
+    };
+    InvitePreviewInput: {
+      token: string;
+    };
+    JoinRequestPage: {
+      items: components['schemas']['JoinRequestView'][];
+      /** Format: uuid */
+      next?: string | null;
+    };
+    JoinRequestView: {
+      /** Format: date-time */
+      created_at: string;
+      display_name: string;
+      /** Format: uuid */
+      id: string;
+      username: string;
     };
     Login: {
       device_name: string;
@@ -1368,6 +1693,217 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['SyncPage'];
+        };
+      };
+    };
+  };
+  community_discover: {
+    parameters: {
+      query?: {
+        after?: string;
+        limit?: number;
+        search?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CommunityPage'];
+        };
+      };
+    };
+  };
+  community_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateCommunity'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CommandReceipt'];
+        };
+      };
+    };
+  };
+  community_command: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CommunityCommand'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CommandReceipt'];
+        };
+      };
+    };
+  };
+  community_details: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConversationView'];
+        };
+      };
+    };
+  };
+  community_invitations: {
+    parameters: {
+      query?: {
+        after?: string;
+        limit?: number;
+        search?: string;
+      };
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InvitationPage'];
+        };
+      };
+    };
+  };
+  community_members: {
+    parameters: {
+      query?: {
+        after?: string;
+        limit?: number;
+        search?: string;
+      };
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CommunityMemberPage'];
+        };
+      };
+    };
+  };
+  community_requests: {
+    parameters: {
+      query?: {
+        after?: string;
+        limit?: number;
+        search?: string;
+      };
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['JoinRequestPage'];
+        };
+      };
+    };
+  };
+  community_inbox: {
+    parameters: {
+      query?: {
+        after?: string;
+        limit?: number;
+        search?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InvitationPage'];
+        };
+      };
+    };
+  };
+  community_preview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InvitePreviewInput'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InvitePreview'];
         };
       };
     };

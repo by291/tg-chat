@@ -28,6 +28,13 @@ export function conversationFixture(overrides: Partial<Conversation> = {}): Conv
   return {
     id: 'conversation',
     kind: 'saved',
+    title: '',
+    description: '',
+    is_public: false,
+    requires_approval: false,
+    role: 'member',
+    can_post: true,
+    can_manage: true,
     peer_id: 'author',
     peer_name: 'Author',
     peer_username: 'author',
