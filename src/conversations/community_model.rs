@@ -1,0 +1,109 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CommunitySettings {
+    pub title: String,
+    pub description: String,
+    pub public_handle: Option<String>,
+    pub is_public: bool,
+    pub requires_approval: bool,
+}
+
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CreateCommunity {
+    pub operation_id: Uuid,
+    pub conversation_id: Uuid,
+    pub kind: String,
+    #[serde(flatten)]
+    pub settings: CommunitySettings,
+}
+
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CommunityCommand {
+    pub operation_id: Uuid,
+    pub conversation_id: Uuid,
+    pub action: CommunityAction,
+}
+
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CommunityAction {
+    Join,
+    Leave,
+    Settings {
+        settings: CommunitySettings,
+    },
+    Role {
+        user_id: Uuid,
+        role: String,
+    },
+    Transfer {
+        user_id: Uuid,
+    },
+    Remove {
+        user_id: Uuid,
+    },
+    Ban {
+        user_id: Uuid,
+    },
+    Unban {
+        user_id: Uuid,
+    },
+    Mute {
+        user_id: Uuid,
+        until: Option<DateTime<Utc>>,
+    },
+    Delete,
+}
+
+impl CommunityAction {
+    /// Include a targeted account in the transaction's ordered capacity and policy locks.
+    pub(crate) fn target_user(&self) -> Option<Uuid> {
+        match self {
+            Self::Role {
+                user_id,
+                ..
+            }
+            | Self::Transfer {
+                user_id,
+            }
+            | Self::Remove {
+                user_id,
+            }
+            | Self::Ban {
+                user_id,
+            }
+            | Self::Unban {
+                user_id,
+            }
+            | Self::Mute {
+                user_id,
+                ..
+            } => Some(*user_id),
+            _ => None,
+        }
+    }
+}
+
+#[derive(FromRow)]
+pub(crate) struct CommunityRecord {
+    pub id: Uuid,
+    pub kind: String,
+    pub owner_id: Uuid,
+    pub is_public: bool,
+    pub requires_approval: bool,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+pub(crate) struct CommunityContext<'a> {
+    pub actor: &'a crate::accounts::Actor,
+    pub command: &'a CommunityCommand,
+    pub community: &'a CommunityRecord,
+}

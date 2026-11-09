@@ -145,3 +145,207 @@ async fn community_moderation_requires_a_manager_without_granting_author_edit_ri
     );
     assert!(service.command(owner, delete).await.is_ok());
 }
+
+fn create_input() -> tg_chat::conversations::CreateCommunity {
+    serde_json::from_value(json!({
+        "operation_id": Uuid::new_v4(),
+        "conversation_id": Uuid::new_v4(),
+        "kind": "group",
+        "title": "Book club",
+        "description": "Discuss books",
+        "public_handle": "Book_Club",
+        "is_public": true,
+        "requires_approval": false
+    }))
+    .unwrap()
+}
+
+fn community_command(
+    id: Uuid,
+    action: serde_json::Value,
+) -> tg_chat::conversations::CommunityCommand {
+    serde_json::from_value(json!({
+        "operation_id": Uuid::new_v4(),
+        "conversation_id": id,
+        "action": action
+    }))
+    .unwrap()
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn ownership_and_bans_survive_leave_rejoin_and_stale_role_commands(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let member = support::account(&accounts, "member").await;
+    let service = MessageService::new(accounts);
+    let input = create_input();
+    let id = input.conversation_id;
+    service.create_community(owner.clone(), input.clone()).await.unwrap();
+    service.create_community(owner.clone(), input).await.unwrap();
+    let join = community_command(id, json!({"kind": "join"}));
+    service.community_command(member.clone(), join).await.unwrap();
+    let leave = community_command(id, json!({"kind": "leave"}));
+    assert!(service.community_command(owner.clone(), leave.clone()).await.is_err());
+    let transfer = community_command(id, json!({"kind": "transfer", "user_id": member.user_id}));
+    service.community_command(owner.clone(), transfer).await.unwrap();
+    let stale_role = community_command(
+        id,
+        json!({
+            "kind": "role",
+            "user_id": member.user_id,
+            "role": "member"
+        }),
+    );
+    assert!(service.community_command(owner.clone(), stale_role).await.is_err());
+    service.community_command(owner.clone(), leave.clone()).await.unwrap();
+    service.community_command(owner.clone(), leave).await.unwrap();
+    let ban = community_command(id, json!({"kind": "ban", "user_id": owner.user_id}));
+    service.community_command(member.clone(), ban).await.unwrap();
+    let join = community_command(id, json!({"kind": "join"}));
+    assert!(service.community_command(owner.clone(), join.clone()).await.is_err());
+    let unban = community_command(id, json!({"kind": "unban", "user_id": owner.user_id}));
+    service.community_command(member, unban).await.unwrap();
+    service.community_command(owner, join).await.unwrap();
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn public_handles_are_normalized_and_removed_members_receive_access_removal(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let member = support::account(&accounts, "member").await;
+    let service = MessageService::new(accounts);
+    let input = create_input();
+    let id = input.conversation_id;
+    let created = service.create_community(owner.clone(), input).await.unwrap();
+    assert_eq!(created.conversation.unwrap().public_handle.as_deref(), Some("book_club"));
+    assert!(service.create_community(owner.clone(), create_input()).await.is_err());
+    let join = community_command(id, json!({"kind": "join"}));
+    service.community_command(member.clone(), join).await.unwrap();
+    let sent = service.send(owner.clone(), message(id)).await.unwrap();
+    let before = service.bootstrap(member.clone()).await.unwrap();
+    let remove = community_command(id, json!({"kind": "remove", "user_id": member.user_id}));
+    service.community_command(owner, remove).await.unwrap();
+    assert!(service.message(member.clone(), sent.message.id).await.is_err());
+    let changes = service
+        .sync(
+            member,
+            tg_chat::sync::SyncQuery {
+                cursor: before.cursor,
+                limit: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(
+        changes
+            .groups
+            .iter()
+            .any(|group| group.conversation_id == id && group.conversation.is_none())
+    );
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn membership_caps_reject_without_consuming_a_directory_slot(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let member = support::account(&accounts, "member").await;
+    let service = MessageService::new(accounts);
+    for (kind, limit) in [("group", 200_i64), ("channel", 500_i64)] {
+        let mut input = create_input();
+        input.kind = kind.to_owned();
+        input.settings.public_handle = Some(format!("{kind}_capacity"));
+        let id = input.conversation_id;
+        service.create_community(owner.clone(), input).await.unwrap();
+        let fill = sqlx::query(
+            "WITH fixtures AS (
+                INSERT INTO users (id, username, password_hash, display_name)
+                SELECT gen_random_uuid(), $2 || '_' || ordinal, 'fixture', 'Capacity fixture'
+                FROM generate_series(1, $3) ordinal RETURNING id
+             ) INSERT INTO conversation_members (conversation_id, user_id) SELECT $1, id FROM fixtures",
+        )
+        .bind(id)
+        .bind(kind)
+        .bind(limit - 1);
+        fill.execute(&pool).await.unwrap();
+        let join = community_command(id, json!({"kind": "join"}));
+        assert!(service.community_command(member.clone(), join.clone()).await.is_err());
+        let release = sqlx::query(
+            "UPDATE conversation_members SET directory_active = false WHERE conversation_id = $1
+             AND user_id = (SELECT user_id FROM conversation_members WHERE conversation_id = $1
+                 AND role = 'member' ORDER BY user_id LIMIT 1)",
+        )
+        .bind(id);
+        release.execute(&pool).await.unwrap();
+        service.community_command(member.clone(), join).await.unwrap();
+    }
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn join_and_leave_serialize_with_publication_and_preserve_personal_clear(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let member = support::account(&accounts, "member").await;
+    let service = MessageService::new(accounts);
+    let input = create_input();
+    let id = input.conversation_id;
+    service.create_community(owner.clone(), input).await.unwrap();
+    let join = community_command(id, json!({"kind": "join"}));
+    let (joined, sent) = tokio::join!(
+        service.community_command(member.clone(), join),
+        service.send(owner.clone(), message(id)),
+    );
+    joined.unwrap();
+    let sent = sent.unwrap();
+    assert!(service.message(member.clone(), sent.message.id).await.is_ok());
+    let clear = support::messaging::command(id, json!({"kind": "clear"}));
+    service.command(member.clone(), clear).await.unwrap();
+    let leave = community_command(id, json!({"kind": "leave"}));
+    let (left, concurrent_send) = tokio::join!(
+        service.community_command(member.clone(), leave),
+        service.send(member.clone(), message(id)),
+    );
+    left.unwrap();
+    if let Ok(accepted) = concurrent_send {
+        assert!(service.message(member.clone(), accepted.message.id).await.is_err());
+    }
+    assert!(service.send(member.clone(), message(id)).await.is_err());
+    let join = community_command(id, json!({"kind": "join"}));
+    service.community_command(member.clone(), join).await.unwrap();
+    assert!(service.message(member, sent.message.id).await.is_err());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn full_personal_directory_rejects_creation_and_join_without_partial_state(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let member = support::account(&accounts, "member").await;
+    let service = MessageService::new(accounts);
+    let input = create_input();
+    let id = input.conversation_id;
+    service.create_community(owner.clone(), input).await.unwrap();
+    let fill = sqlx::query(
+        "WITH fixtures AS (
+            INSERT INTO conversations (id, kind, owner_id, title)
+            SELECT gen_random_uuid(), 'group', $1, 'Directory fixture' FROM generate_series(1, 200)
+            RETURNING id
+         ) INSERT INTO conversation_members (conversation_id, user_id) SELECT id, $2 FROM fixtures",
+    )
+    .bind(owner.user_id)
+    .bind(member.user_id);
+    fill.execute(&pool).await.unwrap();
+    let join = community_command(id, json!({"kind": "join"}));
+    assert!(service.community_command(member.clone(), join).await.is_err());
+    let mut input = create_input();
+    input.settings.public_handle = Some("full_account".to_owned());
+    let rejected_id = input.conversation_id;
+    assert!(service.create_community(member, input).await.is_err());
+    let exists =
+        sqlx::query_scalar::<_, bool>("SELECT EXISTS (SELECT 1 FROM conversations WHERE id = $1)")
+            .bind(rejected_id);
+    assert!(!exists.fetch_one(&pool).await.unwrap());
+}

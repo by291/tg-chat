@@ -1,6 +1,11 @@
 //! Authorized conversation membership and personal directory projections.
 
 pub(crate) mod access;
+mod community_model;
+mod community_service;
+mod membership;
+
+pub use community_model::{CommunityAction, CommunityCommand, CommunitySettings, CreateCommunity};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
