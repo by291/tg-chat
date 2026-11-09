@@ -3,7 +3,7 @@
 TG Chat Web is the React frontend for TG Chat. It provides a Telegram-inspired conversation
 interface with local data, persistent drafts, rich composition, media playback, and appearance
 settings. Connected mode provides real accounts, privacy, devices, contacts, recovery, and durable
-direct/Saved rich-text messages with pending-send recovery and bounded history.
+direct/Saved and community rich-text messages with pending-send recovery and bounded history.
 The package is named `tg-chat-web`.
 
 ## Run
@@ -83,3 +83,8 @@ Run `pnpm test:accounts` for existing account/message workflows and `pnpm test:s
 convergence. They have separate artifact directories. Use the root isolated Compose verification for
 independent admission fixtures; running both against one already-used local IP may legitimately hit
 registration limits. Do not weaken product rate limits to make tests pass.
+
+Connected communities support creation, public discovery, invitations, approval requests, role and
+member management, and private group/channel history. Owner and administrator controls follow server
+permissions; channel subscribers cannot publish. See [communities](../docs/communities.md) for the
+authorization contract and `pnpm test:communities` for real multi-account browser verification.

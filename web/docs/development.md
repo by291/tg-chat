@@ -91,3 +91,12 @@ mixed lifecycle commands, read advancement, reply navigation, full reset preserv
 deletion without resurrection after reload. Its output directory is separate from the demo and
 account suites. Run it with independent admission fixtures; the root Compose runner resets only its
 own ephemeral Valkey between suites rather than weakening application registration limits.
+
+## Community acceptance
+
+`pnpm test:communities` uses a disposable connected runtime from `TG_CHAT_ACCOUNT_TEST_URL`. Five
+separate account contexts exercise public creation and discovery, administrator approval, retained
+history, bans and access removal, private links, direct invitations, and read-only channel subscribers.
+The suite records desktop and narrow-screen screenshots in its own artifact directory. The root
+`node scripts/check-runtime.mjs` includes it after the account and synchronization suites, resetting
+only that disposable project's admission fixtures between suites.

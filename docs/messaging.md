@@ -1,7 +1,8 @@
-# Durable direct messaging
+# Durable messaging
 
 Connected messaging uses PostgreSQL as its authority. The API accepts text, supported semantic HTML,
-and bundled custom emoji for direct conversations and private Saved Messages. The existing editor
+and bundled custom emoji for direct conversations, private Saved Messages, groups, and channels.
+[Community authorization](./communities.md) extends membership, publication, and moderation rules. The existing editor
 and virtual timeline render those records. The explicit demo retains its independent local behavior.
 
 ## Acceptance and ownership

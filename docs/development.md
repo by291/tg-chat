@@ -2,9 +2,10 @@
 
 The repository root owns the Rust API and Worker. The React application remains in `web/`.
 Connected mode uses real account APIs and durable mail jobs; `/demo` keeps local sample conversations
-separate. Message persistence, authenticated realtime delivery, media, and calls arrive in later
-[milestones](./superpowers/plans/2026-11-08-product-milestones.md). See
-[accounts and recovery](./accounts.md) for the implemented boundaries.
+separate. Durable messaging, authenticated realtime catch-up, and groups/channels are connected. Media and
+calls arrive in later [milestones](./superpowers/plans/2026-11-08-product-milestones.md). See
+[accounts and recovery](./accounts.md), [messaging](./messaging.md), and
+[communities](./communities.md) for the implemented boundaries.
 
 ## Start the integrated environment
 
@@ -19,7 +20,7 @@ The generator creates a private, ignored `.env` with random credentials. It refu
 existing file. `.env.example` documents configurable values without providing reusable passwords.
 Visit `http://localhost:8080` for the frontend. The gateway routes health and `/api` requests to
 Rust and `/connection/websocket` to Centrifugo. Unknown API routes return JSON instead of the
-frontend. Registration is open initially. Realtime connection tokens arrive with messaging.
+frontend. Registration is open initially. Realtime subscriptions are authorized by the API.
 
 Email verification and recovery are disabled until SMTP is configured. To use local capture, add
 these values to the generated `.env`, retaining its generated `TG_CHAT_MAIL_KEY`:
@@ -143,3 +144,7 @@ compiler API, and update the lockfile alongside dependency changes.
 Frontend unit, formatting, build, and browser checks remain documented in
 [frontend development](../web/docs/development.md). Backend CI checks Rust and contracts separately
 from the existing frontend workflow and runs the same isolated Compose acceptance command.
+
+The isolated runtime check also runs `test:communities` with five account contexts, covering public
+admission, approvals, private invitations, member removal, and channel subscriber permissions.
+Admission fixtures are reset only inside the disposable Compose project between suites.

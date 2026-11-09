@@ -101,3 +101,16 @@ compare-and-set across tabs. Pending operations and drafts have separate transac
 a full canonical reset preserves unsent work. Versioned draft conflicts require an explicit choice
 when local input is dirty. See [durable messaging](../../docs/messaging.md) for acceptance, cursor,
 and recovery guarantees.
+
+## Connected communities
+
+Community workflows share SessionOwner, ChatOwner, and the existing durable pending store. Discovery
+and invitation previews expose metadata; history enters only after admission establishes a canonical
+conversation projection. Direct selections keep recipient-based draft keys; shared conversations use
+the canonical conversation ID. The server supplies posting and management permissions.
+
+CommunityOperations persists stable mutation identities before transport and applies acknowledgements
+through the same cache epoch fence as message commands. Unconfirmed operations have an explicit
+recovery panel. Forms capture settings revisions with their local edits, so incoming changes cannot
+silently overwrite an administrator's draft. Details and controls disappear when the authorized
+directory removes a membership. See [community ownership](../../docs/communities.md).

@@ -2,7 +2,7 @@
 
 A React chat application with a Telegram-inspired interface and a Rust API/Worker backend. Connected
 mode supports real accounts, private profiles, contacts, blocks, device sessions, and optional email
-recovery, durable direct/Saved messages, rich text, and HTTP catch-up. No backend is needed to explore
+recovery, durable direct/Saved messages, groups and channels, rich text, and HTTP catch-up. No backend is needed to explore
 the separate local demo:
 
 ```sh
@@ -28,6 +28,7 @@ conversations without using connected account state. SMTP is optional; see
   contracts.
 - [Runtime operations](./docs/operations.md): migrations, health, secrets, storage, and shutdown.
 - [Durable messaging](./docs/messaging.md): acceptance, snapshots, rich content, and pending recovery.
+- [Communities and membership](./docs/communities.md): discovery, admission, roles, and access removal.
 - [Accounts and recovery](./docs/accounts.md): identity, session, privacy, and durable mail boundaries.
 - [Frontend overview](./web/README.md): setup, capabilities, and current scope.
 - [Architecture](./web/docs/architecture.md): module boundaries, state ownership, and data flow.
@@ -40,7 +41,7 @@ conversations without using connected account state. SMTP is optional; see
 - [Development](./web/docs/development.md): local commands and verification strategy.
 - [Complete product design](./docs/superpowers/specs/2026-11-08-complete-product-design.md):
   approved target for the Rust backend, synchronization, media, calls, and deployment; later
-  milestones extend communities, media, administration, and calls.
+  milestones extend media, administration, and calls.
 - [Implementation milestones](./docs/superpowers/plans/2026-11-08-product-milestones.md): delivery
   order, dependencies, and acceptance gates for the approved product design.
 
