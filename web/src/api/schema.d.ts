@@ -747,6 +747,7 @@ export interface components {
           kind: 'leave';
         }
       | {
+          expected_version: string;
           /** @enum {string} */
           kind: 'settings';
           settings: components['schemas']['CommunitySettings'];
@@ -871,6 +872,7 @@ export interface components {
       read_through: string;
       requires_approval: boolean;
       role: string;
+      settings_version: string;
       /** Format: date-time */
       summary_expires_at?: string | null;
       summary_text: string;

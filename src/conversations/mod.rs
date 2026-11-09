@@ -35,6 +35,7 @@ pub(crate) const VIEW_SELECT: &str =
             COALESCE(peer.display_name, conversation.title) AS peer_name,
             conversation.title, conversation.description, conversation.public_handle,
             conversation.is_public, conversation.requires_approval, member.role,
+            conversation.settings_version::text,
             (conversation.kind IN ('direct', 'saved') OR (
                 (member.posting_muted_until IS NULL OR member.posting_muted_until <= now())
                 AND (conversation.kind = 'group' OR member.role IN ('owner', 'admin')))) AS can_post,
@@ -80,6 +81,7 @@ pub struct ConversationView {
     pub peer_id: Uuid,
     pub peer_username: String,
     pub peer_name: String,
+    pub settings_version: String,
     pub title: String,
     pub description: String,
     pub public_handle: Option<String>,

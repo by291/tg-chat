@@ -57,6 +57,7 @@ pub enum CommunityAction {
     },
     Leave,
     Settings {
+        expected_version: String,
         settings: CommunitySettings,
     },
     Role {

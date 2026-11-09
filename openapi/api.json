@@ -1073,8 +1073,9 @@
           },
           {
             "type": "object",
-            "required": ["settings", "kind"],
+            "required": ["expected_version", "settings", "kind"],
             "properties": {
+              "expected_version": { "type": "string" },
               "kind": { "type": "string", "enum": ["settings"] },
               "settings": { "$ref": "#/components/schemas/CommunitySettings" }
             }
@@ -1220,6 +1221,7 @@
           "peer_id",
           "peer_username",
           "peer_name",
+          "settings_version",
           "title",
           "description",
           "is_public",
@@ -1269,6 +1271,7 @@
           "read_through": { "type": "string" },
           "requires_approval": { "type": "boolean" },
           "role": { "type": "string" },
+          "settings_version": { "type": "string" },
           "summary_expires_at": { "type": ["string", "null"], "format": "date-time" },
           "summary_text": { "type": "string" },
           "title": { "type": "string" },

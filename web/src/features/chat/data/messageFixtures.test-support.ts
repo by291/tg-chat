@@ -28,6 +28,7 @@ export function conversationFixture(overrides: Partial<Conversation> = {}): Conv
   return {
     id: 'conversation',
     kind: 'saved',
+    settings_version: '1',
     title: '',
     description: '',
     is_public: false,

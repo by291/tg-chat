@@ -392,7 +392,10 @@ async fn invite_last_use_is_atomic_and_revocation_blocks_stale_approval(pool: Pg
     let mut settings = create_input().settings;
     settings.is_public = false;
     settings.requires_approval = true;
-    let settings = community_command(id, json!({"kind": "settings", "settings": settings}));
+    let settings = community_command(
+        id,
+        json!({"kind": "settings", "expected_version": "1", "settings": settings}),
+    );
     service.community_command(owner.clone(), settings).await.unwrap();
     let invitation_id = Uuid::new_v4();
     let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
@@ -449,12 +452,18 @@ async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalida
     assert_eq!(found.items.len(), 1);
     let mut settings = create_input().settings;
     settings.requires_approval = true;
-    let configure = community_command(id, json!({"kind": "settings", "settings": settings}));
+    let configure = community_command(
+        id,
+        json!({"kind": "settings", "expected_version": "1", "settings": settings}),
+    );
     service.community_command(owner.clone(), configure).await.unwrap();
     let request = community_command(id, json!({"kind": "join"}));
     service.community_command(outsider.clone(), request).await.unwrap();
     settings.is_public = false;
-    let configure = community_command(id, json!({"kind": "settings", "settings": settings}));
+    let configure = community_command(
+        id,
+        json!({"kind": "settings", "expected_version": "2", "settings": settings}),
+    );
     service.community_command(owner.clone(), configure).await.unwrap();
     let found = service.discover_communities(outsider, Default::default()).await.unwrap();
     assert!(found.items.is_empty());
@@ -518,4 +527,40 @@ async fn targeted_invitations_require_acceptance_and_expired_links_cannot_be_use
     assert!(service.invite_preview(outsider.clone(), token.clone()).await.is_err());
     let join = community_command(id, json!({"kind": "join", "token": token}));
     assert!(service.community_command(outsider, join).await.is_err());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn stale_settings_cannot_overwrite_newer_privacy_or_metadata(pool: PgPool) {
+    let accounts = AccountService::new(pool, AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let service = MessageService::new(accounts);
+    let input = create_input();
+    let id = input.conversation_id;
+    service.create_community(owner.clone(), input).await.unwrap();
+    let mut settings = create_input().settings;
+    settings.is_public = false;
+    let first = community_command(
+        id,
+        json!({
+            "kind": "settings",
+            "expected_version": "1",
+            "settings": settings
+        }),
+    );
+    service.community_command(owner.clone(), first).await.unwrap();
+    settings.is_public = true;
+    settings.title = "Stale title".to_owned();
+    let stale = community_command(
+        id,
+        json!({
+            "kind": "settings",
+            "expected_version": "1",
+            "settings": settings
+        }),
+    );
+    assert!(service.community_command(owner.clone(), stale).await.is_err());
+    let current = service.community_details(owner, id).await.unwrap();
+    assert!(!current.is_public);
+    assert_eq!(current.title, "Book club");
 }

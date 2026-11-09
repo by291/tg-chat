@@ -171,10 +171,19 @@ async fn update_settings(
     settings: CommunitySettings,
 ) -> Result<(), AcceptanceError> {
     membership::require_manager(connection, context).await?;
+    let CommunityAction::Settings {
+        expected_version,
+        ..
+    } = &context.command.action
+    else {
+        return Err(AccountError::Validation("expected community settings").into());
+    };
+    let expected_version = crate::messages::history::parse_sequence(expected_version)?;
     let settings = normalize_settings(settings)?;
     let update = sqlx::query(
         "UPDATE conversations SET title = $2, description = $3, public_handle = $4,
-         is_public = $5, requires_approval = $6 WHERE id = $1",
+         is_public = $5, requires_approval = $6, settings_version = settings_version + 1
+         WHERE id = $1 AND settings_version = $7",
     )
     .bind(context.community.id)
     .bind(settings.title)
@@ -183,7 +192,10 @@ async fn update_settings(
         .bind(settings.public_handle)
         .bind(settings.is_public)
         .bind(settings.requires_approval);
-    update.execute(&mut *connection).await?;
+    let update = update.bind(expected_version);
+    if update.execute(&mut *connection).await?.rows_affected() != 1 {
+        return Err(AccountError::MessageConflict.into());
+    }
     if context.community.is_public && !settings.is_public {
         // A public request never becomes a private invitation when visibility changes.
         let invalidate = sqlx::query(
@@ -328,6 +340,7 @@ impl MessageService {
             match &input.action {
                 CommunityAction::Settings {
                     settings,
+                    ..
                 } => {
                     update_settings(&mut transaction, &context, settings.clone()).await?;
                 }
