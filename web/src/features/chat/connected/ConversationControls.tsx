@@ -31,7 +31,7 @@ export function ConversationControls(props: {
     props.onConfirm({
       title: isClosing ? 'Close conversation?' : 'Clear history for me?',
       description:
-        'This removes your access to existing history. The other participant keeps their copy.',
+        'This removes your access to existing history. Other participants keep their copies.',
       choices: [
         {
           label: isClosing ? 'Close conversation' : 'Clear for me',
@@ -101,6 +101,7 @@ export function ConversationControls(props: {
           Auto-delete new messages
           <select
             value={conversation.expiry_days}
+            disabled={!conversation.can_manage}
             onChange={(event) => change({ kind: 'expiry', days: Number(event.target.value) })}
           >
             <option value={0}>Off</option>
@@ -112,7 +113,7 @@ export function ConversationControls(props: {
         <button type="button" onClick={() => confirm('clear')}>
           Clear history
         </button>
-        {conversation.kind !== 'saved' && (
+        {conversation.kind === 'direct' && (
           <button type="button" onClick={() => confirm('close')}>
             Close conversation
           </button>

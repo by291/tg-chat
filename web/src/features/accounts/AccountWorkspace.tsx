@@ -6,6 +6,7 @@ import {
   Shield,
   Smartphone,
   UserRound,
+  Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { components } from '@/api/schema';
@@ -14,6 +15,8 @@ import { ToastViewport } from '@/components/Toast';
 import { SettingsRow } from '@/features/settings/SettingsControls';
 import { DevicesSettingsPage } from '@/features/settings/devices/DevicesSettingsPage';
 import { SessionOwner, isCancelled } from '../auth/SessionOwner';
+import { CommunityWorkspace } from '../communities/CommunityWorkspace';
+import { conversationDestination, type Conversation } from '../communities/communityModels';
 import { ChatOwner } from '../chat/data/ChatOwner';
 import { ConnectedChat } from '../chat/connected/ConnectedChat';
 import { useOperation } from './AccountForm';
@@ -23,7 +26,8 @@ import { ProfilePanel } from './ProfilePanel';
 import { SecurityPanel } from './SecurityPanel';
 import styles from './Accounts.module.css';
 
-type Page = 'messages' | 'profile' | 'privacy' | 'devices' | 'contacts' | 'security';
+type Page =
+  'messages' | 'profile' | 'privacy' | 'devices' | 'contacts' | 'security' | 'communities';
 
 interface WorkspaceProps {
   owner: SessionOwner;
@@ -32,6 +36,12 @@ interface WorkspaceProps {
 }
 
 const NAVIGATION = [
+  {
+    page: 'communities',
+    label: 'Communities',
+    icon: Users,
+    color: 'blue',
+  },
   {
     page: 'messages',
     label: 'Messages',
@@ -72,8 +82,11 @@ const NAVIGATION = [
 
 /** Keep authenticated ownership separate from demo state and persistence. */
 export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) {
-  const [page, setPage] = useState<Page>('profile');
+  const [page, setPage] = useState<Page>(
+    window.location.hash.startsWith('#invite=') ? 'communities' : 'profile',
+  );
   const action = useOperation();
+  const [communityId, setCommunityId] = useState<string>();
   const [chat, setChat] = useState<ChatOwner>();
   const [chatError, setChatError] = useState('');
 
@@ -125,6 +138,26 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     setPage('messages');
   }
 
+  function openCommunity(conversation: Conversation) {
+    if (!chat) {
+      return;
+    }
+    void action.run({
+      operation: async () => {
+        await chat.select({
+          destination: conversationDestination(conversation),
+          title: conversation.title,
+        });
+        setPage('messages');
+      },
+    });
+  }
+
+  function showCommunities(id?: string) {
+    setCommunityId(id);
+    setPage('communities');
+  }
+
   if (page === 'messages' && chat) {
     return (
       <ConnectedChat
@@ -132,6 +165,8 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
         user={auth.user}
         onSettings={() => setPage('profile')}
         onFindPeople={() => setPage('contacts')}
+        onCommunities={() => showCommunities()}
+        onCommunityDetails={showCommunities}
       />
     );
   }
@@ -139,6 +174,18 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const profile = auth.user;
   let content;
   switch (page) {
+    case 'communities':
+      content = chat ? (
+        <CommunityWorkspace
+          session={owner}
+          chat={chat}
+          initialId={communityId}
+          onOpen={openCommunity}
+        />
+      ) : (
+        <p role="status">Connecting to communities…</p>
+      );
+      break;
     case 'privacy':
       content = <PrivacyPanel owner={owner} />;
       break;
@@ -173,18 +220,22 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
             </div>
           </div>
           <nav className={styles.navigation} aria-label="Account navigation">
-            {NAVIGATION.filter((entry) => entry.page !== 'messages' || Boolean(chat)).map(
-              (entry) => (
-                <div key={entry.page} aria-current={entry.page === page ? 'page' : undefined}>
-                  <SettingsRow
-                    label={entry.label}
-                    icon={entry.icon}
-                    color={entry.color}
-                    onClick={() => setPage(entry.page)}
-                  />
-                </div>
-              ),
-            )}
+            {NAVIGATION.filter((entry) => {
+              const needsChat = entry.page === 'messages' || entry.page === 'communities';
+              return !needsChat || Boolean(chat);
+            }).map((entry) => (
+              <div key={entry.page} aria-current={entry.page === page ? 'page' : undefined}>
+                <SettingsRow
+                  label={entry.label}
+                  icon={entry.icon}
+                  color={entry.color}
+                  onClick={() => {
+                    setCommunityId(undefined);
+                    setPage(entry.page);
+                  }}
+                />
+              </div>
+            ))}
           </nav>
           <div className={styles.sidebarFooter}>
             <button

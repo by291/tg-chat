@@ -1,6 +1,7 @@
-import { ArrowLeft, MessageCircle, Search, Settings } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Search, Settings, Users } from 'lucide-react';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
+import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { isCancelled } from '@/features/auth/SessionOwner';
 import type { Message } from '@/domain/messages/message';
@@ -49,14 +50,26 @@ interface ConnectedChatProps {
   user: components['schemas']['PrivateProfile'];
   onSettings: () => void;
   onFindPeople: () => void;
+  onCommunities: () => void;
+  onCommunityDetails: (id: string) => void;
 }
 
 function title(conversation: Conversation): string {
-  return conversation.kind === 'saved' ? 'Saved Messages' : conversation.peer_name;
+  if (conversation.kind === 'saved') {
+    return 'Saved Messages';
+  }
+  return conversation.title || conversation.peer_name;
 }
 
 /** Reuse the editor and bounded virtual timeline with authenticated, server-owned message state. */
-export function ConnectedChat({ owner, user, onSettings, onFindPeople }: ConnectedChatProps) {
+export function ConnectedChat({
+  owner,
+  user,
+  onSettings,
+  onFindPeople,
+  onCommunities,
+  onCommunityDetails,
+}: ConnectedChatProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const [isDirectoryVisible, setIsDirectoryVisible] = useState(!snapshot.selection);
   const [isPersisting, setIsPersisting] = useState(false);
@@ -70,6 +83,17 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
   const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
   const selection = snapshot.selection;
+  const isCommunity = conversation?.kind === 'group' || conversation?.kind === 'channel';
+  const canPost = conversation?.can_post ?? selection?.destination.kind !== 'conversation';
+  const allowedActions = CONNECTED_ACTIONS.filter((action) => {
+    if (action === 'pin') {
+      return conversation?.can_manage ?? false;
+    }
+    if (action === 'reply' || action === 'edit') {
+      return canPost;
+    }
+    return true;
+  });
   const messages = snapshot.messages.map((canonical) => {
     const message = renderMessage(canonical);
     message.isRead =
@@ -142,10 +166,7 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
     setEditing(undefined);
     setIsPinsOpen(false);
     setError('');
-    const destination =
-      entry.kind === 'saved'
-        ? { kind: 'saved' as const }
-        : { kind: 'recipient' as const, user_id: entry.peer_id };
+    const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
     setIsDirectoryVisible(false);
   }
@@ -208,7 +229,7 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
             action: () => owner.command({ kind: 'hide_message', message_id: canonical.id }),
           },
         ];
-        if (canonical.author_id === user.id) {
+        if (canonical.author_id === user.id || (isCommunity && conversation.can_manage)) {
           choices.push({
             label: 'Delete for everyone',
             action: () => owner.command({ kind: 'delete', message_id: canonical.id }),
@@ -265,6 +286,9 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
             </button>
             <button type="button" aria-label="Find people" onClick={onFindPeople}>
               <Search />
+            </button>
+            <button type="button" aria-label="Communities" onClick={onCommunities}>
+              <Users />
             </button>
           </header>
           {!snapshot.isReady && <p role="status">Loading conversations…</p>}
@@ -386,9 +410,18 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
               <ArrowLeft />
             </button>
             <div>
-              <h2>{selection?.title ?? 'Your messages'}</h2>
-              <p>Private conversation</p>
+              <h2>{conversation ? title(conversation) : (selection?.title ?? 'Your messages')}</h2>
+              <p>
+                {isCommunity
+                  ? `${conversation.kind} · ${conversation.role}`
+                  : 'Private conversation'}
+              </p>
             </div>
+            {isCommunity && (
+              <button type="button" onClick={() => onCommunityDetails(conversation.id)}>
+                Community details
+              </button>
+            )}
             {selection && (
               <button type="button" onClick={() => void owner.loadHistory('latest')}>
                 Latest messages
@@ -439,7 +472,7 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
                 precedingMessage={
                   snapshot.precedingMessage ? renderMessage(snapshot.precedingMessage) : undefined
                 }
-                allowedActions={CONNECTED_ACTIONS}
+                allowedActions={allowedActions}
                 reactionChoices={REACTIONS}
                 navigation={snapshot.navigation}
                 onReachLatest={() => {
@@ -506,12 +539,13 @@ export function ConnectedChat({ owner, user, onSettings, onFindPeople }: Connect
                     </button>
                   </div>
                 )}
+                {!canPost && <p role="status">You cannot post in this conversation.</p>}
                 <MessageComposer
                   key={selectedKey}
                   isTextOnly
                   editingMessage={editingMessage}
                   replyMessage={replyMessage}
-                  isDisabled={isPersisting || !snapshot.isReady}
+                  isDisabled={isPersisting || !snapshot.isReady || !canPost}
                   draft={snapshot.draft.value.text}
                   draftCustomEmoji={snapshot.draft.value.customEmoji}
                   draftRichText={snapshot.draft.value.richText}
