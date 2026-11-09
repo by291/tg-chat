@@ -94,6 +94,19 @@ async fn channel_subscribers_read_but_cannot_publish_and_group_mutes_block_posti
         let sent = service.send(owner.clone(), message(id)).await.unwrap();
         assert!(service.message(member.clone(), sent.message.id).await.is_ok());
         assert!(service.send(member.clone(), message(id)).await.is_err());
+        let bootstrap = service.bootstrap(member.clone()).await.unwrap();
+        let projection = bootstrap.conversations.iter().find(|entry| entry.id == id).unwrap();
+        assert!(!projection.can_post);
+        assert!(projection.posting_muted_until.is_some());
+        let expire_mute = sqlx::query(
+            "UPDATE conversation_members SET posting_muted_until = now() - interval '1 second'
+             WHERE conversation_id = $1 AND user_id = $2",
+        )
+        .bind(id)
+        .bind(member.user_id);
+        expire_mute.execute(&pool).await.unwrap();
+        let after_expiry = service.send(member.clone(), message(id)).await;
+        assert_eq!(after_expiry.is_ok(), kind == "group");
         if kind == "channel" {
             assert_eq!(sent.message.author_name, "Reading club");
         }

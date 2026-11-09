@@ -1432,7 +1432,18 @@ export class ChatOwner {
         observeSource(draft.reply.message_id, draft.replyExpiresAt);
       }
     }
-    const conversations = this.snapshot.conversations.map((conversation) => {
+    const conversations = this.snapshot.conversations.map((original) => {
+      let conversation = original;
+      const postingDeadline = original.posting_muted_until;
+      // Restore only a timed UI capability; the server still authorizes every publication.
+      if (original.kind === 'group' && !original.can_post && postingDeadline) {
+        const deadline = Date.parse(postingDeadline);
+        if (deadline <= now) {
+          conversation = { ...original, can_post: true };
+        } else {
+          nextExpiry = Math.min(nextExpiry, deadline);
+        }
+      }
       const expiresAt =
         conversation.summary_expires_at === undefined
           ? this.summaryExpirations.get(conversation.id)

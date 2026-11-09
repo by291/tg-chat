@@ -1267,6 +1267,7 @@
           "peer_read_through": { "type": "string" },
           "peer_username": { "type": "string" },
           "pin_rank": { "type": ["integer", "null"], "format": "int32" },
+          "posting_muted_until": { "type": ["string", "null"], "format": "date-time" },
           "public_handle": { "type": ["string", "null"] },
           "read_through": { "type": "string" },
           "requires_approval": { "type": "boolean" },

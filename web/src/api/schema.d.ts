@@ -868,6 +868,8 @@ export interface components {
       peer_username: string;
       /** Format: int32 */
       pin_rank?: number | null;
+      /** Format: date-time */
+      posting_muted_until?: string | null;
       public_handle?: string | null;
       read_through: string;
       requires_approval: boolean;

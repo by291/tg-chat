@@ -1315,3 +1315,30 @@ it('rejects queued publication after a channel projection removes posting permis
   expect(owner.getSnapshot().pending).toEqual([]);
   owner.dispose();
 });
+
+it('restores group posting at its deadline even when synchronization has no new groups', async () => {
+  const conversation = {
+    ...DIRECT,
+    kind: 'group',
+    can_post: false,
+    posting_muted_until: new Date(Date.now() + 150).toISOString(),
+  };
+  const owner = fixture({
+    conversation,
+    transport: syncTransport({
+      groups: [],
+      cursor: cursorFixture(0),
+      observation_cursor: cursorFixture(0),
+      has_more: false,
+    }),
+  }).owner;
+  try {
+    await owner.start();
+    expect(owner.getSnapshot().conversations[0].can_post).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await owner.catchUp();
+    expect(owner.getSnapshot().conversations[0].can_post).toBe(true);
+  } finally {
+    owner.dispose();
+  }
+});
