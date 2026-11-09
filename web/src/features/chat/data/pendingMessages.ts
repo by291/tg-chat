@@ -20,6 +20,18 @@ export interface PendingCommand {
   createdAt: number;
 }
 
+export type PendingCommunityOperation =
+  | {
+      kind: 'create';
+      request: components['schemas']['CreateCommunity'];
+      createdAt: number;
+    }
+  | {
+      kind: 'command';
+      request: components['schemas']['CommunityCommand'];
+      createdAt: number;
+    };
+
 export interface Draft {
   id: string;
   value: EmojiText;
@@ -36,11 +48,21 @@ export interface PendingSnapshot {
   drafts: Record<string, Draft>;
   draftAlternatives?: Record<string, Draft[]>;
   commands?: PendingCommand[];
+  communities?: PendingCommunityOperation[];
 }
 
 interface EnqueueOptions {
   message: PendingMessage;
   draft?: { destination: string; id: string };
+}
+
+function communityIntent(operation: PendingCommunityOperation): string {
+  if (operation.kind === 'create') {
+    const { operation_id, conversation_id, ...settings } = operation.request;
+    return JSON.stringify({ kind: operation.kind, settings });
+  }
+  const { operation_id, ...request } = operation.request;
+  return JSON.stringify({ kind: operation.kind, request });
 }
 
 function emptySnapshot(): PendingSnapshot {
@@ -193,6 +215,36 @@ export class PendingMessages {
   async removeCommand(operationId: string): Promise<void> {
     await this.mutate((snapshot) => {
       snapshot.commands = snapshot.commands?.filter(
+        (entry) => entry.request.operation_id !== operationId,
+      );
+    });
+  }
+
+  /** Retain one community mutation before transport and reuse an unresolved identical intent. */
+  async rememberCommunity(
+    operation: PendingCommunityOperation,
+  ): Promise<PendingCommunityOperation> {
+    let remembered = operation;
+    await this.mutate((snapshot) => {
+      snapshot.communities ??= [];
+      const intent = communityIntent(operation);
+      const existing = snapshot.communities.find((entry) => communityIntent(entry) === intent);
+      if (existing) {
+        remembered = existing;
+        return;
+      }
+      if (snapshot.communities.length >= MAX_PENDING_MESSAGES) {
+        throw new Error('Resolve pending community actions before creating another one.');
+      }
+      snapshot.communities.push(operation);
+    });
+    return remembered;
+  }
+
+  /** Remove only the acknowledged or explicitly dismissed community operation. */
+  async removeCommunity(operationId: string): Promise<void> {
+    await this.mutate((snapshot) => {
+      snapshot.communities = snapshot.communities?.filter(
         (entry) => entry.request.operation_id !== operationId,
       );
     });

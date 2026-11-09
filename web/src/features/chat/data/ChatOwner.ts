@@ -1,4 +1,5 @@
 import { Centrifuge } from 'centrifuge';
+import { CommunityOperations } from '@/features/communities/CommunityOperations';
 import type { components } from '@/api/schema';
 import { restoreServerDraft } from './draftModels';
 import { CanonicalCache, observedAtLeast, type CanonicalSnapshot } from './canonicalCache';
@@ -115,6 +116,7 @@ export class ChatOwner {
   private readonly userId: string;
   private readonly sessionId: string;
   private store?: PendingMessages;
+  communities?: CommunityOperations;
   private cache?: CanonicalCache;
   private cacheSnapshot?: CanonicalSnapshot;
   private snapshot = initialSnapshot();
@@ -173,6 +175,13 @@ export class ChatOwner {
     this.cache ??= new CanonicalCache({
       key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
     });
+    this.communities = new CommunityOperations({
+      session: this.session,
+      store: this.store,
+      currentEpoch: () => this.cacheSnapshot?.epoch,
+      applyReceipt: (input) => this.applyCommunityReceipt(input),
+    });
+    await this.communities.refresh();
     const cached = await this.cache.open(bootstrap);
     this.ensureCurrent();
     this.cacheSnapshot = cached;
@@ -409,6 +418,9 @@ export class ChatOwner {
     if (!selection) {
       return;
     }
+    if (this.selectedConversation()?.can_post === false) {
+      throw new Error('You do not have permission to post in this conversation.');
+    }
     const capturedDraft = this.snapshot.draft;
     const draftId = capturedDraft.id;
     const generation = this.viewGeneration;
@@ -502,6 +514,28 @@ export class ChatOwner {
         this.syncPromise = undefined;
       });
     return this.syncPromise;
+  }
+
+  private async applyCommunityReceipt(input: {
+    conversationId: string;
+    receipt: components['schemas']['CommandReceipt'];
+    epoch?: string;
+  }): Promise<void> {
+    this.ensureCurrent();
+    const epoch = input.epoch;
+    if (!epoch) {
+      throw new Error('Chat cache is not ready.');
+    }
+    const applied = await this.requireCache().applyReceipt({
+      epoch,
+      conversationId: input.conversationId,
+      receipt: input.receipt,
+    });
+    this.ensureCurrent();
+    if (applied) {
+      await this.reloadSharedCache();
+    }
+    await this.catchUp();
   }
 
   /** Apply a desired-state action and retain its identity when confirmation is ambiguous. */

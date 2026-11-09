@@ -1299,3 +1299,19 @@ it('expires a directory excerpt after leaving the conversation while the worker 
     owner.dispose();
   }
 });
+
+it('rejects queued publication after a channel projection removes posting permission', async () => {
+  const { owner } = fixture({
+    conversation: {
+      ...DIRECT,
+      kind: 'channel',
+      can_post: false,
+      can_manage: false,
+    },
+  });
+  await owner.start();
+  await owner.select(SELECTION);
+  await expect(owner.queueSend({ text: 'Forbidden publication' })).rejects.toThrow();
+  expect(owner.getSnapshot().pending).toEqual([]);
+  owner.dispose();
+});

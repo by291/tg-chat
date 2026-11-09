@@ -159,3 +159,30 @@ it('keeps the first prepared wire payload when another tab prepares or retries t
   expect(restored.pending[0].request.draft_version).toBe('1');
   expect(restored.pending[0].isPrepared).toBe(true);
 });
+
+it('recovers an ambiguous community action with its original identity across reloads', async () => {
+  const key = crypto.randomUUID();
+  const first = new PendingMessages({ key });
+  await first.open();
+  const operation = {
+    kind: 'command' as const,
+    createdAt: Date.now(),
+    request: {
+      operation_id: crypto.randomUUID(),
+      conversation_id: 'community',
+      action: { kind: 'leave' as const },
+    },
+  };
+  await first.rememberCommunity(operation);
+  const restored = new PendingMessages({ key });
+  await restored.open();
+  const retried = await restored.rememberCommunity({
+    ...operation,
+    request: { ...operation.request, operation_id: crypto.randomUUID() },
+  });
+  expect(retried.request.operation_id).toBe(operation.request.operation_id);
+  await restored.removeCommunity(retried.request.operation_id);
+  expect((await first.read()).communities).toEqual([]);
+  await first.invalidate();
+  await expect(restored.rememberCommunity(operation)).rejects.toThrow();
+});
