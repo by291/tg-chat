@@ -540,24 +540,26 @@ export function ConnectedChat({
                   </div>
                 )}
                 {!canPost && <p role="status">You cannot post in this conversation.</p>}
-                <MessageComposer
-                  key={selectedKey}
-                  isTextOnly
-                  editingMessage={editingMessage}
-                  replyMessage={replyMessage}
-                  isDisabled={isPersisting || !snapshot.isReady || !canPost}
-                  draft={snapshot.draft.value.text}
-                  draftCustomEmoji={snapshot.draft.value.customEmoji}
-                  draftRichText={snapshot.draft.value.richText}
-                  onDraftChange={(value) => void owner.setDraft(value).catch(report)}
-                  onSubmit={(message) => void submit(message)}
-                  onCancelContext={() => {
-                    setEditing(undefined);
-                    void owner.setReply(undefined).catch(report);
-                  }}
-                  onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-                  onNotify={setError}
-                />
+                {canPost && (
+                  <MessageComposer
+                    key={selectedKey}
+                    isTextOnly
+                    editingMessage={editingMessage}
+                    replyMessage={replyMessage}
+                    isDisabled={isPersisting || !snapshot.isReady || !canPost}
+                    draft={snapshot.draft.value.text}
+                    draftCustomEmoji={snapshot.draft.value.customEmoji}
+                    draftRichText={snapshot.draft.value.richText}
+                    onDraftChange={(value) => void owner.setDraft(value).catch(report)}
+                    onSubmit={(message) => void submit(message)}
+                    onCancelContext={() => {
+                      setEditing(undefined);
+                      void owner.setReply(undefined).catch(report);
+                    }}
+                    onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+                    onNotify={setError}
+                  />
+                )}
               </footer>
             </>
           ) : (
