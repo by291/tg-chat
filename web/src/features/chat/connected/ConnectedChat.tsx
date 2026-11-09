@@ -136,6 +136,12 @@ export function ConnectedChat({
     setIsPinsOpen(false);
     setConfirmation(undefined);
   }, [selectedKey]);
+  useEffect(() => {
+    if (!canPost) {
+      setEditing(undefined);
+      setConfirmation(undefined);
+    }
+  }, [canPost]);
   const pending = snapshot.pending.filter((entry) => {
     const destination = entry.request.destination;
     const isCanonical =
@@ -523,7 +529,7 @@ export function ConnectedChat({
                     </button>
                   </div>
                 ))}
-                {editing && snapshot.editConflict?.id === editing.id && (
+                {canPost && editing && snapshot.editConflict?.id === editing.id && (
                   <div className={styles.conflict} role="status">
                     <p>Current message: {snapshot.editConflict.content.text}</p>
                     <p>

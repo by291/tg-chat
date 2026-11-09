@@ -37,6 +37,7 @@ export interface Draft {
   value: EmojiText;
   serverVersion?: string;
   hasLocalChanges?: boolean;
+  replyRevision?: number;
   isReplyUnavailable?: boolean;
   replyExpiresAt?: string;
   reply?: components['schemas']['ReplyInput'];
@@ -49,6 +50,7 @@ export interface PendingSnapshot {
   draftAlternatives?: Record<string, Draft[]>;
   commands?: PendingCommand[];
   communities?: PendingCommunityOperation[];
+  replyRevisions?: Record<string, number>;
 }
 
 interface EnqueueOptions {
@@ -63,6 +65,29 @@ function communityIntent(operation: PendingCommunityOperation): string {
   }
   const { operation_id, ...request } = operation.request;
   return JSON.stringify({ kind: operation.kind, request });
+}
+
+function protectDraftReplies(input: { draft: Draft; revision: number }): Draft {
+  const draft = input.draft;
+  if ((draft.replyRevision ?? 0) === input.revision) {
+    return draft;
+  }
+  // A writer captured before access removal cannot restore an excerpt after the removal commits.
+  const redacted = draft.reply ? redactDraftReply(draft, draft.reply.message_id) : draft;
+  return { ...redacted, replyRevision: input.revision };
+}
+
+function acknowledgeCurrentDraft(current: Draft, acknowledged: Draft): Draft {
+  const updated = {
+    ...current,
+    hasLocalChanges: acknowledged.hasLocalChanges,
+    serverVersion: acknowledged.serverVersion,
+    replyExpiresAt: acknowledged.replyExpiresAt,
+  };
+  if (acknowledged.isReplyUnavailable && current.reply) {
+    return redactDraftReply(updated, current.reply.message_id);
+  }
+  return updated;
 }
 
 function emptySnapshot(): PendingSnapshot {
@@ -263,6 +288,10 @@ export class PendingMessages {
         throw new Error('The draft limit has been reached. Clear an unused draft first.');
       }
       const existing = snapshot.drafts[options.destination];
+      const draft = protectDraftReplies({
+        draft: options.draft,
+        revision: snapshot.replyRevisions?.[options.destination] ?? 0,
+      });
       const hasConcurrentEdit =
         existing && existing.id !== options.expectedId && existing.id !== options.draft.id;
       if (hasConcurrentEdit) {
@@ -282,22 +311,65 @@ export class PendingMessages {
         delete snapshot.drafts[options.destination];
         return;
       }
-      snapshot.drafts[options.destination] = options.draft;
+      snapshot.drafts[options.destination] = draft;
     });
     return conflict;
   }
 
   /** Acknowledge the owned draft revision while preserving newer typing and alternatives. */
-  async acknowledgeDraft(options: { destination: string; draft: Draft }): Promise<void> {
+  async acknowledgeDraft(options: {
+    destination: string;
+    draft: Draft;
+    previousServerVersion?: string;
+  }): Promise<void> {
     await this.mutate((snapshot) => {
-      if (snapshot.drafts[options.destination]?.id === options.draft.id) {
-        snapshot.drafts[options.destination] = options.draft;
+      const current = snapshot.drafts[options.destination];
+      if (current?.id === options.draft.id) {
+        snapshot.drafts[options.destination] = acknowledgeCurrentDraft(current, options.draft);
+      } else if (current && options.previousServerVersion !== undefined) {
+        const hasSameBase = (current.serverVersion ?? '0') === options.previousServerVersion;
+        if (hasSameBase) {
+          snapshot.drafts[options.destination] = {
+            ...current,
+            serverVersion: options.draft.serverVersion,
+          };
+        }
       }
       const alternatives = snapshot.draftAlternatives?.[options.destination];
       if (alternatives) {
         snapshot.draftAlternatives![options.destination] = alternatives.map((draft) => {
-          return draft.id === options.draft.id ? options.draft : draft;
+          return draft.id === options.draft.id
+            ? acknowledgeCurrentDraft(draft, options.draft)
+            : draft;
         });
+      }
+    });
+  }
+
+  /** Scrub every draft for revoked destinations and fence writers that captured older reply access. */
+  async redactConversationReplies(destinations: string[]): Promise<void> {
+    await this.mutate((snapshot) => {
+      for (const destination of destinations) {
+        const current = snapshot.drafts[destination];
+        const alternatives = snapshot.draftAlternatives?.[destination] ?? [];
+        const drafts = current ? [current, ...alternatives] : alternatives;
+        const hasAccessibleReply = drafts.some(
+          (draft) => draft.reply && (!draft.isReplyUnavailable || draft.reply.quote != null),
+        );
+        if (!hasAccessibleReply) {
+          continue;
+        }
+        snapshot.replyRevisions ??= {};
+        const revision = (snapshot.replyRevisions[destination] ?? 0) + 1;
+        snapshot.replyRevisions[destination] = revision;
+        if (current) {
+          snapshot.drafts[destination] = protectDraftReplies({ draft: current, revision });
+        }
+        if (snapshot.draftAlternatives?.[destination]) {
+          snapshot.draftAlternatives[destination] = alternatives.map((draft) =>
+            protectDraftReplies({ draft, revision }),
+          );
+        }
       }
     });
   }

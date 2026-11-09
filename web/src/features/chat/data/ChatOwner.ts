@@ -183,6 +183,7 @@ export class ChatOwner {
     });
     await this.communities.refresh();
     const cached = await this.cache.open(bootstrap);
+    await this.reconcileDraftAccess(cached.conversations);
     this.ensureCurrent();
     this.cacheSnapshot = cached;
     this.cursor = cached.cursor;
@@ -291,6 +292,7 @@ export class ChatOwner {
     const key = destinationKey(selection.destination);
     const canonicalDraft = this.selectedConversation()?.draft;
     const remote = canonicalDraft ? restoreServerDraft(canonicalDraft) : emptyDraft();
+    remote.replyRevision = persisted.replyRevisions?.[key];
     const storedDraft = persisted.drafts[key];
     let draft = remote;
     if (storedDraft && storedDraft.hasLocalChanges !== false) {
@@ -601,13 +603,20 @@ export class ChatOwner {
     if (isCurrent && result.receipt.conversation) {
       this.mergeConversation(result.receipt.conversation);
     } else if (isCurrent) {
-      this.removeConversation(conversationId);
+      await this.removeConversation(conversationId);
     }
     if (isCurrent && result.receipt.message) {
       await this.acceptMessage(result.receipt.message);
     }
     if (result.isConflict) {
-      if (action.kind === 'edit') {
+      const isAuthorized =
+        isCurrent &&
+        (await this.isReceiptCurrent({
+          epoch,
+          conversationId,
+          receipt: result.receipt,
+        }));
+      if (action.kind === 'edit' && isAuthorized) {
         this.publish({ editConflict: result.receipt.message ?? undefined });
       }
       throw new ApiError({
@@ -870,7 +879,7 @@ export class ChatOwner {
       if (group.conversation) {
         this.mergeConversation(group.conversation);
       } else {
-        this.removeConversation(group.conversation_id);
+        await this.removeConversation(group.conversation_id);
       }
       if (group.removed_message_id) {
         await this.invalidateMessage(group.removed_message_id);
@@ -1101,6 +1110,7 @@ export class ChatOwner {
       }
       const local = this.snapshot.draft;
       const remote = restoreServerDraft(incoming.draft);
+      remote.replyRevision = local.replyRevision;
       const hasNewerDraft = compareCounter(incoming.draft.version, local.serverVersion ?? '0') > 0;
       if (hasNewerDraft && local.hasLocalChanges) {
         this.publish({ draftConflict: remote });
@@ -1178,20 +1188,57 @@ export class ChatOwner {
     }
   }
 
-  private removeConversation(conversationId: string): void {
+  private async removeConversation(conversationId: string): Promise<void> {
+    const conversation = this.snapshot.conversations.find((entry) => entry.id === conversationId);
+    const destinations = [`conversation:${conversationId}`];
+    if (conversation?.kind === 'direct') {
+      destinations.push(`recipient:${conversation.peer_id}`);
+    }
+    if (conversation?.kind === 'saved') {
+      destinations.push('saved');
+    }
+    await this.requireStore().redactConversationReplies(destinations);
+    const persisted = await this.requireStore().read();
+    this.ensureCurrent();
+
     if (this.selectedConversation()?.id === conversationId) {
       this.redactAccessReplies();
       this.viewGeneration += 1;
       this.historyLoad = undefined;
+      const destination = destinationKey(this.snapshot.selection!.destination);
       this.publish({
         messages: [],
         precedingMessage: undefined,
+        draft: persisted.drafts[destination] ?? this.snapshot.draft,
+        draftConflict: undefined,
+        draftAlternatives: persisted.draftAlternatives?.[destination] ?? [],
         isLoading: false,
       });
     }
+    const editConflict =
+      this.snapshot.editConflict?.conversation_id === conversationId
+        ? undefined
+        : this.snapshot.editConflict;
     const conversations = this.snapshot.conversations.filter((item) => item.id !== conversationId);
     this.summaryExpirations.delete(conversationId);
-    this.publish({ conversations });
+    this.publish({ conversations, editConflict });
+  }
+
+  private async reconcileDraftAccess(conversations: Conversation[]): Promise<void> {
+    const authorized = new Set(
+      conversations.map((conversation) => `conversation:${conversation.id}`),
+    );
+    const persisted = await this.requireStore().read();
+    const destinations = new Set([
+      ...Object.keys(persisted.drafts),
+      ...Object.keys(persisted.draftAlternatives ?? {}),
+    ]);
+    const revoked = Array.from(destinations).filter((destination) => {
+      return destination.startsWith('conversation:') && !authorized.has(destination);
+    });
+    if (revoked.length > 0) {
+      await this.requireStore().redactConversationReplies(revoked);
+    }
   }
 
   private requireCache(): CanonicalCache {
@@ -1208,6 +1255,7 @@ export class ChatOwner {
     const selectedId = this.selectedConversation()?.id;
     const hasReset = cached.epoch !== this.cacheSnapshot?.epoch;
     if (hasReset) {
+      await this.reconcileDraftAccess(cached.conversations);
       this.viewGeneration += 1;
       this.historyLoad = undefined;
       this.publish({
@@ -1220,7 +1268,7 @@ export class ChatOwner {
       selectedId &&
       !cached.conversations.some((conversation) => conversation.id === selectedId)
     ) {
-      this.removeConversation(selectedId);
+      await this.removeConversation(selectedId);
     }
     for (const conversation of cached.conversations) {
       this.mergeConversation(conversation);
@@ -1234,7 +1282,7 @@ export class ChatOwner {
       await this.invalidateMessage(messageId);
     }
     for (const conversationId of cached.removedConversations) {
-      this.removeConversation(conversationId);
+      await this.removeConversation(conversationId);
     }
     const page = selectedId ? cached.pages[selectedId] : undefined;
     if (page) {
@@ -1295,9 +1343,28 @@ export class ChatOwner {
         reply: captured.reply,
       },
     };
+    const epoch = this.cacheSnapshot?.epoch;
     const result = await this.postCommand(request);
     this.ensureCurrent();
     const receipt = result.receipt;
+    const didPersist = epoch
+      ? await this.requireCache().applyReceipt({
+          epoch,
+          conversationId: conversation.id,
+          receipt,
+        })
+      : false;
+    if (
+      !didPersist ||
+      !(await this.isReceiptCurrent({
+        epoch,
+        receipt,
+        conversationId: conversation.id,
+      }))
+    ) {
+      await this.reloadSharedCache();
+      return;
+    }
     if (result.isConflict) {
       if (receipt.conversation) {
         this.mergeConversation(receipt.conversation);
@@ -1315,22 +1382,48 @@ export class ChatOwner {
       isReplyUnavailable: remote.is_reply_unavailable ?? captured.isReplyUnavailable,
       replyExpiresAt: remote.reply_expires_at ?? captured.replyExpiresAt,
     };
-    await this.requireStore().acknowledgeDraft({ destination, draft: acknowledged });
+    await this.requireStore().acknowledgeDraft({
+      destination,
+      draft: acknowledged,
+      previousServerVersion: captured.serverVersion ?? '0',
+    });
+    const persisted = await this.requireStore().read();
+    if (
+      !(await this.isReceiptCurrent({
+        epoch,
+        receipt,
+        conversationId: conversation.id,
+      }))
+    ) {
+      await this.reloadSharedCache();
+      return;
+    }
     this.ensureCurrent();
-    if (this.selectedConversation()?.id === conversation.id) {
-      const current = this.snapshot.draft;
-      if (current.id === captured.id) {
-        this.publish({ draft: acknowledged });
-      } else if (current.serverVersion === captured.serverVersion) {
-        const rebased = { ...current, serverVersion: remote.version };
-        await this.requireStore().acknowledgeDraft({ destination, draft: rebased });
-        this.publish({ draft: rebased });
+    const updated = persisted.drafts[destination];
+    const isSelected = this.selectedConversation()?.id === conversation.id;
+    if (isSelected && updated?.id === this.snapshot.draft.id) {
+      this.publish({ draft: updated });
+      if (updated.hasLocalChanges) {
         this.scheduleDraft();
       }
     }
     if (receipt.conversation) {
       this.mergeConversation(receipt.conversation);
     }
+  }
+
+  private async isReceiptCurrent(input: {
+    epoch?: string;
+    receipt: components['schemas']['CommandReceipt'];
+    conversationId: string;
+  }): Promise<boolean> {
+    const cached = await this.requireCache().read();
+    this.ensureCurrent();
+    const invalidated = cached.invalidations[input.conversationId];
+    return (
+      cached.epoch === input.epoch &&
+      (!invalidated || observedAtLeast(input.receipt.observation_cursor, invalidated))
+    );
   }
 
   private async failPending(pending: PendingMessage, error: string): Promise<void> {

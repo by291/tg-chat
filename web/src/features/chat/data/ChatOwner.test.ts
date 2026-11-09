@@ -1316,6 +1316,158 @@ it('rejects queued publication after a channel projection removes posting permis
   owner.dispose();
 });
 
+it.each([200, 409])(
+  'rejects a delayed draft response after membership removal (status %s)',
+  async (status) => {
+    const delayed = deferredResponse();
+    let isPosted = false;
+    const store = new PendingMessages({ key: crypto.randomUUID() });
+    const conversation = { ...DIRECT, kind: 'group' };
+    const owner = fixture({
+      conversation,
+      store,
+      history: async () => historyPage({ first: 1, last: 1 }),
+      commands: () => {
+        isPosted = true;
+        return delayed.promise;
+      },
+      transport: syncTransport(changePage({ position: 2, conversation: null })),
+    }).owner;
+    try {
+      await owner.start();
+      await owner.select(SELECTION);
+      await owner.setReply({ message_id: 'message-1', quote: 'Message 1' });
+      await owner.setDraft({ text: 'My independent draft' });
+      const saving = owner.flushDraft();
+      await vi.waitFor(() => expect(isPosted).toBe(true));
+      await owner.catchUp();
+      const receipt = {
+        observation_cursor: cursorFixture(1),
+        conversation: {
+          ...conversation,
+          version: '2',
+          draft: {
+            version: '1',
+            content: {
+              schema_version: 1,
+              text: 'My independent draft',
+              custom_emoji: [],
+            },
+            reply: { message_id: 'message-1', quote: 'Message 1' },
+          },
+        },
+      };
+      const body =
+        status === 200
+          ? receipt
+          : {
+              error: {
+                code: 'message_conflict',
+                message: 'Draft changed',
+                request_id: 'draft-conflict',
+              },
+              current: receipt,
+            };
+      delayed.release(Response.json(body, { status }));
+      await saving;
+      expect(owner.getSnapshot().conversations).toEqual([]);
+      expect(owner.getSnapshot().draft.value.text).toBe('My independent draft');
+      expect(owner.getSnapshot().draft.reply?.quote).toBeNull();
+      const persisted = await store.read();
+      expect(persisted.drafts[`conversation:${conversation.id}`].reply?.quote).toBeNull();
+    } finally {
+      owner.dispose();
+    }
+  },
+);
+
+it('does not expose a delayed edit conflict after access was removed', async () => {
+  const delayed = deferredResponse();
+  let isPosted = false;
+  const owner = fixture({
+    conversation: DIRECT,
+    history: async () => historyPage({ first: 1, last: 1 }),
+    commands: () => {
+      isPosted = true;
+      return delayed.promise;
+    },
+    transport: syncTransport(changePage({ position: 2, conversation: null })),
+  }).owner;
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    const editing = owner.command({
+      kind: 'edit',
+      message_id: 'message-1',
+      expected_version: '1',
+      content: {
+        schema_version: 1,
+        text: 'My edit',
+        custom_emoji: [],
+      },
+    });
+    const rejected = expect(editing).rejects.toThrow('changed on another device');
+    await vi.waitFor(() => expect(isPosted).toBe(true));
+    await owner.catchUp();
+    delayed.release(
+      Response.json(
+        {
+          error: {
+            code: 'message_conflict',
+            message: 'Edited elsewhere',
+            request_id: 'edit-conflict',
+          },
+          current: {
+            observation_cursor: cursorFixture(1),
+            conversation: { ...DIRECT, version: '2' },
+            message: historyMessage(1),
+          },
+        },
+        { status: 409 },
+      ),
+    );
+    await rejected;
+    expect(owner.getSnapshot().editConflict).toBeUndefined();
+    expect(owner.getSnapshot().messages).toEqual([]);
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('scrubs inactive community draft quotes and recovered alternatives on removal', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const conversation = { ...DIRECT, kind: 'group' };
+  const owner = fixture({
+    conversation,
+    store,
+    history: async () => historyPage({ first: 1, last: 1 }),
+    transport: syncTransport(changePage({ position: 2, conversation: null })),
+  }).owner;
+  const destination = `conversation:${conversation.id}`;
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    await owner.setReply({ message_id: 'message-1', quote: 'Message 1' });
+    await owner.setDraft({ text: 'Keep this text' });
+    const captured = owner.getSnapshot().draft;
+    await store.saveDraft({ destination, draft: { ...captured, id: 'other-tab' } });
+    await owner.select({
+      destination: { kind: 'recipient', user_id: 'other-person' },
+      title: 'Other',
+    });
+    await owner.catchUp();
+    const persisted = await store.read();
+    expect(persisted.drafts[destination].reply?.quote).toBeNull();
+    expect(persisted.draftAlternatives?.[destination][0].reply?.quote).toBeNull();
+    await store.saveDraft({ destination, draft: { ...captured, id: 'late-writer' } });
+    const updated = await store.read();
+    expect(updated.drafts[destination].reply?.quote).toBeNull();
+    expect(updated.drafts[destination].value.text).toBe('Keep this text');
+  } finally {
+    owner.dispose();
+  }
+});
+
 it('restores group posting at its deadline even when synchronization has no new groups', async () => {
   const conversation = {
     ...DIRECT,
@@ -1338,6 +1490,71 @@ it('restores group posting at its deadline even when synchronization has no new 
     await new Promise((resolve) => setTimeout(resolve, 200));
     await owner.catchUp();
     expect(owner.getSnapshot().conversations[0].can_post).toBe(true);
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('scrubs revoked community reply excerpts during bootstrap after an offline removal', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  const destination = 'conversation:revoked-community';
+  await store.saveDraft({
+    destination,
+    draft: {
+      id: 'offline-draft',
+      value: { text: 'My own words' },
+      reply: { message_id: 'private-source', quote: 'Formerly available history' },
+    },
+  });
+  const owner = fixture({ store }).owner;
+  try {
+    await owner.start();
+    const persisted = await store.read();
+    expect(persisted.drafts[destination].reply?.quote).toBeNull();
+    expect(persisted.drafts[destination].value.text).toBe('My own words');
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('keeps newly authorized reply quotes when adopting a remote draft after readmission', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  const destination = `conversation:${DIRECT.id}`;
+  await store.saveDraft({
+    destination,
+    draft: {
+      id: 'previous-membership',
+      value: { text: 'Local words' },
+      reply: { message_id: 'message-1', quote: 'Message 1' },
+    },
+  });
+  await store.redactConversationReplies([destination]);
+  const owner = fixture({
+    store,
+    conversation: {
+      ...DIRECT,
+      kind: 'group',
+      generation: '3',
+      draft: {
+        version: '2',
+        content: {
+          schema_version: 1,
+          text: 'New device draft',
+          custom_emoji: [],
+        },
+        reply: { message_id: 'message-1', quote: 'Message 1' },
+      },
+    },
+    history: async () => historyPage({ first: 1, last: 1 }),
+  }).owner;
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    await owner.restoreDraft(owner.getSnapshot().draftConflict!);
+    await owner.setDraft({ text: 'Continue writing' });
+    expect((await store.read()).drafts[destination].reply?.quote).toBe('Message 1');
   } finally {
     owner.dispose();
   }
