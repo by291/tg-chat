@@ -19,12 +19,20 @@ export function CommunityDiscovery(props: AdmissionProps) {
   const [search, setSearch] = useState('');
   const [after, setAfter] = useState<string>();
   const operation = useOperation();
-  const load = useCallback(async () => {
-    const reply = await props.session.client.GET('/api/v1/communities', {
-      params: { query: { search, after } },
-    });
-    return requirePayload(reply);
-  }, [props.session, search, after]);
+  const load = useCallback(
+    async () => {
+      const reply = await props.session.client.GET('/api/v1/communities', {
+        params: { query: { search, after } },
+      });
+      return requirePayload(reply);
+    },
+    // prettier-ignore
+    [
+      props.session,
+      search,
+      after,
+    ],
+  );
   const discovery = useAccountResource(load);
 
   async function join(id: string) {
