@@ -8,6 +8,7 @@ import { CommunityAdmission, CommunityDiscovery } from './CommunityDiscovery';
 import type { CommunityOperations } from './CommunityOperations';
 import type { Conversation } from './communityModels';
 import styles from '@/features/accounts/Accounts.module.css';
+import communityStyles from './Communities.module.css';
 
 function CommunityRecovery({ operations }: { operations: CommunityOperations }) {
   const pending = useSyncExternalStore(operations.subscribe, operations.getSnapshot);
@@ -82,7 +83,7 @@ export function CommunityWorkspace(props: {
   };
 
   return (
-    <div className={styles.panel}>
+    <div className={`${styles.panel} ${communityStyles.workspace}`}>
       {props.chat.communities && <CommunityRecovery operations={props.chat.communities} />}
       {selectedId ? (
         <CommunityDetails

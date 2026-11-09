@@ -99,7 +99,7 @@ export function CommunityDetails(props: {
     confirm,
   };
   return (
-    <div className={styles.panel}>
+    <div>
       <section className={styles.card}>
         <button onClick={props.onBack}>Back to communities</button>
         <h2>{conversation.title}</h2>

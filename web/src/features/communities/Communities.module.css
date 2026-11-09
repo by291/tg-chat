@@ -1,0 +1,28 @@
+.workspace {
+  overflow-wrap: anywhere;
+}
+
+.workspace button:not([type='submit']) {
+  min-height: 40px;
+  margin: 4px 8px 8px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--input-color);
+  color: var(--text-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+.workspace button:not([type='submit']):hover {
+  background: var(--hover-color);
+}
+
+.workspace button:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.workspace button:disabled {
+  cursor: default;
+}
