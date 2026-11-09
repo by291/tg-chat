@@ -472,6 +472,7 @@ export function ConnectedChat({
                 precedingMessage={
                   snapshot.precedingMessage ? renderMessage(snapshot.precedingMessage) : undefined
                 }
+                shouldShowSender={conversation?.kind === 'group'}
                 allowedActions={allowedActions}
                 reactionChoices={REACTIONS}
                 navigation={snapshot.navigation}
