@@ -7,6 +7,8 @@ import styles from '@/features/accounts/Accounts.module.css';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const INVITE_SECRET_BYTES = 32;
+const DEFAULT_INVITE_DAYS = 7;
+const DIRECTORY_PAGE_LIMIT = 50;
 
 function invitationSecret(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(INVITE_SECRET_BYTES));
@@ -19,18 +21,27 @@ export function CommunityInvitations(props: CommunityPanelProps) {
   const [after, setAfter] = useState<string>();
   const [link, setLink] = useState('');
   const operation = useOperation();
-  const load = useCallback(async () => {
-    const reply = await props.session.client.GET(
-      '/api/v1/communities/{conversation_id}/invitations',
-      {
-        params: {
-          path: { conversation_id: props.conversation.id },
-          query: { after },
+  const load = useCallback(
+    async () => {
+      const reply = await props.session.client.GET(
+        '/api/v1/communities/{conversation_id}/invitations',
+        {
+          params: {
+            path: { conversation_id: props.conversation.id },
+            query: { after },
+          },
         },
-      },
-    );
-    return requirePayload(reply);
-  }, [props.session, props.conversation.id, props.conversation.version, after]);
+      );
+      return requirePayload(reply);
+    },
+    // prettier-ignore
+    [
+      props.session,
+      props.conversation.id,
+      props.conversation.version,
+      after,
+    ],
+  );
   const invitations = useAccountResource(load);
 
   async function createLink(fields: FormData) {
@@ -53,7 +64,7 @@ export function CommunityInvitations(props: CommunityPanelProps) {
   async function invitePerson(fields: FormData) {
     const username = textField(fields, 'username').trim().replace(/^@/, '').toLowerCase();
     const reply = await props.session.client.GET('/api/v1/users', {
-      params: { query: { search: username, limit: 100 } },
+      params: { query: { search: username, limit: DIRECTORY_PAGE_LIMIT } },
     });
     const directory = requirePayload(reply);
     const person = directory.users.find((entry) => entry.username === username);
@@ -64,7 +75,7 @@ export function CommunityInvitations(props: CommunityPanelProps) {
       kind: 'invite',
       invitation_id: crypto.randomUUID(),
       target_id: person.id,
-      expires_at: new Date(Date.now() + 7 * DAY_MS).toISOString(),
+      expires_at: new Date(Date.now() + DEFAULT_INVITE_DAYS * DAY_MS).toISOString(),
       max_uses: 1,
     });
   }
@@ -83,7 +94,7 @@ export function CommunityInvitations(props: CommunityPanelProps) {
           type="number"
           min={1}
           max={365}
-          defaultValue={7}
+          defaultValue={DEFAULT_INVITE_DAYS}
           required
         />
         <Field
@@ -155,15 +166,27 @@ export function CommunityInvitations(props: CommunityPanelProps) {
 export function CommunityRequests(props: CommunityPanelProps) {
   const [after, setAfter] = useState<string>();
   const operation = useOperation();
-  const load = useCallback(async () => {
-    const reply = await props.session.client.GET('/api/v1/communities/{conversation_id}/requests', {
-      params: {
-        path: { conversation_id: props.conversation.id },
-        query: { after },
-      },
-    });
-    return requirePayload(reply);
-  }, [props.session, props.conversation.id, props.conversation.version, after]);
+  const load = useCallback(
+    async () => {
+      const reply = await props.session.client.GET(
+        '/api/v1/communities/{conversation_id}/requests',
+        {
+          params: {
+            path: { conversation_id: props.conversation.id },
+            query: { after },
+          },
+        },
+      );
+      return requirePayload(reply);
+    },
+    // prettier-ignore
+    [
+      props.session,
+      props.conversation.id,
+      props.conversation.version,
+      after,
+    ],
+  );
   const requests = useAccountResource(load);
   return (
     <section className={styles.card} aria-label="Join requests">
