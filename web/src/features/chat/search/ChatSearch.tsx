@@ -18,6 +18,12 @@ import {
 } from 'react';
 import { SearchResults } from './SearchResults';
 import { SearchDateDialog } from './SearchDateDialog';
+import {
+  SearchSenderList,
+  SearchSenderPicker,
+  type SearchSender,
+  type SearchSenderRoster,
+} from './SearchSenderPicker';
 import { MessageSearchStatus } from './MessageSearchStatus';
 import {
   useMessageSearch,
@@ -26,9 +32,7 @@ import {
 } from './useMessageSearch';
 import { renderMessage } from '../data/messageModels';
 import { ApiError, isCancelled } from '@/features/auth/SessionOwner';
-import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
-import { Ripple } from '@/components/Ripple';
 import { describeMessage } from '../messageFormatting';
 import type { Message } from '@/domain/messages/message';
 import styles from './ChatSearch.module.css';
@@ -47,6 +51,8 @@ interface ConnectedSearchSource {
   visibilityKey: string;
   loadPage: LoadMessageSearchPage;
   onJumpToDate: (timestamp: number) => Promise<void>;
+  senderRoster?: SearchSenderRoster;
+  senders?: SearchSender[];
 }
 
 interface ChatSearchProps {
@@ -76,7 +82,8 @@ export function ChatSearch(props: ChatSearchProps) {
   const hasClosedRef = useRef(false);
   const isPresent = useIsPresent();
   const [query, setQuery] = useState('');
-  const [senderId, setSenderId] = useState('');
+  const [sender, setSender] = useState<SearchSender>();
+  const senderId = sender?.id ?? '';
   const [kind, setKind] = useState<SearchMessageKind>();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -117,7 +124,7 @@ export function ChatSearch(props: ChatSearchProps) {
       source,
     ],
   );
-  const text = query.trim();
+  const text = query.trim().normalize('NFC');
   const visibilityKey = source?.visibilityKey ?? '';
   const requestKey = JSON.stringify({
     text,
@@ -256,9 +263,18 @@ export function ChatSearch(props: ChatSearchProps) {
       return;
     }
     if (event.key === 'Backspace' && !query) {
-      setSenderId('');
+      setSender(undefined);
       setIsChoosingSender(false);
     }
+  }
+
+  function chooseSender(selected: SearchSender) {
+    setSender(selected);
+    setIsChoosingSender(false);
+    if (!source) {
+      setQuery('');
+    }
+    inputRef.current?.focus();
   }
 
   function clearSearch() {
@@ -274,7 +290,7 @@ export function ChatSearch(props: ChatSearchProps) {
       return;
     }
     if (senderId || isChoosingSender) {
-      setSenderId('');
+      setSender(undefined);
       setIsChoosingSender(false);
       inputRef.current?.focus();
       return;
@@ -291,11 +307,7 @@ export function ChatSearch(props: ChatSearchProps) {
             <ArrowLeft />
           </IconButton>
           <Search className={styles.searchIcon} size={20} />
-          {senderId && (
-            <span className={styles.sender}>
-              {senders.find((sender) => sender.id === senderId)?.name}
-            </span>
-          )}
+          {sender && <span className={styles.sender}>{sender.name}</span>}
           <input
             ref={inputRef}
             autoFocus
@@ -382,25 +394,18 @@ export function ChatSearch(props: ChatSearchProps) {
           inert={!shouldShowResults}
         >
           <div className={styles.results}>
-            {isChoosingSender ? (
-              senders.map((sender) => (
-                <button
-                  key={sender.id}
-                  className={styles.result}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setSenderId(sender.id);
-                    setIsChoosingSender(false);
-                    setQuery('');
-                    inputRef.current?.focus();
-                  }}
-                >
-                  <Avatar initials={sender.name.slice(0, 1)} color="purple" size="small" />
-                  <strong>{sender.name}</strong>
-                  <Ripple />
-                </button>
-              ))
-            ) : (
+            {isChoosingSender && source?.senderRoster && (
+              <SearchSenderPicker
+                key={`${visibilityKey}:${source.senderRoster.revision}`}
+                conversationId={source.conversationId}
+                loadPage={source.senderRoster.loadPage}
+                onSelect={chooseSender}
+              />
+            )}
+            {isChoosingSender && !source?.senderRoster && (
+              <SearchSenderList senders={source?.senders ?? senders} onSelect={chooseSender} />
+            )}
+            {!isChoosingSender && (
               <SearchResults
                 key={`${query}:${senderId}`}
                 messages={results}
@@ -408,6 +413,9 @@ export function ChatSearch(props: ChatSearchProps) {
                 query={query}
                 onSelect={chooseResult}
               />
+            )}
+            {!isChoosingSender && source && senderId && !text && !kind && (
+              <p className={styles.empty}>Enter text or choose a media type to search by sender.</p>
             )}
             {!isChoosingSender && source && (
               <MessageSearchStatus

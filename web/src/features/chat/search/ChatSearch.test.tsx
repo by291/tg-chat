@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ChatSearch } from './ChatSearch';
 import { createInitialState } from '../demo/fixtures';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function renderSearch() {
   const onJump = vi.fn();
@@ -63,4 +66,54 @@ it('closes only once when Escape repeats before the exit animation unmounts sear
   fireEvent.keyDown(document, { key: 'Escape' });
 
   expect(onClose).toHaveBeenCalledOnce();
+});
+
+it('selects an authorized sender outside loaded history without searching empty text', async () => {
+  const loadPage = vi.fn().mockResolvedValue({
+    hits: [],
+    is_truncated: false,
+    observation_cursor: 'observation',
+  });
+  const loadSenders = vi
+    .fn()
+    .mockResolvedValueOnce({ senders: [], next: 'second-page' })
+    .mockResolvedValueOnce({ senders: [{ id: 'remote-author', name: 'Remote author' }] });
+  render(
+    <ChatSearch
+      messages={[]}
+      canFilterSender
+      onJump={vi.fn()}
+      onClose={vi.fn()}
+      source={{
+        conversationId: 'group',
+        visibilityKey: 'visible',
+        loadPage,
+        onJumpToDate: vi.fn(),
+        senderRoster: { revision: 'current', loadPage: loadSenders },
+      }}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Search members' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'More members' }));
+  const sender = await screen.findByRole('button', { name: /Remote author/ });
+  vi.useFakeTimers();
+  fireEvent.click(sender);
+  await act(async () => vi.runOnlyPendingTimersAsync());
+  expect(screen.getByText('Enter text or choose a media type to search by sender.')).toBeTruthy();
+  expect(loadPage).not.toHaveBeenCalled();
+  vi.useRealTimers();
+  expect(loadSenders).toHaveBeenLastCalledWith({
+    conversationId: 'group',
+    after: 'second-page',
+  });
+
+  const input = screen.getByRole('textbox', { name: 'Search in this conversation' });
+  fireEvent.change(input, { target: { value: 'shared notes' } });
+  await waitFor(() => {
+    expect(loadPage).toHaveBeenCalledWith({
+      query: { query: 'shared notes', conversation_id: 'group', sender_id: 'remote-author' },
+      signal: expect.any(AbortSignal),
+    });
+  });
 });

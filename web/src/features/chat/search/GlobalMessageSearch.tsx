@@ -17,7 +17,7 @@ interface GlobalMessageSearchProps {
 
 /** Present authorized message results below the connected conversation directory matches. */
 export function GlobalMessageSearch(props: GlobalMessageSearchProps) {
-  const query = props.query.trim();
+  const query = props.query.trim().normalize('NFC');
   const canSearch = Array.from(query).length >= MIN_GLOBAL_QUERY_SCALARS;
   const [navigation, setNavigation] = useState<{
     query: string;

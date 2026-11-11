@@ -5,6 +5,7 @@ use chrono::{DateTime, Days, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use unicode_normalization::UnicodeNormalization;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
@@ -177,6 +178,8 @@ impl SearchCriteria {
         if query.query.len() > MAX_QUERY_BYTES || query.query.contains('\0') {
             return Err(AccountError::Validation("invalid search text"));
         }
+        // Classify the same canonical term that PostgreSQL matches against the index.
+        query.query = query.query.nfc().collect();
         let query_length = query.query.chars().count();
         let is_short = (1..MIN_GLOBAL_QUERY_SCALARS).contains(&query_length);
         if is_short && query.conversation_id.is_none() {

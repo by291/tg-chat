@@ -6,6 +6,7 @@ import { CanonicalCache, observedAtLeast, type CanonicalSnapshot } from './canon
 import type { EmojiText } from '@/domain/messages/customEmoji';
 import { ApiError, isCancelled, requirePayload, SessionOwner } from '@/features/auth/SessionOwner';
 import { canonicalMessageContent } from './messageContent';
+import type { SearchSenderRoster } from '../search/SearchSenderPicker';
 import type { LoadMessageSearchPage } from '../search/useMessageSearch';
 import { ChatMediaQueue } from './ChatMediaQueue';
 import { uploadClient } from '@/features/media/uploadClient';
@@ -976,6 +977,30 @@ export class ChatOwner {
       );
     });
     return { ...page, hits };
+  };
+
+  /** Read a page of group sender choices while the selected roster remains current. */
+  loadSearchSenders: SearchSenderRoster['loadPage'] = async ({ conversationId, after }) => {
+    this.ensureCurrent();
+    const rosterGeneration = this.selectedConversation()?.generation;
+    const generation = this.viewGeneration;
+    const reply = await this.session.client.GET('/api/v1/communities/{conversation_id}/members', {
+      params: { path: { conversation_id: conversationId }, query: { after } },
+    });
+    const conversation = this.selectedConversation();
+    // Ordinary message traffic does not change roster visibility or interrupt pagination.
+    const isCurrent =
+      this.isCurrentView(generation) &&
+      conversation?.id === conversationId &&
+      conversation.generation === rosterGeneration;
+    if (!isCurrent) {
+      throw new DOMException('The conversation roster changed.', 'AbortError');
+    }
+
+    const page = requirePayload(reply);
+    const active = page.items.filter((member) => member.is_active && !member.is_banned);
+    const senders = active.map((member) => ({ id: member.id, name: member.display_name }));
+    return { senders, next: page.next };
   };
 
   /** Read a bounded pin directory without replacing the contiguous timeline cache. */

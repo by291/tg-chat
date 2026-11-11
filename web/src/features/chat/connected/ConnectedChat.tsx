@@ -925,6 +925,17 @@ export function ConnectedChat({
                   visibilityKey: owner.searchVisibilityKey(conversation.id),
                   loadPage: owner.searchMessages,
                   onJumpToDate: (timestamp) => owner.jumpToDate(timestamp),
+                  senderRoster:
+                    conversation.kind === 'group'
+                      ? { revision: conversation.generation, loadPage: owner.loadSearchSenders }
+                      : undefined,
+                  senders:
+                    conversation.kind === 'direct'
+                      ? [
+                          { id: user.id, name: user.display_name },
+                          { id: conversation.peer_id, name: conversation.peer_name },
+                        ]
+                      : undefined,
                 }}
               />
             </div>

@@ -448,3 +448,38 @@ async fn filtered_history_applies_kind_and_pin_visibility_to_both_edges(pool: Pg
     };
     assert!(matches!(service.history(bobby, missing).await, Err(AccountError::NotFound)));
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn canonical_equivalents_share_the_short_search_budget(pool: PgPool) {
+    let (service, alice, bobby) = fixture(pool).await;
+    let sent = send_text(
+        &service,
+        SendText {
+            actor: alice,
+            recipient: bobby.user_id,
+            text: "각 문자",
+        },
+    )
+    .await;
+
+    // The three jamo compose to one Hangul syllable before the indexed substring match.
+    let decomposed = "\u{1100}\u{1161}\u{11a8}";
+    let query = SearchQuery {
+        query: decomposed.to_owned(),
+        ..Default::default()
+    };
+    assert!(matches!(
+        service.search(bobby.clone(), query.clone()).await,
+        Err(AccountError::Validation(_))
+    ));
+
+    let scoped = SearchQuery {
+        conversation_id: Some(sent.conversation.id),
+        ..query
+    };
+    let page = service.search(bobby, scoped).await.unwrap();
+    assert_eq!(page.hits[0].id, sent.message.id);
+    assert!(page.date_from.is_some());
+    assert!(page.date_to.is_some());
+}
