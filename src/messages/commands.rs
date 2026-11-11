@@ -15,6 +15,7 @@ use super::{
 use crate::{
     accounts::{AccountError, Actor, sessions::lock_actor},
     conversations::{self, ConversationView, access},
+    media::references,
     sync::changes::{self, ChangeGroup},
 };
 
@@ -244,11 +245,14 @@ pub(crate) async fn repair_unread(
 async fn command_message(
     connection: &mut PgConnection,
     context: &CommandContext<'_>,
+    message_id: Uuid,
 ) -> Result<CanonicalMessage, AcceptanceError> {
     let mut statement = sqlx::QueryBuilder::new(acceptance::MESSAGE_SELECT);
-    statement.push(" WHERE message.id = ").push_bind(context.input.action.message_id());
+    statement.push(" WHERE message.id = ").push_bind(message_id);
     statement.push(" AND message.conversation_id = ").push_bind(context.input.conversation_id);
     projection::restrict_visible(&mut statement, context.actor.user_id);
+    // The transaction may have started before waiting on the conversation and account locks.
+    statement.push(" AND (message.expires_at IS NULL OR message.expires_at > clock_timestamp())");
     let message = statement.build_query_as().fetch_optional(connection).await?;
 
     message.ok_or(AccountError::NotFound.into())
@@ -352,11 +356,85 @@ async fn set_reaction(
     Ok(())
 }
 
+async fn require_delete_permission(
+    connection: &mut PgConnection,
+    context: &CommandContext<'_>,
+    message: &CanonicalMessage,
+) -> Result<(), AcceptanceError> {
+    if message.author_id == context.actor.user_id {
+        return Ok(());
+    }
+    if !context.conversation.is_community() {
+        return Err(AccountError::NotFound.into());
+    }
+
+    access::require_manager(connection, context.actor, context.conversation).await
+}
+
+async fn delete_messages(
+    connection: &mut PgConnection,
+    message_ids: &[Uuid],
+) -> Result<(), AcceptanceError> {
+    // Separate conversations can share forwarded files. Lock the whole batch by file ID.
+    references::detach_messages(connection, message_ids).await?;
+    for message_id in message_ids {
+        delete_message(connection, *message_id).await?;
+    }
+
+    Ok(())
+}
+
+async fn delete_message(
+    connection: &mut PgConnection,
+    message_id: Uuid,
+) -> Result<(), AcceptanceError> {
+    sqlx::query(
+        "UPDATE messages SET deleted_at = now(), version = version + 1,
+         content = '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb,
+         body = NULL, forwarded_from = NULL, reply_quote = NULL, is_pinned = false
+         WHERE id = $1",
+    )
+    .bind(message_id)
+    .execute(&mut *connection)
+    .await?;
+    crate::jobs::link_previews::revoke(connection, message_id).await?;
+    super::polls::delete(connection, message_id).await?;
+    super::checklists::delete(connection, message_id).await?;
+
+    // Scrub stored excerpts as well as read projections; the target identity remains.
+    sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")
+        .bind(message_id)
+        .execute(&mut *connection)
+        .await?;
+    sqlx::query("DELETE FROM message_reactions WHERE message_id = $1")
+        .bind(message_id)
+        .execute(&mut *connection)
+        .await?;
+
+    Ok(())
+}
+
+async fn hide_message(
+    connection: &mut PgConnection,
+    context: &CommandContext<'_>,
+    message_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    let insert = sqlx::query(
+        "INSERT INTO hidden_messages (user_id, message_id) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING",
+    );
+    let insert = insert.bind(context.actor.user_id).bind(message_id);
+    insert.execute(connection).await?;
+
+    Ok(())
+}
+
 async fn apply(
     connection: &mut PgConnection,
     context: &CommandContext<'_>,
+    message_id: Uuid,
 ) -> Result<(), AcceptanceError> {
-    let message = command_message(connection, context).await?;
+    let message = command_message(connection, context, message_id).await?;
     match &context.input.action {
         CommandAction::Edit {
             ..
@@ -364,47 +442,12 @@ async fn apply(
         CommandAction::Delete {
             ..
         } => {
-            if message.author_id != context.actor.user_id {
-                if !context.conversation.is_community() {
-                    return Err(AccountError::NotFound.into());
-                }
-                access::require_manager(connection, context.actor, context.conversation).await?;
-            }
-            sqlx::query(
-                "UPDATE messages SET deleted_at = now(), version = version + 1,
-                 content = '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb,
-                 body = NULL, forwarded_from = NULL, reply_quote = NULL, is_pinned = false
-                 WHERE id = $1",
-            )
-            .bind(message.id)
-            .execute(&mut *connection)
-            .await?;
-            crate::media::references::detach_message(connection, message.id).await?;
-            crate::jobs::link_previews::revoke(connection, message.id).await?;
-            super::polls::delete(connection, message.id).await?;
-            super::checklists::delete(connection, message.id).await?;
-            // Scrub stored excerpts as well as read projections; the target identity remains.
-            sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")
-                .bind(message.id)
-                .execute(&mut *connection)
-                .await?;
-            sqlx::query("DELETE FROM message_reactions WHERE message_id = $1")
-                .bind(message.id)
-                .execute(&mut *connection)
-                .await?;
+            require_delete_permission(connection, context, &message).await?;
+            delete_messages(connection, &[message.id]).await?;
         }
         CommandAction::HideMessage {
             ..
-        } => {
-            sqlx::query(
-                "INSERT INTO hidden_messages (user_id, message_id) VALUES ($1, $2)
-                 ON CONFLICT DO NOTHING",
-            )
-            .bind(context.actor.user_id)
-            .bind(message.id)
-            .execute(&mut *connection)
-            .await?;
-        }
+        } => hide_message(connection, context, message.id).await?,
         CommandAction::Reaction {
             ..
         } => {
@@ -473,27 +516,19 @@ async fn apply_batch(
     };
     super::forwarding::validate_message_ids(ids)?;
 
-    // Every item uses the normal visibility and mutation rules in this same transaction.
-    for message_id in ids {
-        let action = if is_personal {
-            CommandAction::HideMessage {
-                message_id: *message_id,
-            }
-        } else {
-            CommandAction::Delete {
-                message_id: *message_id,
-            }
-        };
-        let input = MessageCommand {
-            action,
-            ..context.input.clone()
-        };
-        let item = CommandContext {
-            input: &input,
-            ..*context
-        };
-        apply(connection, &item).await?;
+    if is_personal {
+        for message_id in ids {
+            command_message(connection, context, *message_id).await?;
+            hide_message(connection, context, *message_id).await?;
+        }
+        return Ok(Some(ids.clone()));
     }
+
+    for message_id in ids {
+        let message = command_message(connection, context, *message_id).await?;
+        require_delete_permission(connection, context, &message).await?;
+    }
+    delete_messages(connection, ids).await?;
 
     Ok(Some(ids.clone()))
 }
@@ -640,9 +675,9 @@ impl MessageService {
             let batch_ids = apply_batch(&mut transaction, &context).await?;
             message_id = if batch_ids.is_some() {
                 None
-            } else if input.action.message_id().is_some() {
-                apply(&mut transaction, &context).await?;
-                input.action.message_id()
+            } else if let Some(target) = input.action.message_id() {
+                apply(&mut transaction, &context, target).await?;
+                Some(target)
             } else {
                 conversations::state::apply(&mut transaction, &context).await?
             };

@@ -430,6 +430,17 @@ async fn copy_sources(
     // Every immutable file is locked before the first copy advances feed heads.
     references::lock_forward_files(connection, &source_ids).await?;
     access::admit_members(connection, batch.destination).await?;
+
+    // Expiry can pass while waiting for a conversation or file lock, even without a write.
+    let expiry = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM messages
+         WHERE id = ANY($1) AND expires_at <= clock_timestamp())",
+    );
+    let has_expired_source: bool = expiry.bind(&source_ids).fetch_one(&mut *connection).await?;
+    if has_expired_source {
+        return Err(AccountError::NotFound.into());
+    }
+
     for (item, source) in request.input.items.iter().zip(sources) {
         let copy = CopyContext {
             request,

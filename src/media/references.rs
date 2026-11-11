@@ -188,16 +188,23 @@ pub(crate) async fn detach_message(
     connection: &mut PgConnection,
     message_id: Uuid,
 ) -> Result<(), sqlx::Error> {
+    detach_messages(connection, &[message_id]).await
+}
+
+/// Detach a batch of references after locking every shared file in ascending ID order.
+pub(crate) async fn detach_messages(
+    connection: &mut PgConnection,
+    message_ids: &[Uuid],
+) -> Result<(), sqlx::Error> {
     let lock = sqlx::query(
         "SELECT id FROM media_files WHERE id IN (
-             SELECT file_id FROM media_message_references WHERE message_id = $1
+             SELECT file_id FROM media_message_references WHERE message_id = ANY($1)
          ) ORDER BY id FOR UPDATE",
-    )
-    .bind(message_id);
-    lock.fetch_all(&mut *connection).await?;
+    );
+    lock.bind(message_ids).fetch_all(&mut *connection).await?;
 
-    let delete = sqlx::query("DELETE FROM media_message_references WHERE message_id = $1");
-    delete.bind(message_id).execute(connection).await?;
+    let delete = sqlx::query("DELETE FROM media_message_references WHERE message_id = ANY($1)");
+    delete.bind(message_ids).execute(connection).await?;
 
     Ok(())
 }
