@@ -406,6 +406,7 @@ function verifyPrivateServices() {
     'valkey',
     'centrifugo',
     'rustfs',
+    'link-preview-fetcher',
     'api',
     'worker',
   ];
@@ -454,6 +455,28 @@ function verifyPrivateServices() {
     'http://localhost:8081/health/ready',
   ]);
   assert.equal(JSON.parse(workerHealth).service, 'worker');
+
+  // Exercise the deployed control path and confirm the fetcher refuses a private destination.
+  // prettier-ignore
+  const privatePreview = compose([
+    'exec',
+    '-T',
+    'worker',
+    'curl',
+    '--silent',
+    '--max-time',
+    '10',
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    '--header',
+    'Content-Type: application/json',
+    '--data',
+    '{"url":"http://127.0.0.1/"}',
+    'http://link-preview-fetcher:8091/preview',
+  ]);
+  assert.equal(privatePreview, '400');
 }
 
 function verifyProcessExit(service) {
@@ -550,9 +573,11 @@ async function main() {
     // prettier-ignore
     compose([
       'build',
+      'migrate',
       'api',
       'worker',
       'gateway',
+      'link-preview-fetcher',
       'verification',
     ]);
     console.log('Starting real dependencies and application processes.');
@@ -615,6 +640,9 @@ async function main() {
     console.log('Checking private media, browser restart recovery, and real recording playback.');
     configurePublicOrigin(origin, storageOrigin);
     verifyAccountBrowsers(origin, 'test:media');
+    resetAdmissionFixtures();
+    console.log('Checking connected polls, checklists, forwarding, search, and preview opt-out.');
+    verifyAccountBrowsers(origin, 'test:interactions');
     console.log('Checking outages, graceful shutdown, and persistent private storage.');
     await verifyPersistence({ origin, storageOrigin });
     console.log('Restoring coordinated PostgreSQL and RustFS backups.');
