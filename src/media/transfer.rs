@@ -13,8 +13,8 @@ use super::{
 
 #[derive(Clone)]
 pub struct UploadService {
-    reservations: UploadReservations,
-    storage: MediaStorage,
+    pub(super) reservations: UploadReservations,
+    pub(super) storage: MediaStorage,
 }
 
 enum ClaimOutcome {

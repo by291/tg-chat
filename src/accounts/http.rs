@@ -150,7 +150,7 @@ async fn capabilities(
     Ok(Json(Capabilities {
         registration_open,
         email_recovery_available: state.email.is_enabled(),
-        avatars_available: false,
+        avatars_available: state.media.is_some(),
         messaging_available: true,
         media_uploads_available: Some(state.media.is_some()),
     }))

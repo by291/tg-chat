@@ -165,6 +165,50 @@ async fn lock_accounts(
     Ok(())
 }
 
+async fn update_avatar(
+    connection: &mut PgConnection,
+    context: &CommunityContext<'_>,
+) -> Result<(), AcceptanceError> {
+    use crate::media::avatars::{AvatarChange, prepare_avatar};
+
+    membership::require_manager(connection, context).await?;
+    let CommunityAction::Avatar {
+        expected_version,
+        file_id,
+    } = &context.command.action
+    else {
+        return Err(AccountError::Validation("expected community avatar").into());
+    };
+    let expected_version = crate::messages::history::parse_sequence(expected_version)?;
+    let current = sqlx::query_as::<_, (i64, Option<Uuid>)>(
+        "SELECT settings_version, avatar_file_id FROM conversations WHERE id = $1",
+    )
+    .bind(context.community.id);
+    let (version, previous) = current.fetch_one(&mut *connection).await?;
+    if version != expected_version {
+        return Err(AccountError::Conflict.into());
+    }
+
+    prepare_avatar(
+        connection,
+        AvatarChange {
+            actor_id: context.actor.user_id,
+            previous,
+            next: *file_id,
+        },
+    )
+    .await?;
+    let update = sqlx::query(
+        "UPDATE conversations SET avatar_file_id = $2, settings_version = settings_version + 1
+         WHERE id = $1",
+    )
+    .bind(context.community.id)
+    .bind(file_id);
+    update.execute(connection).await?;
+
+    Ok(())
+}
+
 async fn update_settings(
     connection: &mut PgConnection,
     context: &CommunityContext<'_>,
@@ -344,6 +388,9 @@ impl MessageService {
                 } => {
                     update_settings(&mut transaction, &context, settings.clone()).await?;
                 }
+                CommunityAction::Avatar {
+                    ..
+                } => update_avatar(&mut transaction, &context).await?,
                 CommunityAction::Join {
                     ..
                 }

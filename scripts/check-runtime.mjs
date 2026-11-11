@@ -517,7 +517,7 @@ async function verifyPersistence({ origin, storageOrigin }) {
   console.log('Checking storage after gateway and SeaweedFS restarts.');
   // Docker can allocate new ephemeral host ports when containers restart.
   const restartedOrigin = endpoint('gateway', '80');
-  const restartedStorageOrigin = endpoint('seaweedfs', '8333');
+  const restartedStorageOrigin = endpoint('media-origin', '8333');
   await waitUntilReady(`${restartedOrigin}/health/ready`);
   await waitUntilReady(`${restartedStorageOrigin}/healthz`);
   assert.equal(queryDatabase('SELECT value FROM acceptance_probe'), 'preserved');
@@ -549,7 +549,7 @@ async function main() {
       '120',
     ]);
     const origin = endpoint('gateway', '80');
-    const storageOrigin = endpoint('seaweedfs', '8333');
+    const storageOrigin = endpoint('media-origin', '8333');
 
     configurePublicOrigin(origin);
     await waitUntilReady(`${origin}/health/ready`);

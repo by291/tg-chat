@@ -15,9 +15,10 @@ use tokio::{io::AsyncWriteExt, sync::OnceCell};
 
 use crate::accounts::AccountError;
 
-use super::{MediaStorageSettings, SignedUpload, settings::WRITE_SECONDS};
+use super::{MediaStorageSettings, SignedDownload, SignedUpload, settings::WRITE_SECONDS};
 
 const STORAGE_TIMEOUT: Duration = Duration::from_secs(10);
+const DOWNLOAD_SECONDS: i64 = 60;
 const REGION: &str = "us-east-1";
 
 #[derive(Clone)]
@@ -58,6 +59,12 @@ pub(super) struct VariantObject<'a> {
     pub path: &'a std::path::Path,
     pub size_bytes: i64,
     pub mime_type: &'a str,
+}
+
+pub(super) struct DownloadSignature<'a> {
+    pub key: &'a str,
+    pub mime_type: &'a str,
+    pub disposition: String,
 }
 
 fn client(settings: &MediaStorageSettings, endpoint: &str) -> Client {
@@ -335,5 +342,27 @@ impl MediaStorage {
         request.send().await.map_err(|_| storage_unavailable("put_variant"))?;
 
         Ok(())
+    }
+
+    /// Sign read access with server-controlled MIME and disposition headers.
+    pub(super) async fn sign_download(
+        &self,
+        input: DownloadSignature<'_>,
+    ) -> Result<SignedDownload, AccountError> {
+        let issued_at = Utc::now();
+        let duration = Duration::from_secs(DOWNLOAD_SECONDS as u64);
+        let config = PresigningConfig::builder().expires_in(duration);
+        let config = config.start_time(issued_at.into());
+        let config = config.build().map_err(|_| storage_unavailable("presigning_configuration"))?;
+        let request = self.signing.get_object().bucket(&self.bucket).key(input.key);
+        let request = request.response_content_type(input.mime_type);
+        let request = request.response_content_disposition(input.disposition);
+        let signed =
+            request.presigned(config).await.map_err(|_| storage_unavailable("sign_download"))?;
+
+        Ok(SignedDownload {
+            url: signed.uri().to_owned(),
+            expires_at: issued_at + chrono::Duration::seconds(DOWNLOAD_SECONDS),
+        })
     }
 }

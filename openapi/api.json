@@ -150,6 +150,26 @@
         }
       }
     },
+    "/api/v1/account/profile/avatar": {
+      "put": {
+        "tags": [],
+        "operationId": "set_profile_avatar",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SetAvatar" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PrivateProfile" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/email/confirm": {
       "post": {
         "tags": [],
@@ -708,6 +728,74 @@
         }
       }
     },
+    "/api/v1/media/avatars/{owner_kind}/{owner_id}/{variant}": {
+      "get": {
+        "tags": [],
+        "operationId": "download_avatar",
+        "parameters": [
+          {
+            "name": "owner_kind",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/AvatarOwner" }
+          },
+          {
+            "name": "owner_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "variant",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/MediaVariant" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SignedDownload" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/messages/{message_id}/attachments/{occurrence_id}/{variant}": {
+      "get": {
+        "tags": [],
+        "operationId": "download_message",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "occurrence_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "variant",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/MediaVariant" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SignedDownload" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/media/uploads": {
       "post": {
         "tags": [],
@@ -787,6 +875,34 @@
             "description": "",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/UploadStatus" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/uploads/{upload_id}/preview/{variant}": {
+      "get": {
+        "tags": [],
+        "operationId": "preview_upload",
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "variant",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/MediaVariant" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SignedDownload" } }
             }
           }
         }
@@ -923,6 +1039,24 @@
   },
   "components": {
     "schemas": {
+      "AttachmentInput": {
+        "type": "object",
+        "required": ["occurrence_id", "file_id"],
+        "properties": {
+          "file_id": { "type": "string", "format": "uuid" },
+          "occurrence_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "AttachmentView": {
+        "type": "object",
+        "required": ["occurrence_id", "file_name", "file"],
+        "properties": {
+          "file": { "$ref": "#/components/schemas/MediaFileView" },
+          "file_name": { "type": "string" },
+          "occurrence_id": { "type": "string", "format": "uuid" }
+        }
+      },
       "Audience": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
       "AuthResponse": {
         "type": "object",
@@ -933,6 +1067,7 @@
           "user": { "$ref": "#/components/schemas/PrivateProfile" }
         }
       },
+      "AvatarOwner": { "type": "string", "enum": ["user", "conversation"] },
       "Bootstrap": {
         "type": "object",
         "required": [
@@ -977,6 +1112,10 @@
           "content"
         ],
         "properties": {
+          "attachments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AttachmentView" }
+          },
           "author_id": { "type": "string", "format": "uuid" },
           "author_name": { "type": "string" },
           "content": { "$ref": "#/components/schemas/MessageContent" },
@@ -1195,6 +1334,15 @@
           },
           {
             "type": "object",
+            "required": ["expected_version", "kind"],
+            "properties": {
+              "expected_version": { "type": "string" },
+              "file_id": { "type": ["string", "null"], "format": "uuid" },
+              "kind": { "type": "string", "enum": ["avatar"] }
+            }
+          },
+          {
+            "type": "object",
             "required": ["user_id", "role", "kind"],
             "properties": {
               "kind": { "type": "string", "enum": ["role"] },
@@ -1316,6 +1464,7 @@
           "member_count"
         ],
         "properties": {
+          "avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "description": { "type": "string" },
           "id": { "type": "string", "format": "uuid" },
           "is_public": { "type": "boolean" },
@@ -1359,6 +1508,7 @@
           "draft"
         ],
         "properties": {
+          "avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "can_manage": { "type": "boolean" },
           "can_post": { "type": "boolean" },
           "clear_through": { "type": "string" },
@@ -1375,6 +1525,7 @@
           "kind": { "type": "string" },
           "last_sequence": { "type": "string" },
           "muted_until": { "type": ["string", "null"], "format": "date-time" },
+          "peer_avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "peer_id": { "type": "string", "format": "uuid" },
           "peer_name": { "type": "string" },
           "peer_read_through": { "type": "string" },
@@ -1588,6 +1739,24 @@
         },
         "additionalProperties": false
       },
+      "MediaFileView": {
+        "type": "object",
+        "required": ["file_id", "kind", "size_bytes", "variants"],
+        "properties": {
+          "duration_ms": { "type": ["integer", "null"], "format": "int64" },
+          "file_id": { "type": "string", "format": "uuid" },
+          "height": { "type": ["integer", "null"], "format": "int32" },
+          "kind": { "$ref": "#/components/schemas/UploadPurpose" },
+          "size_bytes": { "type": "integer", "format": "int64" },
+          "variants": { "type": "array", "items": { "$ref": "#/components/schemas/MediaVariant" } },
+          "waveform": {
+            "type": ["array", "null"],
+            "items": { "type": "integer", "format": "int32" }
+          },
+          "width": { "type": ["integer", "null"], "format": "int32" }
+        }
+      },
+      "MediaVariant": { "type": "string", "enum": ["original", "thumbnail", "poster", "playback"] },
       "MessageCommand": {
         "type": "object",
         "required": ["operation_id", "conversation_id", "action"],
@@ -1699,6 +1868,7 @@
         "type": "object",
         "required": ["id", "username", "display_name", "biography", "is_operator", "version"],
         "properties": {
+          "avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "biography": { "type": "string" },
           "display_name": { "type": "string" },
           "email": { "type": ["string", "null"] },
@@ -1724,6 +1894,7 @@
         "type": "object",
         "required": ["id", "username", "display_name", "biography"],
         "properties": {
+          "avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "biography": { "type": "string" },
           "display_name": { "type": "string" },
           "id": { "type": "string", "format": "uuid" },
@@ -1791,6 +1962,10 @@
         "type": "object",
         "required": ["operation_id", "message_id", "destination", "content"],
         "properties": {
+          "attachments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AttachmentInput" }
+          },
           "content": { "$ref": "#/components/schemas/MessageContent" },
           "destination": { "$ref": "#/components/schemas/Destination" },
           "draft_version": { "type": ["string", "null"] },
@@ -1820,6 +1995,24 @@
           "id": { "type": "string", "format": "uuid" },
           "is_current": { "type": "boolean" },
           "last_seen_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SetAvatar": {
+        "type": "object",
+        "required": ["operation_id", "expected_version"],
+        "properties": {
+          "expected_version": { "type": "string" },
+          "file_id": { "type": ["string", "null"], "format": "uuid" },
+          "operation_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "SignedDownload": {
+        "type": "object",
+        "required": ["url", "expires_at"],
+        "properties": {
+          "expires_at": { "type": "string", "format": "date-time" },
+          "url": { "type": "string" }
         }
       },
       "SignedUpload": {

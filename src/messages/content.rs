@@ -100,8 +100,25 @@ fn validate_emoji(content: &MessageContent) -> Result<(), AccountError> {
     Ok(())
 }
 
-/// Sanitize semantic markup and reject text or entity ranges that disagree with canonical content.
-pub fn validate_content(mut content: MessageContent) -> Result<MessageContent, AccountError> {
+enum TextRequirement {
+    Required,
+    OptionalCaption,
+}
+
+/// Sanitize a text message and reject empty or inconsistent content.
+pub fn validate_content(content: MessageContent) -> Result<MessageContent, AccountError> {
+    validate_text_content(content, TextRequirement::Required)
+}
+
+/// Sanitize a caption, allowing empty text because a file supplies the message body.
+pub(crate) fn validate_caption(content: MessageContent) -> Result<MessageContent, AccountError> {
+    validate_text_content(content, TextRequirement::OptionalCaption)
+}
+
+fn validate_text_content(
+    mut content: MessageContent,
+    requirement: TextRequirement,
+) -> Result<MessageContent, AccountError> {
     if content.schema_version != POLICY.schema_version {
         return Err(AccountError::Validation("unsupported message content version"));
     }
@@ -117,7 +134,9 @@ pub fn validate_content(mut content: MessageContent) -> Result<MessageContent, A
         }
         content.rich_text = Some(canonical.html);
     }
-    if content.text.trim().is_empty() {
+    let is_missing_required_text =
+        matches!(requirement, TextRequirement::Required) && content.text.trim().is_empty();
+    if is_missing_required_text {
         return Err(AccountError::Validation("message text must not be empty"));
     }
     validate_emoji(&content)?;

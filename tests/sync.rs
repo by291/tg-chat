@@ -24,6 +24,7 @@ fn outgoing(destination: Destination) -> SendMessage {
     SendMessage {
         reply: None,
         draft_version: None,
+        attachments: Vec::new(),
         operation_id: Uuid::new_v4(),
         message_id: Uuid::new_v4(),
         destination,

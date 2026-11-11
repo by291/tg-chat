@@ -17,7 +17,7 @@ x-application: &application
     TG_CHAT_MEDIA_ORIGINAL_BYTES: ${TG_CHAT_MEDIA_ORIGINAL_BYTES:-1073741824}
     TG_CHAT_MEDIA_VARIANT_BYTES: ${TG_CHAT_MEDIA_VARIANT_BYTES:-536870912}
     TG_CHAT_S3_INTERNAL_ENDPOINT: ${TG_CHAT_S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
-    TG_CHAT_S3_PUBLIC_ENDPOINT: ${TG_CHAT_S3_PUBLIC_ENDPOINT:-http://localhost:8333}
+    TG_CHAT_S3_PUBLIC_ENDPOINT: ${TG_CHAT_S3_PUBLIC_ENDPOINT:-http://127.0.0.1:8333}
     TG_CHAT_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
     TG_CHAT_S3_SECRET_KEY: ${TG_CHAT_S3_SECRET_KEY:?Generate .env first}
     TG_CHAT_TRUST_GATEWAY: 'true'
@@ -104,20 +104,26 @@ services:
       - ./deploy/filer.toml:/etc/seaweedfs/filer.toml:ro
       - ./deploy/master.toml:/etc/seaweedfs/master.toml:ro
       - ./deploy/s3.json:/etc/seaweedfs/s3.json:ro
-    ports:
-      - '127.0.0.1:${TG_CHAT_S3_PORT:-8333}:8333'
     stop_grace_period: 20s
     healthcheck:
       test:
-        - CMD
-        - wget
-        - -q
-        - -O
-        - /dev/null
-        - 'http://localhost:9333/cluster/status'
+        - CMD-SHELL
+        - >-
+          wget -q -O - http://localhost:9333/cluster/status | grep -q '"IsLeader":true'
+          && wget -q -O - http://localhost:9333/dir/status | grep -q '"Url":"seaweedfs:8080"'
       interval: 2s
       timeout: 3s
       retries: 40
+
+  media-origin:
+    image: caddy:2.11.7-alpine
+    volumes:
+      - ./deploy/MediaCaddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - '127.0.0.1:${TG_CHAT_S3_PORT:-8333}:8333'
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
 
   migrate:
     <<: *application
@@ -216,6 +222,7 @@ services:
       TG_CHAT_TEST_SMTP_HOST: mailpit
       TG_CHAT_TEST_SMTP_PORT: '1025'
       TG_CHAT_TEST_S3_ENDPOINT: http://seaweedfs:8333
+      TG_CHAT_TEST_S3_PUBLIC_ENDPOINT: http://media-origin:8333
       TG_CHAT_TEST_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
       TG_CHAT_TEST_S3_SECRET_KEY: ${TG_CHAT_S3_SECRET_KEY:?Generate .env first}
       DATABASE_URL: >-

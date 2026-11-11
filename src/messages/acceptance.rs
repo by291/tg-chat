@@ -5,6 +5,7 @@ use super::{CanonicalMessage, SendMessage, SendReceipt, service::AcceptanceError
 use crate::{
     accounts::{AccountError, Actor},
     conversations::{self, access::LockedConversation},
+    media::references::{self, MessageReferences},
     sync::changes::{self, ChangeGroup},
 };
 
@@ -15,6 +16,8 @@ pub(crate) const MESSAGE_SELECT: &str =
             message.version::text, message.created_at, message.edited_at, message.expires_at,
             message.interaction_version::text, message.is_pinned, message.service_kind,
             message.reply_id, message.reply_quote,
+            EXISTS (SELECT 1 FROM media_message_references reference
+                    WHERE reference.message_id = message.id) AS has_attachments,
             (message.deleted_at IS NOT NULL OR message.expires_at <= now()) IS TRUE AS is_deleted,
             CASE WHEN message.deleted_at IS NOT NULL OR message.expires_at <= now()
                 THEN '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb
@@ -90,12 +93,17 @@ pub(crate) async fn insert(
         .bind(message.payload_hash);
     identity.execute(&mut *connection).await?;
 
+    let summary = if message.input.content.text.trim().is_empty() {
+        "Media message"
+    } else {
+        &message.input.content.text
+    };
     let sequence: i64 = sqlx::query_scalar(
         "UPDATE conversations SET last_sequence = last_sequence + 1, version = version + 1,
          summary_text = $2, updated_at = now() WHERE id = $1 RETURNING last_sequence",
     )
     .bind(message.conversation.id)
-    .bind(&message.input.content.text)
+    .bind(summary)
     .fetch_one(&mut *connection)
     .await?;
     let insert = sqlx::query(
@@ -109,6 +117,15 @@ pub(crate) async fn insert(
         .bind(sequence)
         .bind(sqlx::types::Json(&message.input.content));
     insert.execute(&mut *connection).await?;
+    references::attach_message(
+        connection,
+        MessageReferences {
+            owner_id: message.actor.user_id,
+            message_id: message.input.message_id,
+            attachments: &message.input.attachments,
+        },
+    )
+    .await?;
     sqlx::query(
         "UPDATE conversation_members SET unread_count = unread_count + 1, is_hidden = false,
          is_archived = CASE WHEN keep_archived OR muted_until > now() THEN is_archived ELSE false END

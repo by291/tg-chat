@@ -5,11 +5,13 @@ use tg_chat::{
 
 /// Point media tests at an isolated SeaweedFS deployment.
 pub fn storage_settings() -> MediaStorageSettings {
-    let endpoint = std::env::var("TG_CHAT_TEST_S3_ENDPOINT").unwrap();
+    let internal_endpoint = std::env::var("TG_CHAT_TEST_S3_ENDPOINT").unwrap();
+    let public_endpoint = std::env::var("TG_CHAT_TEST_S3_PUBLIC_ENDPOINT")
+        .unwrap_or_else(|_| internal_endpoint.clone());
 
     MediaStorageSettings {
-        internal_endpoint: endpoint.clone(),
-        public_endpoint: endpoint,
+        internal_endpoint,
+        public_endpoint,
         access_key: std::env::var("TG_CHAT_TEST_S3_ACCESS_KEY").unwrap(),
         secret_key: std::env::var("TG_CHAT_TEST_S3_SECRET_KEY").unwrap(),
         browser_origin: "http://localhost:8080".to_owned(),

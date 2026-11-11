@@ -5,7 +5,10 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use super::content::MessageContent;
-use crate::conversations::ConversationView;
+use crate::{
+    conversations::ConversationView,
+    media::{AttachmentInput, AttachmentView},
+};
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -26,6 +29,8 @@ pub struct SendMessage {
     pub message_id: Uuid,
     pub destination: Destination,
     pub content: MessageContent,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<AttachmentInput>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reply: Option<ReplyInput>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -55,6 +60,11 @@ pub struct CanonicalMessage {
     pub reply: Option<ReplyView>,
     #[sqlx(skip)]
     pub reactions: Vec<ReactionView>,
+    #[serde(skip)]
+    pub(crate) has_attachments: bool,
+    #[sqlx(skip)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<AttachmentView>,
     #[sqlx(json)]
     pub content: MessageContent,
 }

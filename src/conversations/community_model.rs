@@ -60,6 +60,10 @@ pub enum CommunityAction {
         expected_version: String,
         settings: CommunitySettings,
     },
+    Avatar {
+        expected_version: String,
+        file_id: Option<Uuid>,
+    },
     Role {
         user_id: Uuid,
         role: String,

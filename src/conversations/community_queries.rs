@@ -16,6 +16,7 @@ const MAX_SEARCH_CHARACTERS: usize = 100;
 const SUMMARY_SELECT: &str =
     "SELECT conversation.id, conversation.kind, conversation.title, conversation.description,
         conversation.public_handle, conversation.is_public, conversation.requires_approval,
+        conversation.avatar_file_id,
         (SELECT count(*)::text FROM conversation_members member
          WHERE member.conversation_id = conversation.id AND member.directory_active
          AND NOT member.is_banned) AS member_count
@@ -54,6 +55,8 @@ pub struct CommunitySummary {
     pub public_handle: Option<String>,
     pub is_public: bool,
     pub requires_approval: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_file_id: Option<Uuid>,
     pub member_count: String,
 }
 

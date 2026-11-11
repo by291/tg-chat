@@ -203,7 +203,11 @@ async fn edit(
     if parse_sequence(expected_version)? != parse_sequence(&message.version)? {
         return Err(AccountError::MessageConflict.into());
     }
-    let content = validate_content(content.clone())?;
+    let content = if message.has_attachments {
+        super::content::validate_caption(content.clone())?
+    } else {
+        validate_content(content.clone())?
+    };
     sqlx::query(
         "UPDATE messages SET content = $2, version = version + 1, edited_at = now() WHERE id = $1",
     )
@@ -288,6 +292,7 @@ async fn apply(
             .bind(message.id)
             .execute(&mut *connection)
             .await?;
+            crate::media::references::detach_message(connection, message.id).await?;
             // Scrub stored excerpts as well as read projections; the target identity remains.
             sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")
                 .bind(message.id)

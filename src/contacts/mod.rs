@@ -37,6 +37,8 @@ pub struct PublicProfile {
     pub username: String,
     pub display_name: String,
     pub biography: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_file_id: Option<Uuid>,
 }
 
 #[derive(Default, Deserialize, IntoParams)]

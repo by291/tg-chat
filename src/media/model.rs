@@ -62,7 +62,7 @@ pub struct UploadStatus {
     pub error_code: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, sqlx::Type, ToSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, sqlx::Type, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "media_variant_kind", rename_all = "snake_case")]
 pub enum MediaVariant {

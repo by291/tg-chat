@@ -95,7 +95,7 @@ jobs:
           appendFileSync(process.env.GITHUB_ENV, serializeEnvironment(testSettings));
           JS
           docker compose --env-file "$RUNNER_TEMP/tg-chat-media.env" \
-            -p tg-chat-native-media up -d --wait seaweedfs
+            -p tg-chat-native-media up -d --wait media-origin
       - name: Check formatting
         run: |
           cargo fmt --all --check

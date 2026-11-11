@@ -1,10 +1,11 @@
 use sha2::{Digest, Sha256};
 use sqlx::{PgConnection, Postgres, Transaction};
 
-use super::{Destination, SendMessage, SendReceipt, acceptance, content::validate_content};
+use super::{Destination, SendMessage, SendReceipt, acceptance, content};
 use crate::{
     accounts::{AccountError, AccountService, Actor, sessions::lock_actor},
     conversations::{self, ConversationView, access},
+    media::references,
     sync::changes::{self, ChangeGroup},
 };
 
@@ -65,7 +66,12 @@ impl MessageService {
         actor: Actor,
         mut input: SendMessage,
     ) -> Result<SendReceipt, AccountError> {
-        input.content = validate_content(input.content)?;
+        references::validate_attachments(&input.attachments)?;
+        input.content = if input.attachments.is_empty() {
+            content::validate_content(input.content)?
+        } else {
+            content::validate_caption(input.content)?
+        };
         let serialized = serde_json::to_vec(&input).map_err(|_| AccountError::Unavailable)?;
         let payload_hash = Sha256::digest(serialized).to_vec();
 

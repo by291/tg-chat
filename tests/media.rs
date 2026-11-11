@@ -189,3 +189,253 @@ async fn transfer_adopts_multipart_after_create_succeeds_before_recording(pool: 
     assert_eq!(recovered.confirmed_parts, vec![1]);
     assert_eq!(recovered.requests[0].part_number, Some(2));
 }
+
+async fn prepared_document(pool: &PgPool, actor: &tg_chat::accounts::Actor) -> Uuid {
+    use sha2::{Digest, Sha256};
+    use tg_chat::media::{MediaWorker, MediaWorkerSettings};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let uploads = test_upload_service(accounts);
+    let contents = b"a private document";
+    let mut request = document(contents.len() as i64);
+    request.sha256 = hex::encode(Sha256::digest(contents));
+    let upload_id = request.upload_id;
+    uploads.reserve(actor, request).await.unwrap();
+    let plan = uploads.transfer(actor, upload_id, Vec::new()).await.unwrap();
+    let stored = put(&plan.requests[0], contents.to_vec()).await;
+    assert!(stored.status().is_success());
+    uploads.complete(actor, upload_id).await.unwrap();
+    let worker = MediaWorker::new(
+        pool.clone(),
+        support::media::storage_settings(),
+        MediaWorkerSettings::default(),
+    );
+    assert!(worker.process_next().await.unwrap());
+
+    uploads.status(actor, upload_id).await.unwrap().file_id.unwrap()
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn an_owned_ready_file_can_be_sent_without_a_caption(pool: PgPool) {
+    use tg_chat::{media::AttachmentInput, messages::MessageService};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "sender").await;
+    let recipient = support::account(&accounts, "recipient").await;
+    let file_id = prepared_document(&pool, &sender).await;
+    let occurrence_id = Uuid::new_v4();
+    let mut command = support::messaging::send_input(recipient.user_id);
+    command.content.text.clear();
+    command.attachments.push(AttachmentInput {
+        occurrence_id,
+        file_id,
+    });
+
+    let service = MessageService::new(accounts);
+    let receipt = service.send(sender.clone(), command.clone()).await.unwrap();
+    let replay = service.send(sender, command).await.unwrap();
+    assert_eq!(receipt.message.id, replay.message.id);
+    let visible = service.message(recipient, receipt.message.id).await.unwrap();
+    assert_eq!(visible.attachments[0].occurrence_id, occurrence_id);
+    assert_eq!(visible.attachments[0].file.file_id, file_id);
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn sending_a_foreign_ready_file_leaves_no_message(pool: PgPool) {
+    use tg_chat::{media::AttachmentInput, messages::MessageService};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "file_owner").await;
+    let outsider = support::account(&accounts, "outsider").await;
+    let file_id = prepared_document(&pool, &owner).await;
+    let mut command = support::messaging::send_input(owner.user_id);
+    command.attachments.push(AttachmentInput {
+        occurrence_id: Uuid::new_v4(),
+        file_id,
+    });
+
+    let message_id = command.message_id;
+    let service = MessageService::new(accounts);
+    let rejected = service.send(outsider, command).await;
+    assert!(matches!(rejected, Err(AccountError::NotFound)));
+    let accepted = service.message(owner, message_id).await;
+    assert!(matches!(accepted, Err(AccountError::NotFound)));
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn accepted_media_replays_after_its_file_is_collected(pool: PgPool) {
+    use serde_json::json;
+    use tg_chat::{media::AttachmentInput, messages::MessageService};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "sender").await;
+    let recipient = support::account(&accounts, "recipient").await;
+    let file_id = prepared_document(&pool, &sender).await;
+    let mut command = support::messaging::send_input(recipient.user_id);
+    command.attachments.push(AttachmentInput {
+        occurrence_id: Uuid::new_v4(),
+        file_id,
+    });
+
+    let service = MessageService::new(accounts);
+    let first = service.send(sender.clone(), command.clone()).await.unwrap();
+    let deletion = support::messaging::command(
+        first.conversation.id,
+        json!({
+            "kind": "delete",
+            "message_id": first.message.id,
+        }),
+    );
+    service.command(sender.clone(), deletion).await.unwrap();
+
+    // Model the successful terminal collection state until the collector is available.
+    let collect = sqlx::query("UPDATE media_files SET deleted_at = now() WHERE id = $1");
+    collect.bind(file_id).execute(&pool).await.unwrap();
+    let replay = service.send(sender, command).await.unwrap();
+    assert_eq!(replay.message.id, first.message.id);
+    assert!(replay.message.is_deleted);
+    assert!(replay.message.attachments.is_empty());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn download_checks_reference_visibility_and_supports_range(pool: PgPool) {
+    use serde_json::json;
+    use tg_chat::{
+        media::{AttachmentInput, DownloadReference, MediaVariant, MessageDownload},
+        messages::MessageService,
+    };
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "sender").await;
+    let recipient = support::account(&accounts, "recipient").await;
+    let file_id = prepared_document(&pool, &sender).await;
+    let occurrence_id = Uuid::new_v4();
+    let mut command = support::messaging::send_input(recipient.user_id);
+    command.attachments.push(AttachmentInput {
+        occurrence_id,
+        file_id,
+    });
+
+    let media = test_upload_service(accounts.clone());
+    let messages = MessageService::new(accounts);
+    let sent = messages.send(sender, command).await.unwrap();
+    let reference = DownloadReference::Message(MessageDownload {
+        message_id: sent.message.id,
+        occurrence_id,
+        variant: MediaVariant::Original,
+    });
+    let signed = media.sign_download(&recipient, reference).await.unwrap();
+    let read = reqwest::Client::new().get(&signed.url).header("range", "bytes=0-3");
+    let response = read.send().await.unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::PARTIAL_CONTENT);
+    assert_eq!(response.headers().get("x-content-type-options").unwrap(), "nosniff");
+    let disposition = response.headers().get("content-disposition").unwrap();
+    assert!(disposition.to_str().unwrap().starts_with("attachment"));
+    assert_eq!(response.bytes().await.unwrap().as_ref(), b"a pr");
+
+    let hide = support::messaging::command(
+        sent.conversation.id,
+        json!({
+            "kind": "hide_message",
+            "message_id": sent.message.id,
+        }),
+    );
+    messages.command(recipient.clone(), hide).await.unwrap();
+    let blocked = media.sign_download(&recipient, reference).await;
+    assert!(matches!(blocked, Err(AccountError::NotFound)));
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn profile_avatar_does_not_authorize_the_original(pool: PgPool) {
+    use tg_chat::media::{AvatarDownload, AvatarOwner, DownloadReference, MediaVariant, SetAvatar};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "avatar_owner").await;
+    let viewer = support::account(&accounts, "avatar_viewer").await;
+    let file_id = prepared_document(&pool, &owner).await;
+
+    // Use a ready avatar record to test reference permissions independently of codec availability.
+    let purpose = sqlx::query("UPDATE media_uploads SET purpose = 'avatar' WHERE file_id = $1");
+    purpose.bind(file_id).execute(&pool).await.unwrap();
+    let thumbnail = sqlx::query(
+        "INSERT INTO media_variants (file_id, kind, mime_type, size_bytes)
+         VALUES ($1, 'thumbnail', 'image/jpeg', 4)",
+    );
+    thumbnail.bind(file_id).execute(&pool).await.unwrap();
+
+    let profile = accounts.profile(&owner).await.unwrap();
+    let updated = accounts
+        .set_avatar(
+            &owner,
+            SetAvatar {
+                operation_id: Uuid::new_v4(),
+                expected_version: profile.version,
+                file_id: Some(file_id),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(updated.avatar_file_id, Some(file_id));
+
+    let media = test_upload_service(accounts);
+    let reference = AvatarDownload {
+        owner: AvatarOwner::User,
+        owner_id: owner.user_id,
+        variant: MediaVariant::Thumbnail,
+    };
+    assert!(media.sign_download(&viewer, DownloadReference::Avatar(reference)).await.is_ok());
+    let original = AvatarDownload {
+        variant: MediaVariant::Original,
+        ..reference
+    };
+    let denied = media.sign_download(&viewer, DownloadReference::Avatar(original)).await;
+    assert!(matches!(denied, Err(AccountError::NotFound)));
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn album_preserves_repeated_file_occurrences_after_caption_edit(pool: PgPool) {
+    use serde_json::json;
+    use tg_chat::{media::AttachmentInput, messages::MessageService};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "sender").await;
+    let recipient = support::account(&accounts, "recipient").await;
+    let file_id = prepared_document(&pool, &sender).await;
+
+    // This test exercises album identity independently of the Linux image codec.
+    let image = sqlx::query("UPDATE media_uploads SET purpose = 'image' WHERE file_id = $1");
+    image.bind(file_id).execute(&pool).await.unwrap();
+    let occurrences = [Uuid::new_v4(), Uuid::new_v4()];
+    let mut send = support::messaging::send_input(recipient.user_id);
+    send.attachments = occurrences
+        .iter()
+        .map(|occurrence_id| AttachmentInput {
+            occurrence_id: *occurrence_id,
+            file_id,
+        })
+        .collect();
+
+    let service = MessageService::new(accounts);
+    let sent = service.send(sender.clone(), send).await.unwrap();
+    let edit = support::messaging::command(
+        sent.conversation.id,
+        json!({
+            "kind": "edit",
+            "message_id": sent.message.id,
+            "expected_version": sent.message.version,
+            "content": {"schema_version": 1, "text": "", "custom_emoji": []}
+        }),
+    );
+    service.command(sender, edit).await.unwrap();
+
+    let edited = service.message(recipient, sent.message.id).await.unwrap();
+    let order: Vec<Uuid> = edited.attachments.iter().map(|item| item.occurrence_id).collect();
+    assert_eq!(order, occurrences);
+    assert!(edited.content.text.is_empty());
+}

@@ -1,0 +1,32 @@
+{
+	admin off
+	auto_https off
+	# Query strings contain bearer signatures.
+	log {
+		format filter {
+			wrap json
+			fields {
+				request delete
+			}
+		}
+	}
+}
+
+:8333 {
+	header {
+		-Set-Cookie
+		X-Content-Type-Options nosniff
+		Cache-Control "private, no-store"
+	}
+
+	@upload method PUT
+	request_body @upload {
+		max_size 8388608
+	}
+
+	# Preserve the signed host and keep app cookies away from object storage.
+	reverse_proxy http://seaweedfs:8333 {
+		header_up -Cookie
+		header_down -Set-Cookie
+	}
+}

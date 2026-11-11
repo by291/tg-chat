@@ -33,6 +33,8 @@ pub(crate) const VIEW_SELECT: &str =
     "SELECT conversation.id, conversation.kind, COALESCE(peer.id, conversation.id) AS peer_id,
             COALESCE(peer.username, conversation.public_handle, '') AS peer_username,
             COALESCE(peer.display_name, conversation.title) AS peer_name,
+            conversation.avatar_file_id,
+            CASE WHEN NOT peer.is_suspended THEN peer.avatar_file_id END AS peer_avatar_file_id,
             conversation.title, conversation.description, conversation.public_handle,
             conversation.is_public, conversation.requires_approval, member.role, member.posting_muted_until,
             conversation.settings_version::text,
@@ -65,7 +67,11 @@ pub(crate) const VIEW_SELECT: &str =
      LEFT JOIN users peer ON peer.id = CASE WHEN conversation.participant_low = member.user_id
          THEN conversation.participant_high ELSE conversation.participant_low END
      LEFT JOIN LATERAL (
-         SELECT message.content->>'text' AS text, message.expires_at FROM messages message
+         SELECT CASE WHEN btrim(message.content->>'text') <> '' THEN message.content->>'text'
+                     WHEN EXISTS (SELECT 1 FROM media_message_references reference
+                                  WHERE reference.message_id = message.id) THEN 'Media message'
+                     ELSE '' END AS text,
+                message.expires_at FROM messages message
          WHERE message.conversation_id = conversation.id
            AND message.sequence > member.clear_through AND message.deleted_at IS NULL
            AND (message.expires_at IS NULL OR message.expires_at > now())
@@ -81,6 +87,10 @@ pub struct ConversationView {
     pub peer_id: Uuid,
     pub peer_username: String,
     pub peer_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub peer_avatar_file_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_file_id: Option<Uuid>,
     pub settings_version: String,
     pub title: String,
     pub description: String,

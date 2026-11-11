@@ -3,7 +3,7 @@ use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use super::{CanonicalMessage, ReactionView, ReplyView};
-use crate::accounts::AccountError;
+use crate::{accounts::AccountError, media::references};
 
 #[derive(sqlx::FromRow)]
 pub(crate) struct ReplySource {
@@ -58,9 +58,14 @@ pub(crate) async fn personalize(
 ) -> Result<(), AccountError> {
     if message.is_deleted {
         message.reply = None;
+        message.attachments.clear();
         message.is_pinned = false;
         return Ok(());
     }
+    if message.has_attachments {
+        message.attachments = references::attachment_views(connection, message.id).await?;
+    }
+
     let reactions = sqlx::query_as::<_, ReactionView>(
         "SELECT emoji, count(*)::text AS count, bool_or(user_id = $2) AS is_selected
          FROM message_reactions WHERE message_id = $1 GROUP BY emoji ORDER BY emoji",

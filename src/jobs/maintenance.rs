@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::{
     accounts::AccountError,
     conversations::access,
+    media::references,
     messages::commands::repair_unread,
     sync::changes::{self, ChangeGroup},
 };
@@ -41,6 +42,7 @@ pub async fn expire_one(pool: &PgPool) -> Result<bool, AccountError> {
     .bind(conversation.id)
     .fetch_one(&mut *transaction)
     .await?;
+    references::detach_message(&mut transaction, message_id).await?;
     sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")
         .bind(message_id)
         .execute(&mut *transaction)

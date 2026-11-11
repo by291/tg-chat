@@ -128,6 +128,22 @@ export interface paths {
     patch: operations['update_profile'];
     trace?: never;
   };
+  '/api/v1/account/profile/avatar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations['set_profile_avatar'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/email/confirm': {
     parameters: {
       query?: never;
@@ -496,6 +512,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/media/avatars/{owner_kind}/{owner_id}/{variant}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['download_avatar'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/media/messages/{message_id}/attachments/{occurrence_id}/{variant}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['download_message'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/media/uploads': {
     parameters: {
       query?: never;
@@ -538,6 +586,22 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations['complete'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/media/uploads/{upload_id}/preview/{variant}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['preview_upload'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -644,6 +708,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AttachmentInput: {
+      /** Format: uuid */
+      file_id: string;
+      /** Format: uuid */
+      occurrence_id: string;
+    };
+    AttachmentView: {
+      file: components['schemas']['MediaFileView'];
+      file_name: string;
+      /** Format: uuid */
+      occurrence_id: string;
+    };
     /** @enum {string} */
     Audience: 'everyone' | 'contacts' | 'nobody';
     AuthResponse: {
@@ -651,6 +727,8 @@ export interface components {
       session: components['schemas']['SessionView'];
       user: components['schemas']['PrivateProfile'];
     };
+    /** @enum {string} */
+    AvatarOwner: 'user' | 'conversation';
     Bootstrap: {
       blocks: components['schemas']['PublicProfile'][];
       contacts: components['schemas']['PublicProfile'][];
@@ -662,6 +740,7 @@ export interface components {
       user: components['schemas']['PrivateProfile'];
     };
     CanonicalMessage: {
+      attachments?: components['schemas']['AttachmentView'][];
       /** Format: uuid */
       author_id: string;
       author_name: string;
@@ -818,6 +897,13 @@ export interface components {
           settings: components['schemas']['CommunitySettings'];
         }
       | {
+          expected_version: string;
+          /** Format: uuid */
+          file_id?: string | null;
+          /** @enum {string} */
+          kind: 'avatar';
+        }
+      | {
           /** @enum {string} */
           kind: 'role';
           role: string;
@@ -896,6 +982,8 @@ export interface components {
       title: string;
     };
     CommunitySummary: {
+      /** Format: uuid */
+      avatar_file_id?: string | null;
       description: string;
       /** Format: uuid */
       id: string;
@@ -907,6 +995,8 @@ export interface components {
       title: string;
     };
     ConversationView: {
+      /** Format: uuid */
+      avatar_file_id?: string | null;
       can_manage: boolean;
       can_post: boolean;
       clear_through: string;
@@ -926,6 +1016,8 @@ export interface components {
       last_sequence: string;
       /** Format: date-time */
       muted_until?: string | null;
+      /** Format: uuid */
+      peer_avatar_file_id?: string | null;
       /** Format: uuid */
       peer_id: string;
       peer_name: string;
@@ -1074,6 +1166,23 @@ export interface components {
       password: string;
       username: string;
     };
+    MediaFileView: {
+      /** Format: int64 */
+      duration_ms?: number | null;
+      /** Format: uuid */
+      file_id: string;
+      /** Format: int32 */
+      height?: number | null;
+      kind: components['schemas']['UploadPurpose'];
+      /** Format: int64 */
+      size_bytes: number;
+      variants: components['schemas']['MediaVariant'][];
+      waveform?: number[] | null;
+      /** Format: int32 */
+      width?: number | null;
+    };
+    /** @enum {string} */
+    MediaVariant: 'original' | 'thumbnail' | 'poster' | 'playback';
     MessageCommand: {
       action: components['schemas']['CommandAction'];
       /** Format: uuid */
@@ -1138,6 +1247,8 @@ export interface components {
       presence: components['schemas']['Audience'];
     };
     PrivateProfile: {
+      /** Format: uuid */
+      avatar_file_id?: string | null;
       biography: string;
       display_name: string;
       email?: string | null;
@@ -1155,6 +1266,8 @@ export interface components {
       version: string;
     };
     PublicProfile: {
+      /** Format: uuid */
+      avatar_file_id?: string | null;
       biography: string;
       display_name: string;
       /** Format: uuid */
@@ -1199,6 +1312,7 @@ export interface components {
       upload_id: string;
     };
     SendMessage: {
+      attachments?: components['schemas']['AttachmentInput'][];
       content: components['schemas']['MessageContent'];
       destination: components['schemas']['Destination'];
       draft_version?: string | null;
@@ -1226,6 +1340,18 @@ export interface components {
       is_current: boolean;
       /** Format: date-time */
       last_seen_at: string;
+    };
+    SetAvatar: {
+      expected_version: string;
+      /** Format: uuid */
+      file_id?: string | null;
+      /** Format: uuid */
+      operation_id: string;
+    };
+    SignedDownload: {
+      /** Format: date-time */
+      expires_at: string;
+      url: string;
     };
     SignedUpload: {
       /** Format: date-time */
@@ -1478,6 +1604,29 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': components['schemas']['ProfileUpdate'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PrivateProfile'];
+        };
+      };
+    };
+  };
+  set_profile_avatar: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SetAvatar'];
       };
     };
     responses: {
@@ -2116,6 +2265,52 @@ export interface operations {
       };
     };
   };
+  download_avatar: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        owner_kind: components['schemas']['AvatarOwner'];
+        owner_id: string;
+        variant: components['schemas']['MediaVariant'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SignedDownload'];
+        };
+      };
+    };
+  };
+  download_message: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        message_id: string;
+        occurrence_id: string;
+        variant: components['schemas']['MediaVariant'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SignedDownload'];
+        };
+      };
+    };
+  };
   reserve: {
     parameters: {
       query?: never;
@@ -2198,6 +2393,28 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['UploadStatus'];
+        };
+      };
+    };
+  };
+  preview_upload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        upload_id: string;
+        variant: components['schemas']['MediaVariant'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SignedDownload'];
         };
       };
     };
