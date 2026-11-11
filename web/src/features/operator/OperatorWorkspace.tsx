@@ -124,6 +124,27 @@ function ReportCases({ owner }: { owner: SessionOwner }) {
           )}
           <OperatorActionForm
             owner={owner}
+            label="Change reported account suspension"
+            action={(fields) => {
+              const isSuspended = textField(fields, 'state') === 'suspend';
+              return {
+                kind: 'set_suspension',
+                user_id: report.reported_author_id,
+                is_suspended: isSuspended,
+              };
+            }}
+            onCommitted={() => openCase(report.id)}
+          >
+            <label className={styles.field}>
+              Reported account action
+              <select name="state">
+                <option value="suspend">Suspend</option>
+                <option value="restore">Restore</option>
+              </select>
+            </label>
+          </OperatorActionForm>
+          <OperatorActionForm
+            owner={owner}
             label="Change conversation quarantine"
             action={(fields) => {
               const isQuarantined = textField(fields, 'state') === 'quarantine';

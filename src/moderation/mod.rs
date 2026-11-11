@@ -10,9 +10,9 @@ use uuid::Uuid;
 use crate::accounts::{
     AccountError, AccountService, Actor,
     operator::{
-        AuditEvent, AuditOutcome, AuditTarget, RegistrationPolicy, Suspension, UserStatus,
-        append_audit, apply_registration_policy, apply_suspension, authorize_operator,
-        lock_operator_accounts, lock_registration_policy, validate_reason,
+        AuditEvent, AuditOutcome, AuditTarget, EvidenceDeadlineChange, RegistrationPolicy,
+        Suspension, UserStatus, append_audit, apply_registration_policy, apply_suspension,
+        authorize_operator, lock_operator_accounts, lock_registration_policy, validate_reason,
     },
 };
 
@@ -145,8 +145,8 @@ async fn apply_action(
     connection: &mut PgConnection,
     action: OperatorAction,
     scope: Option<quarantine::QuarantineScope>,
-) -> Result<(AuditTarget, &'static str), AccountError> {
-    match action {
+) -> Result<(AuditTarget, &'static str, Option<EvidenceDeadlineChange>), AccountError> {
+    let (target, action) = match action {
         OperatorAction::SetRegistration {
             is_open,
         } => {
@@ -157,7 +157,7 @@ async fn apply_action(
             };
             let action = apply_registration_policy(connection, policy).await?;
 
-            Ok((AuditTarget::Registration, action))
+            (AuditTarget::Registration, action)
         }
         OperatorAction::SetSuspension {
             user_id,
@@ -177,22 +177,22 @@ async fn apply_action(
             )
             .await?;
 
-            Ok((AuditTarget::Account(user_id), action))
+            (AuditTarget::Account(user_id), action)
         }
         OperatorAction::ResolveCase {
             case_id,
         } => {
             evidence::resolve_case(connection, case_id).await?;
 
-            Ok((AuditTarget::Case(case_id), "case_resolved"))
+            (AuditTarget::Case(case_id), "case_resolved")
         }
         OperatorAction::ExtendEvidence {
             case_id,
             deadline,
         } => {
-            evidence::extend_evidence(connection, case_id, deadline).await?;
+            let change = evidence::extend_evidence(connection, case_id, deadline).await?;
 
-            Ok((AuditTarget::Case(case_id), "evidence_extended"))
+            return Ok((AuditTarget::Case(case_id), "evidence_extended", Some(change)));
         }
         OperatorAction::SetQuarantine {
             is_quarantined,
@@ -207,7 +207,7 @@ async fn apply_action(
                 "conversation_restored"
             };
 
-            Ok((target, action))
+            (target, action)
         }
         OperatorAction::SetAccountStorageLimit {
             user_id,
@@ -215,7 +215,7 @@ async fn apply_action(
         } => {
             quotas::set_limit(connection, user_id, limit_bytes).await?;
 
-            Ok((AuditTarget::Account(user_id), "account_storage_limit_changed"))
+            (AuditTarget::Account(user_id), "account_storage_limit_changed")
         }
         OperatorAction::RetryJob {
             job_kind,
@@ -223,9 +223,11 @@ async fn apply_action(
         } => {
             jobs::retry(connection, job_kind, job_id).await?;
 
-            Ok((AuditTarget::Job(job_id), "exhausted_job_retried"))
+            (AuditTarget::Job(job_id), "exhausted_job_retried")
         }
-    }
+    };
+
+    Ok((target, action, None))
 }
 
 impl AccountService {
@@ -268,7 +270,8 @@ impl AccountService {
                 | OperatorAction::SetAccountStorageLimit { .. }
                 | OperatorAction::RetryJob { .. }
         );
-        let (target, action) = apply_action(&mut transaction, command.action, scope).await?;
+        let (target, action, details) =
+            apply_action(&mut transaction, command.action, scope).await?;
         if should_recheck {
             // Case, quota, and retry actions may wait after taking the operator session lock.
             authorize_operator(&mut transaction, actor, &self.settings).await?;
@@ -281,6 +284,7 @@ impl AccountService {
                 target,
                 reason: &reason,
                 outcome: AuditOutcome::Succeeded,
+                details,
             },
         )
         .await?;

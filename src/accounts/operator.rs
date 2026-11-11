@@ -1,4 +1,6 @@
-use sqlx::PgConnection;
+use chrono::{DateTime, Utc};
+use serde::Serialize;
+use sqlx::{PgConnection, types::Json};
 use uuid::Uuid;
 
 use super::{
@@ -64,12 +66,19 @@ pub(crate) enum AuditOutcome {
     Succeeded,
 }
 
+#[derive(Serialize)]
+pub(crate) struct EvidenceDeadlineChange {
+    pub previous_deadline: DateTime<Utc>,
+    pub new_deadline: DateTime<Utc>,
+}
+
 pub(crate) struct AuditEvent<'a> {
     pub actor: AuditActor,
     pub action: &'a str,
     pub target: AuditTarget,
     pub reason: &'a str,
     pub outcome: AuditOutcome,
+    pub details: Option<EvidenceDeadlineChange>,
 }
 
 impl AuthorizedOperator {
@@ -138,14 +147,15 @@ pub(crate) async fn append_audit(
     let insert = sqlx::query(
         "INSERT INTO operator_audit (
              id, actor, actor_user_id, action, target_kind, target_id, target_user_id,
-             reason, outcome
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+             reason, outcome, details
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
     )
     .bind(Uuid::new_v4())
     .bind(origin);
     let insert = insert.bind(actor_user_id).bind(event.action).bind(target_kind);
     let insert = insert.bind(target_id).bind(target_user_id).bind(event.reason);
-    insert.bind(outcome).execute(connection).await?;
+    let insert = insert.bind(outcome).bind(event.details.map(Json));
+    insert.execute(connection).await?;
 
     Ok(())
 }
@@ -238,6 +248,7 @@ impl AccountService {
                 target: AuditTarget::Account(user_id),
                 reason: "trusted bootstrap",
                 outcome: AuditOutcome::Succeeded,
+                details: None,
             },
         )
         .await?;
@@ -259,6 +270,7 @@ impl AccountService {
                 target: AuditTarget::Registration,
                 reason: &reason,
                 outcome: AuditOutcome::Succeeded,
+                details: None,
             },
         )
         .await?;
@@ -292,6 +304,7 @@ impl AccountService {
                 target: AuditTarget::Account(user_id),
                 reason: &reason,
                 outcome: AuditOutcome::Succeeded,
+                details: None,
             },
         )
         .await?;

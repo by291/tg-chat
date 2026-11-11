@@ -121,3 +121,57 @@ async fn quota_and_job_actions_apply_to_new_work_and_replay_once(pool: PgPool) {
     );
     assert_eq!(audit.fetch_one(&pool).await.unwrap(), 1);
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn evidence_extension_audits_both_deadlines_once_on_replay(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "extension_sender").await;
+    let reader = support::account(&accounts, "extension_reader").await;
+    let operator = operator(&accounts, &pool).await;
+
+    let service = MessageService::new(accounts.clone());
+    let input = support::messaging::send_input(reader.user_id);
+    let sent = service.send(sender, input).await.unwrap();
+    let report = serde_json::from_value(json!({
+        "operation_id": Uuid::new_v4(),
+        "reason": "spam",
+    }))
+    .unwrap();
+    let case = accounts.report_message(reader, sent.message.id, report).await.unwrap();
+
+    let previous: chrono::DateTime<chrono::Utc> = sqlx::query_scalar(
+        "UPDATE moderation_cases SET evidence_expires_at = now() + interval '1 day'
+         WHERE id = $1 RETURNING evidence_expires_at",
+    )
+    .bind(case.case_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let deadline = previous + chrono::TimeDelta::days(1);
+    let payload = json!({
+        "operation_id": Uuid::new_v4(),
+        "reason": "More time to review the report",
+        "action": {
+            "kind": "extend_evidence",
+            "case_id": case.case_id,
+            "deadline": deadline,
+        },
+    });
+    for _ in 0..2 {
+        let command = serde_json::from_value(payload.clone()).unwrap();
+        accounts.submit_operator_command(&operator, command).await.unwrap();
+    }
+
+    let audit = sqlx::query_scalar::<_, serde_json::Value>(
+        "SELECT details FROM operator_audit WHERE target_id = $1 AND action = 'evidence_extended'",
+    );
+    let audit = audit.bind(case.case_id).fetch_all(&pool).await.unwrap();
+    assert_eq!(
+        audit,
+        vec![json!({
+            "previous_deadline": previous,
+            "new_deadline": deadline,
+        })],
+    );
+}

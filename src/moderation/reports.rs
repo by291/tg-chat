@@ -8,7 +8,10 @@ use uuid::Uuid;
 use crate::{
     accounts::{AccountError, AccountService, Actor, sessions},
     media::references,
-    messages::{CanonicalMessage, acceptance::MESSAGE_SELECT, forwarding, history, projection},
+    messages::{
+        CanonicalMessage, acceptance::MESSAGE_SELECT, bodies::MessageBodyView, forwarding, history,
+        projection,
+    },
 };
 
 const REPORTS_PER_HOUR: i64 = 10;
@@ -57,6 +60,26 @@ struct CaseInsert<'a> {
     reporter_id: Uuid,
     reason: ReportReason,
     note: &'a str,
+}
+
+fn snapshot_body(
+    body: Option<MessageBodyView>,
+) -> Result<Option<Json<serde_json::Value>>, AccountError> {
+    let description = match &body {
+        Some(MessageBodyView::Poll(poll)) => poll.description.clone(),
+        _ => None,
+    };
+    let Some(snapshot) = forwarding::snapshot_body(body) else {
+        return Ok(None);
+    };
+    let mut evidence = serde_json::to_value(snapshot).map_err(|_| AccountError::Unavailable)?;
+    if let Some(description) = description {
+        // The review needs visible poll text even though forwarding drops the description.
+        let fields = evidence.as_object_mut().ok_or(AccountError::Unavailable)?;
+        fields.insert("description".to_owned(), serde_json::Value::String(description));
+    }
+
+    Ok(Some(Json(evidence)))
 }
 
 impl ReportReason {
@@ -193,14 +216,14 @@ async fn insert_case(
     let receipt = insert.bind(EVIDENCE_DAYS * 24).fetch_one(&mut *connection).await?;
 
     let version = history::parse_sequence(&input.message.version)?;
-    let body = forwarding::snapshot_body(input.message.body.clone());
+    let body = snapshot_body(input.message.body.clone())?;
     let insert = sqlx::query(
         "INSERT INTO moderation_evidence (
              case_id, message_version, message_text, structured_body, reporter_note
          ) VALUES ($1, $2, $3, $4, $5)",
     );
     let insert = insert.bind(receipt.case_id).bind(version).bind(&input.message.content.text);
-    let insert = insert.bind(body.map(Json)).bind(input.note);
+    let insert = insert.bind(body).bind(input.note);
     insert.execute(&mut *connection).await?;
 
     references::copy_evidence_references(connection, input.message.id, receipt.case_id).await?;

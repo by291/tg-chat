@@ -8,7 +8,10 @@ use uuid::Uuid;
 use crate::{
     accounts::{
         AccountError, AccountService, Actor,
-        operator::{AuditEvent, AuditOutcome, AuditTarget, append_audit, authorize_operator},
+        operator::{
+            AuditEvent, AuditOutcome, AuditTarget, EvidenceDeadlineChange, append_audit,
+            authorize_operator,
+        },
     },
     media::references::{self, EvidenceAttachment},
 };
@@ -109,7 +112,7 @@ pub(crate) async fn extend_evidence(
     connection: &mut PgConnection,
     case_id: Uuid,
     deadline: DateTime<Utc>,
-) -> Result<(), AccountError> {
+) -> Result<EvidenceDeadlineChange, AccountError> {
     let current = lock_case(connection, case_id).await?;
     let now: DateTime<Utc> =
         sqlx::query_scalar("SELECT clock_timestamp()").fetch_one(&mut *connection).await?;
@@ -121,10 +124,17 @@ pub(crate) async fn extend_evidence(
         return Err(AccountError::Validation("invalid evidence extension"));
     }
 
-    let update = sqlx::query("UPDATE moderation_cases SET evidence_expires_at = $2 WHERE id = $1");
-    update.bind(case_id).bind(deadline).execute(connection).await?;
+    // Read the stored timestamp so audit records the exact cutoff after database rounding.
+    let update = sqlx::query_scalar(
+        "UPDATE moderation_cases SET evidence_expires_at = $2 WHERE id = $1
+         RETURNING evidence_expires_at",
+    );
+    let new_deadline = update.bind(case_id).bind(deadline).fetch_one(connection).await?;
 
-    Ok(())
+    Ok(EvidenceDeadlineChange {
+        previous_deadline: current.evidence_expires_at,
+        new_deadline,
+    })
 }
 
 /// Release one expired evidence snapshot and its references under the collection locks.
@@ -204,6 +214,7 @@ impl AccountService {
                     target: AuditTarget::Case(case_id),
                     reason: "Case review",
                     outcome: AuditOutcome::Succeeded,
+                    details: None,
                 },
             )
             .await?;
@@ -257,6 +268,7 @@ impl AccountService {
                 target: AuditTarget::Case(input.case_id),
                 reason: "Case review",
                 outcome: AuditOutcome::Succeeded,
+                details: None,
             },
         )
         .await?;
