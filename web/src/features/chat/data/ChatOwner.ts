@@ -6,6 +6,7 @@ import { CanonicalCache, observedAtLeast, type CanonicalSnapshot } from './canon
 import type { EmojiText } from '@/domain/messages/customEmoji';
 import { ApiError, isCancelled, requirePayload, SessionOwner } from '@/features/auth/SessionOwner';
 import { canonicalMessageContent } from './messageContent';
+import type { LoadMessageSearchPage } from '../search/useMessageSearch';
 import { ChatMediaQueue } from './ChatMediaQueue';
 import { uploadClient } from '@/features/media/uploadClient';
 import {
@@ -53,6 +54,8 @@ interface HistoryLoad {
   edge: 'older' | 'latest';
   concurrentMessages: CanonicalMessage[];
 }
+
+type HistoryAnchor = { messageId: string; dateAt?: never } | { dateAt: string; messageId?: never };
 
 interface Selection {
   destination: Destination;
@@ -378,7 +381,7 @@ export class ChatOwner {
   }
 
   /** Switch private history ownership before starting any remote page request. */
-  async select(selection: Selection): Promise<void> {
+  async select(selection: Selection, options?: { messageId: string }): Promise<void> {
     this.ensureCurrent();
     void this.flushDraft().catch((error) => this.report(error));
     const generation = ++this.viewGeneration;
@@ -399,6 +402,9 @@ export class ChatOwner {
     const initialDraftId = this.snapshot.draft.id;
     const persisted = await this.requireStore().read();
     if (!this.isCurrentView(generation)) {
+      if (options) {
+        throw new DOMException('Another conversation replaced this jump.', 'AbortError');
+      }
       return;
     }
     const key = destinationKey(selection.destination);
@@ -422,10 +428,18 @@ export class ChatOwner {
         draftAlternatives: persisted.draftAlternatives?.[key] ?? [],
       });
     }
+    if (options) {
+      await this.jumpToMessage(options.messageId, { shouldRevalidate: true });
+      return;
+    }
+
     const conversation = this.selectedConversation();
     const cached = await this.requireCache().read();
+    if (!this.isCurrentView(generation)) {
+      return;
+    }
     const page = conversation ? cached.pages[conversation.id] : undefined;
-    if (this.isCurrentView(generation) && page) {
+    if (page) {
       this.publish({
         messages: page.messages,
         precedingMessage: page.preceding_message ?? undefined,
@@ -872,6 +886,52 @@ export class ChatOwner {
     }
   }
 
+  /** Identify the visibility checkpoint that owns the open search results. */
+  searchVisibilityKey(conversationId?: string): string {
+    const cached = this.cacheSnapshot;
+    if (conversationId) {
+      const conversation = this.snapshot.conversations.find((entry) => entry.id === conversationId);
+      return JSON.stringify([
+        cached?.epoch,
+        conversation?.generation,
+        cached?.invalidations[conversationId],
+      ]);
+    }
+    const invalidations = Object.entries(cached?.invalidations ?? {});
+    return JSON.stringify([cached?.epoch, invalidations]);
+  }
+
+  /** Load one search page and fence results against the latest shared visibility checkpoint. */
+  searchMessages: LoadMessageSearchPage = async ({ query, signal }) => {
+    const cache = this.requireCache();
+    const before = await cache.read();
+    const reply = await this.session.client.GET('/api/v1/chat/search', {
+      params: { query },
+      signal,
+    });
+    const page = requirePayload(reply);
+    const after = await cache.read();
+    this.ensureCurrent();
+    const invalidated = query.conversation_id && after.invalidations[query.conversation_id];
+    if (
+      signal.aborted ||
+      before.epoch !== after.epoch ||
+      (invalidated && !observedAtLeast(page.observation_cursor, invalidated))
+    ) {
+      throw new DOMException('Search visibility changed while loading.', 'AbortError');
+    }
+
+    // A global page can contain projections from several independent visibility generations.
+    const hits = page.hits.filter((message) => {
+      const invalidation = after.invalidations[message.conversation_id];
+      return (
+        !after.removedMessages[message.id] &&
+        (!invalidation || observedAtLeast(page.observation_cursor, invalidation))
+      );
+    });
+    return { ...page, hits };
+  };
+
   /** Read a bounded pin directory without replacing the contiguous timeline cache. */
   async loadPins(before?: string): Promise<components['schemas']['HistoryPage']> {
     const conversation = this.selectedConversation();
@@ -964,20 +1024,32 @@ export class ChatOwner {
   }
 
   /** Reveal a reply target through its bounded authorized neighborhood. */
-  async jumpToMessage(messageId: string): Promise<void> {
+  async jumpToMessage(messageId: string, options?: { shouldRevalidate: boolean }): Promise<void> {
     const existing = this.snapshot.messages.find((message) => message.id === messageId);
-    if (existing) {
+    if (existing && !options?.shouldRevalidate) {
       this.publish({ navigation: { messageId, requestId: Date.now() } });
       return;
     }
-    await this.loadHistory('latest', messageId);
+    await this.loadHistory('latest', { messageId });
   }
 
-  /** Load a bounded older or latest page while fencing results from previously selected chats. */
-  async loadHistory(edge: 'older' | 'latest', around?: string): Promise<void> {
+  /** Reveal the first authorized message on or after a date, or the latest earlier message. */
+  async jumpToDate(timestamp: number): Promise<void> {
+    const dateAt = new Date(timestamp).toISOString();
+    await this.loadHistory('latest', { dateAt });
+  }
+
+  /** Load bounded history and allow an explicit jump to supersede a pending edge request. */
+  async loadHistory(edge: 'older' | 'latest', anchor?: HistoryAnchor): Promise<void> {
     this.ensureCurrent();
     const conversation = this.selectedConversation();
-    if (!conversation || this.snapshot.isLoading) {
+    if (!conversation) {
+      if (anchor) {
+        throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
+      }
+      return;
+    }
+    if (this.snapshot.isLoading && !anchor) {
       return;
     }
     const generation = this.viewGeneration;
@@ -989,6 +1061,14 @@ export class ChatOwner {
       concurrentMessages: [],
     };
     this.historyLoad = load;
+    const isCurrentLoad = () => this.historyLoad === load && this.isCurrentView(generation);
+    const hasCurrentLoad = () => {
+      const isCurrent = isCurrentLoad();
+      if (!isCurrent && anchor) {
+        throw new DOMException('Another history request replaced this jump.', 'AbortError');
+      }
+      return isCurrent;
+    };
     this.publish({ isLoading: true });
     try {
       const reply = await this.session.client.GET(
@@ -996,16 +1076,30 @@ export class ChatOwner {
         {
           params: {
             path: { conversation_id: conversation.id },
-            query: { before: edge === 'older' ? first?.sequence : undefined, around },
+            query: {
+              before: edge === 'older' ? first?.sequence : undefined,
+              around: anchor?.messageId,
+              date_at: anchor?.dateAt,
+            },
           },
         },
       );
-      if (!this.isCurrentView(generation)) {
+      if (!hasCurrentLoad()) {
         return;
       }
       const page = requirePayload(reply);
+      const anchorId = page.anchor_id ?? anchor?.messageId;
+      if (anchor && !page.messages.some((message) => message.id === anchorId)) {
+        throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
+      }
       const cached = await this.requireCache().read();
-      if (!this.isCurrentView(generation) || epoch !== cached.epoch) {
+      if (!hasCurrentLoad()) {
+        return;
+      }
+      if (epoch !== cached.epoch) {
+        if (anchor) {
+          throw new DOMException('History visibility changed while loading.', 'AbortError');
+        }
         return;
       }
       const didSave = await this.requireCache().saveHistory({
@@ -1014,8 +1108,23 @@ export class ChatOwner {
         page,
       });
       this.ensureCurrent();
+      if (!hasCurrentLoad()) {
+        return;
+      }
       if (!didSave) {
         await this.reloadSharedCache();
+        if (anchor) {
+          const updated = this.selectedConversation();
+          const invalidation = this.cacheSnapshot?.invalidations[conversation.id];
+          const isUnavailable =
+            updated?.id !== conversation.id ||
+            updated.generation !== page.generation ||
+            (invalidation && !observedAtLeast(page.observation_cursor, invalidation));
+          if (isUnavailable) {
+            throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
+          }
+          throw new DOMException('History changed while opening the message.', 'AbortError');
+        }
         this.publish({ hasNewer: true });
         return;
       }
@@ -1023,7 +1132,7 @@ export class ChatOwner {
       const firstSequence = page.messages[0]?.sequence;
       const candidates = [...this.snapshot.messages, ...load.concurrentMessages];
       const current = candidates.filter((message) => {
-        if (around) {
+        if (anchor) {
           return false;
         }
         return (
@@ -1048,19 +1157,22 @@ export class ChatOwner {
             ...page.messages,
           ],
         }),
-        navigation: around
-          ? { messageId: around, requestId: Date.now() }
+        navigation: anchorId
+          ? { messageId: anchorId, requestId: Date.now() }
           : this.snapshot.navigation,
         hasOlder: page.has_older,
         hasNewer: page.has_newer || hasTrimmedNewer || (edge === 'older' && this.snapshot.hasNewer),
         error: '',
       });
     } catch (error) {
-      if (this.isCurrentView(generation)) {
+      if (anchor) {
+        throw error;
+      }
+      if (isCurrentLoad()) {
         this.report(error);
       }
     } finally {
-      if (this.isCurrentView(generation)) {
+      if (isCurrentLoad()) {
         this.historyLoad = undefined;
         this.publish({ isLoading: false });
       }

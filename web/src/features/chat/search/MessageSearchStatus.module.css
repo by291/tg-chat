@@ -1,0 +1,13 @@
+.status {
+  padding: 8px 12px;
+  color: var(--secondary-color);
+  font-size: 13px;
+}
+
+.status p {
+  margin: 4px 0;
+}
+
+.status [role='alert'] {
+  color: var(--danger-color, #c43745);
+}

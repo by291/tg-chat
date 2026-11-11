@@ -177,3 +177,27 @@
   color: var(--accent-color);
   background: transparent;
 }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  color: var(--secondary-color);
+  font-size: 12px;
+}
+
+.filters label {
+  display: grid;
+  gap: 4px;
+}
+
+.filters select,
+.filters input {
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  background: var(--surface-color);
+}

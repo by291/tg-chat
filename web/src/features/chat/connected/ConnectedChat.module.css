@@ -228,3 +228,29 @@
   overflow-y: auto;
   padding-inline-start: 1.25rem;
 }
+
+.directorySearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 12px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  color: var(--secondary-color);
+  background: var(--input-color);
+}
+
+.directorySearch input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  color: var(--text-color);
+  background: transparent;
+}
+
+.conversationSearch {
+  position: relative;
+  z-index: 2;
+  min-height: 48px;
+  background: var(--surface-color);
+}

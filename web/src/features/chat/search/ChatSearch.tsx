@@ -18,6 +18,14 @@ import {
 } from 'react';
 import { SearchResults } from './SearchResults';
 import { SearchDateDialog } from './SearchDateDialog';
+import { MessageSearchStatus } from './MessageSearchStatus';
+import {
+  useMessageSearch,
+  type LoadMessageSearchPage,
+  type SearchMessageKind,
+} from './useMessageSearch';
+import { renderMessage } from '../data/messageModels';
+import { ApiError, isCancelled } from '@/features/auth/SessionOwner';
 import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
@@ -27,20 +35,52 @@ import styles from './ChatSearch.module.css';
 
 const IME_KEY_CODE = 229;
 
+const MEDIA_KINDS: ReadonlyArray<{ kind: SearchMessageKind; label: string }> = [
+  { kind: 'photo_video', label: 'Photos and videos' },
+  { kind: 'file', label: 'Files' },
+  { kind: 'voice', label: 'Voice messages' },
+  { kind: 'link', label: 'Links' },
+];
+
+interface ConnectedSearchSource {
+  conversationId: string;
+  visibilityKey: string;
+  loadPage: LoadMessageSearchPage;
+  onJumpToDate: (timestamp: number) => Promise<void>;
+}
+
 interface ChatSearchProps {
   messages: Message[];
   canFilterSender: boolean;
   onClose: () => void;
-  onJump: (messageId: string) => void;
+  onJump: (messageId: string) => void | Promise<void>;
+  source?: ConnectedSearchSource;
 }
 
-/** Search cached messages without replacing or remounting the conversation history. */
-export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatSearchProps) {
+function dayBoundary(value: string, options?: { isExclusiveEnd: boolean }): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (options?.isExclusiveEnd) {
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+
+  return date.toISOString();
+}
+
+/** Search the conversation without replacing or remounting its timeline. */
+export function ChatSearch(props: ChatSearchProps) {
+  const { messages, canFilterSender, onClose, onJump, source } = props;
   const inputRef = useRef<HTMLInputElement>(null);
   const hasClosedRef = useRef(false);
   const isPresent = useIsPresent();
   const [query, setQuery] = useState('');
   const [senderId, setSenderId] = useState('');
+  const [kind, setKind] = useState<SearchMessageKind>();
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [navigationError, setNavigationError] = useState<{ key: string; message: string }>();
   const [isChoosingSender, setIsChoosingSender] = useState(false);
   const [isChoosingDate, setIsChoosingDate] = useState(false);
   const [isFocused, setIsFocused] = useState(true);
@@ -54,10 +94,10 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
     }
     return Array.from(names, ([id, name]) => ({ id, name }));
   }, [messages]);
-  const results = useMemo(
+  const localResults = useMemo(
     () => {
       const normalizedQuery = query.trim().toLowerCase();
-      if (!normalizedQuery && !senderId) {
+      if (source || (!normalizedQuery && !senderId)) {
         return [];
       }
 
@@ -74,11 +114,40 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
       messages,
       query,
       senderId,
+      source,
     ],
   );
+  const text = query.trim();
+  const visibilityKey = source?.visibilityKey ?? '';
+  const requestKey = JSON.stringify({
+    text,
+    senderId,
+    kind,
+    dateFrom,
+    dateTo,
+    visibilityKey,
+  });
+  const error = navigationError?.key === requestKey ? navigationError.message : undefined;
+  const hasInvertedDates = Boolean(dateFrom && dateTo && dateFrom > dateTo);
+  const canQuery = source && !error && !hasInvertedDates && Boolean(text || kind) && isPresent;
+  const remote = useMessageSearch({
+    query: canQuery
+      ? {
+          query: text,
+          conversation_id: source.conversationId,
+          sender_id: senderId || undefined,
+          kind,
+          date_from: dayBoundary(dateFrom),
+          date_to: dayBoundary(dateTo, { isExclusiveEnd: true }),
+        }
+      : undefined,
+    loadPage: source?.loadPage,
+    visibilityKey,
+  });
+  const results = source ? (remote.page?.hits.map(renderMessage) ?? []) : localResults;
   const activeIndex = results.findIndex((message) => message.id === activeId);
-  const hasQuery = Boolean(query.trim() || senderId);
-  const shouldShowResults = isFocused && (hasQuery || isChoosingSender);
+  const hasQuery = Boolean(text || kind || senderId);
+  const shouldShowResults = isFocused && (hasQuery || isChoosingSender || Boolean(error));
   const closeSearch = useCallback(() => {
     // AnimatePresence keeps this mounted during exit; repeated Escape must not toggle it open.
     if (hasClosedRef.current) {
@@ -116,6 +185,11 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
   }, [closeSearch, isChoosingDate]);
 
   function jumpToDate(timestamp: number) {
+    if (source) {
+      void source.onJumpToDate(timestamp).catch(showNavigationError);
+      return;
+    }
+
     const message = messages.find((entry) => entry.createdAt >= timestamp) ?? messages.at(-1);
     if (message) {
       chooseResult(message);
@@ -126,7 +200,17 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
     setActiveId(message.id);
     setIsFocused(false);
     inputRef.current?.blur();
-    onJump(message.id);
+    void Promise.resolve(onJump(message.id)).catch(showNavigationError);
+  }
+
+  function showNavigationError(failure: unknown) {
+    if (isCancelled(failure)) {
+      return;
+    }
+    const isMissing = failure instanceof ApiError && failure.code === 'not_found';
+    const message = isMissing ? 'Message unavailable' : 'Could not open the message';
+    setNavigationError({ key: requestKey, message });
+    setIsFocused(true);
   }
 
   function stepResult(options: { direction: number; shouldConfirm: boolean }) {
@@ -181,6 +265,11 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
     if (query) {
       setQuery('');
       setActiveId('');
+      inputRef.current?.focus();
+      return;
+    }
+    if (kind) {
+      setKind(undefined);
       inputRef.current?.focus();
       return;
     }
@@ -249,6 +338,44 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
             <X />
           </IconButton>
         </div>
+        {source && isFocused && (
+          <div className={styles.filters}>
+            <label>
+              Type
+              <select
+                value={kind ?? ''}
+                onChange={(event) => {
+                  const option = MEDIA_KINDS.find((entry) => entry.kind === event.target.value);
+                  setKind(option?.kind);
+                  setActiveId('');
+                }}
+              >
+                <option value="">Any type</option>
+                {MEDIA_KINDS.map((option) => (
+                  <option key={option.kind} value={option.kind}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              From date
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            </label>
+            <label>
+              Through date
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </label>
+          </div>
+        )}
         <div
           className={styles.resultsCollapse}
           data-open={shouldShowResults}
@@ -282,7 +409,18 @@ export function ChatSearch({ messages, canFilterSender, onClose, onJump }: ChatS
                 onSelect={chooseResult}
               />
             )}
-            {hasQuery && !isChoosingSender && results.length === 0 && (
+            {!isChoosingSender && source && (
+              <MessageSearchStatus
+                page={remote.page}
+                error={
+                  error ??
+                  (hasInvertedDates ? 'Choose an end date after the start date.' : remote.error)
+                }
+                isLoading={remote.isLoading}
+                onLoadMore={() => void remote.loadMore()}
+              />
+            )}
+            {!source && hasQuery && !isChoosingSender && results.length === 0 && (
               <p className={styles.empty}>No messages found</p>
             )}
           </div>

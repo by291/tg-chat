@@ -412,6 +412,52 @@ describe('connected chat ownership', () => {
     expect(owner.getSnapshot().pending[0].request.content.text).toBe('Old operation');
     owner.dispose();
   });
+  it('opens a search hit with one authorized neighborhood request', async () => {
+    const history = vi.fn(async (request: Request) => {
+      const query = new URL(request.url).searchParams;
+      expect(query.get('around')).toBe('message-3');
+      return historyPage({ first: 2, last: 4, hasNewer: true });
+    });
+    const { owner } = fixture({ history });
+    await owner.start();
+    await owner.select(
+      { destination: { kind: 'saved' }, title: 'Saved Messages' },
+      {
+        messageId: 'message-3',
+      },
+    );
+
+    expect(history).toHaveBeenCalledOnce();
+    expect(owner.getSnapshot().navigation?.messageId).toBe('message-3');
+    expect(owner.getSnapshot().hasNewer).toBe(true);
+    owner.dispose();
+  });
+
+  it('rejects a cached search hit if it is unavailable during navigation', async () => {
+    const history = async (request: Request) => {
+      const query = new URL(request.url).searchParams;
+      if (!query.has('around')) {
+        return historyPage({ first: 1, last: 3 });
+      }
+
+      return Response.json(
+        {
+          error: { code: 'not_found', message: 'Unavailable', request_id: 'test' },
+        },
+        { status: 404 },
+      );
+    };
+    const { owner } = fixture({ history });
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+
+    expect(owner.getSnapshot().messages).toHaveLength(3);
+    const jump = owner.jumpToMessage('message-3', { shouldRevalidate: true });
+    await expect(jump).rejects.toMatchObject({ code: 'not_found' });
+    expect(owner.getSnapshot().navigation).toBeUndefined();
+    owner.dispose();
+  });
+
   it('keeps sync messages consumed while an older view is loading its latest snapshot', async () => {
     const latest = deferredResponse();
     let latestRequests = 0;

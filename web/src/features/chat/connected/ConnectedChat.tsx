@@ -3,7 +3,12 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
-import { isCancelled, requirePayload, type SessionOwner } from '@/features/auth/SessionOwner';
+import {
+  ApiError,
+  isCancelled,
+  requirePayload,
+  type SessionOwner,
+} from '@/features/auth/SessionOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { MessageInteraction } from '@/domain/messages/interaction';
@@ -32,6 +37,8 @@ import {
 } from '../data/messageModels';
 import { MessageComposer, type ComposedMessage } from '../composer/MessageComposer';
 import { MessageTimeline } from '../history/MessageTimeline';
+import { ChatSearch } from '../search/ChatSearch';
+import { GlobalMessageSearch } from '../search/GlobalMessageSearch';
 import { ShareContactDialog } from '../composer/ShareContactDialog';
 import { ContactLinkContext } from '../messages/content/contact/ContactActions';
 import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
@@ -123,6 +130,8 @@ export function ConnectedChat({
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
   const [folder, setFolder] = useState('inbox');
+  const [directoryQuery, setDirectoryQuery] = useState('');
+  const [searchConversationId, setSearchConversationId] = useState<string>();
   const [editing, setEditing] = useState<CanonicalMessage>();
   const [editVersion, setEditVersion] = useState('');
   const [confirmation, setConfirmation] = useState<Confirmation>();
@@ -183,7 +192,12 @@ export function ConnectedChat({
       compareCounter(canonical.sequence, conversation.peer_read_through) <= 0;
     return message;
   });
+  const normalizedDirectoryQuery = directoryQuery.trim().toLowerCase();
   const directory = snapshot.conversations.filter((entry) => {
+    if (normalizedDirectoryQuery) {
+      const matchesTitle = title(entry).toLowerCase().includes(normalizedDirectoryQuery);
+      return matchesTitle || entry.peer_username.toLowerCase().includes(normalizedDirectoryQuery);
+    }
     if (folder === 'hidden') {
       return entry.is_hidden;
     }
@@ -215,6 +229,7 @@ export function ConnectedChat({
   useEffect(() => {
     setEditing(undefined);
     setIsPinsOpen(false);
+    setSearchConversationId(undefined);
     setConfirmation(undefined);
     setContactDestination(undefined);
     setVoterMessageId(undefined);
@@ -259,8 +274,21 @@ export function ConnectedChat({
     setEditing(undefined);
     setIsPinsOpen(false);
     setError('');
+    setDirectoryQuery('');
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
+    setIsDirectoryVisible(false);
+  }
+
+  async function openGlobalResult(result: { conversationId: string; messageId: string }) {
+    const conversations = owner.getSnapshot().conversations;
+    const entry = conversations.find((candidate) => candidate.id === result.conversationId);
+    if (!entry) {
+      throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
+    }
+    const destination = conversationDestination(entry);
+    await owner.select({ destination, title: title(entry) }, { messageId: result.messageId });
+    setDirectoryQuery('');
     setIsDirectoryVisible(false);
   }
 
@@ -677,18 +705,35 @@ export function ConnectedChat({
             </button>
           </header>
           {!snapshot.isReady && <p role="status">Loading conversations…</p>}
-          <label className={styles.folder}>
-            Conversations
-            <select
-              aria-label="Conversation folder"
-              value={folder}
-              onChange={(event) => setFolder(event.target.value)}
-            >
-              <option value="inbox">Inbox</option>
-              <option value="archived">Archived</option>
-              <option value="hidden">Hidden</option>
-            </select>
-          </label>
+          <div className={styles.directorySearch}>
+            <Search size={18} aria-hidden="true" />
+            <input
+              type="text"
+              aria-label="Search chats and messages"
+              placeholder="Search"
+              value={directoryQuery}
+              onChange={(event) => setDirectoryQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && !event.nativeEvent.isComposing) {
+                  setDirectoryQuery('');
+                }
+              }}
+            />
+          </div>
+          {!normalizedDirectoryQuery && (
+            <label className={styles.folder}>
+              Conversations
+              <select
+                aria-label="Conversation folder"
+                value={folder}
+                onChange={(event) => setFolder(event.target.value)}
+              >
+                <option value="inbox">Inbox</option>
+                <option value="archived">Archived</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </label>
+          )}
           {directory.map((entry) => (
             <button
               type="button"
@@ -726,6 +771,14 @@ export function ConnectedChat({
               </span>
             </button>
           ))}
+          {snapshot.isReady && (
+            <GlobalMessageSearch
+              query={directoryQuery}
+              visibilityKey={owner.searchVisibilityKey()}
+              loadPage={owner.searchMessages}
+              onSelect={openGlobalResult}
+            />
+          )}
           {snapshot.pendingCommands.length > 0 && (
             <section className={styles.pending} aria-label="Unconfirmed actions">
               <h2>Unconfirmed actions</h2>
@@ -839,6 +892,21 @@ export function ConnectedChat({
                 Community details
               </button>
             )}
+            {conversation && (
+              <button
+                type="button"
+                aria-label="Search this conversation"
+                aria-pressed={searchConversationId === conversation.id}
+                onClick={() => {
+                  setIsPinsOpen(false);
+                  setSearchConversationId((current) => {
+                    return current === conversation.id ? undefined : conversation.id;
+                  });
+                }}
+              >
+                <Search />
+              </button>
+            )}
             {selection && (
               <button type="button" onClick={() => void owner.loadHistory('latest')}>
                 Latest messages
@@ -853,6 +921,23 @@ export function ConnectedChat({
               onError={report}
               onPins={() => setIsPinsOpen(true)}
             />
+          )}
+          {conversation && searchConversationId === conversation.id && (
+            <div className={styles.conversationSearch}>
+              <ChatSearch
+                key={conversation.id}
+                messages={messages}
+                canFilterSender={conversation.kind !== 'saved'}
+                onClose={() => setSearchConversationId(undefined)}
+                onJump={(messageId) => owner.jumpToMessage(messageId, { shouldRevalidate: true })}
+                source={{
+                  conversationId: conversation.id,
+                  visibilityKey: owner.searchVisibilityKey(conversation.id),
+                  loadPage: owner.searchMessages,
+                  onJumpToDate: (timestamp) => owner.jumpToDate(timestamp),
+                }}
+              />
+            </div>
           )}
           {isPinsOpen && conversation && (
             <PinnedMessages
