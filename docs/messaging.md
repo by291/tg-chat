@@ -132,9 +132,38 @@ exclude expired bodies immediately, before the bounded cleanup worker tombstones
 directory summaries, message replies, and draft replies include their source deadlines. Browser
 timers remove expired projections even after switching conversations, while offline, or while
 cleanup is unavailable; the pin directory also observes its own deadlines. Reply targets must be
-visible in the same conversation; an unavailable target retains only its unavailable identity, never
-its former quoted content. Attachments, forwarding, and message search remain later work. Groups and channels use the
-[community authorization contract](./communities.md).
+visible in the same conversation. An unavailable target retains only its unavailable identity.
+Groups and channels use the [community authorization contract](./communities.md).
+
+## Structured messages and forwarding
+
+Sticker and contact sends retain a bundled asset ID or the contact fields the sender chose.
+Opening an account link uses current directory permissions. Polls and checklists keep their
+editable state in PostgreSQL. Vote replacement is atomic per account, and results are projected
+for each reader. Checklist list and task versions let people update different tasks independently.
+Channels use anonymous polls and restrict completion attribution to the acting subscriber and
+channel managers.
+
+Forwarding checks current source visibility, forwarding policy, and posting permissions for the
+destination. Each destination has one durable batch identity and preserves its existing draft.
+The copy retains source attribution and has independent
+[media references](media.md#reading-and-retention).
+Polls and checklists become read-only copies without private results, answers, or identities.
+Deleting the original leaves already accepted copies available under their destination permissions.
+
+## Search and link previews
+
+Conversation and global search use literal substring matching and current history visibility.
+Short text queries have a bounded per-conversation window. Date anchors, sender and type filters,
+pins, and target-message pages reuse history permissions. Search results and signed media URLs
+are resolved for the current reader. A result opens a bounded history neighborhood around its
+target.
+
+An eligible link can receive one asynchronous card with a site name, title, and summary. The
+sender can disable the card, and the link remains usable while the card is pending or unavailable.
+An isolated fetcher validates destinations and redirects before connecting. Job publication
+requires the current message revision, URL, and lease, so edits, deletion, and expiry invalidate
+older work.
 
 ## Realtime and maintenance
 

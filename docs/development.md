@@ -37,7 +37,9 @@ generate a value with `openssl rand -base64 32` and copy it into `TG_CHAT_MAIL_K
 editor. Do not include the generated value in issue reports or shared command logs.
 Set `TG_CHAT_PUBLIC_ORIGIN` to the exact browser origin when changing the gateway address.
 
-PostgreSQL, Valkey, API, Worker, Centrifugo, and RustFS have no published host ports.
+PostgreSQL, Valkey, API, Worker, Centrifugo, RustFS, and the link preview fetcher have no
+published host ports. The fetcher accepts requests on its private Worker network and uses a
+separate outbound network. The fetcher's address policy restricts page requests to public addresses.
 The media origin is separately exposed on `http://127.0.0.1:8333` and requires signed S3 requests.
 Use the internal endpoint for API and Worker object operations and the public endpoint for browser
 signatures. See [private media](media.md#operating-the-feature) for enabling the feature.
@@ -118,12 +120,17 @@ This runner builds images, generates ephemeral credentials and a unique Compose 
 real Rust tests inside a Linux container, and runs account/messaging browsers against the built
 frontend and Mailpit. It drops a real committed message response, restarts API, and verifies replay
 and recipient visibility. It interrupts Worker/Centrifugo, clears Valkey, checks retention-floor
-rebootstrap, and runs the four-session synchronization browser suite. It runs the private media
-browser suite and restores a PostgreSQL dump and RustFS volume to verify an existing attachment.
+rebootstrap, and runs the four-session synchronization browser suite. The private media suite
+checks that reopening the browser resends only missing RustFS parts and keeps one message.
+`pnpm --dir web test:interactions` covers connected polls, checklists, forwarding, history search,
+and preview opt-out. The restore drill checks an existing attachment after restoring PostgreSQL
+and RustFS together.
+
 Independent fixture phases reset only the isolated project's Valkey cache to avoid sharing
 registration rate limits through one loopback address. The runner checks routing, private ports,
-S3 authentication, PostgreSQL and Valkey outages, graceful API and Worker termination, and
-persistence through service restarts. It removes its own containers and volumes.
+the Worker's control path to the preview fetcher, S3 authentication, PostgreSQL and Valkey outages,
+graceful API and Worker termination, and persistence through service restarts. It removes its own
+containers and volumes.
 The runner requires Docker, Node.js, and curl with AWS SigV4
 support, installed frontend dependencies, and Chromium (`pnpm --dir web exec playwright install
 chromium`). A forcibly killed runner may leave its uniquely named `tg-chat-check-` project behind;

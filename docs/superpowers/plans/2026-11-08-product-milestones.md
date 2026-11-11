@@ -19,9 +19,9 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Product design approved on 2026-11-08. M1 through M6 are implemented and locally verified
-through isolated Compose. M6 passed the desktop Chromium exit gate. Physical mobile recording
-and playback checks are outstanding. M7 through M10 remain planned.
+**Status:** Product design approved on 2026-11-08. M1 through M7 are implemented and locally
+verified through isolated Compose. M6 passed the desktop Chromium exit gate. Physical mobile
+recording and playback checks are outstanding. M8 through M10 remain planned.
 
 ## Global constraints
 
@@ -359,7 +359,8 @@ physical iOS Safari and Android Chrome results in the
 
 ## M7: Complete message interactions and history discovery
 
-[Detailed M7 design](../specs/2026-11-11-m7-message-interactions-design.md).
+[Detailed M7 design](../specs/2026-11-11-m7-message-interactions-design.md) and
+[implementation plan](./2026-11-12-m7-message-interactions.md).
 
 **Outcome:** The existing advanced frontend capabilities operate on shared server state: search,
 forwarding, interactive polls/checklists, bundled assets, contact cards, and safe link previews.
@@ -369,21 +370,21 @@ forwarding, interactive polls/checklists, bundled assets, contact cards, and saf
 **Produces:** Interactive-message commands and authorized projections; forwarding policy/copy
 semantics; catalog IDs; permission-filtered substring search and target neighborhoods; preview jobs.
 
-- [ ] Deliver polls, quiz answers, hidden results, voter privacy, permitted option additions, early
+- [x] Deliver polls, quiz answers, hidden results, voter privacy, permitted option additions, early
       closing, and transactional vote replacement. Deliver versioned checklist tasks and structural
       updates, including participant permissions and conflict responses.
-- [ ] Deliver forwarding and bounded batch actions with per-destination operation identity,
+- [x] Deliver forwarding and bounded batch actions with per-destination operation identity,
       conversation forwarding policy, persistent attribution, independent file references, and
       noninteractive sanitized poll/checklist snapshots. Preserve the destination's existing draft.
-- [ ] Deliver server-managed bundled sticker/custom-emoji catalogs and contact-card serialization;
+- [x] Deliver server-managed bundled sticker/custom-emoji catalogs and contact-card serialization;
       preserve asset licenses and avoid arbitrary client-provided asset paths.
-- [ ] Deliver conversation/global search with visibility checks, Chinese/English substring behavior,
+- [x] Deliver conversation/global search with visibility checks, Chinese/English substring behavior,
       bounded short-query work, filters, date anchors, pins, and media-history pagination. Connect
       sidebar/chat search and distant navigation without loading the intervening history.
-- [ ] Deliver asynchronous text link previews with site name, title, and summary. Isolate network
+- [x] Deliver asynchronous text link previews with site name, title, and summary. Isolate network
       egress, check destinations and redirects, bound fetches, and fence edits and deletions.
       Thumbnail support is deferred.
-- [ ] Verify concurrent votes, hidden quiz secrets, checklist conflicts, forwarded-copy survival
+- [x] Verify concurrent votes, hidden quiz secrets, checklist conflicts, forwarded-copy survival
       after source deletion, forwarding-policy changes, reference/GC races, inaccessible search
       results, short Chinese queries, and SSRF/redirect/rebinding cases.
 

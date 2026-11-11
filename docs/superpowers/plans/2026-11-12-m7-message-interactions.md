@@ -7,6 +7,10 @@
 **Goal:** Connect polls, checklists, forwarding, bundled assets, contact cards, history search,
 and text link previews to authoritative server state.
 
+**Status:** Implemented in responsibility-based commits and verified in the isolated Compose
+runtime. See [messaging](../../messaging.md) for current behavior and
+[development](../../development.md#repeatable-verification) for repeatable checks.
+
 **Architecture:** Extend existing message acceptance, commands, and reader-specific projections.
 PostgreSQL owns interaction state and commits changes with the personal sync feed. Search uses
 the history permission predicate, and the Worker delegates preview fetching to an isolated process.
