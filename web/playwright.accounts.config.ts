@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   outputDir: './test-results/accounts',
   testDir: './e2e-accounts',
-  testIgnore: ['synchronization.spec.ts', 'communities.spec.ts'],
+  testIgnore: ['synchronization.spec.ts', 'communities.spec.ts', 'media-messaging.spec.ts'],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,

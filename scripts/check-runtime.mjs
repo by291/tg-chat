@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createRuntimeEnvironment, serializeEnvironment } from './runtime-environment.mjs';
 import { verifyMessageRecovery } from './check-messaging.mjs';
+import { verifyMediaBackup } from './check-media-backup.mjs';
 import { verifySynchronization } from './check-synchronization.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
@@ -29,6 +30,9 @@ environment.TG_CHAT_MAIL_FROM = 'accounts@example.test';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'tg-chat-runtime-'));
 const environmentPath = join(temporaryDirectory, '.env');
 const project = `tg-chat-check-${randomUUID()}`;
+const restoreVolume = `${project}_media_restore`;
+const restoreOverridePath = join(temporaryDirectory, 'compose.restore.json');
+let hasRestoreVolume = false;
 const composeArguments = [
   'compose',
   '--profile',
@@ -69,9 +73,10 @@ function execute(command, argumentsList, options = {}) {
   }
 }
 
-function compose(argumentsList) {
+function compose(argumentsList, options = {}) {
   // Shell overrides must not redirect an isolated test toward another environment.
   return execute('docker', [...composeArguments, ...argumentsList], {
+    ...options,
     env: { ...process.env, ...environment },
   });
 }
@@ -220,12 +225,22 @@ async function verifyRoutes(origin) {
   assert.equal((await unsupported.json()).error.code, 'method_not_allowed');
 }
 
-function configurePublicOrigin(origin) {
+function writePublicOrigins(origin, mediaOrigin) {
   // Docker chooses the host port; cookie admission and email links must use that exact origin.
   environment.TG_CHAT_PUBLIC_ORIGIN = origin;
+  if (mediaOrigin) {
+    environment.TG_CHAT_MEDIA_ENABLED = 'true';
+    const browserMediaOrigin = new URL(mediaOrigin);
+    browserMediaOrigin.hostname = 'localhost';
+    environment.TG_CHAT_S3_PUBLIC_ENDPOINT = browserMediaOrigin.origin;
+  }
   writeFileSync(environmentPath, serializeEnvironment(environment), {
     mode: 0o600,
   });
+}
+
+function configurePublicOrigin(origin, mediaOrigin) {
+  writePublicOrigins(origin, mediaOrigin);
   // prettier-ignore
   compose([
     'up',
@@ -594,8 +609,26 @@ async function main() {
     resetAdmissionFixtures();
     console.log('Checking fail-closed admission and surviving reads during Valkey outage.');
     await verifyValkeyOutage(origin);
+    resetAdmissionFixtures();
+    console.log('Checking private media, browser restart recovery, and real recording playback.');
+    configurePublicOrigin(origin, storageOrigin);
+    verifyAccountBrowsers(origin, 'test:media');
     console.log('Checking outages, graceful shutdown, and persistent private storage.');
     await verifyPersistence({ origin, storageOrigin });
+    console.log('Restoring coordinated PostgreSQL and SeaweedFS backups.');
+    execute('docker', ['volume', 'create', restoreVolume]);
+    hasRestoreVolume = true;
+    await verifyMediaBackup({
+      compose,
+      execute,
+      queryDatabase,
+      project,
+      restoreVolume,
+      path: restoreOverridePath,
+      endpoint,
+      writePublicOrigins,
+      waitUntilReady,
+    });
 
     const logs = compose(['logs', '--no-color']);
     assert.ok(!logs.includes(SECRET_MARKER), 'Request secrets must not appear in logs');
@@ -624,6 +657,9 @@ async function main() {
       '--volumes',
       '--remove-orphans',
     ]);
+    if (hasRestoreVolume) {
+      execute('docker', ['volume', 'rm', restoreVolume]);
+    }
     rmSync(temporaryDirectory, { recursive: true, force: true });
   }
 }

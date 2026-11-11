@@ -82,7 +82,10 @@ jobs:
         run: |
           node --input-type=module - <<'JS'
           import { appendFileSync, writeFileSync } from 'node:fs';
-          import { createRuntimeEnvironment, serializeEnvironment } from './scripts/runtime-environment.mjs';
+          import {
+            createRuntimeEnvironment,
+            serializeEnvironment,
+          } from './scripts/runtime-environment.mjs';
 
           const environment = createRuntimeEnvironment();
           const path = process.env.RUNNER_TEMP + '/tg-chat-media.env';

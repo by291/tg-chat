@@ -188,7 +188,7 @@ it('recovers an ambiguous community action with its original identity across rel
 });
 
 describe('pending media ownership', () => {
-  it('fences a competing tab and discards late attachment checkpoints after cancellation', async () => {
+  it('fences a competing tab and discards late checkpoints after cancellation', async () => {
     const key = crypto.randomUUID();
     const first = new PendingMessages({ key });
     const second = new PendingMessages({ key });
