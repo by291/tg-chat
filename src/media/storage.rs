@@ -365,4 +365,44 @@ impl MediaStorage {
             expires_at: issued_at + chrono::Duration::seconds(DOWNLOAD_SECONDS),
         })
     }
+
+    /// Remove all multipart uploads under one exact staging key.
+    pub(super) async fn abort_staging(&self, key: &str) -> Result<(), AccountError> {
+        let list = self.internal.list_multipart_uploads().bucket(&self.bucket).prefix(key);
+        let uploads =
+            list.send().await.map_err(|_| storage_unavailable("list_abandoned_uploads"))?;
+        if uploads.is_truncated().unwrap_or(false) {
+            return Err(storage_unavailable("list_abandoned_uploads_truncated"));
+        }
+        for upload in uploads.uploads() {
+            if upload.key() != Some(key) {
+                continue;
+            }
+            let id = upload.upload_id().ok_or_else(|| storage_unavailable("missing_upload_id"))?;
+            self.abort_upload(key, id).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn abort_upload(&self, key: &str, id: &str) -> Result<(), AccountError> {
+        let request = self.internal.abort_multipart_upload().bucket(&self.bucket).key(key);
+        let request = request.upload_id(id);
+        if let Err(error) = request.send().await {
+            let is_gone = error.as_service_error().is_some_and(|error| error.is_no_such_upload());
+            if !is_gone {
+                return Err(storage_unavailable("abort_multipart"));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Delete an immutable or staging key idempotently.
+    pub(super) async fn delete_object(&self, key: &str) -> Result<(), AccountError> {
+        let request = self.internal.delete_object().bucket(&self.bucket).key(key);
+        request.send().await.map_err(|_| storage_unavailable("delete_object"))?;
+
+        Ok(())
+    }
 }

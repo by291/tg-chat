@@ -1,6 +1,7 @@
 //! Private media ownership and durable upload reservations.
 
 pub(crate) mod avatars;
+mod cleanup;
 mod downloads;
 pub(crate) mod http;
 mod jobs;
@@ -13,6 +14,7 @@ mod transfer;
 mod uploads;
 
 pub use avatars::SetAvatar;
+pub use cleanup::MediaCleanup;
 pub use downloads::{
     AvatarDownload, AvatarOwner, DownloadReference, MessageDownload, SignedDownload,
 };

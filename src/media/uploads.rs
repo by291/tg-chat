@@ -4,7 +4,9 @@ use uuid::Uuid;
 use crate::accounts::{AccountError, AccountService, Actor, sessions::lock_actor};
 
 use super::{
-    MediaLimits, ReserveUpload, UploadStatus, model::UploadRecord, settings::RESERVATION_SECONDS,
+    MediaLimits, ReserveUpload, UploadStatus,
+    model::UploadRecord,
+    settings::{CLEANUP_GRACE_SECONDS, RESERVATION_SECONDS},
 };
 
 #[derive(Clone)]
@@ -84,7 +86,8 @@ impl UploadReservations {
         // Cancellation shares the upload row lock with claim and publication transitions.
         let update = sqlx::query_as::<_, UploadRecord>(
             "UPDATE media_uploads
-             SET state = 'cancelled', claim_id = NULL, claim_until = NULL
+             SET state = 'cancelled', claim_id = NULL, claim_until = NULL,
+                 cleanup_after = now() + ($4::bigint * interval '1 second')
              WHERE id = $1 AND owner_id = $2 AND session_id = $3
                AND state IN ('reserved', 'uploaded', 'processing')
              RETURNING *, expires_at <= now() AS is_expired",
@@ -92,6 +95,7 @@ impl UploadReservations {
         .bind(upload_id)
         .bind(actor.user_id)
         .bind(actor.session_id);
+        let update = update.bind(CLEANUP_GRACE_SECONDS);
         let record = update.fetch_optional(&mut *transaction).await?;
         let record = match record {
             Some(record) => record,

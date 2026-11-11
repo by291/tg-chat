@@ -9,6 +9,7 @@ pub(super) const RESERVATION_SECONDS: i64 = 24 * 60 * 60;
 
 pub(super) const WRITE_SECONDS: i64 = 15 * 60;
 pub(super) const CLAIM_SECONDS: i64 = 90;
+pub(super) const CLEANUP_GRACE_SECONDS: i64 = 180;
 pub(super) const MAX_TRANSFER_PARTS: usize = 13;
 
 const DEFAULT_ACTIVE_UPLOADS: i64 = 20;

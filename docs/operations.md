@@ -159,11 +159,17 @@ collections. This is a development capacity policy, not a production storage-siz
 application data.** Never use it for routine restarts or deployments. The acceptance runner uses it
 only for its random, isolated test project.
 
-Use PostgreSQL's logical backup tools for a consistent database backup. Back up SeaweedFS metadata
-and object storage together while its single process is stopped, or use an explicitly tested
-consistent backup procedure. Valkey currently holds expiring admission counters and will also hold
-delivery/cache state; PostgreSQL remains the authority for durable business records. Merely retaining a local Docker volume
-is not a backup, and persistence tests do not establish disaster-recovery guarantees.
+Quiesce writes by stopping the API, Worker, and media origin before a coordinated media backup.
+Take a PostgreSQL logical dump, stop SeaweedFS, and snapshot its master, filer, and object volumes
+as one set. Record which dump and snapshot belong together. Restore the pair into an isolated
+deployment and verify an existing message still authorizes and downloads the expected bytes.
+Restore the application only after both stores are available. Resume normal writes after the
+backup completes.
+
+The media origin proxies SeaweedFS on the published S3 port and strips application cookies.
+Use a distinct cookie-free hostname and TLS for the browser-facing endpoint in a deployment.
+Valkey contains expiring admission and delivery state. PostgreSQL remains the authority for
+durable business records.
 
 ## Realtime recovery and retention
 

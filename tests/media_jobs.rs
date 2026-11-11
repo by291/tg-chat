@@ -241,3 +241,76 @@ async fn processor_rejects_images_over_the_pixel_budget(pool: PgPool) {
     assert_eq!(status.error_code.as_deref(), Some("image_dimension_limit"));
     assert!(status.file_id.is_none());
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn collector_preserves_a_file_with_a_live_message_reference(pool: PgPool) {
+    use tg_chat::{
+        media::{AttachmentInput, DownloadReference, MediaCleanup, MediaVariant, MessageDownload},
+        messages::MessageService,
+    };
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "sender").await;
+    let recipient = support::account(&accounts, "recipient").await;
+    let uploads = test_upload_service(accounts.clone());
+    transfer_document(&uploads, &sender).await;
+    let worker = MediaWorker::new(pool.clone(), storage_settings(), MediaWorkerSettings::default());
+    assert!(worker.process_next().await.unwrap());
+
+    let file_id: Uuid =
+        sqlx::query_scalar("SELECT id FROM media_files").fetch_one(&pool).await.unwrap();
+    let occurrence_id = Uuid::new_v4();
+    let mut input = support::messaging::send_input(recipient.user_id);
+    input.attachments.push(AttachmentInput {
+        occurrence_id,
+        file_id,
+    });
+    let messages = MessageService::new(accounts);
+    let sent = messages.send(sender, input).await.unwrap();
+
+    let cleanup = MediaCleanup::new(pool, storage_settings());
+    cleanup.process_next().await.unwrap();
+
+    let reference = DownloadReference::Message(MessageDownload {
+        message_id: sent.message.id,
+        occurrence_id,
+        variant: MediaVariant::Original,
+    });
+    let signed = uploads.sign_download(&recipient, reference).await.unwrap();
+    let stored = reqwest::get(signed.url).await.unwrap();
+    assert!(stored.status().is_success());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn staging_cleanup_waits_for_a_signed_write_to_expire(pool: PgPool) {
+    use tg_chat::media::MediaCleanup;
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let actor = support::account(&accounts, "file_owner").await;
+    let uploads = test_upload_service(accounts);
+    let signed = transfer_document(&uploads, &actor).await;
+    let upload_id: Uuid =
+        sqlx::query_scalar("SELECT id FROM media_uploads").fetch_one(&pool).await.unwrap();
+    uploads.cancel(&actor, upload_id).await.unwrap();
+    let cleanup = MediaCleanup::new(pool.clone(), storage_settings());
+    assert!(!cleanup.process_next().await.unwrap());
+    let late_write = put(&signed, FILE_BYTES.to_vec()).await;
+    assert!(late_write.status().is_success());
+
+    // Move the accounting deadlines back without changing the test runner's wall clock.
+    let expire = sqlx::query(
+        "UPDATE media_uploads SET last_write_expires_at = now() - interval '1 hour',
+             cleanup_after = now()",
+    );
+    expire.execute(&pool).await.unwrap();
+    assert!(cleanup.process_next().await.unwrap());
+    let released: bool =
+        sqlx::query_scalar("SELECT released_at IS NOT NULL FROM media_uploads WHERE id = $1")
+            .bind(upload_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(released);
+}

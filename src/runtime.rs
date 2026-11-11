@@ -16,7 +16,10 @@ use crate::{
     database::connect_pool,
     http::{ApplicationState, router_with_api},
     jobs::{MailQueue, MailSettings},
-    media::{MediaLimits, MediaStorageSettings, MediaWorker, MediaWorkerSettings, UploadService},
+    media::{
+        MediaCleanup, MediaLimits, MediaStorageSettings, MediaWorker, MediaWorkerSettings,
+        UploadService,
+    },
     realtime::{self, RealtimeClient, RealtimeSettings, WorkerServices},
 };
 
@@ -102,14 +105,16 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let media = if let Some(storage) = media_storage.clone() {
             let settings =
                 MediaWorkerSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
-            Some(MediaWorker::new(pool.clone(), storage, settings))
+            let preparation = MediaWorker::new(pool.clone(), storage.clone(), settings);
+            let cleanup = MediaCleanup::new(pool.clone(), storage);
+            Some((preparation, cleanup))
         } else {
             None
         };
         Some(tokio::spawn(async move {
             let prepare_media = async {
-                if let Some(worker) = media {
-                    worker.run(stop.clone()).await;
+                if let Some((worker, cleanup)) = media {
+                    tokio::join!(worker.run(stop.clone()), cleanup.run(stop.clone()));
                 }
             };
             tokio::join!(

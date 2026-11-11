@@ -82,7 +82,7 @@ async fn lock_message_files(
          WHERE file.id = ANY($1) AND upload.owner_id = $2
            AND file.deleting_at IS NULL AND file.deleted_at IS NULL
            AND (file.ready_until > now() OR EXISTS (
-               SELECT 1 FROM media_message_references reference WHERE reference.file_id = file.id
+               SELECT 1 FROM media_live_file_references reference WHERE reference.file_id = file.id
            ))
          ORDER BY file.id FOR UPDATE OF file",
     )
