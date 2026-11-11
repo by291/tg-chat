@@ -99,7 +99,10 @@ async fn update_privacy(
 #[utoipa::path(
     get,
     path = "/api/v1/users",
-    params(DirectoryQuery),
+    params(
+        DirectoryQuery,
+        ("linkable_only" = Option<bool>, Query, description = "Only profiles eligible for linking")
+    ),
     responses((status = 200, body = DirectoryPage))
 )]
 async fn discover(

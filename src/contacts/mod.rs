@@ -48,6 +48,9 @@ pub struct DirectoryQuery {
     pub search: Option<String>,
     pub cursor: Option<String>,
     pub limit: Option<u16>,
+    /// Restrict account discovery to profiles eligible for an account link.
+    #[param(ignore)]
+    pub linkable_only: Option<bool>,
 }
 
 #[derive(Serialize, ToSchema)]

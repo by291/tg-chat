@@ -40,7 +40,12 @@ export function ShareContactDialog({ session, onClose, onSubmit }: ShareContactD
 
     try {
       const response = await session.client.GET('/api/v1/users', {
-        params: { query: { search: query.trim() } },
+        params: {
+          query: {
+            search: query.trim(),
+            linkable_only: true,
+          },
+        },
       });
       setMatches(requirePayload(response).users);
     } catch (failure) {

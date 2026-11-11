@@ -2915,6 +2915,8 @@ export interface operations {
         search?: string;
         cursor?: string;
         limit?: number;
+        /** @description Only profiles eligible for linking */
+        linkable_only?: boolean;
       };
       header?: never;
       path?: never;

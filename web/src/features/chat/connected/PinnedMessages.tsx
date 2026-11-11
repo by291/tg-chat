@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import type { components } from '@/api/schema';
 import type { ChatOwner } from '../data/ChatOwner';
+import { renderMessage, type CanonicalMessage } from '../data/messageModels';
+import { describeMessage } from '../messageFormatting';
 import styles from './ConnectedChat.module.css';
 
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
+function pinLabel(message: CanonicalMessage): string {
+  const rendered = renderMessage(message);
+  return describeMessage({ ...rendered, text: rendered.text.trim() });
+}
+
 /** Page through authorized pins without loading unrelated history into the viewport. */
 export function PinnedMessages(props: {
-  owner: ChatOwner;
+  owner: Pick<ChatOwner, 'loadPins' | 'jumpToMessage'>;
   version: string;
   onClose: () => void;
   onError: (error: unknown) => void;
@@ -73,7 +80,7 @@ export function PinnedMessages(props: {
           key={message.id}
           onClick={() => void props.owner.jumpToMessage(message.id).catch(props.onError)}
         >
-          {message.content.text}
+          {pinLabel(message)}
         </button>
       ))}
       {page?.has_older && (

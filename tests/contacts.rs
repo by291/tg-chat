@@ -26,6 +26,7 @@ fn first_page() -> DirectoryQuery {
         search: None,
         cursor: None,
         limit: Some(20),
+        linkable_only: None,
     }
 }
 
@@ -67,6 +68,7 @@ async fn directory_filters_suspensions_and_exposes_only_public_profile_fields(po
                 search: Some("Alice".to_owned()),
                 cursor: None,
                 limit: Some(20),
+                linkable_only: None,
             },
         )
         .await
@@ -89,6 +91,7 @@ async fn directory_filters_suspensions_and_exposes_only_public_profile_fields(po
                 search: Some("alice".to_owned()),
                 cursor: None,
                 limit: Some(20),
+                linkable_only: None,
             },
         )
         .await
@@ -101,6 +104,7 @@ async fn directory_filters_suspensions_and_exposes_only_public_profile_fields(po
                 search: Some("alice".to_owned()),
                 cursor: Some("invalid-cursor".to_owned()),
                 limit: Some(20),
+                linkable_only: None,
             },
         )
         .await;
@@ -271,6 +275,7 @@ async fn concurrent_contact_admission_preserves_the_capacity_boundary(pool: PgPo
                 cursor: first.next_cursor,
                 limit: Some(50),
                 search: None,
+                linkable_only: None,
             },
         )
         .await
@@ -323,4 +328,46 @@ async fn reciprocal_contact_updates_finish_without_deadlocks(pool: PgPool) {
     );
     first.unwrap();
     second.unwrap();
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn linkable_discovery_excludes_accounts_blocked_in_either_direction(pool: PgPool) {
+    use serde_json::{from_value, json};
+
+    let accounts = AccountService::new(pool, AccountSettings::default());
+    let reader = register(&accounts, "reader").await;
+    let incoming_block = register(&accounts, "contact_incoming").await;
+    let outgoing_block = register(&accounts, "contact_outgoing").await;
+    let available = register(&accounts, "contact_available").await;
+
+    accounts
+        .add_block(RelationshipChange {
+            actor: incoming_block.clone(),
+            target_id: reader.user_id,
+        })
+        .await
+        .unwrap();
+    accounts
+        .add_block(RelationshipChange {
+            actor: reader.clone(),
+            target_id: outgoing_block.user_id,
+        })
+        .await
+        .unwrap();
+
+    let default_query = from_value(json!({ "search": "contact_" })).unwrap();
+    let normal = accounts.discover(&reader, default_query).await.unwrap();
+    assert_eq!(normal.users.len(), 3);
+
+    let linkable_query =
+        from_value(json!({ "search": "contact_", "linkable_only": true })).unwrap();
+    let linkable = accounts.discover(&reader, linkable_query).await.unwrap();
+    let linkable_ids: Vec<_> = linkable.users.iter().map(|user| user.id).collect();
+    assert_eq!(linkable_ids, vec![available.user_id]);
+
+    for blocked in [incoming_block, outgoing_block] {
+        let profile = accounts.directory_profile(&reader, blocked.user_id).await;
+        assert!(matches!(profile, Err(AccountError::NotFound)));
+    }
 }

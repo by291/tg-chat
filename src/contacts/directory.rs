@@ -1,5 +1,5 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use sqlx::PgConnection;
+use sqlx::{AssertSqlSafe, PgConnection};
 use uuid::Uuid;
 
 use super::{DirectoryPage, DirectoryQuery, PublicProfile};
@@ -10,8 +10,17 @@ const MAX_PAGE_SIZE: u16 = 50;
 const MAX_SEARCH_LENGTH: usize = 80;
 const MIN_SEARCH_LENGTH: usize = 2;
 
+// Both queries use $1 for the reader and users.id for the account being linked.
+const LINKABLE_PROFILE: &str = "NOT users.is_suspended AND NOT EXISTS (
+    SELECT 1 FROM blocks
+    WHERE (owner_id = $1 AND target_id = users.id)
+       OR (owner_id = users.id AND target_id = $1)
+)";
+
 pub(super) enum DirectoryKind {
-    Discovery,
+    Discovery {
+        is_linkable_only: bool,
+    },
     Contacts,
     Blocks,
 }
@@ -61,15 +70,12 @@ pub(crate) async fn visible_profile(
     reader_id: Uuid,
     target_id: Uuid,
 ) -> Result<Option<PublicProfile>, sqlx::Error> {
-    let query = sqlx::query_as(
+    let statement = format!(
         "SELECT id, username, display_name, biography, avatar_file_id
-         FROM users WHERE id = $2 AND NOT is_suspended AND NOT EXISTS (
-            SELECT 1 FROM blocks
-            WHERE (owner_id = $1 AND target_id = $2) OR (owner_id = $2 AND target_id = $1)
-         )",
-    )
-    .bind(reader_id)
-    .bind(target_id);
+         FROM users WHERE id = $2 AND {LINKABLE_PROFILE}"
+    );
+    // Only the static visibility predicate is interpolated. Identities remain bound parameters.
+    let query = sqlx::query_as(AssertSqlSafe(statement)).bind(reader_id).bind(target_id);
     query.fetch_optional(connection).await
 }
 
@@ -105,10 +111,13 @@ impl AccountService {
             ));
         }
 
+        let is_linkable_only = query.linkable_only.unwrap_or_default();
         self.directory(DirectoryRequest {
             actor,
             query,
-            kind: DirectoryKind::Discovery,
+            kind: DirectoryKind::Discovery {
+                is_linkable_only,
+            },
         })
         .await
     }
@@ -148,31 +157,39 @@ impl AccountService {
         let actor = request.actor;
         let window = validate_window(request.query)?;
         let directory_kind = match request.kind {
-            DirectoryKind::Discovery => "discovery",
+            DirectoryKind::Discovery {
+                is_linkable_only: true,
+            } => "linkable",
+            DirectoryKind::Discovery {
+                is_linkable_only: false,
+            } => "discovery",
             DirectoryKind::Contacts => "contacts",
             DirectoryKind::Blocks => "blocks",
         };
         let mut transaction = self.pool.begin().await?;
         lock_actor(&mut transaction, actor, &self.settings).await?;
         // Saved relationships must remain manageable even when their target is suspended.
-        let query = sqlx::query_as::<_, PublicProfile>(
+        let statement = format!(
             "SELECT id, username, display_name, biography,
                     CASE WHEN NOT is_suspended THEN avatar_file_id END AS avatar_file_id
              FROM users
-             WHERE id > $2 AND ($5 <> 'discovery' OR NOT is_suspended)
+             WHERE id > $2
              AND (strpos(username, lower($3)) > 0 OR strpos(lower(display_name), lower($3)) > 0)
              AND (
-                ($5 = 'discovery' AND id <> $1)
+                ($5 = 'discovery' AND id <> $1 AND NOT is_suspended)
+                OR ($5 = 'linkable' AND id <> $1 AND {LINKABLE_PROFILE})
                 OR ($5 = 'contacts' AND EXISTS (
                     SELECT 1 FROM contacts WHERE owner_id = $1 AND target_id = users.id
                 ))
                 OR ($5 = 'blocks' AND EXISTS (
                     SELECT 1 FROM blocks WHERE owner_id = $1 AND target_id = users.id
                 ))
-             ) ORDER BY id LIMIT $4",
-        )
-        .bind(actor.user_id)
-        .bind(window.after);
+             ) ORDER BY id LIMIT $4"
+        );
+        // The visibility predicate is static, and the page values are bound below.
+        let query = sqlx::query_as::<_, PublicProfile>(AssertSqlSafe(statement))
+            .bind(actor.user_id)
+            .bind(window.after);
         let query =
             query.bind(window.search).bind(i64::from(window.limit) + 1).bind(directory_kind);
         let mut users = query.fetch_all(&mut *transaction).await?;

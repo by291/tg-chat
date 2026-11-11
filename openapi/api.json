@@ -1122,6 +1122,13 @@
             "in": "query",
             "required": false,
             "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          },
+          {
+            "name": "linkable_only",
+            "in": "query",
+            "description": "Only profiles eligible for linking",
+            "required": false,
+            "schema": { "type": "boolean" }
           }
         ],
         "responses": {
