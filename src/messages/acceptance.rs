@@ -136,6 +136,9 @@ pub(crate) async fn insert(
         };
         super::polls::insert(connection, input).await?;
     }
+    if let Some(super::bodies::MessageBodyInput::Checklist(checklist)) = &message.input.body {
+        super::checklists::insert(connection, message.input.message_id, checklist).await?;
+    }
     references::attach_message(
         connection,
         MessageReferences {

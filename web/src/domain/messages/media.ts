@@ -116,6 +116,7 @@ export const messageMediaSchema = z.discriminatedUnion('kind', [
           id: z.string(),
           text: z.string(),
           isCompleted: z.boolean(),
+          version: z.string().optional(),
           completedBy: z.object({ id: z.string(), name: z.string() }).optional(),
         }),
       )
@@ -123,6 +124,10 @@ export const messageMediaSchema = z.discriminatedUnion('kind', [
       .max(MAX_CHECKLIST_TASKS),
     canOthersComplete: z.boolean(),
     canOthersAppend: z.boolean(),
+    listVersion: z.string().optional(),
+    canComplete: z.boolean().optional(),
+    canAppend: z.boolean().optional(),
+    canEdit: z.boolean().optional(),
   }),
 ]);
 

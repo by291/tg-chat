@@ -1,4 +1,9 @@
-import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH, type PollMedia } from '@/domain/messages/media';
+import {
+  MAX_POLL_OPTIONS,
+  MAX_POLL_OPTION_LENGTH,
+  type ChecklistMedia,
+  type PollMedia,
+} from '@/domain/messages/media';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { X } from 'lucide-react';
@@ -24,6 +29,7 @@ interface ComposerListDialogProps {
   onClose: () => void;
   onSubmit: (message: ComposedMessage) => void | Promise<boolean>;
   initialPoll?: PollMedia;
+  initialChecklist?: ChecklistMedia;
   isPollAnonymousOnly?: boolean;
   isConnected?: boolean;
 }
@@ -34,6 +40,7 @@ export function ComposerListDialog({
   onClose,
   onSubmit,
   initialPoll,
+  initialChecklist,
   isPollAnonymousOnly,
   isConnected,
 }: ComposerListDialogProps) {
@@ -44,6 +51,7 @@ export function ComposerListDialog({
   const listForm = useListForm({
     kind,
     initialPoll,
+    initialChecklist,
     isPollAnonymousOnly,
     isConnected,
   });
@@ -65,6 +73,8 @@ export function ComposerListDialog({
   const needsCorrectAnswer = isPoll && settings.hasCorrectAnswer;
   const canSubmit = form.formState.isValid && !form.formState.isSubmitting;
   const pollTitle = initialPoll ? 'Edit Poll' : 'New Poll';
+  const checklistTitle = initialChecklist ? 'Edit Checklist' : 'New Checklist';
+  const isEditing = Boolean(initialPoll || initialChecklist);
   const entriesError = form.formState.errors.entries;
   const entryErrorMessage = entriesError?.message ?? entriesError?.root?.message;
 
@@ -158,9 +168,9 @@ export function ComposerListDialog({
                 <IconButton label="Close" onClick={() => setIsOpen(false)}>
                   <X size={24} />
                 </IconButton>
-                <Dialog.Title>{isPoll ? pollTitle : 'New Checklist'}</Dialog.Title>
+                <Dialog.Title>{isPoll ? pollTitle : checklistTitle}</Dialog.Title>
                 <button className={styles.create} type="submit" disabled={!canSubmit || !isOpen}>
-                  {initialPoll ? 'Save' : 'Create'}
+                  {isEditing ? 'Save' : 'Create'}
                   <Ripple />
                 </button>
               </header>

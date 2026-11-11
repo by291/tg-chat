@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { PollMedia } from '@/domain/messages/media';
+import type { ChecklistMedia, PollMedia } from '@/domain/messages/media';
 import { useFieldArray, useForm, type FieldPathValue } from 'react-hook-form';
 import {
   createListEntry,
@@ -15,12 +15,13 @@ const FIELD_CHANGE_OPTIONS = { shouldDirty: true, shouldValidate: true };
 interface ListFormOptions {
   kind: ListFormValues['kind'];
   initialPoll?: PollMedia;
+  initialChecklist?: ChecklistMedia;
   isPollAnonymousOnly?: boolean;
   isConnected?: boolean;
 }
 
 function initialValues(options: ListFormOptions): ListFormValues {
-  const { kind, initialPoll, isPollAnonymousOnly, isConnected } = options;
+  const { kind, initialPoll, initialChecklist, isPollAnonymousOnly, isConnected } = options;
   const settings = { ...INITIAL_POLL_SETTINGS };
   if (initialPoll) {
     settings.shouldShowVoters = Boolean(initialPoll.shouldShowVoters);
@@ -45,16 +46,17 @@ function initialValues(options: ListFormOptions): ListFormValues {
 
   return {
     kind,
-    title: initialPoll?.question ?? '',
+    title: initialPoll?.question ?? initialChecklist?.title ?? '',
     description: initialPoll?.description ?? '',
     entries:
+      initialChecklist?.items.map(({ id, text }) => ({ id, text })) ??
       initialPoll?.options.map(({ id, text }) => ({ id, text })) ??
       Array.from({ length: kind === 'poll' ? MIN_POLL_OPTIONS : 1 }, createListEntry),
     settings,
     correctOptionIds: initialPoll?.correctOptionIds ?? [],
     explanation: initialPoll?.explanation ?? '',
-    canOthersComplete: false,
-    canOthersAppend: false,
+    canOthersComplete: initialChecklist?.canOthersComplete ?? false,
+    canOthersAppend: initialChecklist?.canOthersAppend ?? false,
   };
 }
 

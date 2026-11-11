@@ -9,8 +9,16 @@ export type MessageInteraction =
       text: string;
     }
   | { type: 'toggle-task'; taskId: string }
+  | { type: 'edit-checklist' }
+  | {
+      type: 'set-task';
+      taskId: string;
+      expectedTaskVersion: string;
+      isComplete: boolean;
+    }
   | {
       type: 'add-task';
       id: string;
       text: string;
+      expectedListVersion?: string;
     };

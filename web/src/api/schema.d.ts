@@ -804,6 +804,40 @@ export interface components {
       messaging_available: boolean;
       registration_open: boolean;
     };
+    ChecklistCompleter: {
+      display_name: string;
+      /** Format: uuid */
+      user_id: string;
+    };
+    ChecklistInput: {
+      can_others_append?: boolean;
+      can_others_complete?: boolean;
+      tasks: components['schemas']['ChecklistTaskInput'][];
+      title: string;
+    };
+    ChecklistTaskInput: {
+      /** Format: uuid */
+      id: string;
+      text: string;
+    };
+    ChecklistTaskView: {
+      completed_by?: null | components['schemas']['ChecklistCompleter'];
+      /** Format: uuid */
+      id: string;
+      is_complete: boolean;
+      text: string;
+      version: string;
+    };
+    ChecklistView: {
+      can_append: boolean;
+      can_complete: boolean;
+      can_edit: boolean;
+      can_others_append: boolean;
+      can_others_complete: boolean;
+      list_version: string;
+      tasks: components['schemas']['ChecklistTaskView'][];
+      title: string;
+    };
     CommandAction:
       | {
           content?: null | components['schemas']['MessageContent'];
@@ -897,6 +931,32 @@ export interface components {
       | {
           /** @enum {string} */
           kind: 'close_poll';
+          /** Format: uuid */
+          message_id: string;
+        }
+      | {
+          expected_task_version: string;
+          is_complete: boolean;
+          /** @enum {string} */
+          kind: 'set_checklist_task';
+          /** Format: uuid */
+          message_id: string;
+          /** Format: uuid */
+          task_id: string;
+        }
+      | {
+          expected_list_version: string;
+          /** @enum {string} */
+          kind: 'append_checklist_tasks';
+          /** Format: uuid */
+          message_id: string;
+          tasks: components['schemas']['ChecklistTaskInput'][];
+        }
+      | {
+          checklist: components['schemas']['ChecklistInput'];
+          expected_list_version: string;
+          /** @enum {string} */
+          kind: 'edit_checklist';
           /** Format: uuid */
           message_id: string;
         };
@@ -1250,6 +1310,10 @@ export interface components {
           /** @enum {string} */
           kind: 'poll';
         })
+      | (components['schemas']['ChecklistInput'] & {
+          /** @enum {string} */
+          kind: 'checklist';
+        })
       | {
           /** @enum {string} */
           kind: 'sticker';
@@ -1267,6 +1331,10 @@ export interface components {
       | (components['schemas']['PollView'] & {
           /** @enum {string} */
           kind: 'poll';
+        })
+      | (components['schemas']['ChecklistView'] & {
+          /** @enum {string} */
+          kind: 'checklist';
         })
       | {
           /** @enum {string} */

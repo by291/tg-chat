@@ -1212,6 +1212,76 @@
           "registration_open": { "type": "boolean" }
         }
       },
+      "ChecklistCompleter": {
+        "type": "object",
+        "required": ["user_id", "display_name"],
+        "properties": {
+          "display_name": { "type": "string" },
+          "user_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "ChecklistInput": {
+        "type": "object",
+        "required": ["title", "tasks"],
+        "properties": {
+          "can_others_append": { "type": "boolean" },
+          "can_others_complete": { "type": "boolean" },
+          "tasks": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ChecklistTaskInput" }
+          },
+          "title": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "ChecklistTaskInput": {
+        "type": "object",
+        "required": ["id", "text"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "text": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "ChecklistTaskView": {
+        "type": "object",
+        "required": ["id", "text", "version", "is_complete"],
+        "properties": {
+          "completed_by": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ChecklistCompleter" }]
+          },
+          "id": { "type": "string", "format": "uuid" },
+          "is_complete": { "type": "boolean" },
+          "text": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      },
+      "ChecklistView": {
+        "type": "object",
+        "required": [
+          "title",
+          "tasks",
+          "list_version",
+          "can_others_complete",
+          "can_others_append",
+          "can_complete",
+          "can_append",
+          "can_edit"
+        ],
+        "properties": {
+          "can_append": { "type": "boolean" },
+          "can_complete": { "type": "boolean" },
+          "can_edit": { "type": "boolean" },
+          "can_others_append": { "type": "boolean" },
+          "can_others_complete": { "type": "boolean" },
+          "list_version": { "type": "string" },
+          "tasks": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ChecklistTaskView" }
+          },
+          "title": { "type": "string" }
+        }
+      },
       "CommandAction": {
         "oneOf": [
           {
@@ -1341,6 +1411,40 @@
             "required": ["message_id", "kind"],
             "properties": {
               "kind": { "type": "string", "enum": ["close_poll"] },
+              "message_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "task_id", "expected_task_version", "is_complete", "kind"],
+            "properties": {
+              "expected_task_version": { "type": "string" },
+              "is_complete": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["set_checklist_task"] },
+              "message_id": { "type": "string", "format": "uuid" },
+              "task_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "expected_list_version", "tasks", "kind"],
+            "properties": {
+              "expected_list_version": { "type": "string" },
+              "kind": { "type": "string", "enum": ["append_checklist_tasks"] },
+              "message_id": { "type": "string", "format": "uuid" },
+              "tasks": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ChecklistTaskInput" }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "expected_list_version", "checklist", "kind"],
+            "properties": {
+              "checklist": { "$ref": "#/components/schemas/ChecklistInput" },
+              "expected_list_version": { "type": "string" },
+              "kind": { "type": "string", "enum": ["edit_checklist"] },
               "message_id": { "type": "string", "format": "uuid" }
             }
           }
@@ -1866,6 +1970,16 @@
             ]
           },
           {
+            "allOf": [
+              { "$ref": "#/components/schemas/ChecklistInput" },
+              {
+                "type": "object",
+                "required": ["kind"],
+                "properties": { "kind": { "type": "string", "enum": ["checklist"] } }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": ["sticker_id", "kind"],
             "properties": {
@@ -1894,6 +2008,16 @@
                 "type": "object",
                 "required": ["kind"],
                 "properties": { "kind": { "type": "string", "enum": ["poll"] } }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/ChecklistView" },
+              {
+                "type": "object",
+                "required": ["kind"],
+                "properties": { "kind": { "type": "string", "enum": ["checklist"] } }
               }
             ]
           },

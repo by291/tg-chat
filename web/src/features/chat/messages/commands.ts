@@ -1,4 +1,5 @@
 import type { Message } from '@/domain/messages/message';
+import type { StructuredMessageAction } from './StructuredMessageActions';
 
 export type MessageAction =
   | 'reply'
@@ -13,6 +14,8 @@ export type MessageAction =
   | 'forward-selected'
   | 'delete-selected'
   | 'clear-selection';
+
+export type MessageMenuAction = MessageAction | StructuredMessageAction;
 
 export interface MessageCommand {
   action: MessageAction;

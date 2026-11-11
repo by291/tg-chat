@@ -60,6 +60,7 @@ interface AttachmentMenuProps {
   isMediaAvailable?: boolean;
   canShareContact?: boolean;
   canSendPoll?: boolean;
+  canSendChecklist?: boolean;
   isExpanded: boolean;
   onSelect: (action: AttachmentAction) => void;
 }
@@ -71,6 +72,7 @@ export function AttachmentMenu({
   isMediaAvailable = false,
   canShareContact = false,
   canSendPoll = false,
+  canSendChecklist = false,
   isExpanded,
   onSelect,
 }: AttachmentMenuProps) {
@@ -81,6 +83,9 @@ export function AttachmentMenu({
     }
     if (isConnected && action.value === 'poll') {
       return canSendPoll;
+    }
+    if (isConnected && action.value === 'checklist') {
+      return canSendChecklist;
     }
     if (isConnected) {
       return isMediaAvailable && (action.value === 'media' || action.value === 'document');

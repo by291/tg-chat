@@ -9,7 +9,9 @@ import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import type { PollMedia } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
-import type { MessageCommand } from '../messages/commands';
+import type { MessageCommand, MessageMenuAction } from '../messages/commands';
+import type { ChecklistMedia } from '@/domain/messages/media';
+import { checklistInput } from '../data/checklistInput';
 import { canonicalMessageContent } from '../data/messageContent';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
@@ -34,12 +36,14 @@ import { ContactLinkContext } from '../messages/content/contact/ContactActions';
 import styles from './ConnectedChat.module.css';
 
 // prettier-ignore
-const CONNECTED_ACTIONS: MessageCommand['action'][] = [
+const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'reply',
   'edit',
   'delete',
   'pin',
   'copy',
+  'add-task',
+  'edit-checklist',
 ];
 // prettier-ignore
 const REACTIONS = [
@@ -99,6 +103,11 @@ export function ConnectedChat({
   const [isPinsOpen, setIsPinsOpen] = useState(false);
   const [contactDestination, setContactDestination] = useState<string>();
   const [voterMessageId, setVoterMessageId] = useState<string>();
+  const [checklistEditor, setChecklistEditor] = useState<{
+    messageId: string;
+    version: string;
+    initialChecklist: ChecklistMedia;
+  }>();
   const [pollEditor, setPollEditor] = useState<{
     messageId: string;
     version: string;
@@ -112,6 +121,13 @@ export function ConnectedChat({
     (entry) => entry.id === pollEditor?.messageId,
   );
   const canShowPollEditor = canEditPoll(currentEditorMessage);
+  const currentChecklist = snapshot.messages.find(
+    (entry) => entry.id === checklistEditor?.messageId,
+  );
+  const canShowChecklistEditor =
+    currentChecklist?.body?.kind === 'checklist' &&
+    !currentChecklist.is_deleted &&
+    currentChecklist.body.can_edit;
   // Keep the editor's captured object stable while canonical updates arrive underneath it.
   const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
@@ -171,6 +187,7 @@ export function ConnectedChat({
     setContactDestination(undefined);
     setVoterMessageId(undefined);
     setPollEditor(undefined);
+    setChecklistEditor(undefined);
   }, [selectedKey, conversation?.generation]);
   useEffect(() => {
     if (!canPost) {
@@ -279,14 +296,88 @@ export function ConnectedChat({
     return true;
   }
 
+  async function queueChecklist(message: ComposedMessage): Promise<boolean> {
+    if (message.media?.kind !== 'checklist') {
+      return false;
+    }
+
+    await owner.queueBody({ ...checklistInput(message.media), kind: 'checklist' });
+    return true;
+  }
+
+  async function saveChecklist(message: ComposedMessage): Promise<boolean> {
+    if (!checklistEditor || message.media?.kind !== 'checklist') {
+      return false;
+    }
+
+    await owner.command({
+      kind: 'edit_checklist',
+      message_id: checklistEditor.messageId,
+      expected_list_version: checklistEditor.version,
+      checklist: checklistInput(message.media),
+    });
+    return true;
+  }
+
+  async function interactWithChecklist(
+    message: CanonicalMessage,
+    body: components['schemas']['ChecklistView'],
+    interaction: MessageInteraction,
+  ): Promise<boolean> {
+    switch (interaction.type) {
+      case 'set-task':
+        await owner.command({
+          kind: 'set_checklist_task',
+          message_id: message.id,
+          task_id: interaction.taskId,
+          expected_task_version: interaction.expectedTaskVersion,
+          is_complete: interaction.isComplete,
+        });
+        return true;
+      case 'add-task':
+        if (interaction.expectedListVersion === undefined) {
+          return false;
+        }
+        await owner.command({
+          kind: 'append_checklist_tasks',
+          message_id: message.id,
+          expected_list_version: interaction.expectedListVersion,
+          tasks: [{ id: interaction.id, text: interaction.text }],
+        });
+        return true;
+      case 'edit-checklist': {
+        const checklist = renderMessage(message).media;
+        if (checklist?.kind !== 'checklist' || !body.can_edit) {
+          return false;
+        }
+        setChecklistEditor({
+          messageId: message.id,
+          version: body.list_version,
+          initialChecklist: checklist,
+        });
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
   async function interact(messageId: string, interaction: MessageInteraction): Promise<boolean> {
     const message = snapshot.messages.find((entry) => entry.id === messageId);
     const body = message?.body;
-    if (!message || message.is_deleted || body?.kind !== 'poll') {
+    if (!message || message.is_deleted || !body) {
       return false;
     }
 
     try {
+      if (body.kind === 'checklist') {
+        setError('');
+        return await interactWithChecklist(message, body, interaction);
+      }
+      if (body.kind !== 'poll') {
+        return false;
+      }
+
       switch (interaction.type) {
         case 'vote':
           await owner.command({
@@ -738,6 +829,7 @@ export function ConnectedChat({
                     onShareContact={session ? () => setContactDestination(selectedKey) : undefined}
                     isPollAnonymousOnly={conversation?.kind === 'channel'}
                     onPollSubmit={queuePoll}
+                    onChecklistSubmit={queueChecklist}
                     isMediaAvailable={isMediaAvailable}
                     onMediaSubmit={submit}
                     editingMessage={editingMessage}
@@ -779,6 +871,16 @@ export function ConnectedChat({
             initialPoll={pollEditor.initialPoll}
             onClose={() => setPollEditor(undefined)}
             onSubmit={savePoll}
+          />
+        )}
+        {checklistEditor && canShowChecklistEditor && (
+          <ComposerListDialog
+            key={checklistEditor.messageId}
+            kind="checklist"
+            isConnected
+            initialChecklist={checklistEditor.initialChecklist}
+            onClose={() => setChecklistEditor(undefined)}
+            onSubmit={saveChecklist}
           />
         )}
         {voterMessageId && canViewVoters && (

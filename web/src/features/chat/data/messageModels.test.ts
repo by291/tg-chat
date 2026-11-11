@@ -216,3 +216,50 @@ it('renders sticker assets and only the fields explicitly shared on a contact ca
     initials: '',
   });
 });
+
+it('keeps newer checklist completions when delayed content arrives', () => {
+  const checklist: Extract<CanonicalMessage['body'], { kind: 'checklist' }> = {
+    kind: 'checklist',
+    title: 'Trail equipment',
+    list_version: '1',
+    can_others_complete: true,
+    can_others_append: false,
+    can_complete: true,
+    can_append: false,
+    can_edit: false,
+    tasks: [
+      {
+        id: 'map',
+        text: 'Bring a map',
+        is_complete: true,
+        version: '2',
+      },
+    ],
+  };
+  const current = {
+    ...message(1),
+    version: '2',
+    interaction_version: '2',
+    body: checklist,
+  };
+  const delayed = {
+    ...current,
+    version: '3',
+    interaction_version: '1',
+    body: {
+      ...checklist,
+      tasks: [{ id: 'map', text: 'Bring a map', is_complete: false, version: '1' }],
+    },
+  };
+
+  const [merged] = mergeMessages({
+    current: [current],
+    incoming: [delayed],
+    edge: 'latest',
+  });
+
+  expect(renderMessage(merged).media).toMatchObject({
+    kind: 'checklist',
+    items: [{ id: 'map', isCompleted: true, version: '2' }],
+  });
+});

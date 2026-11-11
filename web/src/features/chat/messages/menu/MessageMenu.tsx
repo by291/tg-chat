@@ -23,16 +23,13 @@ import { Ripple } from '@/components/Ripple';
 import { MenuDismissLayer } from '@/components/overlays/MenuDismissLayer';
 import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { type Message } from '@/domain/messages/message';
-import { type MessageAction, type MessageCommand } from '@/features/chat/messages/commands';
+import { type MessageCommand, type MessageMenuAction } from '@/features/chat/messages/commands';
 import overlays from '@/components/overlays/overlays.module.css';
 import { getMessageDownloads } from '../messageDownloads';
 import styles from './MessageMenu.module.css';
 import { MAX_CHECKLIST_TASKS } from '@/domain/messages/media';
 import { getSelectedPollOptions } from '../../state/pollVoting';
-import {
-  useStructuredMessageActions,
-  type StructuredMessageAction,
-} from '../StructuredMessageActions';
+import { useStructuredMessageActions } from '../StructuredMessageActions';
 
 const REACTION_BAR_OFFSET = 48;
 const REACTION_MENU_OFFSET = 56;
@@ -46,7 +43,7 @@ export interface MessageMenuTarget {
 }
 
 interface MessageMenuProps {
-  allowedActions?: MessageAction[];
+  allowedActions?: MessageMenuAction[];
   reactionChoices?: string[];
   contentId: string;
   target?: MessageMenuTarget;
@@ -60,7 +57,7 @@ interface MessageMenuProps {
 }
 
 interface MessageMenuItem {
-  action: MessageAction | StructuredMessageAction;
+  action: MessageMenuAction;
   label: string;
   icon: LucideIcon;
 }
@@ -82,13 +79,20 @@ function getMessageItems(message: Message, currentUserId: string): MessageMenuIt
   const canAppendTask =
     media?.kind === 'checklist' &&
     !message.forwardedFrom &&
-    (message.authorId === currentUserId || media.canOthersAppend) &&
+    (media.canAppend ?? (message.authorId === currentUserId || media.canOthersAppend)) &&
     media.items.length < MAX_CHECKLIST_TASKS;
   if (canAppendTask) {
     items.push({
       action: 'add-task',
       label: 'Add Task',
       icon: Plus,
+    });
+  }
+  if (media?.kind === 'checklist' && media.canEdit && !message.forwardedFrom) {
+    items.push({
+      action: 'edit-checklist',
+      label: 'Edit Checklist',
+      icon: Pencil,
     });
   }
   const canChangeVote =
@@ -219,7 +223,7 @@ export function MessageMenu({
       : getMessageItems(message, currentUserId);
   }
   if (allowedActions) {
-    items = items.filter((item) => allowedActions.includes(item.action as MessageAction));
+    items = items.filter((item) => allowedActions.includes(item.action));
   }
   const selectedReactions = message?.reactionDetails
     ? message.reactionDetails
@@ -277,7 +281,11 @@ export function MessageMenu({
     restoreRowFocus();
     onClose();
     const item = items.find((entry) => entry.action === value);
-    if (item?.action === 'add-task' || item?.action === 'change-vote') {
+    if (
+      item?.action === 'add-task' ||
+      item?.action === 'change-vote' ||
+      item?.action === 'edit-checklist'
+    ) {
       structuredActions.dispatch({ messageId: message.id, action: item.action });
       return;
     }

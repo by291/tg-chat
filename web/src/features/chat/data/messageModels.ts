@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema';
-import type { PollMedia } from '@/domain/messages/media';
+import type { ChecklistMedia, PollMedia } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
 import type { PendingMessage } from './pendingMessages';
 
@@ -46,6 +46,9 @@ export function mergeMessages(options: {
       if (interactionOrder === 0 && previousPoll?.is_closed && !body.is_closed) {
         body = previousPoll;
       }
+    }
+    if (body?.kind === 'checklist' && interactions.body?.kind === 'checklist') {
+      body = interactions.body;
     }
     messages.set(message.id, {
       ...content,
@@ -142,12 +145,51 @@ function renderPendingPoll(poll: components['schemas']['PollInput']): PollMedia 
   };
 }
 
+function renderChecklist(checklist: components['schemas']['ChecklistView']): ChecklistMedia {
+  return {
+    kind: 'checklist',
+    title: checklist.title,
+    listVersion: checklist.list_version,
+    canOthersComplete: checklist.can_others_complete,
+    canOthersAppend: checklist.can_others_append,
+    canComplete: checklist.can_complete,
+    canAppend: checklist.can_append,
+    canEdit: checklist.can_edit,
+    items: checklist.tasks.map((task) => ({
+      id: task.id,
+      text: task.text,
+      version: task.version,
+      isCompleted: task.is_complete,
+      completedBy: task.completed_by
+        ? { id: task.completed_by.user_id, name: task.completed_by.display_name }
+        : undefined,
+    })),
+  };
+}
+
+function renderPendingChecklist(
+  checklist: components['schemas']['ChecklistInput'],
+): ChecklistMedia {
+  return {
+    kind: 'checklist',
+    title: checklist.title,
+    canOthersComplete: checklist.can_others_complete ?? false,
+    canOthersAppend: checklist.can_others_append ?? false,
+    canComplete: false,
+    canAppend: false,
+    canEdit: false,
+    items: checklist.tasks.map((task) => ({ ...task, isCompleted: false })),
+  };
+}
+
 /** Adapt accepted transport content to the existing renderer without demo state. */
 export function renderMessage(message: CanonicalMessage): Message {
   const body = message.is_deleted ? undefined : message.body;
   let media: Message['media'];
   if (body?.kind === 'poll') {
     media = renderPoll(body);
+  } else if (body?.kind === 'checklist') {
+    media = renderChecklist(body);
   } else if (body?.kind === 'contact') {
     media = {
       kind: 'contact',
@@ -208,7 +250,7 @@ export function renderPending(options: {
     author_id: user.id,
     author_name: user.display_name,
     content: pending.request.content,
-    body: body?.kind === 'poll' ? undefined : body,
+    body: body?.kind === 'poll' || body?.kind === 'checklist' ? undefined : body,
     created_at: new Date(pending.createdAt).toISOString(),
     sequence: '0',
     version: '0',
@@ -245,9 +287,17 @@ export function renderPending(options: {
       }
     : undefined;
 
+  let media = message.media;
+  if (body?.kind === 'poll') {
+    media = renderPendingPoll(body);
+  }
+  if (body?.kind === 'checklist') {
+    media = renderPendingChecklist(body);
+  }
+
   return {
     ...message,
-    media: body?.kind === 'poll' ? renderPendingPoll(body) : message.media,
+    media,
     deliveryStatus: pending.status,
     pendingMedia,
   };

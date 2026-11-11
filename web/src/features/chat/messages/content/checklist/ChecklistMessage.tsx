@@ -6,7 +6,7 @@ import {
   type ChecklistMedia,
 } from '@/domain/messages/media';
 import type { MessageInteraction } from '@/domain/messages/interaction';
-import { CURRENT_USER_ID } from '@/domain/identity';
+import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { type Message } from '@/domain/messages/message';
 import { MessageCheckbox } from '../../selection/MessageCheckbox';
 import { ChecklistCelebration } from './ChecklistCelebration';
@@ -21,15 +21,18 @@ export function ChecklistMessage({
 }: {
   message: Message;
   checklist: ChecklistMedia;
-  onInteract: (interaction: MessageInteraction) => void;
+  onInteract: (interaction: MessageInteraction) => void | Promise<boolean>;
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [newTask, setNewTask] = useState('');
-  const isOwner = message.authorId === CURRENT_USER_ID;
-  const canComplete = !message.forwardedFrom && (isOwner || checklist.canOthersComplete);
+  const [isAppending, setIsAppending] = useState(false);
+  const currentUserId = useCurrentUserId();
+  const isOwner = message.authorId === currentUserId;
+  const canComplete =
+    !message.forwardedFrom && (checklist.canComplete ?? (isOwner || checklist.canOthersComplete));
   const canAppend =
     !message.forwardedFrom &&
-    (isOwner || checklist.canOthersAppend) &&
+    (checklist.canAppend ?? (isOwner || checklist.canOthersAppend)) &&
     checklist.items.length < MAX_CHECKLIST_TASKS;
   const completedCount = checklist.items.filter((item) => item.isCompleted).length;
 
@@ -42,6 +45,53 @@ export function ChecklistMessage({
       }
     },
   });
+
+  useStructuredMessageAction({
+    messageId: message.id,
+    action: 'edit-checklist',
+    onAction: () => {
+      if (checklist.canEdit && !message.forwardedFrom) {
+        void onInteract({ type: 'edit-checklist' });
+      }
+    },
+  });
+
+  function changeCompletion(task: ChecklistMedia['items'][number]) {
+    if (task.version === undefined) {
+      void onInteract({ type: 'toggle-task', taskId: task.id });
+      return;
+    }
+
+    void onInteract({
+      type: 'set-task',
+      taskId: task.id,
+      expectedTaskVersion: task.version,
+      isComplete: !task.isCompleted,
+    });
+  }
+
+  async function appendTask() {
+    const text = newTask.trim();
+    if (!text || isAppending || !canAppend) {
+      return;
+    }
+
+    setIsAppending(true);
+    try {
+      const accepted = await onInteract({
+        type: 'add-task',
+        id: crypto.randomUUID(),
+        text,
+        expectedListVersion: checklist.listVersion,
+      });
+      if (accepted !== false) {
+        setNewTask('');
+        setIsAdding(false);
+      }
+    } finally {
+      setIsAppending(false);
+    }
+  }
 
   return (
     <section className={styles.checklist} aria-label={checklist.title}>
@@ -68,7 +118,7 @@ export function ChecklistMessage({
             className={styles.task}
             data-completed={item.isCompleted}
             data-readonly={!canComplete}
-            onClick={() => onInteract({ type: 'toggle-task', taskId: item.id })}
+            onClick={() => changeCompletion(item)}
           >
             {canComplete ? (
               <span className={styles.checkbox}>
@@ -100,18 +150,7 @@ export function ChecklistMessage({
           className={styles.appendForm}
           onSubmit={(event) => {
             event.preventDefault();
-            const text = newTask.trim();
-            if (!text) {
-              return;
-            }
-
-            onInteract({
-              type: 'add-task',
-              id: crypto.randomUUID(),
-              text,
-            });
-            setNewTask('');
-            setIsAdding(false);
+            void appendTask();
           }}
         >
           <input
@@ -120,6 +159,7 @@ export function ChecklistMessage({
             placeholder="Task"
             value={newTask}
             maxLength={MAX_CHECKLIST_TEXT_LENGTH}
+            disabled={isAppending}
             onChange={(event) => setNewTask(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
@@ -127,7 +167,7 @@ export function ChecklistMessage({
               }
             }}
           />
-          <button type="submit" disabled={!newTask.trim()}>
+          <button type="submit" disabled={!newTask.trim() || isAppending}>
             Add
           </button>
           <button type="button" onClick={() => setIsAdding(false)}>

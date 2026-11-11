@@ -8,6 +8,7 @@ use crate::{
     conversations::access,
     media::references,
     messages::{
+        checklists,
         commands::{advance_interaction, repair_unread},
         polls,
     },
@@ -47,6 +48,7 @@ pub async fn expire_one(pool: &PgPool) -> Result<bool, AccountError> {
     .await?;
     references::detach_message(&mut transaction, message_id).await?;
     polls::delete(&mut transaction, message_id).await?;
+    checklists::delete(&mut transaction, message_id).await?;
     sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")
         .bind(message_id)
         .execute(&mut *transaction)

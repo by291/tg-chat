@@ -1,6 +1,7 @@
 //! Durable message identity, canonical content, and conversation-owned acceptance.
 
 pub mod bodies;
+pub mod checklists;
 pub mod content;
 mod markup;
 pub mod polls;

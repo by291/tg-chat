@@ -169,3 +169,223 @@ async fn late_votes_fail_when_the_database_deadline_passes(pool: PgPool) {
     assert_eq!(view["body"]["is_closed"], true);
     assert_eq!(view["body"]["voter_count"], 0);
 }
+
+struct ChecklistFixture {
+    conversation: Uuid,
+    message: Uuid,
+    tasks: [Uuid; 2],
+}
+
+async fn send_checklist(
+    service: &MessageService,
+    author: Actor,
+    destination: Value,
+) -> ChecklistFixture {
+    let tasks = [Uuid::new_v4(), Uuid::new_v4()];
+    let input = serde_json::from_value(json!({
+        "operation_id": Uuid::new_v4(),
+        "message_id": Uuid::new_v4(),
+        "destination": destination,
+        "content": {"schema_version": 1, "text": "", "custom_emoji": []},
+        "body": {
+            "kind": "checklist",
+            "title": "Trail equipment",
+            "tasks": [
+                {"id": tasks[0], "text": "Bring a map"},
+                {"id": tasks[1], "text": "Pack water"},
+            ],
+            "can_others_complete": true,
+            "can_others_append": true,
+        },
+    }))
+    .unwrap();
+    let sent = service.send(author, input).await.unwrap();
+
+    ChecklistFixture {
+        conversation: sent.conversation.id,
+        message: sent.message.id,
+        tasks,
+    }
+}
+
+fn complete_task(checklist: &ChecklistFixture, task_id: Uuid) -> tg_chat::messages::MessageCommand {
+    command(
+        checklist.conversation,
+        json!({
+            "kind": "set_checklist_task",
+            "message_id": checklist.message,
+            "task_id": task_id,
+            "expected_task_version": "1",
+            "is_complete": true,
+        }),
+    )
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn different_checklist_tasks_can_complete_from_the_same_list_version(pool: PgPool) {
+    let (service, author, reader) = fixture(pool).await;
+    let destination = json!({"kind": "recipient", "user_id": reader.user_id});
+    let checklist = send_checklist(&service, author, destination).await;
+    let first = complete_task(&checklist, checklist.tasks[0]);
+    let second = complete_task(&checklist, checklist.tasks[1]);
+
+    let (first_result, second_result) = tokio::join!(
+        service.command(reader.clone(), first.clone()),
+        service.command(reader.clone(), second),
+    );
+    first_result.unwrap();
+    second_result.unwrap();
+    service.command(reader.clone(), first).await.unwrap();
+
+    let current = service.message(reader, checklist.message).await.unwrap();
+    let current = serde_json::to_value(current).unwrap();
+    assert_eq!(current["body"]["list_version"], "1");
+    for task in current["body"]["tasks"].as_array().unwrap() {
+        assert_eq!(task["is_complete"], true);
+        assert_eq!(task["version"], "2");
+    }
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn task_completion_conflicts_with_a_concurrent_removal(pool: PgPool) {
+    let (service, author, reader) = fixture(pool).await;
+    let destination = json!({"kind": "recipient", "user_id": reader.user_id});
+    let checklist = send_checklist(&service, author.clone(), destination).await;
+    let pending_completion = complete_task(&checklist, checklist.tasks[0]);
+    let remove_task = command(
+        checklist.conversation,
+        json!({
+            "kind": "edit_checklist",
+            "message_id": checklist.message,
+            "expected_list_version": "1",
+            "checklist": {
+                "title": "Trail equipment",
+                "tasks": [{"id": checklist.tasks[1], "text": "Pack water"}],
+                "can_others_complete": true,
+            },
+        }),
+    );
+    service.command(author, remove_task).await.unwrap();
+
+    let rejected = service.command(reader, pending_completion).await;
+    assert!(matches!(rejected, Err(AccountError::MessageConflict)));
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn permission_revocation_blocks_pending_checklist_completion(pool: PgPool) {
+    let (service, author, reader) = fixture(pool).await;
+    let destination = json!({"kind": "recipient", "user_id": reader.user_id});
+    let checklist = send_checklist(&service, author.clone(), destination).await;
+    let pending_completion = complete_task(&checklist, checklist.tasks[0]);
+    let revoke = command(
+        checklist.conversation,
+        json!({
+            "kind": "edit_checklist",
+            "message_id": checklist.message,
+            "expected_list_version": "1",
+            "checklist": {
+                "title": "Trail equipment",
+                "tasks": [
+                    {"id": checklist.tasks[0], "text": "Bring a map"},
+                    {"id": checklist.tasks[1], "text": "Pack water"},
+                ],
+                "can_others_complete": false,
+            },
+        }),
+    );
+    service.command(author, revoke).await.unwrap();
+
+    let rejected = service.command(reader, pending_completion).await;
+    assert!(matches!(rejected, Err(AccountError::MessageConflict)));
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn channel_subscribers_cannot_read_other_completers(pool: PgPool) {
+    use tg_chat::accounts::{AccountService, AccountSettings};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let first = support::account(&accounts, "first").await;
+    let second = support::account(&accounts, "second").await;
+    let service = MessageService::new(accounts);
+    let channel = Uuid::new_v4();
+    let create = sqlx::query(
+        "INSERT INTO conversations (id, kind, owner_id, title)
+         VALUES ($1, 'channel', $2, 'Hiking club')",
+    );
+    create.bind(channel).bind(owner.user_id).execute(&pool).await.unwrap();
+    let admit = sqlx::query(
+        "INSERT INTO conversation_members (conversation_id, user_id, role)
+         VALUES ($1, $2, 'owner'), ($1, $3, 'member'), ($1, $4, 'member')",
+    );
+    let admit = admit.bind(channel).bind(owner.user_id);
+    let admit = admit.bind(first.user_id).bind(second.user_id);
+    admit.execute(&pool).await.unwrap();
+
+    let destination = json!({"kind": "conversation", "conversation_id": channel});
+    let checklist = send_checklist(&service, owner.clone(), destination).await;
+    let completion = complete_task(&checklist, checklist.tasks[0]);
+    let receipt = service.command(first.clone(), completion).await.unwrap();
+    let receipt = serde_json::to_value(receipt.message.unwrap()).unwrap();
+    assert_eq!(receipt["body"]["tasks"][0]["completed_by"]["user_id"], json!(first.user_id));
+
+    let subscriber = service.message(second, checklist.message).await.unwrap();
+    let subscriber = serde_json::to_value(subscriber).unwrap();
+    assert_eq!(subscriber["body"]["tasks"][0]["is_complete"], true);
+    assert!(subscriber["body"]["tasks"][0].get("completed_by").is_none());
+
+    let manager = service.message(owner, checklist.message).await.unwrap();
+    let manager = serde_json::to_value(manager).unwrap();
+    assert_eq!(manager["body"]["tasks"][0]["completed_by"]["user_id"], json!(first.user_id));
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn checklist_structure_edits_preserve_completion_for_retained_tasks(pool: PgPool) {
+    let (service, author, reader) = fixture(pool).await;
+    let destination = json!({"kind": "recipient", "user_id": reader.user_id});
+    let checklist = send_checklist(&service, author.clone(), destination).await;
+    let complete = complete_task(&checklist, checklist.tasks[0]);
+    service.command(reader.clone(), complete).await.unwrap();
+
+    let append_id = Uuid::new_v4();
+    let append = command(
+        checklist.conversation,
+        json!({
+            "kind": "append_checklist_tasks",
+            "message_id": checklist.message,
+            "expected_list_version": "1",
+            "tasks": [{"id": append_id, "text": "Pack a light"}],
+        }),
+    );
+    service.command(reader.clone(), append).await.unwrap();
+
+    let edit = command(
+        checklist.conversation,
+        json!({
+            "kind": "edit_checklist",
+            "message_id": checklist.message,
+            "expected_list_version": "2",
+            "checklist": {
+                "title": "Final trail equipment",
+                "tasks": [
+                    {"id": append_id, "text": "Pack a light"},
+                    {"id": checklist.tasks[0], "text": "Bring a trail map"},
+                ],
+            },
+        }),
+    );
+    let receipt = service.command(author, edit).await.unwrap();
+    let message = serde_json::to_value(receipt.message.unwrap()).unwrap();
+    let body = &message["body"];
+    assert_eq!(body["list_version"], "3");
+    assert_eq!(body["tasks"].as_array().unwrap().len(), 2);
+    assert_eq!(body["tasks"][0]["id"], json!(append_id));
+    assert_eq!(body["tasks"][1]["text"], "Bring a trail map");
+    assert_eq!(body["tasks"][1]["version"], "2");
+    assert_eq!(body["tasks"][1]["completed_by"]["user_id"], json!(reader.user_id));
+}

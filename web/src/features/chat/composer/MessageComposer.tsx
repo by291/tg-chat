@@ -53,6 +53,7 @@ interface MessageComposerProps {
   onSubmit: (message: ComposedMessage) => void;
   onMediaSubmit?: (message: ComposedMessage) => Promise<boolean>;
   onShareContact?: () => void;
+  onChecklistSubmit?: (message: ComposedMessage) => Promise<boolean>;
   onPollSubmit?: (message: ComposedMessage) => Promise<boolean>;
   onCancelContext: () => void;
   onJumpToMessage: (messageId: string) => void;
@@ -77,6 +78,7 @@ export function MessageComposer({
   onMediaSubmit,
   onShareContact,
   onPollSubmit,
+  onChecklistSubmit,
   onCancelContext,
   onJumpToMessage,
   onNotify,
@@ -335,13 +337,18 @@ export function MessageComposer({
       )}
       {isMediaAvailable && recorder.error && <p role="alert">{recorder.error}</p>}
       <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
-        {(!isTextOnly || isMediaAvailable || onShareContact || onPollSubmit) && (
+        {(!isTextOnly ||
+          isMediaAvailable ||
+          onShareContact ||
+          onPollSubmit ||
+          onChecklistSubmit) && (
           <>
             <AttachmentMenu
               isConnected={isTextOnly}
               isMediaAvailable={isMediaAvailable}
               canShareContact={Boolean(onShareContact)}
               canSendPoll={Boolean(onPollSubmit)}
+              canSendChecklist={Boolean(onChecklistSubmit)}
               isDisabled={Boolean(editingMessage) || isLoadingAttachment || isDisabled}
               isExpanded={isExpanded}
               onSelect={selectAttachment}
@@ -427,6 +434,9 @@ export function MessageComposer({
           onSubmit={(message) => {
             if (message.media?.kind === 'poll' && onPollSubmit) {
               return onPollSubmit(message);
+            }
+            if (message.media?.kind === 'checklist' && onChecklistSubmit) {
+              return onChecklistSubmit(message);
             }
 
             onSubmit(message);

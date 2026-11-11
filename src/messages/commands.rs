@@ -98,6 +98,22 @@ pub enum CommandAction {
     ClosePoll {
         message_id: Uuid,
     },
+    SetChecklistTask {
+        message_id: Uuid,
+        task_id: Uuid,
+        expected_task_version: String,
+        is_complete: bool,
+    },
+    AppendChecklistTasks {
+        message_id: Uuid,
+        expected_list_version: String,
+        tasks: Vec<super::checklists::ChecklistTaskInput>,
+    },
+    EditChecklist {
+        message_id: Uuid,
+        expected_list_version: String,
+        checklist: super::checklists::ChecklistInput,
+    },
 }
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
@@ -166,6 +182,18 @@ impl CommandAction {
             }
             | Self::ClosePoll {
                 message_id,
+            }
+            | Self::SetChecklistTask {
+                message_id,
+                ..
+            }
+            | Self::AppendChecklistTasks {
+                message_id,
+                ..
+            }
+            | Self::EditChecklist {
+                message_id,
+                ..
             } => Some(*message_id),
             _ => None,
         }
@@ -326,6 +354,7 @@ async fn apply(
             .await?;
             crate::media::references::detach_message(connection, message.id).await?;
             super::polls::delete(connection, message.id).await?;
+            super::checklists::delete(connection, message.id).await?;
             // Scrub stored excerpts as well as read projections; the target identity remains.
             sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")
                 .bind(message.id)
@@ -381,6 +410,18 @@ async fn apply(
             ..
         } => {
             super::polls::apply(connection, context, &message).await?;
+            advance_interaction(connection, message.id).await?;
+        }
+        CommandAction::SetChecklistTask {
+            ..
+        }
+        | CommandAction::AppendChecklistTasks {
+            ..
+        }
+        | CommandAction::EditChecklist {
+            ..
+        } => {
+            super::checklists::apply(connection, context, &message).await?;
             advance_interaction(connection, message.id).await?;
         }
         _ => return Err(AccountError::Validation("expected a message action").into()),
@@ -445,8 +486,25 @@ impl MessageService {
     pub async fn command(
         &self,
         actor: Actor,
-        input: MessageCommand,
+        mut input: MessageCommand,
     ) -> Result<CommandReceipt, AccountError> {
+        // Hash normalized checklist content so insignificant whitespace does not break replay.
+        match &mut input.action {
+            CommandAction::EditChecklist {
+                checklist,
+                ..
+            } => {
+                super::checklists::normalize(checklist)?;
+            }
+            CommandAction::AppendChecklistTasks {
+                tasks,
+                ..
+            } => {
+                super::checklists::normalize_tasks(tasks)?;
+            }
+            _ => {}
+        }
+
         for attempt in 0..TRANSACTION_ATTEMPTS {
             match self.accept_command(&actor, &input).await {
                 Ok(receipt) => return Ok(receipt),

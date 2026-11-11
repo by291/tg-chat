@@ -7,7 +7,7 @@ use sqlx::PgConnection;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::{polls, service::AcceptanceError};
+use super::{checklists, polls, service::AcceptanceError};
 use crate::{accounts::AccountError, contacts};
 
 const MAX_CONTACT_NAME_LENGTH: usize = 80;
@@ -42,6 +42,7 @@ struct StickerAsset {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MessageBodyInput {
     Poll(polls::PollInput),
+    Checklist(checklists::ChecklistInput),
     Sticker {
         sticker_id: String,
     },
@@ -58,6 +59,7 @@ pub enum MessageBodyInput {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum StoredMessageBody {
     Poll,
+    Checklist,
     Sticker {
         sticker_id: String,
     },
@@ -74,6 +76,7 @@ pub(crate) enum StoredMessageBody {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum MessageBodyView {
     Poll(polls::PollView),
+    Checklist(checklists::ChecklistView),
     Sticker {
         sticker_id: String,
     },
@@ -96,6 +99,10 @@ pub(crate) fn normalize(body: MessageBodyInput) -> Result<MessageBodyInput, Acco
         MessageBodyInput::Poll(mut poll) => {
             polls::normalize(&mut poll)?;
             Ok(MessageBodyInput::Poll(poll))
+        }
+        MessageBodyInput::Checklist(mut checklist) => {
+            checklists::normalize(&mut checklist)?;
+            Ok(MessageBodyInput::Checklist(checklist))
         }
         MessageBodyInput::Sticker {
             sticker_id,
@@ -138,6 +145,7 @@ pub(crate) async fn store(
 ) -> Result<StoredMessageBody, AcceptanceError> {
     match body {
         MessageBodyInput::Poll(_) => Ok(StoredMessageBody::Poll),
+        MessageBodyInput::Checklist(_) => Ok(StoredMessageBody::Checklist),
         MessageBodyInput::Sticker {
             sticker_id,
         } => {
@@ -178,6 +186,13 @@ pub(crate) async fn project(
 ) -> Result<MessageBodyView, AccountError> {
     let view = match body {
         StoredMessageBody::Poll => MessageBodyView::Poll(polls::view(connection, reader).await?),
+        StoredMessageBody::Checklist => {
+            let reader = checklists::ChecklistReader {
+                message: reader.message,
+                user_id: reader.user_id,
+            };
+            MessageBodyView::Checklist(checklists::view(connection, reader).await?)
+        }
         StoredMessageBody::Sticker {
             sticker_id,
         } => MessageBodyView::Sticker {

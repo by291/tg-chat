@@ -44,7 +44,7 @@ export interface MessageNavigation {
 }
 
 interface MessageTimelineProps {
-  allowedActions?: import('../messages/commands').MessageAction[];
+  allowedActions?: import('../messages/commands').MessageMenuAction[];
   reactionChoices?: string[];
   onMessageMount?: (options: OutgoingMessageMount) => (() => void) | undefined;
   messages: Message[];
