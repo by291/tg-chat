@@ -20,7 +20,7 @@ The owner has confirmed these decisions:
 - Rust lives at the repository root. Keep the existing `web/` frontend; do not add a backend wrapper
   directory.
 - One Rust project provides separate API and Worker processes sharing business modules.
-- PostgreSQL, Valkey, SeaweedFS through S3, and Centrifugo are available. Docker Compose is the
+- PostgreSQL, Valkey, RustFS through S3, and Centrifugo are available. Docker Compose is the
   deployment and integration-environment baseline.
 
 The owner also approved the defaults below as the implementation baseline. Adjustable limits remain
@@ -113,7 +113,7 @@ transactions and extra operational boundaries without a demonstrated need at thi
   and durable jobs.
 - Valkey stores disposable caches, rate-limit state, typing/presence leases, and Centrifugo broker
   data. Business recovery must work after its contents are lost.
-- SeaweedFS stores private original objects and generated variants. File ownership and references
+- RustFS stores private original objects and generated variants. File ownership and references
   remain in PostgreSQL.
 - Centrifugo transports personal realtime wakeups and transient presence/typing events. Durable
   synchronization comes from the Rust API.
@@ -631,7 +631,7 @@ concurrency limits. Exact limits are configuration, not hardcoded client assumpt
 ## 11. One-to-one calls using LiveKit
 
 Calls are a separate bounded module that depends on accounts, direct conversations, privacy, durable
-sync, and notifications. No call media flows through Rust, Centrifugo, or SeaweedFS. Use the
+sync, and notifications. No call media flows through Rust, Centrifugo, or object storage. Use the
 official browser SDK and Rust server SDK; do not implement WebRTC transport in the application.
 
 Persist call ID, direct conversation, initiator, recipient, media mode, state/reason, designated
@@ -771,22 +771,21 @@ Expected degradation:
   Presence/typing are unavailable, and sensitive rate-limited writes may be restricted.
 - Worker unavailable: accepted text messages remain queryable; realtime/media/notifications lag.
   Reads still enforce expiration and authorization.
-- SeaweedFS unavailable: text messaging continues; uploads and media downloads show retryable
+- RustFS unavailable: text messaging continues; uploads and media downloads show retryable
   errors.
 - SMTP or browser push unavailable: account login and chat continue; optional delivery is delayed.
 - LiveKit unavailable: calls fail clearly while chat remains usable.
 
 ## 15. Deployment, operations, and recovery
 
-Compose starts a reverse proxy/static frontend, API, Worker, PostgreSQL, Valkey, Centrifugo, and the
-SeaweedFS components required for private S3. Include separate optional profiles for LiveKit/TURN,
+Compose starts a reverse proxy/static frontend, API, Worker, PostgreSQL, Valkey, Centrifugo, and
+RustFS for private S3. Include separate optional profiles for LiveKit/TURN,
 development mail capture, and observability. Optional profiles do not imply those final-product
 features are permanently omitted. Basic chat must start without SMTP or LiveKit configured.
 
-SeaweedFS master, volume storage, filer, and S3 endpoint have explicit persistent volumes and
-configuration. A local single-node setup is acceptable; do not describe it as highly available. Use
-a separate PostgreSQL database/role for filer metadata if the selected filer backend uses PG.
-Document all state that must be backed up, rather than treating the S3 gateway as the whole store.
+RustFS persists objects and metadata together on its named volume. The local single-node setup
+uses one data disk. Document the full data directory and the coordinated PostgreSQL backup in
+the [runtime operations guide](../../operations.md#persistence-and-recovery).
 
 Only the reverse proxy and required media/upload endpoints are publicly reachable. PostgreSQL,
 Valkey, internal callbacks, and administration ports remain private. Credentials come from runtime
@@ -806,9 +805,9 @@ setup/termination failures. Exclude message bodies, password/email tokens, cooki
 full contact information. Alert on lag and capacity, not merely whether containers are alive.
 
 Recovery objectives for a small single-deployment installation are an RPO of one hour and an RTO of
-four hours, subject to a measured restore drill. PostgreSQL and SeaweedFS need off-host backups plus
+four hours, subject to a measured restore drill. PostgreSQL and RustFS need off-host backups plus
 retained secrets/configuration. A consistent backup procedure must coordinate business references
-with object/filer state and pause destructive garbage collection during its capture. Keep backup
+with object storage and pause destructive garbage collection during its capture. Keep backup
 objects long enough to cover older retained database snapshots. Database PITR alone does not
 establish recovery of media bytes. Restore into an isolated environment, verify message and file
 references and permissions, rotate the deployment sync epoch, and force clients to bootstrap. Do not
@@ -821,7 +820,7 @@ This is a target verification strategy, not a report that any backend checks alr
 
 Use focused unit tests for domain rules and real PostgreSQL integration tests for transactions,
 authorization, concurrency, idempotency, and cursor ordering. Integration tests use real Valkey,
-Centrifugo, and SeaweedFS where their behavior matters. Browser tests cover complete user workflows
+Centrifugo, and RustFS where their behavior matters. Browser tests cover complete user workflows
 and existing editor/history behavior; mocks alone cannot validate transport and storage contracts.
 
 Required acceptance scenarios:
@@ -901,8 +900,9 @@ These references support integration constraints, not a claim that the target is
 - [Centrifugo consumers](https://centrifugal.dev/docs/server/consumers) documents async publication
   options. This design deliberately uses the shared Rust Worker for business jobs and wakeups rather
   than making the application's sync protocol depend on Centrifugo's outbox schema.
-- [SeaweedFS S3 API](https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API) lists multipart and
-  S3 operations. Verify presigning, CORS, Range, copies, and cleanup against the pinned deployment.
+- The [RustFS S3 compatibility matrix](https://docs.rustfs.com/en/reference/s3-compatibility)
+  lists supported operations. Verify presigning, CORS, Range, copies, and cleanup against the
+  pinned deployment.
 - [PostgreSQL pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html) documents
   substring-index behavior and the limitations of patterns that yield no usable trigrams.
 - [LiveKit Rust SDKs](https://github.com/livekit/rust-sdks) provide server-side API integration.

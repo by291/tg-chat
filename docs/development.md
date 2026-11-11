@@ -37,7 +37,7 @@ generate a value with `openssl rand -base64 32` and copy it into `TG_CHAT_MAIL_K
 editor. Do not include the generated value in issue reports or shared command logs.
 Set `TG_CHAT_PUBLIC_ORIGIN` to the exact browser origin when changing the gateway address.
 
-PostgreSQL, Valkey, API, Worker, Centrifugo, and raw SeaweedFS have no published host ports.
+PostgreSQL, Valkey, API, Worker, Centrifugo, and RustFS have no published host ports.
 The media origin is separately exposed on `http://127.0.0.1:8333` and requires signed S3 requests.
 Use the internal endpoint for API and Worker object operations and the public endpoint for browser
 signatures. See [private media](media.md#operating-the-feature) for enabling the feature.
@@ -98,7 +98,7 @@ migration serialization, account/message races, snapshot sync, and durable jobs,
 **isolated test PostgreSQL instance** whose user can create databases. Set
 `TG_CHAT_TEST_VALKEY_URL`, `TG_CHAT_TEST_SMTP_HOST`, and `TG_CHAT_TEST_SMTP_PORT` to isolated
 Valkey and local SMTP capture services. Set `TG_CHAT_TEST_S3_ENDPOINT`,
-`TG_CHAT_TEST_S3_ACCESS_KEY`, and `TG_CHAT_TEST_S3_SECRET_KEY` for an isolated SeaweedFS
+`TG_CHAT_TEST_S3_ACCESS_KEY`, and `TG_CHAT_TEST_S3_SECRET_KEY` for an isolated RustFS
 deployment. When the public media proxy uses a separate address, set
 `TG_CHAT_TEST_S3_PUBLIC_ENDPOINT` too. Linux codec tests require FFmpeg, util-linux, and
 libseccomp development headers. Then run:
@@ -119,7 +119,7 @@ real Rust tests inside a Linux container, and runs account/messaging browsers ag
 frontend and Mailpit. It drops a real committed message response, restarts API, and verifies replay
 and recipient visibility. It interrupts Worker/Centrifugo, clears Valkey, checks retention-floor
 rebootstrap, and runs the four-session synchronization browser suite. It runs the private media
-browser suite and restores a PostgreSQL dump and SeaweedFS volume to verify an existing attachment.
+browser suite and restores a PostgreSQL dump and RustFS volume to verify an existing attachment.
 Independent fixture phases reset only the isolated project's Valkey cache to avoid sharing
 registration rate limits through one loopback address. The runner checks routing, private ports,
 S3 authentication, PostgreSQL and Valkey outages, graceful API and Worker termination, and

@@ -1,3 +1,0 @@
-# Grow one volume at a time so the default collection cannot exhaust this small local server.
-[master.volume_growth]
-copy_1 = 1

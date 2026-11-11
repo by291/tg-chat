@@ -17,7 +17,7 @@ covers recorded chat voice messages. Live calls are scheduled for M9.
 
 ## Approach
 
-Use the existing IndexedDB send queue, direct SeaweedFS S3 uploads, and PostgreSQL-backed Worker
+Use the existing IndexedDB send queue, direct RustFS S3 uploads, and PostgreSQL-backed Worker
 jobs. This preserves the Telegram-style split between file transfer, preparation, and message
 publication. S3 multipart provides checkpoints for larger files. Small files use a single PUT
 and retry that request after interruption. An API-proxied resumable protocol could use smaller
@@ -103,7 +103,7 @@ marks the file deleting before removing objects and retries interrupted deletion
 after cleanup. Reap abandoned multipart uploads, staging objects, and stale processing candidates
 after a grace period covering outstanding write signatures and active attempts. Preserve live
 references so M7 can add independent forwarding references. Back up PostgreSQL together with
-SeaweedFS filer, master, and volume state under a coordinated consistency procedure.
+the complete RustFS data volume under a coordinated consistency procedure.
 
 ## Acceptance
 
@@ -113,7 +113,7 @@ SeaweedFS filer, master, and volume state under a coordinated consistency proced
 - Verify small-file retry, one failed item in an album, session isolation, competing tabs,
   cancellation, expired reservations, quota exhaustion, and continued text sending.
 - Exercise private upload and download, multipart reconciliation, CORS, Range, and cleanup against
-  the pinned SeaweedFS deployment. Verify revoked access prevents fresh URLs and check expiry.
+  the pinned RustFS deployment. Verify revoked access prevents fresh URLs and check expiry.
 - Verify staging overwrite, stale Worker completion, forged metadata, processing limits, missing
   objects, and concurrent reference creation and collection. Exercise voice and viewer playback
   in a browser and record the mobile compatibility results.

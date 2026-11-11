@@ -15,7 +15,7 @@ export function createRuntimeEnvironment({ httpPort = '8080', s3Port = '8333' } 
     TG_CHAT_HTTP_PORT: httpPort,
     TG_CHAT_S3_PORT: s3Port,
     TG_CHAT_PUBLIC_ORIGIN: `http://localhost:${httpPort}`,
-    TG_CHAT_S3_INTERNAL_ENDPOINT: 'http://seaweedfs:8333',
+    TG_CHAT_S3_INTERNAL_ENDPOINT: 'http://rustfs:9000',
     TG_CHAT_S3_PUBLIC_ENDPOINT: `http://127.0.0.1:${s3Port}`,
     TG_CHAT_LOG_LEVEL: 'info',
   };

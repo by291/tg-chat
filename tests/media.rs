@@ -80,7 +80,7 @@ async fn cancelled_reservation_does_not_reopen_on_replay(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn transfer_reconciles_lost_part_and_completion_responses(pool: PgPool) {
     let accounts = AccountService::new(pool, AccountSettings::default());
     let actor = support::account(&accounts, "upload_owner").await;
@@ -112,7 +112,7 @@ async fn transfer_reconciles_lost_part_and_completion_responses(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn signed_single_put_rejects_bytes_beyond_the_reservation(pool: PgPool) {
     let accounts = AccountService::new(pool, AccountSettings::default());
     let actor = support::account(&accounts, "upload_owner").await;
@@ -137,7 +137,7 @@ async fn signed_single_put_rejects_bytes_beyond_the_reservation(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn signed_transfer_supports_preflight_and_staging_stays_private(pool: PgPool) {
     let accounts = AccountService::new(pool, AccountSettings::default());
     let actor = support::account(&accounts, "upload_owner").await;
@@ -168,7 +168,7 @@ async fn signed_transfer_supports_preflight_and_staging_stays_private(pool: PgPo
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn transfer_adopts_multipart_after_create_succeeds_before_recording(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "upload_owner").await;
@@ -216,7 +216,7 @@ async fn prepared_document(pool: &PgPool, actor: &tg_chat::accounts::Actor) -> U
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn an_owned_ready_file_can_be_sent_without_a_caption(pool: PgPool) {
     use tg_chat::{media::AttachmentInput, messages::MessageService};
 
@@ -242,7 +242,7 @@ async fn an_owned_ready_file_can_be_sent_without_a_caption(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn sending_a_foreign_ready_file_leaves_no_message(pool: PgPool) {
     use tg_chat::{media::AttachmentInput, messages::MessageService};
 
@@ -265,7 +265,7 @@ async fn sending_a_foreign_ready_file_leaves_no_message(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn accepted_media_replays_after_its_file_is_collected(pool: PgPool) {
     use serde_json::json;
     use tg_chat::{media::AttachmentInput, messages::MessageService};
@@ -301,7 +301,7 @@ async fn accepted_media_replays_after_its_file_is_collected(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn download_checks_reference_visibility_and_supports_range(pool: PgPool) {
     use serde_json::json;
     use tg_chat::{
@@ -350,7 +350,7 @@ async fn download_checks_reference_visibility_and_supports_range(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn profile_avatar_does_not_authorize_the_original(pool: PgPool) {
     use tg_chat::media::{AvatarDownload, AvatarOwner, DownloadReference, MediaVariant, SetAvatar};
 
@@ -398,7 +398,7 @@ async fn profile_avatar_does_not_authorize_the_original(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn album_preserves_repeated_file_occurrences_after_caption_edit(pool: PgPool) {
     use serde_json::json;
     use tg_chat::{media::AttachmentInput, messages::MessageService};
@@ -441,7 +441,7 @@ async fn album_preserves_repeated_file_occurrences_after_caption_edit(pool: PgPo
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn publishing_consumes_the_upload_preview_authority(pool: PgPool) {
     use tg_chat::{
         media::{AttachmentInput, DownloadReference, MediaVariant},

@@ -1,3 +1,0 @@
-[leveldb2]
-enabled = true
-dir = "/data/filer"

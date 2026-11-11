@@ -10,10 +10,10 @@ including a separately delivered LiveKit calling module.
 
 **Architecture:** One Rust project at the repository root provides API and Worker processes sharing
 business modules and PostgreSQL transactions. The existing React frontend integrates incrementally
-through HTTP commands and durable synchronization; Centrifugo supplies wakeups, SeaweedFS stores
+through HTTP commands and durable synchronization; Centrifugo supplies wakeups, RustFS stores
 private media, and LiveKit transports call media.
 
-**Tech Stack:** Rust, Tokio, Axum, SQLx, PostgreSQL, Valkey, SeaweedFS S3, Centrifugo, LiveKit,
+**Tech Stack:** Rust, Tokio, Axum, SQLx, PostgreSQL, Valkey, RustFS S3, Centrifugo, LiveKit,
 React, TypeScript, pnpm, Docker Compose, OpenAPI, Rustfmt, Clippy, and the existing
 Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integration is introduced.
 
@@ -140,7 +140,7 @@ migrations, and expose meaningful health/readiness through the same-origin gatew
 
 **Produces:** Root Cargo package and two binaries; validated configuration; database migration
 entry; shared application context; HTTP error/request-ID envelope; OpenAPI export and generated
-frontend type check; real local PostgreSQL, Valkey, Centrifugo, and private SeaweedFS environment.
+frontend type check; real local PostgreSQL, Valkey, Centrifugo, and private RustFS environment.
 LiveKit and mail can remain disabled profiles. No business tables are created speculatively.
 
 - [x] Deliver the Rust runtime, explicit migration command/lock, dependency pinning, graceful
@@ -478,7 +478,7 @@ behavior, browser capability record, and a complete product acceptance record ti
       conversations, separate 200-member/500-subscriber fanout cases, million-message history, and
       10 simultaneous one-to-one calls. Document hardware and do not combine independent maxima into
       an unverified claim. Tune configuration or fix bottlenecks before accepting the results.
-- [ ] Run coordinated off-host PostgreSQL/SeaweedFS backups and an isolated restore drill; verify
+- [ ] Run coordinated off-host PostgreSQL and RustFS backups and an isolated restore drill. Verify
       filer/object references, permissions, retained forwarded attachments, rotated sync epoch, and
       client reset. Demonstrate the one-hour RPO/four-hour RTO targets or explicitly report the gap.
 - [ ] Verify desktop Chrome/Firefox/Safari/Edge, real iOS Safari and Android Chrome, touch/history

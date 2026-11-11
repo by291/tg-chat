@@ -48,8 +48,8 @@ collected after their write and processing windows.
 For an existing local environment, set `TG_CHAT_MEDIA_ENABLED=true` and apply the current
 migrations before restarting the API and Worker. The browser-facing endpoint must point to
 the media origin. Use a separate cookie-free hostname and HTTPS for deployment. Keep the
-internal SeaweedFS address private. See [operations](operations.md#persistence-and-recovery)
-for coordinated PostgreSQL and SeaweedFS backup and restore.
+internal RustFS address private. See [operations](operations.md#persistence-and-recovery)
+for coordinated PostgreSQL and RustFS backup and restore.
 
 Use the [development guide](development.md#repeatable-verification) for repeatable integration
 and browser checks.

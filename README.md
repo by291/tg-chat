@@ -11,7 +11,7 @@ pnpm install
 pnpm dev
 ```
 
-To start the integrated runtime with PostgreSQL, Valkey, Centrifugo, SeaweedFS, and the frontend:
+To start the integrated runtime with PostgreSQL, Valkey, Centrifugo, RustFS, and the frontend:
 
 ```sh
 node scripts/create-local-env.mjs

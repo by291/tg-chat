@@ -35,7 +35,7 @@ async fn transfer_document(service: &UploadService, actor: &Actor) -> SignedUplo
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn staging_overwrite_cannot_publish_unverified_bytes(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "file_owner").await;
@@ -55,7 +55,7 @@ async fn staging_overwrite_cannot_publish_unverified_bytes(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn prepared_document_keeps_the_same_file_after_worker_restart(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "file_owner").await;
@@ -82,7 +82,7 @@ async fn prepared_document_keeps_the_same_file_after_worker_restart(pool: PgPool
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn restarted_worker_can_take_over_only_after_lease_expiry(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "file_owner").await;
@@ -175,7 +175,7 @@ fn linux_worker(pool: PgPool) -> MediaWorker {
 
 #[cfg(target_os = "linux")]
 #[sqlx::test]
-#[ignore = "requires PostgreSQL, SeaweedFS, and the Linux processor"]
+#[ignore = "requires PostgreSQL, S3 storage, and the Linux processor"]
 async fn processor_publishes_real_image_video_and_voice_derivatives(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "file_owner").await;
@@ -222,7 +222,7 @@ fn processor_denies_network_access() {
 
 #[cfg(target_os = "linux")]
 #[sqlx::test]
-#[ignore = "requires PostgreSQL, SeaweedFS, and the Linux processor"]
+#[ignore = "requires PostgreSQL, S3 storage, and the Linux processor"]
 async fn processor_rejects_images_over_the_pixel_budget(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "file_owner").await;
@@ -243,7 +243,7 @@ async fn processor_rejects_images_over_the_pixel_budget(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn collector_preserves_a_file_with_a_live_message_reference(pool: PgPool) {
     use tg_chat::{
         media::{AttachmentInput, DownloadReference, MediaCleanup, MediaVariant, MessageDownload},
@@ -283,7 +283,7 @@ async fn collector_preserves_a_file_with_a_live_message_reference(pool: PgPool) 
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn staging_cleanup_waits_for_a_signed_write_to_expire(pool: PgPool) {
     use tg_chat::media::MediaCleanup;
 
@@ -316,7 +316,7 @@ async fn staging_cleanup_waits_for_a_signed_write_to_expire(pool: PgPool) {
 }
 
 #[sqlx::test]
-#[ignore = "requires PostgreSQL and SeaweedFS"]
+#[ignore = "requires PostgreSQL and S3 storage"]
 async fn retry_waits_for_the_previous_candidate_to_release_its_bytes(pool: PgPool) {
     use tg_chat::media::MediaCleanup;
 

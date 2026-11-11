@@ -46,7 +46,7 @@ function restoreStore({ execute, project, restoreVolume }) {
     '--entrypoint',
     '/bin/sh',
     '--volume',
-    `${project}_seaweed-data:/backup:ro`,
+    `${project}_rustfs-data:/backup:ro`,
     '--volume',
     `${restoreVolume}:/restore`,
     STORAGE_IMAGE,
@@ -62,7 +62,7 @@ function writeRestoreOverride({ path, restoreVolume }) {
     services: {
       api: { environment },
       worker: { environment },
-      seaweedfs: {
+      rustfs: {
         volumes: [{ type: 'volume', source: 'restored-media', target: '/data' }],
       },
     },
@@ -114,7 +114,7 @@ async function checkRestoredAttachment({ origin, fixture }) {
   );
 }
 
-/** Restore a database dump and a stopped SeaweedFS volume inside the isolated test project. */
+/** Restore a database dump and a stopped RustFS volume inside the isolated test project. */
 export async function verifyMediaBackup(options) {
   const {
     compose,
@@ -145,11 +145,11 @@ export async function verifyMediaBackup(options) {
   // Stop both control-plane mutations and outstanding signed writes before the paired backup.
   compose(['stop', 'api', 'worker', 'media-origin']);
   restoreDatabase({ compose, queryDatabase });
-  compose(['stop', 'seaweedfs']);
+  compose(['stop', 'rustfs']);
   restoreStore({ execute, project, restoreVolume });
   writeRestoreOverride({ path, restoreVolume });
 
-  compose(['--file', path, 'up', '-d', '--wait', 'seaweedfs', 'media-origin']);
+  compose(['--file', path, 'up', '-d', '--wait', 'rustfs', 'media-origin']);
   const origin = endpoint('gateway', '80');
   const storage = endpoint('media-origin', '8333');
   writePublicOrigins(origin, storage);

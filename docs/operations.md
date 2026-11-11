@@ -42,8 +42,8 @@ HTTP 503 with a sanitized JSON error and generated `x-request-id`.
 Compose uses readiness for API and Worker health. A database outage makes them unhealthy without
 terminating them, and readiness recovers when the database returns. Valkey loss rejects sensitive
 admission and discovery while existing authenticated reads remain available; it does not globally
-fail API readiness. S3 is independent of account operations. SeaweedFS checks master leadership
-and volume-server registration. The runtime acceptance checks signed S3 requests.
+fail API readiness. S3 is independent of account operations. Compose checks RustFS storage
+readiness. The runtime acceptance also checks authenticated S3 reads and writes.
 
 SIGTERM and Ctrl+C stop new HTTP acceptance, drain active requests with a deadline, and close the
 connection pool with another deadline. Compose allows time for these deadlines before force-killing
@@ -60,15 +60,13 @@ Compose startup. PostgreSQL only uses its initialization password on an empty vo
 `.env` alone does not rotate an existing database password. Coordinate credential rotation with the
 owning service.
 
-Keep a manually changed database password URL-safe; Compose embeds it in a PostgreSQL connection
-URL. SeaweedFS resolves S3 credentials from the static identity file's environment references,
-avoiding the AWS fallback's access-key startup log. The checked-in identity file contains no usable
-credentials.
+Keep a manually changed database password URL-safe because Compose embeds it in a PostgreSQL
+connection URL. Compose passes the generated S3 credentials to RustFS through its environment.
 
 Only the frontend gateway and the media origin publish loopback host ports by default. Database,
-Valkey, internal health listeners, Centrifugo administration/API, and raw SeaweedFS endpoints stay
-inside the Compose network. The S3 credential has broad local storage access. Browsers receive
-scoped, expiring signatures and use the media origin.
+Valkey, internal health listeners, Centrifugo administration/API, and RustFS stay inside the Compose
+network. The RustFS console is disabled and Caddy blocks storage control-plane routes. The S3
+credential has broad local storage access. Browsers receive scoped, expiring signatures.
 Centrifugo verifies the normal session cookie through private API connect/refresh callbacks. The
 browser receives a server-owned personal subscription; it cannot publish or choose arbitrary channels.
 Caddy does not expose `/internal/realtime/*`. Callback authentication requires
@@ -146,25 +144,29 @@ single-use, and at-least-once delivery constraints.
 
 ## Persistence and recovery
 
-PostgreSQL stores its database under its dedicated named volume. Valkey uses AOF in its own named
-volume. SeaweedFS runs master, volume, filer, and S3 together for local use; master metadata, object
-volumes, and the filer's LevelDB metadata share a persistent SeaweedFS volume. Preserving only blob
-files without filer metadata is insufficient for recovery.
-The local master grows one volume at a time so its small volume limit leaves room for S3 bucket
-collections. This is a development capacity policy, not a production storage-sizing plan.
+PostgreSQL stores its database in a dedicated named volume. Valkey uses AOF in its own named
+volume. RustFS stores objects and internal metadata together in `rustfs-data`. The local deployment
+uses a single data directory on one disk. Its usable capacity depends on the backing filesystem,
+including the Docker disk limit. The API separately enforces the configured staging, original, and
+variant budgets. See [RustFS capacity checks](https://docs.rustfs.com/en/operations/status-check).
+
+For a fresh test deployment after SeaweedFS, use a new Compose project so PostgreSQL and RustFS
+start empty together. If `.env` explicitly sets the old internal S3 endpoint, update it to
+`http://rustfs:9000` or remove the override to use the Compose default. Existing SeaweedFS volumes
+remain available to their original projects.
 
 `docker compose down` preserves named volumes. **`docker compose down --volumes` deletes stored
 application data.** Never use it for routine restarts or deployments. The acceptance runner uses it
 only for its random, isolated test project.
 
 Quiesce writes by stopping the API, Worker, and media origin before a coordinated media backup.
-Take a PostgreSQL logical dump, stop SeaweedFS, and snapshot its master, filer, and object volumes
-as one set. Record which dump and snapshot belong together. Restore the pair into an isolated
+Take a PostgreSQL logical dump, stop RustFS, and snapshot its complete `rustfs-data` volume.
+Preserve ownership and record which dump and snapshot belong together. Restore the pair into an isolated
 deployment and verify an existing message still authorizes and downloads the expected bytes.
 Restore the application only after both stores are available. Resume normal writes after the
 backup completes.
 
-The media origin proxies SeaweedFS on the published S3 port and strips application cookies.
+The media origin proxies RustFS on the published S3 port and strips application cookies.
 Use a distinct cookie-free hostname and TLS for the browser-facing endpoint in a deployment.
 Valkey contains expiring admission and delivery state. PostgreSQL remains the authority for
 durable business records.

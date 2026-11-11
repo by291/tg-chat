@@ -3,7 +3,7 @@ use tg_chat::{
     media::{MediaLimits, MediaStorageSettings, SignedUpload, UploadService},
 };
 
-/// Point media tests at an isolated SeaweedFS deployment.
+/// Point media tests at an isolated S3 storage deployment.
 pub fn storage_settings() -> MediaStorageSettings {
     let internal_endpoint = std::env::var("TG_CHAT_TEST_S3_ENDPOINT").unwrap();
     let public_endpoint = std::env::var("TG_CHAT_TEST_S3_PUBLIC_ENDPOINT")
@@ -15,7 +15,7 @@ pub fn storage_settings() -> MediaStorageSettings {
         access_key: std::env::var("TG_CHAT_TEST_S3_ACCESS_KEY").unwrap(),
         secret_key: std::env::var("TG_CHAT_TEST_S3_SECRET_KEY").unwrap(),
         browser_origin: "http://localhost:8080".to_owned(),
-        // One bucket mirrors deployment and avoids allocating a SeaweedFS volume per test.
+        // One bucket mirrors deployment and shares CORS configuration across test cases.
         bucket: "tg-chat-test-media".to_owned(),
     }
 }

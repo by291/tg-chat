@@ -31,8 +31,13 @@
 		max_size 8388608
 	}
 
+	# RustFS serves its control plane on the same listener as S3.
+	@control_plane path /rustfs /rustfs/* /minio /minio/*
+	respond @control_plane 404
+	rewrite /healthz /health/ready
+
 	# Preserve the signed host and keep app cookies away from object storage.
-	reverse_proxy http://seaweedfs:8333 {
+	reverse_proxy http://rustfs:9000 {
 		header_up -Cookie
 		header_down -Set-Cookie
 		transport http {

@@ -176,7 +176,7 @@ async function waitForStoredObject(origin) {
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   let lastError;
 
-  // S3 can accept HTTP before the master has rebuilt its volume-location map.
+  // Readiness and durable object visibility are checked separately after a storage restart.
   while (Date.now() < deadline) {
     try {
       const storedObject = signedStorageRequest({
@@ -405,6 +405,7 @@ function verifyPrivateServices() {
     'postgres',
     'valkey',
     'centrifugo',
+    'rustfs',
     'api',
     'worker',
   ];
@@ -527,9 +528,9 @@ async function verifyPersistence({ origin, storageOrigin }) {
   compose([
     'restart',
     'gateway',
-    'seaweedfs',
+    'rustfs',
   ]);
-  console.log('Checking storage after gateway and SeaweedFS restarts.');
+  console.log('Checking storage after gateway and RustFS restarts.');
   // Docker can allocate new ephemeral host ports when containers restart.
   const restartedOrigin = endpoint('gateway', '80');
   const restartedStorageOrigin = endpoint('media-origin', '8333');
@@ -572,6 +573,7 @@ async function main() {
     await verifyRoutes(origin);
     await verifyRealtimeAuthentication(origin);
     verifyPrivateServices();
+    await expectStatus(`${storageOrigin}/rustfs/admin/v3/info`, 404);
     console.log('Checking migrations against real PostgreSQL.');
     // prettier-ignore
     compose([
@@ -615,7 +617,7 @@ async function main() {
     verifyAccountBrowsers(origin, 'test:media');
     console.log('Checking outages, graceful shutdown, and persistent private storage.');
     await verifyPersistence({ origin, storageOrigin });
-    console.log('Restoring coordinated PostgreSQL and SeaweedFS backups.');
+    console.log('Restoring coordinated PostgreSQL and RustFS backups.');
     execute('docker', ['volume', 'create', restoreVolume]);
     hasRestoreVolume = true;
     await verifyMediaBackup({
