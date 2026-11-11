@@ -229,12 +229,13 @@ async fn successful_preview_publishes_original_link_and_new_revision(pool: PgPoo
     let (service, sender, reader) = fixture(pool.clone()).await;
     let (fetcher, mut requests) = fetcher().await;
     let previews = LinkPreviews::new(pool.clone(), fetcher.endpoint.clone()).unwrap();
+    let links = format!("http://127.0.0.1/notes ({FIRST_URL})");
     let sent = send_link(
         &service,
         sender,
         LinkedMessage {
             recipient: reader.user_id,
-            url: FIRST_URL,
+            url: &links,
             is_preview_disabled: false,
         },
     )

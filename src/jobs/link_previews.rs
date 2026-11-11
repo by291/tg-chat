@@ -14,6 +14,7 @@ use uuid::Uuid;
 use crate::{
     accounts::AccountError,
     conversations::access,
+    link_preview_address::is_public_host,
     messages::{commands::advance_interaction, content::MessageContent},
     sync::changes::{self, ChangeGroup},
 };
@@ -95,7 +96,7 @@ fn eligible_url(candidate: &str) -> Option<&str> {
 
     let parsed = Url::parse(candidate).ok()?;
     let has_credentials = !parsed.username().is_empty() || parsed.password().is_some();
-    if parsed.host().is_none() || parsed.port().is_some() || has_credentials {
+    if !is_public_host(&parsed.host()?) || parsed.port().is_some() || has_credentials {
         return None;
     }
 

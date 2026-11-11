@@ -10,6 +10,7 @@ pub mod telemetry;
 pub mod contacts;
 
 pub mod jobs;
+mod link_preview_address;
 
 pub mod media;
 pub mod messages;

@@ -15,6 +15,24 @@ afterEach(() => {
 });
 
 describe('rich message content', () => {
+  it('opens a formatted bare URL without absorbing punctuation or nesting links', () => {
+    render(
+      <RichMessageText
+        richText={
+          '<p><strong>(https://example.test/notes)。</strong> ' +
+          '<a href="https://example.test/actual">https://example.test/label</a> ' +
+          '<code>https://example.test/code</code></p>'
+        }
+      />,
+    );
+
+    const bare = screen.getByRole('link', { name: 'https://example.test/notes' });
+    expect(bare.getAttribute('href')).toBe('https://example.test/notes');
+    const explicit = screen.getByRole('link', { name: 'https://example.test/label' });
+    expect(explicit.getAttribute('href')).toBe('https://example.test/actual');
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+  });
+
   it('copies code with its original line breaks', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {

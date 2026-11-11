@@ -5,9 +5,10 @@ import parse, {
   type DOMNode,
   type HTMLReactParserOptions,
 } from 'html-react-parser';
-import { useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { MessageCode } from './MessageCode';
 import { MessageQuote } from './MessageQuote';
+import { linkText } from './linkText';
 import { CustomEmojiText } from '@/features/emoji/CustomEmojiText';
 import { sanitizeRichText } from '@/domain/messages/richText';
 import { renderFormulaHtml } from '@/lib/renderFormula';
@@ -87,7 +88,22 @@ function Formula({ source, isBlock }: { source: string; isBlock: boolean }) {
   );
 }
 
+function renderRichTextNode(node: Text) {
+  // Preserve explicit link destinations and keep code snippets as literal text.
+  for (let parent = node.parent; parent instanceof Element; parent = parent.parent) {
+    if (parent.name === 'a' || parent.name === 'code' || parent.name === 'pre') {
+      return;
+    }
+  }
+
+  const links = linkText(node.data);
+  return links && <Fragment>{links}</Fragment>;
+}
+
 function renderRichElement(node: DOMNode) {
+  if (node instanceof Text) {
+    return renderRichTextNode(node);
+  }
   if (!(node instanceof Element)) {
     return;
   }

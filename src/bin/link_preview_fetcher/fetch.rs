@@ -1,8 +1,4 @@
-use std::{
-    future::Future,
-    io,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-};
+use std::{future::Future, io, net::SocketAddr};
 
 use reqwest::{
     Client, Response, StatusCode, Url,
@@ -12,15 +8,13 @@ use reqwest::{
 use serde::Serialize;
 use url::Host;
 
+use crate::link_preview_address::{is_public_host, is_public_ip};
+
 #[path = "metadata.rs"]
 mod metadata;
 
 const MAX_REDIRECTS: usize = 3;
 const MAX_HTML_BYTES: usize = 512 * 1024;
-// Azure routes this otherwise public-looking address to its VM host services.
-const AZURE_WIRESERVER: Ipv4Addr = Ipv4Addr::new(168, 63, 129, 16);
-const BLOCKED_DNS_SUFFIXES: &[&str] =
-    &["localhost", "local", "internal", "home.arpa", "onion", "invalid", "test"];
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum FetchError {
@@ -101,17 +95,15 @@ where
     }
 
     let port = url.port_or_known_default().ok_or(FetchError::Rejected)?;
-    let addresses = match url.host().ok_or(FetchError::Rejected)? {
+    let host = url.host().ok_or(FetchError::Rejected)?;
+    if !is_public_host(&host) {
+        return Err(FetchError::Rejected);
+    }
+
+    let addresses = match host {
         Host::Ipv4(address) => vec![SocketAddr::new(address.into(), port)],
         Host::Ipv6(address) => vec![SocketAddr::new(address.into(), port)],
-        Host::Domain(domain) => {
-            let domain = domain.trim_end_matches('.');
-            if !is_public_dns_name(domain) {
-                return Err(FetchError::Rejected);
-            }
-
-            resolve(domain.to_owned(), port).await?
-        }
+        Host::Domain(domain) => resolve(domain.trim_end_matches('.').to_owned(), port).await?,
     };
 
     // A mixed DNS answer is unsafe even if the connector would try its public address first.
@@ -120,54 +112,6 @@ where
     }
 
     Ok(addresses)
-}
-
-fn is_public_dns_name(domain: &str) -> bool {
-    domain.contains('.')
-        && !BLOCKED_DNS_SUFFIXES.iter().any(|suffix| {
-            let prefix = domain.strip_suffix(suffix);
-            domain == *suffix || prefix.is_some_and(|prefix| prefix.ends_with('.'))
-        })
-}
-
-fn is_public_ip(address: IpAddr) -> bool {
-    match address {
-        IpAddr::V4(address) => is_public_ipv4(address),
-        IpAddr::V6(address) => is_public_ipv6(address),
-    }
-}
-
-fn is_public_ipv4(address: Ipv4Addr) -> bool {
-    if address == AZURE_WIRESERVER {
-        return false;
-    }
-
-    // Reject special-use and documentation ranges, including shared carrier address space.
-    !matches!(
-        address.octets(),
-        [0 | 10 | 127 | 224..=255, ..]
-            | [100, 64..=127, ..]
-            | [169, 254, ..]
-            | [172, 16..=31, ..]
-            | [192, 0, 0 | 2, _]
-            | [192, 88, 99, _]
-            | [192, 168, ..]
-            | [198, 18 | 19, ..]
-            | [198, 51, 100, _]
-            | [203, 0, 113, _]
-    )
-}
-
-fn is_public_ipv6(address: Ipv6Addr) -> bool {
-    let segments = address.segments();
-    let is_global_unicast = matches!(segments, [0x2000..=0x3fff, ..]);
-    // The global range also contains transition mechanisms and special-purpose allocations.
-    let is_special_use = matches!(
-        segments,
-        [0x2001, 0..=0x01ff | 0x0db8, ..] | [0x2002, ..] | [0x3fff, 0..=0x0fff, ..]
-    );
-
-    is_global_unicast && !is_special_use
 }
 
 async fn resolve_domain(domain: String, port: u16) -> Result<Vec<SocketAddr>, FetchError> {

@@ -11,6 +11,8 @@ use tokio::{net::TcpListener, sync::Semaphore, time::Instant};
 
 #[path = "link_preview_fetcher/fetch.rs"]
 mod fetch;
+#[path = "../link_preview_address.rs"]
+mod link_preview_address;
 
 const BIND_ENV: &str = "LINK_PREVIEW_FETCHER_BIND";
 const DEFAULT_BIND: &str = "127.0.0.1:8091";
