@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 mod support;
 
+use std::time::Duration;
+
 use axum::{
     Router,
     body::Body,
@@ -11,12 +13,16 @@ use serde_json::{Value, json};
 use sqlx::PgPool;
 use tg_chat::{
     accounts::{
-        AccountService, Registration, SessionGrant,
+        AccountService, Actor, Registration, SessionGrant,
         http::{self, AccountHttpState},
         transport::HttpSettings,
     },
     media::{AttachmentInput, MediaCleanup},
     messages::{MessageService, SendReceipt},
+};
+use tokio::{
+    sync::oneshot,
+    time::{sleep, timeout},
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -62,8 +68,12 @@ async fn fixture(pool: PgPool) -> ReportFixture {
     }
 }
 
-async fn report(fixture: &ReportFixture, operation_id: Uuid) -> (StatusCode, Value) {
-    let path = format!("/api/v1/messages/{}/reports", fixture.sent.message.id);
+async fn report_message(
+    fixture: &ReportFixture,
+    message_id: Uuid,
+    operation_id: Uuid,
+) -> (StatusCode, Value) {
+    let path = format!("/api/v1/messages/{message_id}/reports");
     let payload = json!({
         "operation_id": operation_id,
         "reason": "spam",
@@ -82,6 +92,10 @@ async fn report(fixture: &ReportFixture, operation_id: Uuid) -> (StatusCode, Val
     let body = response.into_body().collect().await.unwrap().to_bytes();
 
     (status, serde_json::from_slice(&body).unwrap_or(Value::Null))
+}
+
+async fn report(fixture: &ReportFixture, operation_id: Uuid) -> (StatusCode, Value) {
+    report_message(fixture, fixture.sent.message.id, operation_id).await
 }
 
 #[sqlx::test]
@@ -148,17 +162,24 @@ impl CaseBrowser {
     }
 }
 
-#[sqlx::test]
-#[ignore = "requires PostgreSQL and RustFS"]
-async fn expired_case_denies_original_download_and_releases_its_reference(pool: PgPool) {
+struct OriginalFixture {
+    report: ReportFixture,
+    operator: CaseBrowser,
+    sender: Actor,
+    service: MessageService,
+    file_id: Uuid,
+    occurrence_id: Uuid,
+}
+
+async fn original_fixture(pool: &PgPool) -> OriginalFixture {
     let (accounts, queue, _) = support::services(pool.clone());
     let sender = support::account(&accounts, "original_sender").await;
     let reporter = register(&accounts, "original_reporter").await;
     let operator = register(&accounts, "case_reviewer").await;
     let set_operator = sqlx::query("UPDATE users SET is_operator = true WHERE id = $1");
-    set_operator.bind(operator.user.id).execute(&pool).await.unwrap();
+    set_operator.bind(operator.user.id).execute(pool).await.unwrap();
 
-    let file_id = support::media::prepared_document(&pool, &sender).await;
+    let file_id = support::media::prepared_document(pool, &sender).await;
     let occurrence_id = Uuid::new_v4();
     let service = MessageService::new(accounts.clone());
     let mut input = support::messaging::send_input(reporter.user.id);
@@ -182,43 +203,157 @@ async fn expired_case_denies_original_download_and_releases_its_reference(pool: 
         reporter_id: reporter.user.id,
     };
 
-    let (status, receipt) = report(&fixture, Uuid::new_v4()).await;
+    let operator = CaseBrowser {
+        router,
+        cookie: operator_cookie.split(';').next().unwrap().to_owned(),
+    };
+
+    OriginalFixture {
+        report: fixture,
+        operator,
+        sender,
+        service,
+        file_id,
+        occurrence_id,
+    }
+}
+
+fn source_removal(sent: &SendReceipt) -> tg_chat::messages::MessageCommand {
+    support::messaging::command(
+        sent.conversation.id,
+        json!({"kind": "delete", "message_id": sent.message.id}),
+    )
+}
+
+fn original_path(receipt: &Value, occurrence_id: Uuid) -> String {
+    let case_id = receipt["case_id"].as_str().unwrap();
+
+    format!("/api/v1/operator/cases/{case_id}/attachments/{occurrence_id}")
+}
+
+impl OriginalFixture {
+    async fn assert_original(&self, path: &str) {
+        let original = self.operator.get(path).await;
+        assert_eq!(original.status(), StatusCode::OK);
+        assert_eq!(original.headers()["x-content-type-options"], "nosniff");
+        let bytes = original.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(bytes.as_ref(), b"a private document");
+    }
+}
+
+async fn blocked_backend(pool: &PgPool, blocker: i32) -> i32 {
+    const LOCK_WAIT_TIMEOUT: Duration = Duration::from_secs(10);
+    const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+    timeout(LOCK_WAIT_TIMEOUT, async {
+        loop {
+            let query = sqlx::query_scalar(
+                "SELECT pid FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))",
+            );
+            if let Some(waiter) = query.bind(blocker).fetch_optional(pool).await.unwrap() {
+                return waiter;
+            }
+
+            sleep(LOCK_POLL_INTERVAL).await;
+        }
+    })
+    .await
+    .expect("the competing database operation did not block")
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and RustFS"]
+async fn report_and_source_removal_resolve_under_the_same_file_locks(pool: PgPool) {
+    let fixture = original_fixture(&pool).await;
+    let mut file_lock = pool.begin().await.unwrap();
+    let blocker: i32 =
+        sqlx::query_scalar("SELECT pg_backend_pid()").fetch_one(&mut *file_lock).await.unwrap();
+    let lock = sqlx::query("SELECT id FROM media_files WHERE id = $1 FOR UPDATE");
+    lock.bind(fixture.file_id).execute(&mut *file_lock).await.unwrap();
+
+    let operation_id = Uuid::new_v4();
+    let admission = report(&fixture.report, operation_id);
+    let (start_removal, wait_to_remove) = oneshot::channel();
+    let removal = async {
+        wait_to_remove.await.unwrap();
+        fixture.service.command(fixture.sender.clone(), source_removal(&fixture.report.sent)).await
+    };
+    let release = async {
+        // The report holds the source conversation while it waits for the original file.
+        let reporting_backend = blocked_backend(&pool, blocker).await;
+        start_removal.send(()).unwrap();
+        blocked_backend(&pool, reporting_backend).await;
+        file_lock.commit().await.unwrap();
+    };
+    let ((status, receipt), removed, ()) = tokio::join!(admission, removal, release);
+    assert_eq!(status, StatusCode::OK, "{receipt}");
+    removed.unwrap();
+
+    let message_id = fixture.report.sent.message.id;
+    let remaining = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM media_message_references WHERE message_id = $1)",
+    );
+    assert!(!remaining.bind(message_id).fetch_one(&pool).await.unwrap());
+
+    let case_id = receipt["case_id"].as_str().unwrap();
+    let case_path = format!("/api/v1/operator/cases/{case_id}");
+    let detail = fixture.operator.get(&case_path).await;
+    assert_eq!(detail.status(), StatusCode::OK);
+    let body = detail.into_body().collect().await.unwrap().to_bytes();
+    let detail: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(detail["evidence"]["message_text"], "Original text");
+    assert_eq!(detail["attachments"].as_array().unwrap().len(), 1);
+    assert_eq!(detail["attachments"][0]["occurrence_id"], fixture.occurrence_id.to_string());
+    fixture.assert_original(&original_path(&receipt, fixture.occurrence_id)).await;
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and RustFS"]
+async fn expired_case_releases_only_its_own_references(pool: PgPool) {
+    let fixture = original_fixture(&pool).await;
+    let (status, receipt) = report(&fixture.report, Uuid::new_v4()).await;
     assert_eq!(status, StatusCode::OK, "{receipt}");
     let case_id = receipt["case_id"].as_str().unwrap();
     let case_uuid = Uuid::parse_str(case_id).unwrap();
-    let path = format!("/api/v1/operator/cases/{case_id}/attachments/{occurrence_id}");
-    let remove = support::messaging::command(
-        fixture.sent.conversation.id,
-        json!({"kind": "delete", "message_id": fixture.sent.message.id}),
-    );
-    service.command(sender, remove).await.unwrap();
+    let path = original_path(&receipt, fixture.occurrence_id);
+
+    let second_occurrence = Uuid::new_v4();
+    let mut input = support::messaging::send_input(fixture.report.reporter_id);
+    input.attachments.push(AttachmentInput {
+        file_id: fixture.file_id,
+        occurrence_id: second_occurrence,
+    });
+    let second = fixture.service.send(fixture.sender.clone(), input).await.unwrap();
+    let (status, second_receipt) =
+        report_message(&fixture.report, second.message.id, Uuid::new_v4()).await;
+    assert_eq!(status, StatusCode::OK, "{second_receipt}");
+    let second_path = original_path(&second_receipt, second_occurrence);
+    let wrong_case = original_path(&second_receipt, fixture.occurrence_id);
+    assert_eq!(fixture.operator.get(&wrong_case).await.status(), StatusCode::NOT_FOUND);
+
+    for sent in [&fixture.report.sent, &second] {
+        fixture.service.command(fixture.sender.clone(), source_removal(sent)).await.unwrap();
+    }
     let collector = MediaCleanup::new(pool.clone(), support::media::storage_settings());
     collector.process_next().await.unwrap();
 
     let ordinary_browser = CaseBrowser {
-        router: router.clone(),
-        cookie: fixture.cookie,
+        router: fixture.report.router.clone(),
+        cookie: fixture.report.cookie.clone(),
     };
     assert_eq!(ordinary_browser.get(&path).await.status(), StatusCode::FORBIDDEN);
-    let operator_browser = CaseBrowser {
-        router,
-        cookie: operator_cookie.split(';').next().unwrap().to_owned(),
-    };
-    let original = operator_browser.get(&path).await;
-    assert_eq!(original.status(), StatusCode::OK);
-    assert_eq!(original.headers()["x-content-type-options"], "nosniff");
-    let bytes = original.into_body().collect().await.unwrap().to_bytes();
-    assert_eq!(bytes.as_ref(), b"a private document");
+    fixture.assert_original(&path).await;
 
     let expire = sqlx::query(
         "UPDATE moderation_cases SET created_at = clock_timestamp() - interval '91 days',
          evidence_expires_at = clock_timestamp() - interval '1 day' WHERE id = $1",
     );
     expire.bind(case_uuid).execute(&pool).await.unwrap();
-    assert_eq!(operator_browser.get(&path).await.status(), StatusCode::NOT_FOUND);
+    assert_eq!(fixture.operator.get(&path).await.status(), StatusCode::NOT_FOUND);
     assert!(tg_chat::moderation::evidence::expire_one(&pool).await.unwrap());
     let remains = sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS (SELECT 1 FROM media_evidence_references WHERE case_id = $1)",
     );
     assert!(!remains.bind(case_uuid).fetch_one(&pool).await.unwrap());
+    fixture.assert_original(&second_path).await;
 }

@@ -29,6 +29,19 @@ async fn restoration_invalidates_a_page_that_missed_quarantine(pool: PgPool) {
     let service = MessageService::new(accounts.clone());
     let input = support::messaging::send_input(reader.user_id);
     let sent = service.send(sender, input).await.unwrap();
+    let direct_target = serde_json::from_value(json!({
+        "operation_id": Uuid::new_v4(),
+        "reason": "Attempt direct quarantine without case review",
+        "action": {
+            "kind": "set_quarantine",
+            "target": {"kind": "community", "conversation_id": sent.conversation.id},
+            "is_quarantined": true,
+        },
+    }))
+    .unwrap();
+    let denied = accounts.submit_operator_command(&operator, direct_target).await;
+    assert!(matches!(denied, Err(AccountError::NotFound)));
+
     let report = serde_json::from_value(json!({
         "operation_id": Uuid::new_v4(),
         "reason": "spam",
@@ -82,8 +95,6 @@ async fn quota_and_job_actions_apply_to_new_work_and_replay_once(pool: PgPool) {
         },
     }))
     .unwrap();
-    accounts.submit_operator_command(&operator, limit).await.unwrap();
-
     let reserves = UploadReservations::new(accounts.clone(), MediaLimits::default());
     let upload = ReserveUpload {
         upload_id: Uuid::new_v4(),
@@ -92,7 +103,22 @@ async fn quota_and_job_actions_apply_to_new_work_and_replay_once(pool: PgPool) {
         size_bytes: 1025,
         sha256: "00".repeat(32),
     };
-    let denied = reserves.reserve(&member, upload).await;
+    let reservation = reserves.reserve(&member, upload.clone());
+    let update = accounts.submit_operator_command(&operator, limit);
+    let (reserved, updated) = tokio::join!(reservation, update);
+    updated.unwrap();
+    match reserved {
+        Ok(_) => {
+            // A reservation that wins the race remains valid under the new ceiling.
+            reserves.status(&member, upload.upload_id).await.unwrap();
+        }
+        Err(error) => assert!(matches!(error, AccountError::QuotaExceeded)),
+    }
+    let next_upload = ReserveUpload {
+        upload_id: Uuid::new_v4(),
+        ..upload
+    };
+    let denied = reserves.reserve(&member, next_upload).await;
     assert!(matches!(denied, Err(AccountError::QuotaExceeded)));
 
     let exhaust = sqlx::query(
