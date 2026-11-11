@@ -449,3 +449,137 @@ async fn publishing_consumes_the_upload_preview_authority(pool: PgPool) {
     let denied = media.sign_download(&sender, preview).await;
     assert!(matches!(denied, Err(AccountError::NotFound)));
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and S3 storage"]
+async fn case_hold_preserves_only_the_original_until_release(pool: PgPool) {
+    use serde_json::json;
+    use tg_chat::{
+        media::{AttachmentInput, MediaCleanup},
+        messages::MessageService,
+    };
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "sender").await;
+    let recipient = support::account(&accounts, "recipient").await;
+    let file_id = prepared_document(&pool, &sender).await;
+    let mut input = support::messaging::send_input(recipient.user_id);
+    let occurrence_id = Uuid::new_v4();
+    input.attachments.push(AttachmentInput {
+        occurrence_id,
+        file_id,
+    });
+    let messages = MessageService::new(accounts.clone());
+    let sent = messages.send(sender.clone(), input).await.unwrap();
+    let case_id = hold_report_original(&pool, sent.message.id, recipient.user_id).await;
+
+    let settings = support::media::storage_settings();
+    let storage = support::media::storage_client(&settings);
+    let original_key = format!("files/{file_id}/original");
+    let thumbnail_key = format!("files/{file_id}/thumbnail");
+    let thumbnail = ThumbnailFixture {
+        bucket: &settings.bucket,
+        file_id,
+    };
+    seed_thumbnail(&pool, &storage, thumbnail).await;
+    let cleanup = MediaCleanup::new(pool.clone(), settings.clone());
+
+    let deletion = support::messaging::command(
+        sent.conversation.id,
+        json!({
+            "kind": "delete",
+            "message_id": sent.message.id,
+        }),
+    );
+    messages.command(sender.clone(), deletion).await.unwrap();
+    assert!(cleanup.process_next().await.unwrap());
+
+    let original = storage.get_object().bucket(&settings.bucket).key(&original_key);
+    let original = original.send().await.unwrap();
+    let bytes = original.body.collect().await.unwrap().into_bytes();
+    assert_eq!(bytes.as_ref(), b"a private document");
+    let thumbnail = storage.get_object().bucket(&settings.bucket).key(&thumbnail_key);
+    let thumbnail = thumbnail.send().await.unwrap_err();
+    assert!(thumbnail.as_service_error().is_some_and(|error| error.is_no_such_key()));
+
+    let mut retry = support::messaging::send_input(recipient.user_id);
+    retry.attachments.push(AttachmentInput {
+        occurrence_id: Uuid::new_v4(),
+        file_id,
+    });
+    let result = messages.send(sender.clone(), retry).await;
+    assert!(matches!(result, Err(AccountError::MediaFileUnavailable)));
+    let limits = MediaLimits {
+        account_bytes: bytes.len() as i64,
+        ..MediaLimits::default()
+    };
+    let reservations = UploadReservations::new(accounts, limits);
+    let reservation = document(1);
+    let result = reservations.reserve(&sender, reservation.clone()).await;
+    assert!(matches!(result, Err(AccountError::QuotaExceeded)));
+
+    let release = sqlx::query("DELETE FROM moderation_evidence WHERE case_id = $1");
+    release.bind(case_id).execute(&pool).await.unwrap();
+    let end_staging_grace = sqlx::query(
+        "UPDATE media_uploads SET last_write_expires_at = now() - interval '1 hour'
+         WHERE file_id = $1",
+    );
+    end_staging_grace.bind(file_id).execute(&pool).await.unwrap();
+    assert!(cleanup.process_next().await.unwrap());
+
+    let original = storage.get_object().bucket(&settings.bucket).key(&original_key);
+    let original = original.send().await.unwrap_err();
+    assert!(original.as_service_error().is_some_and(|error| error.is_no_such_key()));
+    reservations.reserve(&sender, reservation).await.unwrap();
+}
+
+async fn seed_thumbnail(
+    pool: &PgPool,
+    storage: &aws_sdk_s3::Client,
+    fixture: ThumbnailFixture<'_>,
+) {
+    let thumbnail = b"synthetic thumbnail";
+    let key = format!("files/{}/thumbnail", fixture.file_id);
+    let request = storage.put_object().bucket(fixture.bucket).key(key);
+    request.body(thumbnail.to_vec().into()).send().await.unwrap();
+
+    let insert = sqlx::query(
+        "INSERT INTO media_variants (file_id, kind, mime_type, size_bytes)
+         VALUES ($1, 'thumbnail', 'image/webp', $2)",
+    );
+    insert.bind(fixture.file_id).bind(thumbnail.len() as i64).execute(pool).await.unwrap();
+}
+
+struct ThumbnailFixture<'a> {
+    bucket: &'a str,
+    file_id: Uuid,
+}
+
+async fn hold_report_original(pool: &PgPool, message_id: Uuid, reporter_id: Uuid) -> Uuid {
+    let case_id = Uuid::new_v4();
+    let mut transaction = pool.begin().await.unwrap();
+    let insert_case = sqlx::query(
+        "INSERT INTO moderation_cases (
+             id, reporter_id, conversation_id, message_id, reported_author_id,
+             reason, created_at, evidence_expires_at
+         )
+         SELECT $1, $2, conversation_id, id, author_id, 'spam', now(), now() + interval '90 days'
+         FROM messages WHERE id = $3",
+    );
+    let insert_case = insert_case.bind(case_id).bind(reporter_id).bind(message_id);
+    insert_case.execute(&mut *transaction).await.unwrap();
+    let insert_evidence = sqlx::query(
+        "INSERT INTO moderation_evidence (case_id, message_version, message_text)
+         VALUES ($1, 1, 'Reported message')",
+    );
+    insert_evidence.bind(case_id).execute(&mut *transaction).await.unwrap();
+    let copy = sqlx::query(
+        "INSERT INTO media_evidence_references (case_id, occurrence_id, file_id, position)
+         SELECT $1, occurrence_id, file_id, position
+         FROM media_message_references WHERE message_id = $2",
+    );
+    copy.bind(case_id).bind(message_id).execute(&mut *transaction).await.unwrap();
+    transaction.commit().await.unwrap();
+
+    case_id
+}

@@ -38,6 +38,7 @@ import { GlobalMessageSearch } from '../search/GlobalMessageSearch';
 import { ShareContactDialog } from '../composer/ShareContactDialog';
 import { ContactLinkContext } from '../messages/content/contact/ContactActions';
 import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
+import { ReportMessageDialog } from './ReportMessageDialog';
 import type { MessageSelectionChange } from '../messages/selection/useMessageSelectionGesture';
 import styles from './ConnectedChat.module.css';
 
@@ -51,6 +52,7 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'add-task',
   'edit-checklist',
   'forward',
+  'report',
   'select',
   'forward-selected',
   'delete-selected',
@@ -151,6 +153,7 @@ export function ConnectedChat({
   const [contactDestination, setContactDestination] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>();
   const [forwardIds, setForwardIds] = useState<string[]>();
+  const [reportedMessageId, setReportedMessageId] = useState<string>();
   const [voterMessageId, setVoterMessageId] = useState<string>();
   const [checklistEditor, setChecklistEditor] = useState<{
     messageId: string;
@@ -185,6 +188,9 @@ export function ConnectedChat({
   const canPost = conversation?.can_post ?? selection?.destination.kind !== 'conversation';
   const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
   const allowedActions = CONNECTED_ACTIONS.filter((action) => {
+    if (action === 'report') {
+      return Boolean(session);
+    }
     if (action === 'pin') {
       return conversation?.can_manage ?? false;
     }
@@ -249,6 +255,7 @@ export function ConnectedChat({
     setChecklistEditor(undefined);
     setSelectedIds(undefined);
     setForwardIds(undefined);
+    setReportedMessageId(undefined);
   }, [selectedKey, conversation?.generation]);
   useEffect(() => {
     if (!canPost) {
@@ -521,6 +528,9 @@ export function ConnectedChat({
       return;
     }
     switch (command.action) {
+      case 'report':
+        setReportedMessageId(canonical.id);
+        break;
       case 'select':
         toggleSelection(canonical.id);
         break;
@@ -1158,6 +1168,14 @@ export function ConnectedChat({
             session={session}
             onClose={() => setContactDestination(undefined)}
             onSubmit={queueContact}
+          />
+        )}
+        {reportedMessageId && session && (
+          <ReportMessageDialog
+            key={reportedMessageId}
+            session={session}
+            messageId={reportedMessageId}
+            onClose={() => setReportedMessageId(undefined)}
           />
         )}
         {forwardIds && (

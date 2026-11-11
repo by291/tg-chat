@@ -16,8 +16,8 @@ const POLL_INTERVAL: Duration = Duration::from_secs(2);
 const RETRY_SECONDS: i64 = 90;
 const RECEIPT_BATCH_SIZE: i64 = 100;
 
-const VARIANTS: [MediaVariant; 4] =
-    [MediaVariant::Original, MediaVariant::Thumbnail, MediaVariant::Poster, MediaVariant::Playback];
+const DERIVATIVES: [MediaVariant; 3] =
+    [MediaVariant::Thumbnail, MediaVariant::Poster, MediaVariant::Playback];
 
 pub struct MediaCleanup {
     pool: PgPool,
@@ -66,13 +66,18 @@ impl MediaCleanup {
     /// Collect one due item from each category so abandoned uploads cannot starve.
     pub async fn process_next(&self) -> Result<bool, AccountError> {
         let file = self.collect_file().await;
+        let derivatives = self.collect_derivatives().await;
         let attempt = self.collect_attempt().await;
         let staging = self.collect_staging().await;
         let has_collected_file = file?;
+        let has_collected_derivatives = derivatives?;
         let has_collected_attempt = attempt?;
         let has_collected_staging = staging?;
 
-        Ok(has_collected_file || has_collected_attempt || has_collected_staging)
+        Ok(has_collected_file
+            || has_collected_derivatives
+            || has_collected_attempt
+            || has_collected_staging)
     }
 
     /// Keep physical cleanup independent of transfer and codec processing.
@@ -106,6 +111,9 @@ impl MediaCleanup {
                     file.ready_until <= now() AND NOT EXISTS (
                         SELECT 1 FROM media_live_file_references reference
                         WHERE reference.file_id = file.id
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM media_evidence_references evidence
+                        WHERE evidence.file_id = file.id
                     )
                ))
              ORDER BY file.ready_until, file.id LIMIT 1 FOR UPDATE OF file SKIP LOCKED",
@@ -122,6 +130,9 @@ impl MediaCleanup {
              WHERE file.id = $1 AND NOT EXISTS (
                  SELECT 1 FROM media_live_file_references reference
                  WHERE reference.file_id = file.id
+             ) AND NOT EXISTS (
+                 SELECT 1 FROM media_evidence_references evidence
+                 WHERE evidence.file_id = file.id
              )",
         )
         .bind(candidate.id)
@@ -149,6 +160,74 @@ impl MediaCleanup {
             sqlx::query("UPDATE media_uploads SET state = 'expired', file_id = NULL WHERE id = $1");
         upload.bind(candidate.upload_id).execute(&mut *transaction).await?;
         release_upload(&mut transaction, candidate.upload_id).await?;
+        transaction.commit().await?;
+
+        Ok(true)
+    }
+
+    async fn claim_derivatives(&self) -> Result<Option<Uuid>, AccountError> {
+        let mut transaction = self.pool.begin().await?;
+        let query = sqlx::query_scalar::<_, Uuid>(
+            "SELECT file.id FROM media_files file
+             WHERE file.deleted_at IS NULL AND file.deleting_at IS NULL
+               AND file.ready_until <= now()
+               AND (file.cleanup_after IS NULL OR file.cleanup_after <= now())
+               AND EXISTS (
+                   SELECT 1 FROM media_evidence_references evidence
+                   WHERE evidence.file_id = file.id
+               ) AND NOT EXISTS (
+                   SELECT 1 FROM media_live_file_references reference
+                   WHERE reference.file_id = file.id
+               ) AND EXISTS (
+                   SELECT 1 FROM media_variants variant
+                   WHERE variant.file_id = file.id AND variant.kind <> 'original'
+               )
+             ORDER BY file.ready_until, file.id LIMIT 1 FOR UPDATE OF file SKIP LOCKED",
+        );
+        let Some(file_id) = query.fetch_optional(&mut *transaction).await? else {
+            return Ok(None);
+        };
+
+        // Fence ordinary reuse while deletion is pending, and recheck holds under the file lock.
+        let claim = sqlx::query(
+            "UPDATE media_files file
+             SET derivatives_deleting_at = COALESCE(derivatives_deleting_at, now()),
+                 cleanup_after = now() + ($2::bigint * interval '1 second')
+             WHERE file.id = $1 AND EXISTS (
+                 SELECT 1 FROM media_evidence_references evidence WHERE evidence.file_id = file.id
+             ) AND NOT EXISTS (
+                 SELECT 1 FROM media_live_file_references reference WHERE reference.file_id = file.id
+             )",
+        );
+        let claim = claim.bind(file_id).bind(RETRY_SECONDS);
+        if claim.execute(&mut *transaction).await?.rows_affected() == 0 {
+            return Ok(None);
+        }
+        transaction.commit().await?;
+
+        Ok(Some(file_id))
+    }
+
+    async fn collect_derivatives(&self) -> Result<bool, AccountError> {
+        let Some(file_id) = self.claim_derivatives().await? else {
+            return Ok(false);
+        };
+        self.delete_derivative_objects(file_id).await?;
+
+        let mut transaction = self.pool.begin().await?;
+        // A full cleanup may have taken over after the retry deadline. Preserve its lease.
+        let finish = sqlx::query(
+            "UPDATE media_files
+             SET cleanup_after = CASE WHEN deleting_at IS NULL THEN NULL ELSE cleanup_after END
+             WHERE id = $1",
+        );
+        finish.bind(file_id).execute(&mut *transaction).await?;
+        let variants =
+            sqlx::query("DELETE FROM media_variants WHERE file_id = $1 AND kind <> 'original'");
+        variants.bind(file_id).execute(&mut *transaction).await?;
+        let release =
+            sqlx::query("UPDATE media_processing_attempts SET variant_bytes = 0 WHERE id = $1");
+        release.bind(file_id).execute(&mut *transaction).await?;
         transaction.commit().await?;
 
         Ok(true)
@@ -236,8 +315,14 @@ impl MediaCleanup {
     }
 
     async fn delete_candidate_objects(&self, id: Uuid) -> Result<(), AccountError> {
+        self.delete_derivative_objects(id).await?;
+        let key = variant_key(id, MediaVariant::Original);
+        self.storage.delete_object(&key).await
+    }
+
+    async fn delete_derivative_objects(&self, id: Uuid) -> Result<(), AccountError> {
         self.storage.provision().await?;
-        for variant in VARIANTS {
+        for variant in DERIVATIVES {
             let key = variant_key(id, variant);
             self.storage.delete_object(&key).await?;
         }

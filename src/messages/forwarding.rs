@@ -164,7 +164,8 @@ async fn source(
     Ok(message)
 }
 
-fn copy_body(body: Option<MessageBodyView>) -> Option<StoredMessageBody> {
+/// Capture displayable typed content without interaction identities or private results.
+pub(crate) fn snapshot_body(body: Option<MessageBodyView>) -> Option<StoredMessageBody> {
     let copied = match body? {
         MessageBodyView::Sticker {
             sticker_id,
@@ -240,7 +241,7 @@ async fn insert_copy(
     copy: CopyContext<'_>,
 ) -> Result<(), AcceptanceError> {
     let attribution = copy.source.forwarded_from.as_deref().unwrap_or(&copy.source.author_name);
-    let body = copy_body(copy.source.body);
+    let body = snapshot_body(copy.source.body);
     let input = SendMessage {
         operation_id: Uuid::new_v4(),
         message_id: copy.item.message_id,

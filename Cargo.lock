@@ -3333,6 +3333,7 @@ dependencies = [
  "clap",
  "cookie",
  "email_address",
+ "futures-util",
  "getrandom 0.4.3",
  "hex",
  "http-body-util",

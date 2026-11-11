@@ -1110,6 +1110,99 @@
         }
       }
     },
+    "/api/v1/messages/{message_id}/reports": {
+      "post": {
+        "tags": [],
+        "operationId": "report_message",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ReportMessage" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ReportReceipt" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operator/cases": {
+      "get": {
+        "tags": [],
+        "operationId": "cases",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CasePage" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operator/cases/{case_id}": {
+      "get": {
+        "tags": [],
+        "operationId": "case_detail",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CaseDetail" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operator/cases/{case_id}/attachments/{occurrence_id}": {
+      "get": {
+        "tags": [],
+        "operationId": "case_original",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "occurrence_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "Private original attachment stream" } }
+      }
+    },
     "/api/v1/operator/commands": {
       "post": {
         "tags": [],
@@ -1365,6 +1458,71 @@
           "media_uploads_available": { "type": ["boolean", "null"] },
           "messaging_available": { "type": "boolean" },
           "registration_open": { "type": "boolean" }
+        }
+      },
+      "CaseAttachment": {
+        "type": "object",
+        "required": ["occurrence_id", "file_name", "size_bytes"],
+        "properties": {
+          "file_name": { "type": "string" },
+          "occurrence_id": { "type": "string", "format": "uuid" },
+          "size_bytes": { "type": "integer", "format": "int64" }
+        }
+      },
+      "CaseDetail": {
+        "type": "object",
+        "required": ["case", "attachments"],
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CaseAttachment" }
+          },
+          "case": { "$ref": "#/components/schemas/CaseSummary" },
+          "evidence": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CaseEvidence" }]
+          }
+        }
+      },
+      "CaseEvidence": {
+        "type": "object",
+        "required": ["message_version", "message_text", "reporter_note"],
+        "properties": {
+          "message_text": { "type": "string" },
+          "message_version": { "type": "string" },
+          "reporter_note": { "type": "string" },
+          "structured_body": {}
+        }
+      },
+      "CasePage": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CaseSummary" } },
+          "next": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "CaseSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "reporter_id",
+          "conversation_id",
+          "message_id",
+          "reported_author_id",
+          "reason",
+          "created_at",
+          "evidence_expires_at"
+        ],
+        "properties": {
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "evidence_expires_at": { "type": "string", "format": "date-time" },
+          "id": { "type": "string", "format": "uuid" },
+          "message_id": { "type": "string", "format": "uuid" },
+          "reason": { "type": "string" },
+          "reported_author_id": { "type": "string", "format": "uuid" },
+          "reporter_id": { "type": "string", "format": "uuid" },
+          "resolved_at": { "type": ["string", "null"], "format": "date-time" }
         }
       },
       "ChecklistCompleter": {
@@ -2365,6 +2523,23 @@
               "kind": { "type": "string", "enum": ["set_suspension"] },
               "user_id": { "type": "string", "format": "uuid" }
             }
+          },
+          {
+            "type": "object",
+            "required": ["case_id", "kind"],
+            "properties": {
+              "case_id": { "type": "string", "format": "uuid" },
+              "kind": { "type": "string", "enum": ["resolve_case"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["case_id", "deadline", "kind"],
+            "properties": {
+              "case_id": { "type": "string", "format": "uuid" },
+              "deadline": { "type": "string", "format": "date-time" },
+              "kind": { "type": "string", "enum": ["extend_evidence"] }
+            }
           }
         ]
       },
@@ -2656,6 +2831,28 @@
           "is_unavailable": { "type": "boolean" },
           "message_id": { "type": "string", "format": "uuid" },
           "quote": { "type": ["string", "null"] }
+        }
+      },
+      "ReportMessage": {
+        "type": "object",
+        "required": ["operation_id", "reason"],
+        "properties": {
+          "note": { "type": ["string", "null"] },
+          "operation_id": { "type": "string", "format": "uuid" },
+          "reason": { "$ref": "#/components/schemas/ReportReason" }
+        },
+        "additionalProperties": false
+      },
+      "ReportReason": {
+        "type": "string",
+        "enum": ["spam", "harassment", "harmful_content", "other"]
+      },
+      "ReportReceipt": {
+        "type": "object",
+        "required": ["case_id", "evidence_expires_at"],
+        "properties": {
+          "case_id": { "type": "string", "format": "uuid" },
+          "evidence_expires_at": { "type": "string", "format": "date-time" }
         }
       },
       "ReserveUpload": {

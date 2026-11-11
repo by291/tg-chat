@@ -8,6 +8,7 @@ export type MessageAction =
   | 'pin'
   | 'copy'
   | 'forward'
+  | 'report'
   | 'select'
   | 'copy-selected'
   | 'download-selected'

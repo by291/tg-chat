@@ -5,6 +5,20 @@ use tg_chat::{
 };
 use uuid::Uuid;
 
+/// Read and seed test objects independently of application signing and authorization.
+pub fn storage_client(settings: &MediaStorageSettings) -> aws_sdk_s3::Client {
+    use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region, RequestChecksumCalculation};
+
+    let credentials =
+        Credentials::new(&settings.access_key, &settings.secret_key, None, None, "test-media");
+    let config = aws_sdk_s3::Config::builder();
+    let config = config.behavior_version(BehaviorVersion::latest());
+    let config = config.credentials_provider(credentials).region(Region::new("us-east-1"));
+    let config = config.endpoint_url(&settings.internal_endpoint).force_path_style(true);
+    let config = config.request_checksum_calculation(RequestChecksumCalculation::WhenRequired);
+    aws_sdk_s3::Client::from_conf(config.build())
+}
+
 /// Point media tests at an isolated S3 storage deployment.
 pub fn storage_settings() -> MediaStorageSettings {
     let internal_endpoint = std::env::var("TG_CHAT_TEST_S3_ENDPOINT").unwrap();

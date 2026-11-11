@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Copy,
   Download,
+  Flag,
   Forward,
   Pencil,
   Plus,
@@ -223,6 +224,13 @@ export function MessageMenu({
       : getMessageItems(message, currentUserId);
   }
   if (allowedActions) {
+    if (!isSelecting && allowedActions.includes('report')) {
+      items.push({
+        action: 'report',
+        label: 'Report',
+        icon: Flag,
+      });
+    }
     items = items.filter((item) => allowedActions.includes(item.action));
   }
   const selectedReactions = message?.reactionDetails

@@ -1,5 +1,6 @@
 //! Browser operator commands and transactional moderation.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::PgConnection;
@@ -15,7 +16,10 @@ use crate::accounts::{
     },
 };
 
+pub mod evidence;
 pub(crate) mod http;
+pub(crate) mod report_http;
+pub mod reports;
 
 #[derive(Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -34,6 +38,13 @@ pub enum OperatorAction {
     SetSuspension {
         user_id: Uuid,
         is_suspended: bool,
+    },
+    ResolveCase {
+        case_id: Uuid,
+    },
+    ExtendEvidence {
+        case_id: Uuid,
+        deadline: DateTime<Utc>,
     },
 }
 
@@ -59,6 +70,12 @@ async fn lock_command_targets(
             user_id,
             ..
         } => Some(*user_id),
+        OperatorAction::ResolveCase {
+            ..
+        }
+        | OperatorAction::ExtendEvidence {
+            ..
+        } => None,
     };
     lock_operator_accounts(connection, actor, target).await
 }
@@ -131,6 +148,21 @@ async fn apply_action(
 
             Ok((AuditTarget::Account(user_id), action))
         }
+        OperatorAction::ResolveCase {
+            case_id,
+        } => {
+            evidence::resolve_case(connection, case_id).await?;
+
+            Ok((AuditTarget::Case(case_id), "case_resolved"))
+        }
+        OperatorAction::ExtendEvidence {
+            case_id,
+            deadline,
+        } => {
+            evidence::extend_evidence(connection, case_id, deadline).await?;
+
+            Ok((AuditTarget::Case(case_id), "evidence_extended"))
+        }
     }
 }
 
@@ -158,7 +190,15 @@ impl AccountService {
             return Ok(());
         }
 
+        let is_case_action = matches!(
+            &command.action,
+            OperatorAction::ResolveCase { .. } | OperatorAction::ExtendEvidence { .. }
+        );
         let (target, action) = apply_action(&mut transaction, command.action).await?;
+        if is_case_action {
+            // Case actions can wait on expiry work after taking the operator session lock.
+            authorize_operator(&mut transaction, actor, &self.settings).await?;
+        }
         append_audit(
             &mut transaction,
             AuditEvent {

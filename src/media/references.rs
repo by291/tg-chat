@@ -10,6 +10,15 @@ use crate::accounts::AccountError;
 use super::{MediaFileView, MediaVariant, UploadPurpose};
 
 const MAX_ALBUM_ITEMS: usize = 10;
+const EVIDENCE_ATTACHMENTS_SQL: &str =
+    "SELECT reference.occurrence_id, file.id AS file_id, upload.file_name, original.size_bytes
+     FROM media_evidence_references reference
+     JOIN media_files file ON file.id = reference.file_id
+     JOIN media_uploads upload ON upload.id = file.upload_id
+     JOIN media_variants original ON original.file_id = file.id AND original.kind = 'original'
+     WHERE reference.case_id = $1 AND ($2::uuid IS NULL OR reference.occurrence_id = $2)
+       AND file.deleting_at IS NULL AND file.deleted_at IS NULL
+     ORDER BY reference.position";
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -29,6 +38,20 @@ pub struct AttachmentView {
 struct ReadyFile {
     id: Uuid,
     purpose: UploadPurpose,
+}
+
+#[derive(FromRow)]
+struct SourceFileState {
+    is_original_unavailable: bool,
+    is_derivative_collection_started: bool,
+}
+
+#[derive(FromRow)]
+pub(crate) struct EvidenceAttachment {
+    pub occurrence_id: Uuid,
+    pub file_id: Uuid,
+    pub file_name: String,
+    pub size_bytes: i64,
 }
 
 #[derive(FromRow)]
@@ -81,6 +104,7 @@ async fn lock_message_files(
          JOIN media_uploads upload ON upload.id = file.upload_id
          WHERE file.id = ANY($1) AND upload.owner_id = $2
            AND file.deleting_at IS NULL AND file.deleted_at IS NULL
+           AND file.derivatives_deleting_at IS NULL
            AND (file.ready_until > now() OR EXISTS (
                SELECT 1 FROM media_live_file_references reference WHERE reference.file_id = file.id
            ))
@@ -133,23 +157,99 @@ pub(crate) async fn attach_message(
     Ok(())
 }
 
+async fn lock_source_files(
+    connection: &mut PgConnection,
+    source_ids: &[Uuid],
+) -> Result<Vec<SourceFileState>, sqlx::Error> {
+    let query = sqlx::query_as::<_, SourceFileState>(
+        "SELECT (
+             file.deleting_at IS NOT NULL OR file.deleted_at IS NOT NULL OR NOT EXISTS (
+                 SELECT 1 FROM media_variants variant
+                 WHERE variant.file_id = file.id AND variant.kind = 'original'
+             )
+         ) AS is_original_unavailable,
+         file.derivatives_deleting_at IS NOT NULL AS is_derivative_collection_started
+         FROM media_files file
+         WHERE EXISTS (SELECT 1 FROM media_message_references reference
+             WHERE reference.file_id = file.id AND reference.message_id = ANY($1))
+         ORDER BY file.id FOR UPDATE",
+    );
+    query.bind(source_ids).fetch_all(connection).await
+}
+
 /// Lock immutable source files before any destination copy advances the sync feed.
 pub(crate) async fn lock_forward_files(
     connection: &mut PgConnection,
     source_ids: &[Uuid],
 ) -> Result<(), AccountError> {
-    let query = sqlx::query_scalar::<_, bool>(
-        "SELECT file.deleting_at IS NOT NULL OR file.deleted_at IS NOT NULL FROM media_files file
-         WHERE EXISTS (SELECT 1 FROM media_message_references reference
-             WHERE reference.file_id = file.id AND reference.message_id = ANY($1))
-         ORDER BY file.id FOR UPDATE",
-    );
-    let states = query.bind(source_ids).fetch_all(connection).await?;
-    if states.contains(&true) {
+    let states = lock_source_files(connection, source_ids).await?;
+    let is_unavailable = states
+        .iter()
+        .any(|file| file.is_original_unavailable || file.is_derivative_collection_started);
+    if is_unavailable {
         return Err(AccountError::MediaFileUnavailable);
     }
 
     Ok(())
+}
+
+/// Retain originals for an already locked report source in occurrence order.
+pub(crate) async fn copy_evidence_references(
+    connection: &mut PgConnection,
+    message_id: Uuid,
+    case_id: Uuid,
+) -> Result<(), AccountError> {
+    // Source removal and collection take the same ordered file locks before changing holds.
+    let states = lock_source_files(connection, &[message_id]).await?;
+    if states.iter().any(|file| file.is_original_unavailable) {
+        return Err(AccountError::MediaFileUnavailable);
+    }
+
+    let insert = sqlx::query(
+        "INSERT INTO media_evidence_references (case_id, occurrence_id, file_id, position)
+         SELECT $2, occurrence_id, file_id, position FROM media_message_references
+         WHERE message_id = $1 ORDER BY position",
+    );
+    let insert = insert.bind(message_id).bind(case_id);
+    insert.execute(connection).await?;
+
+    Ok(())
+}
+
+/// Lock the originals for expired cases before deleting their evidence snapshots.
+pub(crate) async fn lock_evidence_files(
+    connection: &mut PgConnection,
+    case_ids: &[Uuid],
+) -> Result<(), sqlx::Error> {
+    let lock = sqlx::query(
+        "SELECT file.id FROM media_files file
+         WHERE EXISTS (
+             SELECT 1 FROM media_evidence_references reference
+             WHERE reference.file_id = file.id AND reference.case_id = ANY($1)
+         ) ORDER BY file.id FOR UPDATE",
+    );
+    lock.bind(case_ids).fetch_all(connection).await?;
+
+    Ok(())
+}
+
+/// List retained originals for a case the caller has authorized.
+pub(crate) async fn evidence_attachments(
+    connection: &mut PgConnection,
+    case_id: Uuid,
+) -> Result<Vec<EvidenceAttachment>, sqlx::Error> {
+    let query = sqlx::query_as(EVIDENCE_ATTACHMENTS_SQL).bind(case_id).bind(None::<Uuid>);
+    query.fetch_all(connection).await
+}
+
+/// Resolve a retained original for an occurrence in the caller's authorized case.
+pub(crate) async fn evidence_attachment(
+    connection: &mut PgConnection,
+    case_id: Uuid,
+    occurrence_id: Uuid,
+) -> Result<Option<EvidenceAttachment>, sqlx::Error> {
+    let query = sqlx::query_as(EVIDENCE_ATTACHMENTS_SQL).bind(case_id).bind(occurrence_id);
+    query.fetch_optional(connection).await
 }
 
 /// Copy ordered references from a locked and authorized source without consuming ready holds.

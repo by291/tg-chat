@@ -100,7 +100,7 @@ impl AccountHttpState {
     }
 
     /// Enable the media transfer routes for a configured deployment.
-    pub(crate) fn with_media(mut self, media: crate::media::UploadService) -> Self {
+    pub fn with_media(mut self, media: crate::media::UploadService) -> Self {
         self.media = Some(media);
 
         self
@@ -414,6 +414,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(super::email_http::router());
     let routes = routes.merge(crate::media::http::router());
     let routes = routes.merge(crate::moderation::http::router());
+    let routes = routes.merge(crate::moderation::report_http::router());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
     let routes = routes.merge(crate::conversations::http::router());

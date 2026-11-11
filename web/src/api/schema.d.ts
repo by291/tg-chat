@@ -704,6 +704,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/messages/{message_id}/reports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['report_message'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/operator/cases': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['cases'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/operator/cases/{case_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['case_detail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/operator/cases/{case_id}/attachments/{occurrence_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['case_original'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/operator/commands': {
     parameters: {
       query?: never;
@@ -854,6 +918,48 @@ export interface components {
       media_uploads_available?: boolean | null;
       messaging_available: boolean;
       registration_open: boolean;
+    };
+    CaseAttachment: {
+      file_name: string;
+      /** Format: uuid */
+      occurrence_id: string;
+      /** Format: int64 */
+      size_bytes: number;
+    };
+    CaseDetail: {
+      attachments: components['schemas']['CaseAttachment'][];
+      case: components['schemas']['CaseSummary'];
+      evidence?: null | components['schemas']['CaseEvidence'];
+    };
+    CaseEvidence: {
+      message_text: string;
+      message_version: string;
+      reporter_note: string;
+      structured_body?: unknown;
+    };
+    CasePage: {
+      items: components['schemas']['CaseSummary'][];
+      /** Format: uuid */
+      next?: string | null;
+    };
+    CaseSummary: {
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      evidence_expires_at: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      message_id: string;
+      reason: string;
+      /** Format: uuid */
+      reported_author_id: string;
+      /** Format: uuid */
+      reporter_id: string;
+      /** Format: date-time */
+      resolved_at?: string | null;
     };
     ChecklistCompleter: {
       display_name: string;
@@ -1504,6 +1610,20 @@ export interface components {
           kind: 'set_suspension';
           /** Format: uuid */
           user_id: string;
+        }
+      | {
+          /** Format: uuid */
+          case_id: string;
+          /** @enum {string} */
+          kind: 'resolve_case';
+        }
+      | {
+          /** Format: uuid */
+          case_id: string;
+          /** Format: date-time */
+          deadline: string;
+          /** @enum {string} */
+          kind: 'extend_evidence';
         };
     OperatorCommand: {
       action: components['schemas']['OperatorAction'];
@@ -1677,6 +1797,20 @@ export interface components {
       /** Format: uuid */
       message_id: string;
       quote?: string | null;
+    };
+    ReportMessage: {
+      note?: string | null;
+      /** Format: uuid */
+      operation_id: string;
+      reason: components['schemas']['ReportReason'];
+    };
+    /** @enum {string} */
+    ReportReason: 'spam' | 'harassment' | 'harmful_content' | 'other';
+    ReportReceipt: {
+      /** Format: uuid */
+      case_id: string;
+      /** Format: date-time */
+      evidence_expires_at: string;
     };
     ReserveUpload: {
       file_name: string;
@@ -2952,6 +3086,94 @@ export interface operations {
         content: {
           'application/json': components['schemas']['PollVoterPage'];
         };
+      };
+    };
+  };
+  report_message: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        message_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReportMessage'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportReceipt'];
+        };
+      };
+    };
+  };
+  cases: {
+    parameters: {
+      query?: {
+        after?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CasePage'];
+        };
+      };
+    };
+  };
+  case_detail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CaseDetail'];
+        };
+      };
+    };
+  };
+  case_original: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        case_id: string;
+        occurrence_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Private original attachment stream */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

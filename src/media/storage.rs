@@ -12,10 +12,14 @@ use aws_sdk_s3::{
 };
 use chrono::{DateTime, Utc};
 use tokio::{io::AsyncWriteExt, sync::OnceCell};
+use uuid::Uuid;
 
 use crate::accounts::AccountError;
 
-use super::{MediaStorageSettings, SignedDownload, SignedUpload, settings::WRITE_SECONDS};
+use super::{
+    MediaStorageSettings, MediaVariant, SignedDownload, SignedUpload, UploadService,
+    jobs::variant_key, settings::WRITE_SECONDS,
+};
 
 const STORAGE_TIMEOUT: Duration = Duration::from_secs(10);
 const DOWNLOAD_SECONDS: i64 = 60;
@@ -404,5 +408,20 @@ impl MediaStorage {
         request.send().await.map_err(|_| storage_unavailable("delete_object"))?;
 
         Ok(())
+    }
+}
+
+impl UploadService {
+    /// Open the immutable original after the caller authorizes access through its case.
+    pub(crate) async fn open_evidence_original(
+        &self,
+        file_id: Uuid,
+    ) -> Result<ByteStream, AccountError> {
+        let key = variant_key(file_id, MediaVariant::Original);
+        let storage = &self.storage;
+        let request = storage.internal.get_object().bucket(&storage.bucket).key(key);
+        let response = request.send().await.map_err(|_| storage_unavailable("get_evidence"))?;
+
+        Ok(response.body)
     }
 }
