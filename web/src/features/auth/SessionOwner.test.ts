@@ -34,6 +34,35 @@ const LOGIN = {
 };
 
 describe('SessionOwner', () => {
+  it('retains the newest account settings when an earlier refresh returns late', async () => {
+    let releaseOld: (response: Response) => void = () => undefined;
+    const oldResponse = new Promise<Response>((resolve) => {
+      releaseOld = resolve;
+    });
+    let settingsRequests = 0;
+    const owner = new SessionOwner({
+      baseUrl: ORIGIN,
+      fetch: async (request) => {
+        if (request.url.endsWith('/auth/session')) {
+          return Response.json(SESSION);
+        }
+        settingsRequests += 1;
+        return settingsRequests === 1
+          ? oldResponse
+          : Response.json({ version: '3', sticker_pack_ids: ['latest'] });
+      },
+    });
+    owner.accept(SESSION, { shouldBroadcast: false });
+    const older = owner.refreshAccountSettings('2');
+    await owner.refreshAccountSettings('3');
+
+    releaseOld(Response.json({ version: '2', sticker_pack_ids: ['old'] }));
+    await older;
+
+    expect(owner.getSnapshot().preferences?.version).toBe('3');
+    expect(owner.getSnapshot().preferences?.sticker_pack_ids).toEqual(['latest']);
+  });
+
   it('keeps saved profile fields when an earlier session refresh returns late', async () => {
     let resolveResponse: (response: Response) => void = () => undefined;
     const pendingResponse = new Promise<Response>((resolve) => {

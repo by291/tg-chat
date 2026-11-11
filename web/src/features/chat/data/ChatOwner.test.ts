@@ -246,6 +246,7 @@ function changePage(options: {
   removedMessageId?: string;
 }) {
   return {
+    account_settings_version: '0',
     groups: [
       {
         position: String(options.position),
@@ -1547,6 +1548,7 @@ it('restores group posting at its deadline even when synchronization has no new 
   const owner = fixture({
     conversation,
     transport: syncTransport({
+      account_settings_version: '0',
       groups: [],
       cursor: cursorFixture(0),
       observation_cursor: cursorFixture(0),

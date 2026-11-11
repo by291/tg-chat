@@ -2,7 +2,10 @@ import { getAppPreferences, setAppPreferences } from '@/features/settings/appPre
 import { findSticker, STICKER_PACKS } from './stickerCatalog';
 
 /** Retain saved pack order while appending newly installed packs and ignoring stale identifiers. */
-export function getOrderedStickerPacks(order: string[]) {
+export function getOrderedStickerPacks(
+  order: readonly string[],
+  { shouldAppendUnlisted = true }: { shouldAppendUnlisted?: boolean } = {},
+) {
   const remaining = new Map(STICKER_PACKS.map((pack) => [pack.id, pack]));
   const ordered: typeof STICKER_PACKS = [];
 
@@ -14,6 +17,10 @@ export function getOrderedStickerPacks(order: string[]) {
 
     ordered.push(pack);
     remaining.delete(id);
+  }
+
+  if (!shouldAppendUnlisted) {
+    return ordered;
   }
 
   return [...ordered, ...remaining.values()];

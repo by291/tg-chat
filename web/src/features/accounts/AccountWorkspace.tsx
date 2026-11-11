@@ -5,17 +5,20 @@ import {
   LogOut,
   MessageCircle,
   Shield,
+  SlidersHorizontal,
   Smartphone,
   UserRound,
   Users,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { Avatar } from '@/components/Avatar';
 import { ToastViewport } from '@/components/Toast';
 import { SettingsRow } from '@/features/settings/SettingsControls';
 import { DevicesSettingsPage } from '@/features/settings/devices/DevicesSettingsPage';
 import { OperatorWorkspace } from '@/features/operator/OperatorWorkspace';
+import { AccountPreferencesPanel } from '@/features/settings/connected/AccountPreferencesPanel';
+import { ConnectedStickerPackScope } from '@/features/settings/connected/StickerPackScope';
 import { SessionOwner, isCancelled } from '../auth/SessionOwner';
 import { CommunityWorkspace } from '../communities/CommunityWorkspace';
 import { conversationDestination, type Conversation } from '../communities/communityModels';
@@ -36,6 +39,7 @@ type Page =
   | 'contacts'
   | 'security'
   | 'communities'
+  | 'preferences'
   | 'operator';
 
 interface WorkspaceProps {
@@ -88,6 +92,12 @@ const NAVIGATION = [
     color: 'purple',
   },
   {
+    page: 'preferences',
+    label: 'Preferences',
+    icon: SlidersHorizontal,
+    color: 'blue',
+  },
+  {
     page: 'operator',
     label: 'Administration',
     icon: Gavel,
@@ -104,6 +114,13 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const [communityId, setCommunityId] = useState<string>();
   const [chat, setChat] = useState<ChatOwner>();
   const [chatError, setChatError] = useState('');
+  const { preferences } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
+
+  useEffect(() => {
+    if (page === 'preferences' && !preferences) {
+      void owner.refreshAccountSettings().catch(() => undefined);
+    }
+  }, [owner, page, preferences]);
 
   useEffect(() => {
     if (!capabilities.messaging_available) {
@@ -175,22 +192,32 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
 
   if (page === 'messages' && chat) {
     return (
-      <ConnectedChat
-        owner={chat}
-        session={owner}
-        user={auth.user}
-        isMediaAvailable={capabilities.media_uploads_available === true}
-        onSettings={() => setPage('profile')}
-        onFindPeople={() => setPage('contacts')}
-        onCommunities={() => showCommunities()}
-        onCommunityDetails={showCommunities}
-      />
+      <ConnectedStickerPackScope packIds={preferences?.sticker_pack_ids}>
+        <ConnectedChat
+          owner={chat}
+          session={owner}
+          user={auth.user}
+          isMediaAvailable={capabilities.media_uploads_available === true}
+          onSettings={() => setPage('profile')}
+          onFindPeople={() => setPage('contacts')}
+          onCommunities={() => showCommunities()}
+          onCommunityDetails={showCommunities}
+        />
+      </ConnectedStickerPackScope>
     );
   }
 
   const profile = auth.user;
   let content;
   switch (page) {
+    case 'preferences':
+      content = (
+        <AccountPreferencesPanel
+          preferences={preferences ?? null}
+          onUpdate={(input) => owner.updateAccountPreferences(input)}
+        />
+      );
+      break;
     case 'operator':
       content = profile.is_operator ? <OperatorWorkspace owner={owner} /> : null;
       break;
@@ -208,7 +235,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       );
       break;
     case 'privacy':
-      content = <PrivacyPanel owner={owner} />;
+      content = <PrivacyPanel owner={owner} settingsVersion={preferences?.version} />;
       break;
     case 'devices':
       content = <DevicesSettingsPage onBack={() => setPage('profile')} connected={{ owner }} />;

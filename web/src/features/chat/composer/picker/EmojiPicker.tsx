@@ -4,6 +4,7 @@ import { Tabs } from '@ark-ui/react/tabs';
 import { Delete, Smile, Sticker as StickerIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
+import { useConnectedStickerPackIds } from '@/features/settings/connected/StickerPackScope';
 import { EmojiBrowser } from './EmojiBrowser';
 import { StickerBrowser } from './StickerBrowser';
 import { usePickerPreferences } from './pickerPreferences';
@@ -35,6 +36,7 @@ export function EmojiPicker({
   label = 'Emoji and stickers',
 }: EmojiPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const connectedPackIds = useConnectedStickerPackIds();
   const [tab, setTab] = useState('emoji');
   const PickerTrigger = variant === 'field' ? Popover.Trigger : Popover.Anchor;
   const activeTab = onSelectSticker ? tab : 'emoji';
@@ -52,7 +54,10 @@ export function EmojiPicker({
 
   function sendSticker(sticker: Sticker) {
     rememberSticker(sticker.id);
-    rememberSentSticker(sticker.id);
+    // Connected pack order comes from account settings; demo order remains device-local.
+    if (connectedPackIds === null) {
+      rememberSentSticker(sticker.id);
+    }
     onSelectSticker?.(sticker.id);
     setIsOpen(false);
     isClickOpenedRef.current = false;

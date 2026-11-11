@@ -25,6 +25,7 @@ function history() {
 
 function deletion() {
   return {
+    account_settings_version: '1',
     groups: [
       {
         position: '1',

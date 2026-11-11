@@ -193,6 +193,7 @@ export class ChatOwner {
     const reply = await this.session.client.GET('/api/v1/chat/bootstrap');
     this.ensureCurrent();
     const bootstrap = requirePayload(reply);
+    this.observeAccountSettings(bootstrap.account_settings_version);
     this.store ??= new PendingMessages({
       key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
     });
@@ -1291,6 +1292,7 @@ export class ChatOwner {
       });
       this.ensureCurrent();
       const page = requirePayload(reply);
+      this.observeAccountSettings(page.account_settings_version);
       const expected = this.cacheSnapshot;
       if (!expected) {
         throw new Error('Chat cache is not ready.');
@@ -1761,7 +1763,9 @@ export class ChatOwner {
     const expected = await this.requireCache().read();
     const reply = await this.session.client.GET('/api/v1/chat/bootstrap');
     this.ensureCurrent();
-    await this.requireCache().reset({ expected, bootstrap: requirePayload(reply) });
+    const bootstrap = requirePayload(reply);
+    this.observeAccountSettings(bootstrap.account_settings_version);
+    await this.requireCache().reset({ expected, bootstrap });
     await this.reloadSharedCache();
   }
 
@@ -1773,6 +1777,15 @@ export class ChatOwner {
     this.draftTimer = setTimeout(() => {
       void this.flushDraft().catch((error) => this.report(error));
     }, DRAFT_DEBOUNCE_MS);
+  }
+
+  private observeAccountSettings(version?: string): void {
+    if (!version) {
+      return;
+    }
+
+    // Account settings refresh independently of chat cache commits and history recovery.
+    void this.session.refreshAccountSettings(version).catch(() => undefined);
   }
 
   private async saveRemoteDraft(): Promise<void> {

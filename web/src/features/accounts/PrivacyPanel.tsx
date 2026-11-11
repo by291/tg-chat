@@ -31,10 +31,17 @@ function AudienceField({ label, name, value }: { label: string; name: string; va
 }
 
 /** Persist visibility preferences independently for the authenticated account. */
-export function PrivacyPanel({ owner }: { owner: SessionOwner }) {
+export function PrivacyPanel({
+  owner,
+  settingsVersion,
+}: {
+  owner: SessionOwner;
+  settingsVersion?: string;
+}) {
+  // A newer settings revision refreshes an already-open form in this session.
   const load = useCallback(
     async () => requirePayload(await owner.client.GET('/api/v1/account/privacy')),
-    [owner],
+    [owner, settingsVersion],
   );
   const privacy = useAccountResource(load);
 
@@ -60,6 +67,7 @@ export function PrivacyPanel({ owner }: { owner: SessionOwner }) {
         {privacy.isLoading && <p role="status">Loading privacy settings…</p>}
         {privacy.value && (
           <AccountForm
+            key={settingsVersion}
             submitLabel="Save privacy"
             onSubmit={save}
             successMessage="Privacy settings saved."

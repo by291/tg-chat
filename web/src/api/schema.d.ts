@@ -112,6 +112,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/account/preferences': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['account_preferences'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations['update_account_preferences'];
+    trace?: never;
+  };
   '/api/v1/account/privacy': {
     parameters: {
       query?: never;
@@ -938,6 +954,16 @@ export interface components {
       /** Format: uuid */
       operation_id: string;
     };
+    AccountPreferenceChanges: {
+      expected_version: string;
+      notification_defaults?: null | components['schemas']['NotificationDefaults'];
+      sticker_pack_ids?: string[] | null;
+    };
+    AccountPreferences: {
+      notification_defaults: components['schemas']['NotificationDefaults'];
+      sticker_pack_ids: string[];
+      version: string;
+    };
     AttachmentInput: {
       /** Format: uuid */
       file_id: string;
@@ -960,6 +986,7 @@ export interface components {
     /** @enum {string} */
     AvatarOwner: 'user' | 'conversation';
     Bootstrap: {
+      account_settings_version: string;
       blocks: components['schemas']['PublicProfile'][];
       contacts: components['schemas']['PublicProfile'][];
       conversations: components['schemas']['ConversationView'][];
@@ -1689,6 +1716,21 @@ export interface components {
       | 'poll'
       | 'checklist'
       | 'service';
+    NotificationCategoryDefaults: {
+      should_notify: boolean;
+      should_show_preview: boolean;
+    };
+    NotificationDefaults: {
+      channel: components['schemas']['NotificationCategoryDefaults'];
+      group: components['schemas']['NotificationCategoryDefaults'];
+      private: components['schemas']['NotificationCategoryDefaults'];
+      should_play_sent_sound: boolean;
+      should_play_sound: boolean;
+      should_show_notifications: boolean;
+      should_show_offline_notifications: boolean;
+      /** Format: int32 */
+      volume: number;
+    };
     OperatorAccount: {
       display_name: string;
       /** Format: uuid */
@@ -2066,6 +2108,7 @@ export interface components {
       removed_message_id?: string | null;
     };
     SyncPage: {
+      account_settings_version: string;
       cursor: string;
       groups: components['schemas']['SyncGroup'][];
       has_more: boolean;
@@ -2253,6 +2296,88 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['AuthResponse'];
+        };
+      };
+    };
+  };
+  account_preferences: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AccountPreferences'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  update_account_preferences: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AccountPreferenceChanges'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AccountPreferences'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
         };
       };
     };

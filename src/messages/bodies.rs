@@ -1,42 +1,15 @@
 //! Validate typed send content and project the public fields retained with each message.
 
-use std::{collections::HashSet, sync::LazyLock};
-
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use super::{checklists, polls, service::AcceptanceError};
-use crate::{accounts::AccountError, contacts};
+use crate::{accounts::AccountError, contacts, sticker_catalog};
 
 const MAX_CONTACT_NAME_LENGTH: usize = 80;
 const MAX_CONTACT_PHONE_LENGTH: usize = 40;
-
-static STICKERS: LazyLock<HashSet<String>> = LazyLock::new(|| {
-    let packs: Vec<StickerPack> = serde_json::from_str(include_str!(
-        "../../web/src/features/stickers/publicStickerPacks.json"
-    ))
-    .expect("bundled sticker catalogue is valid");
-    let mut entries = HashSet::new();
-    for pack in packs {
-        for sticker in pack.stickers {
-            entries.insert(sticker.id);
-        }
-    }
-
-    entries
-});
-
-#[derive(Deserialize)]
-struct StickerPack {
-    stickers: Vec<StickerAsset>,
-}
-
-#[derive(Deserialize)]
-struct StickerAsset {
-    id: String,
-}
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -166,7 +139,7 @@ pub(crate) async fn store(
             sticker_id,
         } => {
             // Old accepted sticker identities remain replayable after catalogue changes.
-            if !STICKERS.contains(sticker_id) {
+            if !sticker_catalog::contains_sticker(sticker_id) {
                 return Err(AccountError::Validation("unknown bundled sticker").into());
             }
 

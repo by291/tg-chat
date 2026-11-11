@@ -3,8 +3,9 @@ import { Portal } from '@ark-ui/react/portal';
 import { Clock3, Star, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useAppPreferences } from '@/features/settings/appPreferences';
+import { useConnectedStickerPackIds } from '@/features/settings/connected/StickerPackScope';
 import { getOrderedStickerPacks } from '@/features/stickers/stickerPackOrder';
-import { STICKERS, STICKER_PACKS, type Sticker } from '@/features/stickers/stickerCatalog';
+import { STICKERS, type Sticker } from '@/features/stickers/stickerCatalog';
 import { StickerPlaybackScope } from '@/features/stickers/StickerPlaybackScope';
 import { PickerGrid, type PickerGridControls, type PickerSection } from './PickerGrid';
 import { PickerSearch } from './PickerSearch';
@@ -31,19 +32,37 @@ export function StickerBrowser({
   onToggleFavorite,
 }: StickerBrowserProps) {
   const stickerPackOrder = useAppPreferences((preferences) => preferences.stickerPackOrder);
-  const orderedPacks = useMemo(() => getOrderedStickerPacks(stickerPackOrder), [stickerPackOrder]);
+  const connectedPackIds = useConnectedStickerPackIds();
+  const orderedPacks = useMemo(() => {
+    if (connectedPackIds) {
+      return getOrderedStickerPacks(connectedPackIds, { shouldAppendUnlisted: false });
+    }
+
+    return getOrderedStickerPacks(stickerPackOrder);
+  }, [connectedPackIds, stickerPackOrder]);
+  const availableStickers = useMemo(() => {
+    if (!connectedPackIds) {
+      return STICKERS;
+    }
+
+    const selected = new Set(connectedPackIds);
+    return STICKERS.filter((sticker) => selected.has(sticker.packId));
+  }, [connectedPackIds]);
   const [query, setQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<EmojiSearchGroup>();
   const isFiltering = Boolean(query.trim()) || Boolean(selectedGroup);
   const isSearching = isSearchFocused || isFiltering;
-  const [activeSection, setActiveSection] = useState(STICKER_PACKS[0].id);
+  const [visibleSection, setActiveSection] = useState<string>();
+  const activeSection = visibleSection ?? orderedPacks[0]?.id;
   const [viewedPackId, setViewedPackId] = useState<string>();
   const gridRef = useRef<PickerGridControls>(null);
-  const viewedPack = STICKER_PACKS.find((pack) => pack.id === viewedPackId);
-  const viewedStickers = STICKERS.filter((sticker) => sticker.packId === viewedPackId);
-  const hasFavorites = STICKERS.some((sticker) => favoriteStickers.includes(sticker.id));
-  const hasRecentStickers = STICKERS.some((sticker) => recentStickers.includes(sticker.id));
+  const viewedPack = orderedPacks.find((pack) => pack.id === viewedPackId);
+  const viewedStickers = availableStickers.filter((sticker) => sticker.packId === viewedPackId);
+  const hasFavorites = availableStickers.some((sticker) => favoriteStickers.includes(sticker.id));
+  const hasRecentStickers = availableStickers.some((sticker) =>
+    recentStickers.includes(sticker.id),
+  );
 
   const sections = useMemo(
     () => {
@@ -52,14 +71,16 @@ export function StickerBrowser({
           {
             id: selectedGroup.id,
             title: selectedGroup.label,
-            items: STICKERS.filter((sticker) => matchesEmojiGroup(sticker.emoji, selectedGroup)),
+            items: availableStickers.filter((sticker) =>
+              matchesEmojiGroup(sticker.emoji, selectedGroup),
+            ),
           },
         ];
       }
 
       const normalizedQuery = query.trim().toLowerCase();
       if (normalizedQuery) {
-        const items = STICKERS.filter((sticker) => {
+        const items = availableStickers.filter((sticker) => {
           const searchableText =
             `${sticker.name} ${sticker.keywords} ${sticker.emoji}`.toLowerCase();
           return searchableText.includes(normalizedQuery);
@@ -74,9 +95,11 @@ export function StickerBrowser({
       }
 
       const groups: PickerSection<Sticker>[] = [];
-      const favorites = STICKERS.filter((sticker) => favoriteStickers.includes(sticker.id));
+      const favorites = availableStickers.filter((sticker) =>
+        favoriteStickers.includes(sticker.id),
+      );
       const recent = recentStickers.flatMap((id) =>
-        STICKERS.filter((sticker) => sticker.id === id),
+        availableStickers.filter((sticker) => sticker.id === id),
       );
       if (favorites.length) {
         groups.push({
@@ -96,7 +119,7 @@ export function StickerBrowser({
         groups.push({
           id: pack.id,
           title: pack.name,
-          items: STICKERS.filter((sticker) => sticker.packId === pack.id),
+          items: availableStickers.filter((sticker) => sticker.packId === pack.id),
         });
       }
       return groups;
@@ -108,6 +131,7 @@ export function StickerBrowser({
       recentStickers,
       favoriteStickers,
       orderedPacks,
+      availableStickers,
     ],
   );
   const hasResults = sections.some((section) => section.items.length > 0);

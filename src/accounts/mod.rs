@@ -9,6 +9,8 @@ mod lifecycle;
 pub(crate) mod lifecycle_http;
 pub(crate) mod model;
 pub mod operator;
+pub mod preferences;
+pub(crate) mod preferences_http;
 pub mod profile;
 mod rate_limit;
 mod service;

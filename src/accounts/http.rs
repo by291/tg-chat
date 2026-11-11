@@ -413,6 +413,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(crate::contacts::http::router());
     let routes = routes.merge(super::email_http::router());
     let routes = routes.merge(super::lifecycle_http::router());
+    let routes = routes.merge(super::preferences_http::router());
     let routes = routes.merge(crate::media::http::router());
     let routes = routes.merge(crate::moderation::http::router());
     let routes = routes.merge(crate::moderation::report_http::router());

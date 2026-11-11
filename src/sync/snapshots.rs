@@ -5,7 +5,9 @@ use uuid::Uuid;
 
 use super::cursor::CursorScope;
 use crate::{
-    accounts::{AccountError, Actor, PrivateProfile, model::UserRecord},
+    accounts::{
+        AccountError, Actor, PrivateProfile, model::UserRecord, preferences::settings_version,
+    },
     contacts::{PrivacySettings, PublicProfile},
     conversations::{self, ConversationView},
     messages::{CanonicalMessage, MessageService, acceptance, history::page_size},
@@ -14,6 +16,7 @@ use crate::{
 #[derive(Serialize, ToSchema)]
 pub struct Bootstrap {
     pub deployment_id: Uuid,
+    pub account_settings_version: String,
     pub user: PrivateProfile,
     pub privacy: PrivacySettings,
     pub contacts: Vec<PublicProfile>,
@@ -41,6 +44,7 @@ pub struct SyncGroup {
 
 #[derive(Serialize, ToSchema)]
 pub struct SyncPage {
+    pub account_settings_version: String,
     pub groups: Vec<SyncGroup>,
     pub cursor: String,
     pub observation_cursor: String,
@@ -78,6 +82,7 @@ impl MessageService {
     pub async fn bootstrap(&self, actor: Actor) -> Result<Bootstrap, AccountError> {
         self.ensure_saved(actor.clone()).await?;
         let mut transaction = self.snapshot(&actor).await?;
+        let account_settings_version = settings_version(&mut transaction, actor.user_id).await?;
         let user: UserRecord = sqlx::query_as("SELECT * FROM users WHERE id = $1")
             .bind(actor.user_id)
             .fetch_one(&mut *transaction)
@@ -107,6 +112,7 @@ impl MessageService {
 
         Ok(Bootstrap {
             deployment_id: scope.deployment_id,
+            account_settings_version: account_settings_version.to_string(),
             user: user.private_profile(),
             privacy,
             contacts,
@@ -120,6 +126,7 @@ impl MessageService {
     pub async fn sync(&self, actor: Actor, query: SyncQuery) -> Result<SyncPage, AccountError> {
         let limit = page_size(query.limit)?;
         let mut transaction = self.snapshot(&actor).await?;
+        let account_settings_version = settings_version(&mut transaction, actor.user_id).await?;
         let scope = CursorScope::read(&mut transaction, actor.user_id).await?;
         let after = scope.decode(&query.cursor)?;
         let references = sqlx::query_as::<_, ChangeReference>(
@@ -177,6 +184,7 @@ impl MessageService {
         transaction.commit().await?;
 
         Ok(SyncPage {
+            account_settings_version: account_settings_version.to_string(),
             groups,
             cursor: scope.encode(position),
             observation_cursor: scope.encode(scope.position),

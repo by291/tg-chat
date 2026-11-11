@@ -6,6 +6,8 @@ type AuthResponse = components['schemas']['AuthResponse'];
 type Login = components['schemas']['Login'];
 type Registration = components['schemas']['Registration'];
 type Profile = components['schemas']['PrivateProfile'];
+type AccountPreferences = components['schemas']['AccountPreferences'];
+type AccountPreferenceChanges = components['schemas']['AccountPreferenceChanges'];
 
 const ERROR_RESPONSE = z.object({
   current: z.unknown().optional(),
@@ -24,6 +26,7 @@ interface OwnerOptions {
 export interface SessionSnapshot {
   auth: AuthResponse | null;
   revision: number;
+  preferences?: AccountPreferences;
 }
 
 export class ApiError extends Error {
@@ -77,6 +80,8 @@ export class SessionOwner {
   private readonly transport: (request: Request) => Promise<Response>;
   private readonly origin: string;
   private channel: BroadcastChannel | null = null;
+  private settingsRequest = 0;
+  private requestedSettingsVersion?: string;
 
   /** Scope private requests to one deployment and one in-memory session generation. */
   constructor(options: OwnerOptions) {
@@ -123,6 +128,7 @@ export class SessionOwner {
   invalidate({ shouldBroadcast = true }: { shouldBroadcast?: boolean } = {}): void {
     this.controller.abort();
     this.controller = new AbortController();
+    this.requestedSettingsVersion = undefined;
     this.snapshot = { auth: null, revision: this.snapshot.revision + 1 };
     this.notify();
     if (shouldBroadcast) {
@@ -141,6 +147,7 @@ export class SessionOwner {
     };
     this.controller.abort();
     this.controller = new AbortController();
+    this.requestedSettingsVersion = undefined;
     this.snapshot = { auth, revision: this.snapshot.revision + 1 };
     this.notify();
     if (shouldBroadcast) {
@@ -172,6 +179,68 @@ export class SessionOwner {
       }
       throw error;
     }
+  }
+
+  /** Refresh owner-only preferences and profile after observing a newer account revision. */
+  async refreshAccountSettings(version?: string): Promise<void> {
+    const revision = this.snapshot.revision;
+    if (!this.snapshot.auth) {
+      return;
+    }
+    if (version) {
+      const currentVersion = this.snapshot.preferences?.version ?? '0';
+      const requestedVersion = this.requestedSettingsVersion ?? '0';
+      const isAlreadyObserved = BigInt(currentVersion) >= BigInt(version);
+      const isAlreadyRequested = BigInt(requestedVersion) >= BigInt(version);
+      if (isAlreadyObserved || isAlreadyRequested) {
+        return;
+      }
+    }
+
+    const requestId = ++this.settingsRequest;
+    this.requestedSettingsVersion = version;
+    try {
+      const response = await this.client.GET('/api/v1/account/preferences');
+      this.ensureCurrent(revision);
+      if (requestId !== this.settingsRequest) {
+        return;
+      }
+
+      await this.refresh();
+      this.ensureCurrent(revision);
+      if (requestId === this.settingsRequest) {
+        this.replacePreferences(requirePayload(response));
+      }
+    } finally {
+      if (requestId === this.settingsRequest && revision === this.snapshot.revision) {
+        this.requestedSettingsVersion = undefined;
+      }
+    }
+  }
+
+  /** Apply an expected-version change to settings owned by the current session. */
+  async updateAccountPreferences(input: AccountPreferenceChanges): Promise<void> {
+    const revision = this.snapshot.revision;
+    try {
+      const response = await this.client.PATCH('/api/v1/account/preferences', { body: input });
+      this.ensureCurrent(revision);
+      this.replacePreferences(requirePayload(response));
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === 'account_changed') {
+        await this.refreshAccountSettings();
+      }
+      throw failure;
+    }
+  }
+
+  private replacePreferences(preferences: AccountPreferences): void {
+    const current = this.snapshot.preferences;
+    // An earlier read may finish after a local update or a newer cross-device refresh.
+    if (current && BigInt(current.version) > BigInt(preferences.version)) {
+      return;
+    }
+    this.snapshot = { ...this.snapshot, preferences };
+    this.notify();
   }
 
   /** Admit password credentials and take ownership of the returned opaque-cookie session. */

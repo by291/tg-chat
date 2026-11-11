@@ -114,6 +114,74 @@
         }
       }
     },
+    "/api/v1/account/preferences": {
+      "get": {
+        "tags": [],
+        "operationId": "account_preferences",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountPreferences" }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [],
+        "operationId": "update_account_preferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AccountPreferenceChanges" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountPreferences" }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/privacy": {
       "get": {
         "tags": [],
@@ -1479,6 +1547,27 @@
           "operation_id": { "type": "string", "format": "uuid" }
         }
       },
+      "AccountPreferenceChanges": {
+        "type": "object",
+        "required": ["expected_version"],
+        "properties": {
+          "expected_version": { "type": "string" },
+          "notification_defaults": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/NotificationDefaults" }]
+          },
+          "sticker_pack_ids": { "type": ["array", "null"], "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      },
+      "AccountPreferences": {
+        "type": "object",
+        "required": ["version", "notification_defaults", "sticker_pack_ids"],
+        "properties": {
+          "notification_defaults": { "$ref": "#/components/schemas/NotificationDefaults" },
+          "sticker_pack_ids": { "type": "array", "items": { "type": "string" } },
+          "version": { "type": "string" }
+        }
+      },
       "AttachmentInput": {
         "type": "object",
         "required": ["occurrence_id", "file_id"],
@@ -1512,6 +1601,7 @@
         "type": "object",
         "required": [
           "deployment_id",
+          "account_settings_version",
           "user",
           "privacy",
           "contacts",
@@ -1520,6 +1610,7 @@
           "cursor"
         ],
         "properties": {
+          "account_settings_version": { "type": "string" },
           "blocks": { "type": "array", "items": { "$ref": "#/components/schemas/PublicProfile" } },
           "contacts": {
             "type": "array",
@@ -2655,6 +2746,39 @@
           "service"
         ]
       },
+      "NotificationCategoryDefaults": {
+        "type": "object",
+        "required": ["should_notify", "should_show_preview"],
+        "properties": {
+          "should_notify": { "type": "boolean" },
+          "should_show_preview": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "NotificationDefaults": {
+        "type": "object",
+        "required": [
+          "should_show_notifications",
+          "should_show_offline_notifications",
+          "should_play_sound",
+          "should_play_sent_sound",
+          "volume",
+          "private",
+          "group",
+          "channel"
+        ],
+        "properties": {
+          "channel": { "$ref": "#/components/schemas/NotificationCategoryDefaults" },
+          "group": { "$ref": "#/components/schemas/NotificationCategoryDefaults" },
+          "private": { "$ref": "#/components/schemas/NotificationCategoryDefaults" },
+          "should_play_sent_sound": { "type": "boolean" },
+          "should_play_sound": { "type": "boolean" },
+          "should_show_notifications": { "type": "boolean" },
+          "should_show_offline_notifications": { "type": "boolean" },
+          "volume": { "type": "integer", "format": "int32", "maximum": 100, "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
       "OperatorAccount": {
         "type": "object",
         "required": ["id", "username", "display_name", "is_suspended"],
@@ -3246,8 +3370,15 @@
       },
       "SyncPage": {
         "type": "object",
-        "required": ["groups", "cursor", "observation_cursor", "has_more"],
+        "required": [
+          "account_settings_version",
+          "groups",
+          "cursor",
+          "observation_cursor",
+          "has_more"
+        ],
         "properties": {
+          "account_settings_version": { "type": "string" },
           "cursor": { "type": "string" },
           "groups": { "type": "array", "items": { "$ref": "#/components/schemas/SyncGroup" } },
           "has_more": { "type": "boolean" },
