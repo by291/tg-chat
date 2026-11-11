@@ -47,6 +47,7 @@ pub async fn expire_one(pool: &PgPool) -> Result<bool, AccountError> {
     .fetch_one(&mut *transaction)
     .await?;
     references::detach_message(&mut transaction, message_id).await?;
+    super::link_previews::revoke(&mut transaction, message_id).await?;
     polls::delete(&mut transaction, message_id).await?;
     checklists::delete(&mut transaction, message_id).await?;
     sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")

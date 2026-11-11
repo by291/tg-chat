@@ -11,6 +11,14 @@ import type { Message } from '@/domain/messages/message';
 const imageDecoders = vi.hoisted(() => new Map<string, (attachment: Attachment) => void>());
 const imageDecodeFailures = vi.hoisted(() => new Map<string, (error: Error) => void>());
 
+function matchMobileViewport() {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
 vi.mock('./attachments/attachments', async (importOriginal) => {
   const attachments = await importOriginal<typeof import('./attachments/attachments')>();
   return {
@@ -113,6 +121,17 @@ async function finishDecoding(name: string) {
     });
   });
 }
+
+it('carries the sender link preview opt-out with the message', async () => {
+  matchMobileViewport();
+  const user = userEvent.setup();
+  const onSubmit = vi.fn();
+  renderComposer({ draft: 'Read https://example.test/notes', isTextOnly: true, onSubmit });
+  await user.click(screen.getByRole('checkbox', { name: 'Disable link preview' }));
+  await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ disableLinkPreview: true }));
+});
 
 describe('image composition', () => {
   it('opens attachment choices without requesting a file or losing the draft', async () => {
@@ -241,7 +260,7 @@ describe('image composition', () => {
   });
 
   it('submits the attachment once and clears its preview for the next message', async () => {
-    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    matchMobileViewport();
     const onSubmit = vi.fn();
     renderComposer({ onSubmit });
     pasteImage('sent.png');
@@ -339,7 +358,7 @@ describe('multiline composition', () => {
 
 it('applies send shortcut changes to an already mounted composer', async () => {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Macintosh');
-  vi.stubGlobal('matchMedia', () => ({ matches: true }));
+  matchMobileViewport();
   const onSubmit = vi.fn();
   render(
     <MessageComposer

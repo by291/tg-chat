@@ -73,6 +73,11 @@
   font-size: inherit;
 }
 
+.text a {
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 600px) {
   .album {
     width: var(--album-mobile-width);

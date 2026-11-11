@@ -4,6 +4,7 @@ import { useAppPreferences } from '@/features/settings/appPreferences';
 import { getLargeEmojiSize } from './content/largeEmoji';
 import { Ripple } from '@/components/Ripple';
 import { MessageBody, MessageText } from './content/MessageBody';
+import { LinkPreview } from './content/LinkPreview';
 import { MessageMetadata } from './MessageMetadata';
 import { MessageReaction } from './reactions/MessageReaction';
 import { finishReactionLayout } from './reactions/reactionLayoutTransition';
@@ -225,6 +226,11 @@ export const MessageBubble = memo(function MessageBubble({
             <MessageMetadata message={message} />
           )}
         </div>
+        {message.linkPreview && (
+          <div className={styles.mediaContent}>
+            <LinkPreview media={message.linkPreview} />
+          </div>
+        )}
         {hasReactions && (
           <div className={styles.reactions} aria-label="Reactions">
             {message.reactions.map((emoji) => (

@@ -252,6 +252,7 @@ async fn insert_copy(
         reply: None,
         draft_version: None,
         body: None,
+        disable_link_preview: copy.source.disable_link_preview,
     };
     let source = acceptance::ForwardSource {
         message_id: copy.source.id,

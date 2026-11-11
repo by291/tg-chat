@@ -7,6 +7,7 @@ use super::{
 use crate::{
     accounts::{AccountError, Actor},
     conversations::{self, access::LockedConversation},
+    jobs::link_previews::{self, PreviewIntent},
     media::references::{self, MessageReferences},
     sync::changes::{self, ChangeGroup},
 };
@@ -19,6 +20,13 @@ pub(crate) const MESSAGE_SELECT: &str =
             message.interaction_version::text, message.is_pinned, message.service_kind,
             CASE WHEN message.deleted_at IS NOT NULL OR message.expires_at <= now()
                 THEN NULL ELSE message.forwarded_from END AS forwarded_from,
+            CASE WHEN message.disable_link_preview THEN true END AS disable_link_preview,
+            CASE WHEN message.deleted_at IS NULL AND NOT message.disable_link_preview
+                AND (message.expires_at IS NULL OR message.expires_at > now())
+                THEN (SELECT metadata FROM message_link_previews preview
+                       WHERE preview.message_id = message.id
+                         AND preview.content_version = message.version)
+                ELSE NULL END AS link_preview,
             message.reply_id, message.reply_quote,
             EXISTS (SELECT 1 FROM media_message_references reference
                     WHERE reference.message_id = message.id) AS has_attachments,
@@ -125,10 +133,12 @@ pub(crate) async fn insert(
 
     let body = message.body.map(sqlx::types::Json);
     let attribution = message.forward.as_ref().map(|source| source.attribution);
+    let is_preview_disabled = message.input.disable_link_preview.unwrap_or(false);
     let insert = sqlx::query(
         "INSERT INTO messages
-         (id, conversation_id, author_id, sequence, content, body, forwarded_from)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)",
+         (id, conversation_id, author_id, sequence, content, body, forwarded_from,
+          disable_link_preview)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
     )
     .bind(message.input.message_id)
     .bind(message.conversation.id);
@@ -136,8 +146,21 @@ pub(crate) async fn insert(
         .bind(message.actor.user_id)
         .bind(sequence)
         .bind(sqlx::types::Json(&message.input.content));
-    let insert = insert.bind(body).bind(attribution);
+    let insert = insert.bind(body).bind(attribution).bind(is_preview_disabled);
     insert.execute(&mut *connection).await?;
+
+    if !is_preview_disabled {
+        let url = link_previews::first_url(&message.input.content);
+        if let Some(url) = &url {
+            // Queue the URL with acceptance so a lost response cannot enqueue a second fetch.
+            let intent = PreviewIntent {
+                message_id: message.input.message_id,
+                content_version: 1,
+                url: Some(url),
+            };
+            link_previews::enqueue(connection, intent).await?;
+        }
+    }
     if let Some(super::bodies::MessageBodyInput::Poll(poll)) = &message.input.body {
         // Store quiz secrets before the accepted message becomes visible on the feed.
         let input = super::polls::NewPoll {

@@ -28,7 +28,9 @@ CMD [ \
     "--include-ignored" \
 ]
 
-FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS runtime
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS runtime-base
+
+FROM runtime-base AS runtime
 RUN apt-get update \
     && apt-get install --no-install-recommends -y ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \
@@ -46,6 +48,14 @@ RUN apt-get update \
 COPY --from=build /app/target/release/media-processor /usr/local/bin/media-processor
 USER app
 CMD ["worker"]
+
+FROM runtime-base AS preview-fetcher
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ca-certificates iproute2 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/target/release/link-preview-fetcher /usr/local/bin/link-preview-fetcher
+USER 10001:10001
+CMD ["link-preview-fetcher"]
 
 FROM node:24.15.0-bookworm-slim AS frontend
 WORKDIR /app/web

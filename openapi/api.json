@@ -1285,6 +1285,7 @@
           "content": { "$ref": "#/components/schemas/MessageContent" },
           "conversation_id": { "type": "string", "format": "uuid" },
           "created_at": { "type": "string", "format": "date-time" },
+          "disable_link_preview": { "type": ["boolean", "null"] },
           "edited_at": { "type": ["string", "null"], "format": "date-time" },
           "expires_at": { "type": ["string", "null"], "format": "date-time" },
           "forwarded_from": { "type": ["string", "null"] },
@@ -1292,6 +1293,9 @@
           "interaction_version": { "type": "string" },
           "is_deleted": { "type": "boolean" },
           "is_pinned": { "type": "boolean" },
+          "link_preview": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/LinkPreviewView" }]
+          },
           "reactions": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/ReactionView" }
@@ -1452,6 +1456,7 @@
             "required": ["message_id", "expected_version", "content", "kind"],
             "properties": {
               "content": { "$ref": "#/components/schemas/MessageContent" },
+              "disable_link_preview": { "type": ["boolean", "null"] },
               "expected_version": { "type": "string" },
               "kind": { "type": "string", "enum": ["edit"] },
               "message_id": { "type": "string", "format": "uuid" }
@@ -2109,6 +2114,16 @@
           "username": { "type": "string" }
         }
       },
+      "LinkPreviewView": {
+        "type": "object",
+        "required": ["url", "site_name", "title", "summary"],
+        "properties": {
+          "site_name": { "type": "string" },
+          "summary": { "type": "string" },
+          "title": { "type": "string" },
+          "url": { "type": "string" }
+        }
+      },
       "Login": {
         "type": "object",
         "required": ["username", "password", "device_name"],
@@ -2603,6 +2618,7 @@
           },
           "content": { "$ref": "#/components/schemas/MessageContent" },
           "destination": { "$ref": "#/components/schemas/Destination" },
+          "disable_link_preview": { "type": ["boolean", "null"] },
           "draft_version": { "type": ["string", "null"] },
           "message_id": { "type": "string", "format": "uuid" },
           "operation_id": { "type": "string", "format": "uuid" },

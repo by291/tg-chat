@@ -53,6 +53,13 @@ export function mergeMessages(options: {
     messages.set(message.id, {
       ...content,
       ...(body !== undefined && { body }),
+      // A preview belongs to one content revision even when reactions arrive out of order.
+      ...((content.link_preview !== undefined || interactions.link_preview !== undefined) && {
+        link_preview:
+          interactions.version === content.version && !content.is_deleted
+            ? interactions.link_preview
+            : content.link_preview,
+      }),
       interaction_version: interactions.interaction_version,
       is_pinned: !content.is_deleted && interactions.is_pinned,
       reactions: content.is_deleted ? [] : interactions.reactions,
@@ -232,6 +239,17 @@ export function renderMessage(message: CanonicalMessage): Message {
     forwardedFrom: message.forwarded_from ?? undefined,
     sticker: body?.kind === 'sticker' ? body.sticker_id : undefined,
     media,
+    disableLinkPreview: message.disable_link_preview ?? undefined,
+    linkPreview:
+      !message.is_deleted && message.link_preview
+        ? {
+            kind: 'link',
+            url: message.link_preview.url,
+            site: message.link_preview.site_name,
+            title: message.link_preview.title,
+            description: message.link_preview.summary,
+          }
+        : undefined,
     richText: message.content.rich_text ?? undefined,
     customEmoji: message.content.custom_emoji.map((entity) => ({
       documentId: entity.document_id,

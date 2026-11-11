@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { components } from '@/api/schema';
 import { customEmojiEntitySchema } from './customEmoji';
-import { attachmentSchema, messageMediaSchema } from './media';
+import { attachmentSchema, messageMediaSchema, type MessageMedia } from './media';
 import { sanitizeRichText } from './richText';
 
 // tweb groups adjacent messages through the inclusive 121-second boundary.
@@ -62,6 +62,8 @@ interface PendingMediaDisplay {
 }
 
 export type Message = z.infer<typeof messageSchema> & {
+  disableLinkPreview?: boolean;
+  linkPreview?: Extract<MessageMedia, { kind: 'link' }>;
   remoteAttachments?: components['schemas']['AttachmentView'][];
   pendingMedia?: PendingMediaDisplay;
   downloadOriginalUrl?: (signal: AbortSignal) => Promise<string>;

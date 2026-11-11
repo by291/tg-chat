@@ -814,6 +814,7 @@ export interface components {
       conversation_id: string;
       /** Format: date-time */
       created_at: string;
+      disable_link_preview?: boolean | null;
       /** Format: date-time */
       edited_at?: string | null;
       /** Format: date-time */
@@ -824,6 +825,7 @@ export interface components {
       interaction_version: string;
       is_deleted: boolean;
       is_pinned: boolean;
+      link_preview?: null | components['schemas']['LinkPreviewView'];
       reactions: components['schemas']['ReactionView'][];
       reply?: null | components['schemas']['ReplyView'];
       sequence: string;
@@ -911,6 +913,7 @@ export interface components {
         }
       | {
           content: components['schemas']['MessageContent'];
+          disable_link_preview?: boolean | null;
           expected_version: string;
           /** @enum {string} */
           kind: 'edit';
@@ -1360,6 +1363,12 @@ export interface components {
       id: string;
       username: string;
     };
+    LinkPreviewView: {
+      site_name: string;
+      summary: string;
+      title: string;
+      url: string;
+    };
     Login: {
       device_name: string;
       password: string;
@@ -1657,6 +1666,7 @@ export interface components {
       body?: null | components['schemas']['MessageBodyInput'];
       content: components['schemas']['MessageContent'];
       destination: components['schemas']['Destination'];
+      disable_link_preview?: boolean | null;
       draft_version?: string | null;
       /** Format: uuid */
       message_id: string;

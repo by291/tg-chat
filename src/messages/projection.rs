@@ -58,6 +58,8 @@ pub(crate) async fn personalize(
 ) -> Result<(), AccountError> {
     if message.is_deleted {
         message.reply = None;
+        message.link_preview = None;
+        message.disable_link_preview = None;
         message.body = None;
         message.stored_body = None;
         message.attachments.clear();

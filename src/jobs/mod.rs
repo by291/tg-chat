@@ -1,5 +1,6 @@
 //! Bounded, encrypted mail intent with PostgreSQL leases and completion fencing.
 
+pub mod link_previews;
 mod mail;
 pub mod maintenance;
 mod payload;

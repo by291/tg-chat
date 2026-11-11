@@ -90,6 +90,35 @@ it('merges content and interaction versions independently when responses cross',
   expect(merged[0].reactions[0].count).toBe('2');
 });
 
+it('drops the old link preview when a newer edit arrives before a reaction', () => {
+  const current = {
+    ...message(1),
+    version: '3',
+    interaction_version: '2',
+    disable_link_preview: true,
+  };
+  const delayed = {
+    ...message(1),
+    version: '2',
+    interaction_version: '3',
+    link_preview: {
+      url: 'https://example.test',
+      site_name: 'Example',
+      title: 'Old preview',
+      summary: 'Old text',
+    },
+  };
+
+  const [merged] = mergeMessages({
+    current: [current],
+    incoming: [delayed],
+    edge: 'latest',
+  });
+
+  expect(renderMessage(merged).linkPreview).toBeUndefined();
+  expect(renderMessage(merged).disableLinkPreview).toBe(true);
+});
+
 function hiddenPoll(): Extract<CanonicalMessage['body'], { kind: 'poll' }> {
   return {
     kind: 'poll',

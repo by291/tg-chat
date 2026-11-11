@@ -304,6 +304,7 @@ export function ConnectedChat({
           kind: 'edit',
           message_id: editing.id,
           expected_version: editVersion,
+          disable_link_preview: message.disableLinkPreview,
           content: canonicalMessageContent(message, {
             isCaption: Boolean(editing.attachments?.length),
           }),
@@ -312,7 +313,11 @@ export function ConnectedChat({
       } else if (message.sticker) {
         await owner.queueBody({ kind: 'sticker', sticker_id: message.sticker });
       } else if (message.files?.length) {
-        await owner.enqueueMedia({ value: message, files: message.files });
+        await owner.enqueueMedia({
+          value: message,
+          files: message.files,
+          disableLinkPreview: message.disableLinkPreview,
+        });
       } else {
         await owner.queueSend(message);
       }

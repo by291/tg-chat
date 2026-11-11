@@ -40,6 +40,8 @@ pub struct SendMessage {
     pub draft_version: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub body: Option<MessageBodyInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disable_link_preview: Option<bool>,
 }
 
 #[derive(Clone, FromRow, Serialize, ToSchema)]
@@ -59,6 +61,11 @@ pub struct CanonicalMessage {
     pub service_kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub forwarded_from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disable_link_preview: Option<bool>,
+    #[sqlx(json(nullable))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link_preview: Option<crate::jobs::link_previews::LinkPreviewView>,
     #[serde(skip)]
     pub(crate) reply_id: Option<Uuid>,
     #[serde(skip)]

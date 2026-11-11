@@ -15,7 +15,7 @@ use crate::{
     config::{ServiceKind, Settings},
     database::connect_pool,
     http::{ApplicationState, router_with_api},
-    jobs::{MailQueue, MailSettings},
+    jobs::{MailQueue, MailSettings, link_previews::LinkPreviews},
     media::{
         MediaCleanup, MediaLimits, MediaStorageSettings, MediaWorker, MediaWorkerSettings,
         UploadService,
@@ -102,6 +102,21 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             client: realtime_client,
             idle_days: account_settings.idle_days,
         };
+        let previews =
+            values.get("TG_CHAT_LINK_PREVIEW_ENDPOINT").filter(|value| !value.is_empty());
+        let previews = previews.and_then(|endpoint| {
+            let result = reqwest::Url::parse(endpoint)
+                .map_err(|_| ())
+                .and_then(|url| LinkPreviews::new(pool.clone(), url).map_err(|_| ()));
+            match result {
+                Ok(worker) => Some(worker),
+                Err(()) => {
+                    // Invalid isolation settings disable preview jobs without affecting messaging.
+                    tracing::warn!("link_preview_configuration_unavailable");
+                    None
+                }
+            }
+        });
         let media = if let Some(storage) = media_storage.clone() {
             let settings =
                 MediaWorkerSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
@@ -117,10 +132,16 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
                     tokio::join!(worker.run(stop.clone()), cleanup.run(stop.clone()));
                 }
             };
+            let prepare_previews = async {
+                if let Some(previews) = previews {
+                    previews.run(stop.clone()).await;
+                }
+            };
             tokio::join!(
                 queue.run(stop.clone()),
                 realtime::run(services, stop.clone()),
-                prepare_media
+                prepare_media,
+                prepare_previews,
             );
         }))
     } else {

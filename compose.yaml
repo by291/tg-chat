@@ -155,6 +155,11 @@ services:
     environment:
       <<: *application-environment
       TG_CHAT_BIND_ADDRESS: 0.0.0.0:8081
+      TG_CHAT_LINK_PREVIEW_ENDPOINT: http://link-preview-fetcher:8091/preview
+    networks:
+      default:
+        gw_priority: 1
+      preview-control: {}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -168,6 +173,32 @@ services:
       interval: 2s
       timeout: 4s
       retries: 30
+
+  link-preview-fetcher:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: preview-fetcher
+    # Bind the control API exclusively to the Worker network, even on a dual-homed container.
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        address=$$(ip -4 -o addr show dev preview_control scope global |
+          awk 'NR == 1 { split($$4, address, "/"); print address[1] }')
+        test -n "$$address"
+        export LINK_PREVIEW_FETCHER_BIND="$$address:8091"
+        exec link-preview-fetcher
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      preview-control:
+        interface_name: preview_control
+      preview-egress:
+        gw_priority: 1
 
   gateway:
     build:
@@ -223,6 +254,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+networks:
+  preview-control:
+    internal: true
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+  preview-egress:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: 'false'
 
 volumes:
   postgres-data:

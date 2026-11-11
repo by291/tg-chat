@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { CustomEmojiText } from '@/features/emoji/CustomEmojiText';
+import { splitEmojiText } from '@/domain/messages/customEmoji';
 import { MessageCode } from '../../rich-text/MessageCode';
 import { MessageQuote } from '../../rich-text/MessageQuote';
 import { RichMessageText } from '../../rich-text/RichMessageText';
@@ -20,6 +21,31 @@ interface MessageBodyProps {
   metadata?: ReactNode;
   onOpenMedia: (message: Message) => void;
   onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
+}
+
+const HTTP_LINK = /\bhttps?:\/\/[^\s<>"']+/gi;
+
+function linkText(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let offset = 0;
+
+  for (const match of text.matchAll(HTTP_LINK)) {
+    const url = match[0].replace(/[.,!?;:]+$/, '');
+    if (!URL.canParse(url)) {
+      continue;
+    }
+
+    parts.push(text.slice(offset, match.index));
+    parts.push(
+      <a key={match.index} href={url} target="_blank" rel="noopener noreferrer">
+        {url}
+      </a>,
+    );
+    offset = match.index + url.length;
+  }
+
+  parts.push(text.slice(offset));
+  return parts;
 }
 
 /** Select one explicit content renderer while the bubble keeps ownership of shared chrome. */
@@ -112,7 +138,18 @@ export function MessageText({ message }: { message: Message }) {
 
   return (
     <span className={styles.text}>
-      <CustomEmojiText {...message} />
+      {splitEmojiText(message).map((part) => (
+        <Fragment key={part.offset}>
+          {part.documentId ? (
+            <CustomEmojiText
+              text={part.text}
+              customEmoji={[{ documentId: part.documentId, offset: 0, length: part.text.length }]}
+            />
+          ) : (
+            linkText(part.text)
+          )}
+        </Fragment>
+      ))}
     </span>
   );
 }

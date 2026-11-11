@@ -65,6 +65,8 @@ pub enum CommandAction {
         message_id: Uuid,
         expected_version: String,
         content: MessageContent,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        disable_link_preview: Option<bool>,
     },
     Delete {
         message_id: Uuid,
@@ -260,6 +262,7 @@ async fn edit(
     let CommandAction::Edit {
         expected_version,
         content,
+        disable_link_preview,
         ..
     } = &context.input.action
     else {
@@ -277,13 +280,27 @@ async fn edit(
     } else {
         validate_content(content.clone())?
     };
-    sqlx::query(
-        "UPDATE messages SET content = $2, version = version + 1, edited_at = now() WHERE id = $1",
-    )
-    .bind(message.id)
-    .bind(sqlx::types::Json(content))
-    .execute(connection)
-    .await?;
+    let update = sqlx::query_as::<_, (i64, bool)>(
+        "UPDATE messages SET content = $2, version = version + 1, edited_at = now(),
+            disable_link_preview = COALESCE($3, disable_link_preview)
+         WHERE id = $1 RETURNING version, disable_link_preview",
+    );
+    let update = update.bind(message.id).bind(sqlx::types::Json(&content));
+    let update = update.bind(disable_link_preview);
+    let (content_version, is_disabled) = update.fetch_one(&mut *connection).await?;
+
+    // An edit replaces the version-bound job, including a completed preview for the old text.
+    let url = if is_disabled {
+        None
+    } else {
+        crate::jobs::link_previews::first_url(&content)
+    };
+    let intent = crate::jobs::link_previews::PreviewIntent {
+        message_id: message.id,
+        content_version,
+        url: url.as_deref(),
+    };
+    crate::jobs::link_previews::enqueue(connection, intent).await?;
 
     Ok(())
 }
@@ -363,6 +380,7 @@ async fn apply(
             .execute(&mut *connection)
             .await?;
             crate::media::references::detach_message(connection, message.id).await?;
+            crate::jobs::link_previews::revoke(connection, message.id).await?;
             super::polls::delete(connection, message.id).await?;
             super::checklists::delete(connection, message.id).await?;
             // Scrub stored excerpts as well as read projections; the target identity remains.

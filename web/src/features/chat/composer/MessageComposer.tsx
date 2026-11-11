@@ -35,6 +35,7 @@ export interface ComposedMessage extends EmojiText {
   sticker?: string;
   media?: MessageMedia;
   files?: MediaSelection[];
+  disableLinkPreview?: boolean;
 }
 
 interface MessageComposerProps {
@@ -102,6 +103,7 @@ export function MessageComposer({
   const [listDialog, setListDialog] = useState<'poll' | 'checklist'>();
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isPreviewDisabled, setIsPreviewDisabled] = useState(false);
   const [editorHeight, setEditorHeight] = useState(0);
   const canExpand = editorHeight >= EXPAND_BUTTON_MIN_HEIGHT || isExpanded;
   const draftValue: EmojiText = {
@@ -111,6 +113,9 @@ export function MessageComposer({
   };
   const value = editingMessage ? editValue : draftValue;
   const text = value.text;
+  const hasLink = /https?:\/\//i.test(text) || /href=["']https?:\/\//i.test(value.richText ?? '');
+  const canShowPreviewControl = isTextOnly && hasLink;
+  const didPreviewChange = Boolean(editingMessage?.disableLinkPreview) !== isPreviewDisabled;
   const hasContent =
     Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
@@ -125,12 +130,16 @@ export function MessageComposer({
   useEffect(() => {
     if (!text && !value.richText) {
       setIsExpanded(false);
+      if (!editingMessage) {
+        setIsPreviewDisabled(false);
+      }
     }
-  }, [text, value.richText]);
+  }, [editingMessage, text, value.richText]);
 
   useEffect(() => {
     // Only the editor remounts when switching modes; the attachment draft and animated bar survive.
     setIsDiscardOpen(false);
+    setIsPreviewDisabled(Boolean(editingMessage?.disableLinkPreview));
     setEditValue({
       text: editingMessage?.text ?? '',
       customEmoji: editingMessage?.customEmoji,
@@ -165,7 +174,9 @@ export function MessageComposer({
       return;
     }
 
-    if (editingMessage && !hasMessageEditChanged({ original: editingMessage, current: value })) {
+    const hasTextChange =
+      editingMessage && hasMessageEditChanged({ original: editingMessage, current: value });
+    if (editingMessage && !hasTextChange && !didPreviewChange) {
       onCancelContext();
       return;
     }
@@ -185,6 +196,7 @@ export function MessageComposer({
       sendOrigin,
       attachment: editingMessage ? undefined : attachment,
       media: editingMessage ? undefined : mediaAttachment,
+      disableLinkPreview: canShowPreviewControl && didPreviewChange ? isPreviewDisabled : undefined,
     };
     if (!editingMessage && connectedFiles.length && onMediaSubmit) {
       const selected = connectedFiles;
@@ -205,7 +217,8 @@ export function MessageComposer({
 
   function requestCancelContext() {
     const hasUnsavedEdit =
-      editingMessage && hasMessageEditChanged({ original: editingMessage, current: value });
+      editingMessage &&
+      (didPreviewChange || hasMessageEditChanged({ original: editingMessage, current: value }));
     if (hasUnsavedEdit) {
       setIsDiscardOpen(true);
       return;
@@ -425,6 +438,17 @@ export function MessageComposer({
           onSend={sendMessage}
         />
       </div>
+      {canShowPreviewControl && (
+        <label className={styles.previewPreference}>
+          <input
+            type="checkbox"
+            checked={isPreviewDisabled}
+            disabled={isDisabled}
+            onChange={(event) => setIsPreviewDisabled(event.target.checked)}
+          />
+          Disable link preview
+        </label>
+      )}
       {listDialog && (
         <ComposerListDialog
           kind={listDialog}

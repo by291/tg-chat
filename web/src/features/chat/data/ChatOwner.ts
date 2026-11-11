@@ -540,12 +540,16 @@ export class ChatOwner {
   }
 
   /** Persist before transport and preserve edits made while that write is pending. */
-  async queueSend(value: EmojiText): Promise<void> {
-    await this.queueMessage({ value });
+  async queueSend(value: EmojiText & { disableLinkPreview?: boolean }): Promise<void> {
+    await this.queueMessage({ value, disableLinkPreview: value.disableLinkPreview });
   }
 
   /** Persist selected media and its caption together before the first upload request. */
-  async enqueueMedia(input: { value: EmojiText; files: MediaSelection[] }): Promise<void> {
+  async enqueueMedia(input: {
+    value: EmojiText;
+    files: MediaSelection[];
+    disableLinkPreview?: boolean;
+  }): Promise<void> {
     if (input.files.length === 0) {
       throw new Error('Choose an attachment before sending.');
     }
@@ -561,6 +565,7 @@ export class ChatOwner {
     value: EmojiText;
     files?: MediaSelection[];
     body?: MessageBodyInput;
+    disableLinkPreview?: boolean;
   }): Promise<void> {
     this.ensureCurrent();
     const selection = this.snapshot.selection;
@@ -601,6 +606,7 @@ export class ChatOwner {
         content,
         reply: isIndependent ? undefined : capturedDraft.reply,
         body: input.body,
+        disable_link_preview: input.disableLinkPreview,
       },
     };
     await this.requireStore().enqueue({
