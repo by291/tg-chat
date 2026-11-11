@@ -496,6 +496,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/media/uploads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['reserve'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/media/uploads/{upload_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['status'];
+    put?: never;
+    post?: never;
+    delete: operations['cancel'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/media/uploads/{upload_id}/complete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['complete'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/media/uploads/{upload_id}/transfer': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['transfer'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/messages': {
     parameters: {
       query?: never;
@@ -624,6 +688,7 @@ export interface components {
     Capabilities: {
       avatars_available: boolean;
       email_recovery_available: boolean;
+      media_uploads_available?: boolean | null;
       messaging_available: boolean;
       registration_open: boolean;
     };
@@ -1124,6 +1189,15 @@ export interface components {
       message_id: string;
       quote?: string | null;
     };
+    ReserveUpload: {
+      file_name: string;
+      purpose: components['schemas']['UploadPurpose'];
+      sha256: string;
+      /** Format: int64 */
+      size_bytes: number;
+      /** Format: uuid */
+      upload_id: string;
+    };
     SendMessage: {
       content: components['schemas']['MessageContent'];
       destination: components['schemas']['Destination'];
@@ -1153,6 +1227,16 @@ export interface components {
       /** Format: date-time */
       last_seen_at: string;
     };
+    SignedUpload: {
+      /** Format: date-time */
+      expires_at: string;
+      headers: {
+        [key: string]: string;
+      };
+      /** Format: int32 */
+      part_number?: number | null;
+      url: string;
+    };
     SyncGroup: {
       conversation?: null | components['schemas']['ConversationView'];
       /** Format: uuid */
@@ -1167,6 +1251,34 @@ export interface components {
       groups: components['schemas']['SyncGroup'][];
       has_more: boolean;
       observation_cursor: string;
+    };
+    /** @enum {string} */
+    TransferMode: 'single_put' | 'multipart';
+    TransferPlan: {
+      confirmed_parts: number[];
+      requests: components['schemas']['SignedUpload'][];
+      single_put_complete: boolean;
+    };
+    TransferRequest: {
+      part_numbers?: number[];
+    };
+    /** @enum {string} */
+    UploadPurpose: 'image' | 'video' | 'document' | 'voice' | 'avatar';
+    /** @enum {string} */
+    UploadState:
+      'reserved' | 'uploaded' | 'processing' | 'ready' | 'rejected' | 'cancelled' | 'expired';
+    UploadStatus: {
+      error_code?: string | null;
+      /** Format: date-time */
+      expires_at: string;
+      /** Format: uuid */
+      file_id?: string | null;
+      /** Format: int64 */
+      part_size_bytes?: number | null;
+      state: components['schemas']['UploadState'];
+      transfer_mode: components['schemas']['TransferMode'];
+      /** Format: uuid */
+      upload_id: string;
     };
   };
   responses: never;
@@ -2000,6 +2112,117 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['HistoryPage'];
+        };
+      };
+    };
+  };
+  reserve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReserveUpload'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadStatus'];
+        };
+      };
+    };
+  };
+  status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        upload_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadStatus'];
+        };
+      };
+    };
+  };
+  cancel: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        upload_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadStatus'];
+        };
+      };
+    };
+  };
+  complete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        upload_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadStatus'];
+        };
+      };
+    };
+  };
+  transfer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        upload_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TransferRequest'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TransferPlan'];
         };
       };
     };

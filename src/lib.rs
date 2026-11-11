@@ -11,6 +11,7 @@ pub mod contacts;
 
 pub mod jobs;
 
+pub mod media;
 pub mod messages;
 
 pub mod conversations;

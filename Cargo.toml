@@ -7,6 +7,11 @@ license = "GPL-3.0-only"
 publish = false
 
 [dependencies]
+aws-sdk-s3 = { version = "=1.157.0", default-features = false, features = [
+    "default-https-client",
+    "rt-tokio",
+    "rustls",
+] }
 aes-gcm = "=0.10.3"
 email_address = "=0.2.9"
 lettre = { version = "=0.11.23", default-features = false, features = [

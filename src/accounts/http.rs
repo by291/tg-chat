@@ -26,6 +26,7 @@ pub struct AccountHttpState {
     pub(crate) settings: HttpSettings,
     pub(crate) limiter: RateLimiter,
     pub(crate) email: EmailService,
+    pub(crate) media: Option<crate::media::UploadService>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -41,6 +42,7 @@ struct Capabilities {
     email_recovery_available: bool,
     avatars_available: bool,
     messaging_available: bool,
+    media_uploads_available: Option<bool>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -93,7 +95,15 @@ impl AccountHttpState {
             settings,
             limiter,
             email,
+            media: None,
         }
+    }
+
+    /// Enable the media transfer routes for a configured deployment.
+    pub(crate) fn with_media(mut self, media: crate::media::UploadService) -> Self {
+        self.media = Some(media);
+
+        self
     }
 }
 
@@ -142,6 +152,7 @@ async fn capabilities(
         email_recovery_available: state.email.is_enabled(),
         avatars_available: false,
         messaging_available: true,
+        media_uploads_available: Some(state.media.is_some()),
     }))
 }
 
@@ -401,6 +412,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.route("/account/devices/revoke-others", post(revoke_other_devices));
     let routes = routes.merge(crate::contacts::http::router());
     let routes = routes.merge(super::email_http::router());
+    let routes = routes.merge(crate::media::http::router());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
     let routes = routes.merge(crate::conversations::http::router());

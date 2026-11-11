@@ -16,6 +16,7 @@ use crate::{
     database::connect_pool,
     http::{ApplicationState, router_with_api},
     jobs::{MailQueue, MailSettings},
+    media::{MediaLimits, MediaStorageSettings, UploadService},
     realtime::{self, RealtimeClient, RealtimeSettings, WorkerServices},
 };
 
@@ -29,6 +30,8 @@ pub enum RuntimeError {
     AccountConfiguration,
     #[error("the configured HTTP listener could not be bound")]
     BindFailed,
+    #[error("media runtime configuration is invalid")]
+    MediaConfiguration,
     #[error("the HTTP service failed")]
     ServerFailed,
     #[error("shutdown signals could not be registered")]
@@ -104,7 +107,14 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
-        let routes = account_router(AccountHttpState::new(accounts.clone(), transport, mail));
+        let mut state = AccountHttpState::new(accounts.clone(), transport, mail);
+        let media =
+            MediaStorageSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
+        if let Some(media) = media {
+            let limits = MediaLimits::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
+            state = state.with_media(UploadService::new(accounts.clone(), limits, media));
+        }
+        let routes = account_router(state);
         match realtime_settings {
             Some(settings) => routes.merge(realtime::router(accounts, settings)),
             None => routes,

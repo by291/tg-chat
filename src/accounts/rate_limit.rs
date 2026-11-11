@@ -12,6 +12,7 @@ const WINDOW_SECONDS: u64 = 60;
 const IDENTITY_LIMIT: u64 = 10;
 const CLIENT_LIMIT: u64 = 20;
 const MESSAGE_LIMIT: u64 = 120;
+const MEDIA_LIMIT: u64 = 120;
 const REGISTRATION_LIMIT: u64 = 5;
 const REGISTRATION_WINDOW_SECONDS: u64 = 600;
 const COUNTER_SCRIPT: &str = "
@@ -67,8 +68,16 @@ impl RateLimiter {
 
     /// Bound authenticated sends independently of the stricter credential admission limits.
     pub(crate) async fn admit_message(&self, user_id: &str) -> Result<(), AccountError> {
-        let bucket = format!("message:{user_id}");
-        let operation = self.count(&bucket, MESSAGE_LIMIT, WINDOW_SECONDS);
+        self.admit_activity(&format!("message:{user_id}"), MESSAGE_LIMIT).await
+    }
+
+    /// Limit transfer commands without consuming the user's text-send budget.
+    pub(crate) async fn admit_media(&self, user_id: &str) -> Result<(), AccountError> {
+        self.admit_activity(&format!("media:{user_id}"), MEDIA_LIMIT).await
+    }
+
+    async fn admit_activity(&self, bucket: &str, limit: u64) -> Result<(), AccountError> {
+        let operation = self.count(bucket, limit, WINDOW_SECONDS);
 
         timeout(REQUEST_TIMEOUT, operation).await.map_err(|_| AccountError::Unavailable)?
     }

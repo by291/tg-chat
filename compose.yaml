@@ -12,6 +12,12 @@ x-application: &application
     TG_CHAT_CENTRIFUGO_URL: http://centrifugo:8000
     TG_CHAT_CENTRIFUGO_API_KEY: ${TG_CHAT_CENTRIFUGO_API_KEY:?Generate .env first}
     TG_CHAT_CENTRIFUGO_PROXY_KEY: ${TG_CHAT_CENTRIFUGO_PROXY_KEY:?Generate .env first}
+    TG_CHAT_MEDIA_ENABLED: ${TG_CHAT_MEDIA_ENABLED:-false}
+    TG_CHAT_MEDIA_STAGING_BYTES: ${TG_CHAT_MEDIA_STAGING_BYTES:-536870912}
+    TG_CHAT_S3_INTERNAL_ENDPOINT: ${TG_CHAT_S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
+    TG_CHAT_S3_PUBLIC_ENDPOINT: ${TG_CHAT_S3_PUBLIC_ENDPOINT:-http://localhost:8333}
+    TG_CHAT_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
+    TG_CHAT_S3_SECRET_KEY: ${TG_CHAT_S3_SECRET_KEY:?Generate .env first}
     TG_CHAT_TRUST_GATEWAY: 'true'
     TG_CHAT_SMTP_HOST: ${TG_CHAT_SMTP_HOST:-}
     TG_CHAT_SMTP_PORT: ${TG_CHAT_SMTP_PORT:-587}
@@ -203,6 +209,9 @@ services:
       TG_CHAT_TEST_VALKEY_URL: redis://valkey:6379
       TG_CHAT_TEST_SMTP_HOST: mailpit
       TG_CHAT_TEST_SMTP_PORT: '1025'
+      TG_CHAT_TEST_S3_ENDPOINT: http://seaweedfs:8333
+      TG_CHAT_TEST_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
+      TG_CHAT_TEST_S3_SECRET_KEY: ${TG_CHAT_S3_SECRET_KEY:?Generate .env first}
       DATABASE_URL: >-
         postgres://tg_chat:${TG_CHAT_DATABASE_PASSWORD:?Generate .env first}@postgres:5432/tg_chat
     depends_on:

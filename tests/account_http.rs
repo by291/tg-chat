@@ -475,3 +475,29 @@ async fn community_routes_require_session_csrf_and_server_owned_roles(pool: PgPo
     .await;
     assert_eq!(anonymous, 401);
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn media_reservation_requires_csrf_even_when_disabled(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let registration = serde_json::from_value(registration()).unwrap();
+    let grant = accounts.register(registration).await.unwrap();
+    let settings = HttpSettings::from_values(&HashMap::new()).unwrap();
+    let cookie = settings.session_cookie(&grant.token);
+    let application = application(pool, &valkey_url());
+
+    let (status, _, _) = send(
+        &application,
+        TestRequest {
+            method: "POST",
+            path: "/api/v1/media/uploads",
+            origin: Some(ORIGIN),
+            cookie: Some(&cookie),
+            csrf: None,
+            body: json!({}),
+        },
+    )
+    .await;
+
+    assert_eq!(status, 403);
+}
