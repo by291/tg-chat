@@ -5,13 +5,20 @@ interface AvatarProps {
   initials: string;
   color?: string;
   size?: 'small' | 'normal' | 'large';
+  src?: string;
 }
 
-/** Render a deterministic avatar without fetching private profile photos. */
-export function Avatar({ initials, color = 'blue', size = 'normal' }: AvatarProps) {
+/** Render a profile thumbnail or the initials fallback. */
+export function Avatar({ initials, color = 'blue', size = 'normal', src }: AvatarProps) {
   return (
     <span className={styles.avatar} data-color={color} data-size={size} aria-hidden="true">
-      {initials === 'saved' ? <Bookmark fill="currentColor" /> : initials}
+      {src ? (
+        <img src={src} alt="" crossOrigin="anonymous" className={styles.avatarPhoto} />
+      ) : initials === 'saved' ? (
+        <Bookmark fill="currentColor" />
+      ) : (
+        initials
+      )}
     </span>
   );
 }

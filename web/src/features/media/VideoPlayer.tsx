@@ -3,6 +3,7 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 import { Maximize, Minimize, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import type { MessageMedia } from '@/domain/messages/media';
 import { pauseOtherMedia } from '@/lib/mediaPlayback';
+import { usePlaybackRenewal } from './usePlaybackRenewal';
 import styles from './VideoPlayer.module.css';
 
 const SECONDS_PER_MINUTE = 60;
@@ -13,6 +14,7 @@ const CONTROLS_IDLE_MILLISECONDS = 3000;
 interface VideoPlayerProps {
   media: Extract<MessageMedia, { kind: 'video' }>;
   isActive: boolean;
+  renewSource?: (signal: AbortSignal) => Promise<string>;
 }
 
 function formatPlaybackTime(seconds: number) {
@@ -38,7 +40,7 @@ function exitPlayerFullscreen(player: HTMLElement | null) {
 }
 
 /** Play a viewer video with accessible custom controls. */
-export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
+export function VideoPlayer({ media, isActive, renewSource }: VideoPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const isActiveRef = useRef(isActive);
@@ -54,6 +56,11 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(media.duration);
   const [error, setError] = useState('');
+  const playback = usePlaybackRenewal({
+    url: media.url,
+    renew: renewSource,
+    onFailure: () => setError('Video could not be loaded.'),
+  });
 
   function revealControls() {
     clearTimeout(hideControlsTimer.current);
@@ -238,7 +245,8 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
       <video
         ref={videoRef}
         className={styles.video}
-        src={media.url}
+        src={playback.src}
+        crossOrigin={renewSource ? 'anonymous' : undefined}
         poster={media.poster}
         playsInline
         preload="auto"
@@ -252,6 +260,7 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
         onEnded={() => setIsPlaying(false)}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
         onLoadedMetadata={(event) => {
+          playback.restore(event.currentTarget);
           const loadedDuration = event.currentTarget.duration;
           if (Number.isFinite(loadedDuration) && loadedDuration > 0) {
             setDuration(loadedDuration);
@@ -261,7 +270,9 @@ export function VideoPlayer({ media, isActive }: VideoPlayerProps) {
           setVolume(event.currentTarget.volume);
           setIsMuted(event.currentTarget.muted);
         }}
-        onError={() => setError('Video could not be loaded.')}
+        onError={() =>
+          playback.onError({ position: currentTime, shouldPlay: isActive && isPlaying })
+        }
       />
       {error && (
         <p className={styles.error} role="alert">

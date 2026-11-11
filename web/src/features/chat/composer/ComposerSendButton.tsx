@@ -17,6 +17,7 @@ interface ComposerSendButtonProps {
   hasContent: boolean;
   isPreparingAttachment: boolean;
   onSend: () => void;
+  onRecord?: () => void;
 }
 
 /** Animate icon changes independently from the button's stable hit target and keyboard focus. */
@@ -25,6 +26,7 @@ export function ComposerSendButton({
   hasContent,
   isPreparingAttachment,
   onSend,
+  onRecord,
 }: ComposerSendButtonProps) {
   const shouldReduceMotion = useReducedMotion();
   let mode = 'voice';
@@ -42,7 +44,7 @@ export function ComposerSendButton({
     Icon = Check;
   }
 
-  const isDisabled = mode === 'voice' || isPreparingAttachment;
+  const isDisabled = (mode === 'voice' && !onRecord) || isPreparingAttachment;
   const initialScale = shouldReduceMotion ? 1 : ICON_TRANSITION.initialScale;
   const duration = shouldReduceMotion ? ICON_TRANSITION.reducedDuration : ICON_TRANSITION.duration;
   const exitOpacity = shouldReduceMotion ? 0 : [ICON_TRANSITION.exitOpacity, 0];
@@ -61,7 +63,7 @@ export function ComposerSendButton({
       className={styles.sendButton}
       disabled={isDisabled}
       data-mode={mode}
-      onClick={onSend}
+      onClick={mode === 'voice' ? onRecord : onSend}
     >
       <AnimatePresence initial={false}>
         <motion.span

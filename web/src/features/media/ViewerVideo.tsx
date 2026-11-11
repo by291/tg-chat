@@ -46,7 +46,12 @@ export function ViewerVideo({
       }}
     >
       <div ref={frameRef} className={styles.videoFrame}>
-        <VideoPlayer key={message.id} media={media} isActive={isOpen && phase !== 'leaving'} />
+        <VideoPlayer
+          key={message.id}
+          media={media}
+          renewSource={message.renewPlaybackUrl}
+          isActive={isOpen && phase !== 'leaving'}
+        />
       </div>
     </div>
   );

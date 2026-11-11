@@ -50,13 +50,25 @@ export type AttachmentAction = 'media' | 'document' | 'article' | 'poll' | 'chec
 
 interface AttachmentMenuProps {
   isDisabled: boolean;
+  isConnected?: boolean;
   isExpanded: boolean;
   onSelect: (action: AttachmentAction) => void;
 }
 
 /** Open attachment choices before requesting a file, preserving the composer's draft. */
-export function AttachmentMenu({ isDisabled, isExpanded, onSelect }: AttachmentMenuProps) {
+export function AttachmentMenu({
+  isDisabled,
+  isConnected = false,
+  isExpanded,
+  onSelect,
+}: AttachmentMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const actions = ACTIONS.filter((action) => {
+    if (isConnected) {
+      return action.value === 'media' || action.value === 'document';
+    }
+    return !isExpanded || action.value !== 'article';
+  });
 
   return (
     <Menu.Root
@@ -83,7 +95,7 @@ export function AttachmentMenu({ isDisabled, isExpanded, onSelect }: AttachmentM
       >
         <Menu.Positioner>
           <Menu.Content className={`${overlays.menu} ${styles.menu}`} aria-label="Attachments">
-            {ACTIONS.filter((action) => !isExpanded || action.value !== 'article').map((action) => (
+            {actions.map((action) => (
               <Menu.Item key={action.value} value={action.value} className={overlays.menuItem}>
                 <action.icon />
                 {action.label}

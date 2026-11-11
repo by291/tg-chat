@@ -70,6 +70,13 @@ interface MediaClaim {
   token: string;
 }
 
+interface MediaRecovery {
+  messageId: string;
+  occurrenceId: string;
+  file: File;
+  sha256: string;
+}
+
 interface MediaCheckpoint extends MediaClaim {
   item: PendingMedia;
 }
@@ -308,6 +315,49 @@ export class PendingMessages {
       snapshot.pending[index] = checkpoint;
     });
     return checkpoint;
+  }
+
+  /** Restore a missing source or replace one rejected item before freezing the message. */
+  async restoreMediaSource(input: MediaRecovery): Promise<PendingMessage | undefined> {
+    let restored: PendingMessage | undefined;
+    await this.mutate((snapshot) => {
+      const index = pendingIndex(snapshot, input.messageId);
+      const current = snapshot.pending[index];
+      if (!current?.media || current.isPrepared !== false || current.status !== 'failed') {
+        return;
+      }
+      const item = current.media.find((entry) => entry.occurrenceId === input.occurrenceId);
+      if (!item || item.fileId) {
+        return;
+      }
+      const isOriginal =
+        item.sizeBytes === input.file.size && (!item.sha256 || item.sha256 === input.sha256);
+      if (!item.blob && !isOriginal) {
+        throw new Error('The selected file does not match the original upload.');
+      }
+      const bytes = snapshot.pending.reduce((total, entry) => total + queuedBytes(entry), 0);
+      if (bytes - (item.blob?.size ?? 0) + input.file.size > MAX_PENDING_MEDIA_BYTES) {
+        throw new Error('Pending media storage is full. Retry or discard an upload first.');
+      }
+      const replacement: PendingMedia = {
+        ...item,
+        filename: isOriginal ? item.filename : input.file.name,
+        sizeBytes: input.file.size,
+        uploadId: !item.blob && isOriginal ? item.uploadId : crypto.randomUUID(),
+        sha256: input.sha256,
+        blob: input.file,
+      };
+      restored = {
+        ...current,
+        mediaClaim: undefined,
+        mediaProgress: undefined,
+        status: 'queued',
+        error: undefined,
+        media: current.media.map((entry) => (entry === item ? replacement : entry)),
+      };
+      snapshot.pending[index] = restored;
+    });
+    return restored;
   }
 
   /** Release the claim without changing work that another tab already recovered. */

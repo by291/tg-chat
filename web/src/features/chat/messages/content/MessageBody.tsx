@@ -8,6 +8,7 @@ import { ContactCard, DocumentCard, LinkPreview } from './MessageCards';
 import { ChecklistMessage } from './checklist/ChecklistMessage';
 import { PollMessage } from './poll/PollMessage';
 import { VoiceMessage } from './media/VoiceMessage';
+import { ConnectedMessageMedia } from './media/ConnectedMessageMedia';
 import { findSticker, STICKER_MESSAGE_SIZE } from '@/features/stickers/stickerCatalog';
 import { StickerArtwork } from '@/features/stickers/StickerArtwork';
 import type { Message } from '@/domain/messages/message';
@@ -23,6 +24,9 @@ interface MessageBodyProps {
 
 /** Select one explicit content renderer while the bubble keeps ownership of shared chrome. */
 export function MessageBody({ message, metadata, onOpenMedia, onInteract }: MessageBodyProps) {
+  if (message.pendingMedia || message.remoteAttachments?.length) {
+    return <ConnectedMessageMedia message={message} />;
+  }
   if (message.attachment) {
     return (
       <PhotoFrame

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { components } from '@/api/schema';
 import { Avatar } from '@/components/Avatar';
+import { AvatarEditor } from '@/features/media/AvatarEditor';
 import { SettingsAccountDetails } from '@/features/settings/profile/SettingsAccountDetails';
 import { SessionOwner, requirePayload } from '../auth/SessionOwner';
 import { AccountForm, Field, textField } from './AccountForm';
@@ -8,8 +9,16 @@ import styles from './Accounts.module.css';
 
 type Profile = components['schemas']['PrivateProfile'];
 
-/** Edit account-owned profile fields while keeping immutable identity and unavailable uploads clear. */
-export function ProfilePanel({ owner, profile }: { owner: SessionOwner; profile: Profile }) {
+/** Edit account-owned profile fields and publish a validated profile avatar. */
+export function ProfilePanel({
+  owner,
+  profile,
+  isAvatarAvailable = false,
+}: {
+  owner: SessionOwner;
+  profile: Profile;
+  isAvatarAvailable?: boolean;
+}) {
   const [notice, setNotice] = useState('');
 
   async function save(fields: FormData) {
@@ -25,20 +34,52 @@ export function ProfilePanel({ owner, profile }: { owner: SessionOwner; profile:
     setNotice('Profile saved.');
   }
 
+  async function assignAvatar(fileId: string | null): Promise<void> {
+    const reply = await owner.client.PUT('/api/v1/account/profile/avatar', {
+      body: {
+        operation_id: crypto.randomUUID(),
+        expected_version: profile.version,
+        file_id: fileId,
+      },
+    });
+    owner.replaceProfile(requirePayload(reply));
+  }
+
   return (
     <div className={styles.panel}>
       <section className={styles.card}>
         <div className={styles.profileHeading}>
-          <Avatar initials={profile.display_name.slice(0, 2).toUpperCase()} size="large" />
-          <div>
-            <h2>Profile</h2>
-            <button className={styles.textButton} disabled aria-describedby="avatar-unavailable">
-              Change photo
-            </button>
-            <p id="avatar-unavailable" className={styles.hint}>
-              Avatar uploads are not available yet.
-            </p>
-          </div>
+          {isAvatarAvailable ? (
+            <>
+              <AvatarEditor
+                session={owner}
+                owner="user"
+                id={profile.id}
+                fileId={profile.avatar_file_id}
+                initials={profile.display_name.slice(0, 2).toUpperCase()}
+                size="large"
+                onAssign={assignAvatar}
+              />
+              <h2>Profile</h2>
+            </>
+          ) : (
+            <>
+              <Avatar initials={profile.display_name.slice(0, 2).toUpperCase()} size="large" />
+              <div>
+                <h2>Profile</h2>
+                <button
+                  className={styles.textButton}
+                  disabled
+                  aria-describedby="avatar-unavailable"
+                >
+                  Change photo
+                </button>
+                <p id="avatar-unavailable" className={styles.hint}>
+                  Avatar uploads are not available yet.
+                </p>
+              </div>
+            </>
+          )}
         </div>
         <AccountForm
           key={profile.version}

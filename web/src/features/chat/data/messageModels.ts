@@ -115,6 +115,7 @@ export function renderMessage(message: CanonicalMessage): Message {
     isService: Boolean(message.service_kind),
     expiresAt: message.expires_at ? Date.parse(message.expires_at) : undefined,
     deliveryStatus: 'accepted',
+    remoteAttachments: message.attachments,
   };
 }
 
@@ -140,5 +141,31 @@ export function renderPending(options: {
     reactions: [],
   });
 
-  return { ...message, deliveryStatus: pending.status };
+  const totalBytes = pending.media?.reduce((bytes, item) => bytes + item.sizeBytes, 0) ?? 0;
+  const progress = pending.mediaProgress;
+  let status = 'Waiting to upload';
+  if (pending.request.attachments?.length) {
+    status = 'Sending message';
+  } else if (progress?.phase === 'processing') {
+    status = 'Processing attachments';
+  } else if (progress && totalBytes > 0) {
+    const percentage = Math.round((progress.bytes / totalBytes) * 100);
+    status = `Uploading ${Math.min(percentage, 100)}%`;
+  }
+  if (pending.status === 'failed') {
+    status = 'Upload failed';
+  }
+  const pendingMedia = pending.media
+    ? {
+        status,
+        error: pending.error,
+        items: pending.media.map((item) => ({
+          occurrenceId: item.occurrenceId,
+          filename: item.filename,
+          isReady: Boolean(item.fileId),
+        })),
+      }
+    : undefined;
+
+  return { ...message, deliveryStatus: pending.status, pendingMedia };
 }

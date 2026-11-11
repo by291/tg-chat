@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
-import { isCancelled } from '@/features/auth/SessionOwner';
+import { isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
+import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
+import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { Message } from '@/domain/messages/message';
 import type { MessageCommand } from '../messages/commands';
 import { canonicalMessageContent } from '../data/messageContent';
@@ -47,6 +49,8 @@ const REACTIONS = [
 
 interface ConnectedChatProps {
   owner: ChatOwner;
+  session?: SessionOwner;
+  isMediaAvailable?: boolean;
   user: components['schemas']['PrivateProfile'];
   onSettings: () => void;
   onFindPeople: () => void;
@@ -64,6 +68,8 @@ function title(conversation: Conversation): string {
 /** Reuse the editor and bounded virtual timeline with authenticated, server-owned message state. */
 export function ConnectedChat({
   owner,
+  session,
+  isMediaAvailable = false,
   user,
   onSettings,
   onFindPeople,
@@ -177,9 +183,9 @@ export function ConnectedChat({
     setIsDirectoryVisible(false);
   }
 
-  async function submit(message: ComposedMessage) {
+  async function submit(message: ComposedMessage): Promise<boolean> {
     if (isPersisting) {
-      return;
+      return false;
     }
     setIsPersisting(true);
     setError('');
@@ -189,14 +195,20 @@ export function ConnectedChat({
           kind: 'edit',
           message_id: editing.id,
           expected_version: editVersion,
-          content: canonicalMessageContent(message),
+          content: canonicalMessageContent(message, {
+            isCaption: Boolean(editing.attachments?.length),
+          }),
         });
         setEditing(undefined);
+      } else if (message.files?.length) {
+        await owner.enqueueMedia({ value: message, files: message.files });
       } else {
         await owner.queueSend(message);
       }
+      return true;
     } catch (failure) {
       report(failure);
+      return false;
     } finally {
       setIsPersisting(false);
     }
@@ -281,6 +293,18 @@ export function ConnectedChat({
     }
   }
 
+  const mediaActions = session
+    ? {
+        session,
+        retry: (id: string) => void owner.retry(id).catch(report),
+        cancel: (id: string) => void owner.discard(id).catch(report),
+        jump: (id: string) => void owner.jumpToMessage(id).catch(report),
+        reselect: (input: { messageId: string; occurrenceId: string; file: File }) =>
+          void owner.restoreMediaSource(input).catch(report),
+        notify: setError,
+      }
+    : undefined;
+
   return (
     <CurrentUserProvider value={user.id}>
       <main className={styles.workspace} data-directory-visible={isDirectoryVisible}>
@@ -319,7 +343,17 @@ export function ConnectedChat({
               onClick={() => openConversation(entry)}
             >
               <span className={styles.avatar}>
-                <MessageCircle aria-hidden="true" />
+                {session && (entry.avatar_file_id || entry.peer_avatar_file_id) ? (
+                  <RemoteAvatar
+                    session={session}
+                    owner={entry.avatar_file_id ? 'conversation' : 'user'}
+                    id={entry.avatar_file_id ? entry.id : entry.peer_id}
+                    fileId={entry.avatar_file_id ?? entry.peer_avatar_file_id}
+                    initials={title(entry).slice(0, 2).toUpperCase()}
+                  />
+                ) : (
+                  <MessageCircle aria-hidden="true" />
+                )}
               </span>
               <span className={styles.summary}>
                 <strong>{title(entry)}</strong>
@@ -472,34 +506,36 @@ export function ConnectedChat({
                 {snapshot.isLoading && <span role="status">Loading messages…</span>}
                 {snapshot.hasNewer && <span>Viewing older history</span>}
               </div>
-              <MessageTimeline
-                key={selectedKey}
-                messages={messages}
-                precedingMessage={
-                  snapshot.precedingMessage ? renderMessage(snapshot.precedingMessage) : undefined
-                }
-                shouldShowSender={conversation?.kind === 'group'}
-                allowedActions={allowedActions}
-                reactionChoices={REACTIONS}
-                navigation={snapshot.navigation}
-                onReachLatest={() => {
-                  const reached = snapshot.messages.at(-1);
-                  if (reached && !isDirectoryVisible && !editing) {
-                    void owner.markReached(reached.id).catch(report);
+              <ConnectedMediaContext.Provider value={mediaActions}>
+                <MessageTimeline
+                  key={selectedKey}
+                  messages={messages}
+                  precedingMessage={
+                    snapshot.precedingMessage ? renderMessage(snapshot.precedingMessage) : undefined
                   }
-                }}
-                remoteHistory={{
-                  hasOlder: snapshot.hasOlder,
-                  isLoading: snapshot.isLoading,
-                  loadOlder: () => void owner.loadHistory('older'),
-                }}
-                searchQuery=""
-                onCommand={messageCommand}
-                onReact={react}
-                onInteract={() => undefined}
-                onOpenMedia={() => undefined}
-                onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-              />
+                  shouldShowSender={conversation?.kind === 'group'}
+                  allowedActions={allowedActions}
+                  reactionChoices={REACTIONS}
+                  navigation={snapshot.navigation}
+                  onReachLatest={() => {
+                    const reached = snapshot.messages.at(-1);
+                    if (reached && !isDirectoryVisible && !editing) {
+                      void owner.markReached(reached.id).catch(report);
+                    }
+                  }}
+                  remoteHistory={{
+                    hasOlder: snapshot.hasOlder,
+                    isLoading: snapshot.isLoading,
+                    loadOlder: () => void owner.loadHistory('older'),
+                  }}
+                  searchQuery=""
+                  onCommand={messageCommand}
+                  onReact={react}
+                  onInteract={() => undefined}
+                  onOpenMedia={() => undefined}
+                  onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+                />
+              </ConnectedMediaContext.Provider>
               <footer className={styles.composer}>
                 {snapshot.draftConflict && (
                   <div className={styles.conflict} role="status">
@@ -551,6 +587,8 @@ export function ConnectedChat({
                   <MessageComposer
                     key={selectedKey}
                     isTextOnly
+                    isMediaAvailable={isMediaAvailable}
+                    onMediaSubmit={submit}
                     editingMessage={editingMessage}
                     replyMessage={replyMessage}
                     isDisabled={isPersisting || !snapshot.isReady || !canPost}

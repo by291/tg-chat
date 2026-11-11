@@ -3,6 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
 import { AttachmentPreview } from './attachments/AttachmentPreview';
+import {
+  ConnectedAttachmentPreview,
+  selectConnectedFiles,
+} from './attachments/ConnectedAttachments';
+import { useVoiceRecorder } from '@/features/media/useVoiceRecorder';
+import type { MediaSelection } from '@/features/media/uploadTransfer';
 import { useComposerAttachments } from './attachments/useComposerAttachments';
 import { ComposerSendButton } from './ComposerSendButton';
 import { ComposerListDialog } from './forms/ComposerListDialog';
@@ -28,11 +34,13 @@ export interface ComposedMessage extends EmojiText {
   attachment?: Attachment;
   sticker?: string;
   media?: MessageMedia;
+  files?: MediaSelection[];
 }
 
 interface MessageComposerProps {
   draft: string;
   isTextOnly?: boolean;
+  isMediaAvailable?: boolean;
   isDisabled?: boolean;
   draftCustomEmoji?: CustomEmojiEntity[];
   draftRichText?: string;
@@ -41,6 +49,7 @@ interface MessageComposerProps {
   forwardMessages?: Message[];
   onDraftChange: (value: EmojiText) => void;
   onSubmit: (message: ComposedMessage) => void;
+  onMediaSubmit?: (message: ComposedMessage) => Promise<boolean>;
   onCancelContext: () => void;
   onJumpToMessage: (messageId: string) => void;
   onNotify: (message: string) => void;
@@ -50,6 +59,7 @@ interface MessageComposerProps {
 export function MessageComposer({
   draft,
   isTextOnly = false,
+  isMediaAvailable = false,
   isDisabled = false,
   draftCustomEmoji,
   draftRichText,
@@ -58,10 +68,15 @@ export function MessageComposer({
   forwardMessages,
   onDraftChange,
   onSubmit,
+  onMediaSubmit,
   onCancelContext,
   onJumpToMessage,
   onNotify,
 }: MessageComposerProps) {
+  const connectedInput = useRef<HTMLInputElement>(null);
+  const connectedMode = useRef<'media' | 'document'>('media');
+  const [connectedFiles, setConnectedFiles] = useState<MediaSelection[]>([]);
+  const recorder = useVoiceRecorder((selection) => setConnectedFiles([selection]));
   const editorRef = useRef<EmojiEditorControls>(null);
   const editorRowRef = useRef<HTMLDivElement>(null);
   const attachments = useComposerAttachments({
@@ -90,10 +105,11 @@ export function MessageComposer({
     Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
     Boolean(value.richText) ||
+    connectedFiles.length > 0 ||
     Boolean(attachment || mediaAttachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
   const previousContextRef = useRef(contextMessage);
-  const canSubmit = !isDisabled && (Boolean(editingMessage) || hasContent);
+  const canSubmit = !isDisabled && !recorder.isRecording && (Boolean(editingMessage) || hasContent);
   const isPreparingAttachment = !editingMessage && isLoadingAttachment;
 
   useEffect(() => {
@@ -146,14 +162,30 @@ export function MessageComposer({
 
     const editor = editorRef.current?.getElement();
     const field = editorRowRef.current;
-    const canAnimateText = !editingMessage && !attachment && !mediaAttachment && editor && field;
+    const canAnimateText =
+      !editingMessage &&
+      !attachment &&
+      !mediaAttachment &&
+      !connectedFiles.length &&
+      editor &&
+      field;
     const sendOrigin = canAnimateText ? captureOutgoingMessage({ field, editor }) : undefined;
-    onSubmit({
+    const submitted: ComposedMessage = {
       ...value,
       sendOrigin,
       attachment: editingMessage ? undefined : attachment,
       media: editingMessage ? undefined : mediaAttachment,
-    });
+    };
+    if (!editingMessage && connectedFiles.length && onMediaSubmit) {
+      const selected = connectedFiles;
+      void onMediaSubmit({ ...submitted, files: selected }).then((isPersisted) => {
+        if (isPersisted) {
+          setConnectedFiles((current) => (current === selected ? [] : current));
+        }
+      });
+    } else {
+      onSubmit(submitted);
+    }
     setIsExpanded(false);
     if (!editingMessage) {
       attachments.removeAttachment();
@@ -173,6 +205,10 @@ export function MessageComposer({
   }
 
   function cancelComposition() {
+    if (recorder.isRecording || recorder.isRequesting) {
+      recorder.cancel();
+      return;
+    }
     if (isExpanded) {
       setIsExpanded(false);
       return;
@@ -183,9 +219,32 @@ export function MessageComposer({
     }
 
     attachments.removeAttachment();
+    setConnectedFiles([]);
+  }
+
+  function appendFiles(files: File[], mode: 'media' | 'document') {
+    if (!isMediaAvailable || editingMessage || isDisabled || recorder.isRecording) {
+      return;
+    }
+    try {
+      const next = selectConnectedFiles({ current: connectedFiles, files, mode });
+      setConnectedFiles(next);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : 'Could not select these attachments.');
+    }
   }
 
   function selectAttachment(action: AttachmentAction) {
+    if (isMediaAvailable && (action === 'media' || action === 'document')) {
+      const input = connectedInput.current;
+      if (input) {
+        connectedMode.current = action;
+        input.accept = action === 'media' ? 'image/*,video/*' : '';
+        input.multiple = action === 'media';
+        input.click();
+      }
+      return;
+    }
     if (action === 'article') {
       setIsExpanded(true);
       // Ark restores trigger focus when the menu closes; place the caret after that handoff.
@@ -206,10 +265,19 @@ export function MessageComposer({
       data-message-composer
       data-dragging={attachments.isDragging}
       data-has-context={Boolean(contextMessage || forwardMessages?.length)}
-      data-has-attachment={Boolean((attachment || mediaAttachment) && !editingMessage)}
+      data-has-attachment={Boolean(
+        (attachment || mediaAttachment || connectedFiles.length) && !editingMessage,
+      )}
       onDragOver={isTextOnly ? (event) => event.preventDefault() : attachments.dragOver}
       onDragLeave={isTextOnly ? undefined : attachments.dragLeave}
-      onDrop={isTextOnly ? (event) => event.preventDefault() : attachments.dropFile}
+      onDrop={(event) => {
+        if (!isTextOnly) {
+          attachments.dropFile(event);
+          return;
+        }
+        event.preventDefault();
+        appendFiles(Array.from(event.dataTransfer.files), 'media');
+      }}
     >
       <ComposerContextBar
         replyMessage={replyMessage}
@@ -225,21 +293,56 @@ export function MessageComposer({
           onRemove={attachments.removeAttachment}
         />
       )}
+      {!editingMessage && connectedFiles.length > 0 && (
+        <div className={styles.connectedSelections} aria-label="Selected attachments">
+          {connectedFiles.map((selection, index) => (
+            <ConnectedAttachmentPreview
+              key={`${selection.filename}:${index}`}
+              selection={selection}
+              onRemove={() =>
+                setConnectedFiles((current) => current.filter((_, item) => item !== index))
+              }
+            />
+          ))}
+        </div>
+      )}
+      {isMediaAvailable && (recorder.isRequesting || recorder.isRecording) && (
+        <div className={styles.connectedSelections}>
+          <span role="status">{recorder.isRequesting ? 'Starting microphone…' : 'Recording…'}</span>
+          {recorder.isRecording && (
+            <button type="button" onClick={recorder.stop}>
+              Stop recording
+            </button>
+          )}
+          <button type="button" onClick={recorder.cancel}>
+            Cancel recording
+          </button>
+        </div>
+      )}
+      {isMediaAvailable && recorder.error && <p role="alert">{recorder.error}</p>}
       <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
-        {!isTextOnly && (
+        {(!isTextOnly || isMediaAvailable) && (
           <>
             <AttachmentMenu
-              isDisabled={Boolean(editingMessage) || isLoadingAttachment}
+              isConnected={isMediaAvailable}
+              isDisabled={Boolean(editingMessage) || isLoadingAttachment || isDisabled}
               isExpanded={isExpanded}
               onSelect={selectAttachment}
             />
             <input
-              ref={attachments.fileInputRef}
+              ref={isMediaAvailable ? connectedInput : attachments.fileInputRef}
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
               className={styles.fileInput}
               aria-label="Choose an attachment"
-              onChange={attachments.changeFile}
+              onChange={(event) => {
+                if (!isMediaAvailable) {
+                  attachments.changeFile(event);
+                  return;
+                }
+                appendFiles(Array.from(event.target.files ?? []), connectedMode.current);
+                event.target.value = '';
+              }}
             />
           </>
         )}
@@ -256,7 +359,13 @@ export function MessageComposer({
           onCancel={cancelComposition}
           onPasteImage={
             isTextOnly
-              ? () => onNotify('Only text and emoji can be sent in this conversation.')
+              ? (file) => {
+                  if (isMediaAvailable) {
+                    appendFiles([file], 'media');
+                  } else {
+                    onNotify('Only text and emoji can be sent in this conversation.');
+                  }
+                }
               : attachments.pasteImage
           }
           onError={onNotify}
@@ -283,7 +392,12 @@ export function MessageComposer({
         <ComposerSendButton
           isEditing={Boolean(editingMessage)}
           hasContent={hasContent}
-          isPreparingAttachment={isPreparingAttachment}
+          isPreparingAttachment={isPreparingAttachment || isDisabled || recorder.isRecording}
+          onRecord={
+            isMediaAvailable && recorder.isSupported && !recorder.isRequesting
+              ? () => void recorder.start()
+              : undefined
+          }
           onSend={sendMessage}
         />
       </div>

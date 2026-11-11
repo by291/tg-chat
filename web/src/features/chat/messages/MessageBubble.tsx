@@ -72,7 +72,9 @@ export const MessageBubble = memo(function MessageBubble({
   onJumpToMessage,
 }: MessageBubbleProps) {
   const shouldUseLargeEmoji = useAppPreferences((preferences) => preferences.shouldUseLargeEmoji);
-  const largeEmojiSize = shouldUseLargeEmoji ? getLargeEmojiSize(message) : undefined;
+  const hasConnectedMedia = Boolean(message.pendingMedia || message.remoteAttachments?.length);
+  const canShowLargeEmoji = shouldUseLargeEmoji && !hasConnectedMedia;
+  const largeEmojiSize = canShowLargeEmoji ? getLargeEmojiSize(message) : undefined;
   const rowRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const row = rowRef.current;

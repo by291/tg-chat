@@ -162,7 +162,9 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     return (
       <ConnectedChat
         owner={chat}
+        session={owner}
         user={auth.user}
+        isMediaAvailable={capabilities.media_uploads_available === true}
         onSettings={() => setPage('profile')}
         onFindPeople={() => setPage('contacts')}
         onCommunities={() => showCommunities()}
@@ -180,6 +182,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
           session={owner}
           chat={chat}
           initialId={communityId}
+          isAvatarAvailable={capabilities.avatars_available}
           onOpen={openCommunity}
         />
       ) : (
@@ -205,7 +208,13 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       );
       break;
     default:
-      content = <ProfilePanel owner={owner} profile={profile} />;
+      content = (
+        <ProfilePanel
+          owner={owner}
+          profile={profile}
+          isAvatarAvailable={capabilities.avatars_available}
+        />
+      );
   }
 
   return (

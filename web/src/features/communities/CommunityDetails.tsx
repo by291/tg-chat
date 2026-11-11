@@ -1,3 +1,4 @@
+import { AvatarEditor } from '@/features/media/AvatarEditor';
 import { useState, useSyncExternalStore } from 'react';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
@@ -58,6 +59,7 @@ export function CommunityDetails(props: {
   session: SessionOwner;
   chat: ChatOwner;
   id: string;
+  isAvatarAvailable?: boolean;
   onBack: () => void;
   onOpen: (conversation: Conversation) => void;
 }) {
@@ -103,6 +105,22 @@ export function CommunityDetails(props: {
       <section className={styles.card}>
         <button onClick={props.onBack}>Back to communities</button>
         <h2>{conversation.title}</h2>
+        {props.isAvatarAvailable && conversation.can_manage && (
+          <AvatarEditor
+            session={props.session}
+            owner="conversation"
+            id={conversation.id}
+            fileId={conversation.avatar_file_id}
+            initials={conversation.title.slice(0, 2).toUpperCase()}
+            onAssign={(fileId) =>
+              command({
+                kind: 'avatar',
+                expected_version: conversation.settings_version,
+                file_id: fileId,
+              })
+            }
+          />
+        )}
         <p>{conversation.description}</p>
         <p>
           {conversation.kind} · {conversation.is_public ? 'public' : 'private'} · Your role:{' '}

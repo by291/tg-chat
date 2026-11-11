@@ -1,4 +1,5 @@
 import { pauseOtherMedia } from '@/lib/mediaPlayback';
+import { usePlaybackRenewal } from '@/features/media/usePlaybackRenewal';
 import { useVisiblePlayback } from './useVisiblePlayback';
 import { Pause, Play } from 'lucide-react';
 import { useId, useRef, useState, type ReactNode } from 'react';
@@ -90,15 +91,22 @@ export function formatMediaDuration(seconds: number) {
 export function VoiceMessage({
   media,
   metadata,
+  renewSource,
 }: {
   media: Extract<MessageMedia, { kind: 'voice' }>;
   metadata?: ReactNode;
+  renewSource?: (signal: AbortSignal) => Promise<string>;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   useVisiblePlayback(audioRef);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [error, setError] = useState('');
+  const playback = usePlaybackRenewal({
+    url: media.url,
+    renew: renewSource,
+    onFailure: () => setError('Audio could not be played.'),
+  });
   const shouldShowElapsedTime = isPlaying || position > 0;
   const displayedDuration = shouldShowElapsedTime ? position : media.duration;
   const progress = Math.min(1, Math.max(0, position / media.duration));
@@ -133,8 +141,11 @@ export function VoiceMessage({
     <div className={styles.voice}>
       <audio
         ref={audioRef}
-        src={media.url}
+        src={playback.src}
+        crossOrigin={renewSource ? 'anonymous' : undefined}
         preload="none"
+        onLoadedMetadata={(event) => playback.restore(event.currentTarget)}
+        onError={() => playback.onError({ position, shouldPlay: isPlaying })}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onEnded={() => setIsPlaying(false)}

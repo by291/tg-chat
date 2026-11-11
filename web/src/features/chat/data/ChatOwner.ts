@@ -9,6 +9,7 @@ import { canonicalMessageContent } from './messageContent';
 import { ChatMediaQueue } from './ChatMediaQueue';
 import { uploadClient } from '@/features/media/uploadClient';
 import {
+  mediaFingerprint,
   pendingMedia,
   type MediaSelection,
   type UploadTransport,
@@ -542,6 +543,20 @@ export class ChatOwner {
     this.explicitRetries.add(messageId);
     this.replacePending(updated);
     await this.flush();
+  }
+
+  /** Recover one failed attachment without changing the pending message identity. */
+  async restoreMediaSource(input: {
+    messageId: string;
+    occurrenceId: string;
+    file: File;
+  }): Promise<void> {
+    const sha256 = await mediaFingerprint(input.file);
+    const restored = await this.requireStore().restoreMediaSource({ ...input, sha256 });
+    if (restored) {
+      this.replacePending(restored);
+      this.kickMedia();
+    }
   }
 
   /** Remove a pending item without claiming that an ambiguous server send was cancelled. */

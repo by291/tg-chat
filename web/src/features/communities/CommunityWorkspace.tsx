@@ -69,6 +69,7 @@ export function CommunityWorkspace(props: {
   session: SessionOwner;
   chat: ChatOwner;
   initialId?: string;
+  isAvatarAvailable?: boolean;
   onOpen: (conversation: Conversation) => void;
 }) {
   const [selectedId, setSelectedId] = useState(props.initialId);
@@ -91,6 +92,7 @@ export function CommunityWorkspace(props: {
           session={props.session}
           chat={props.chat}
           id={selectedId}
+          isAvatarAvailable={props.isAvatarAvailable}
           onBack={() => setSelectedId(undefined)}
           onOpen={props.onOpen}
         />

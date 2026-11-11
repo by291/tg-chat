@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { components } from '@/api/schema';
 import { customEmojiEntitySchema } from './customEmoji';
 import { attachmentSchema, messageMediaSchema } from './media';
 import { sanitizeRichText } from './richText';
@@ -53,4 +54,14 @@ export const messageSchema = z.object({
   isPinned: z.boolean().optional(),
 });
 
-export type Message = z.infer<typeof messageSchema>;
+interface PendingMediaDisplay {
+  status: string;
+  error?: string;
+  items: Array<{ occurrenceId: string; filename: string; isReady: boolean }>;
+}
+
+export type Message = z.infer<typeof messageSchema> & {
+  remoteAttachments?: components['schemas']['AttachmentView'][];
+  pendingMedia?: PendingMediaDisplay;
+  renewPlaybackUrl?: (signal: AbortSignal) => Promise<string>;
+};
