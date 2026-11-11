@@ -1,9 +1,12 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
-use super::{CanonicalMessage, MessageService, acceptance::MESSAGE_SELECT, projection};
+use super::{
+    CanonicalMessage, MessageService, acceptance::MESSAGE_SELECT, projection, search::MessageKind,
+};
 use crate::{
     accounts::{AccountError, Actor},
     conversations,
@@ -24,6 +27,10 @@ pub struct HistoryQuery {
     pub limit: Option<u16>,
     pub around: Option<Uuid>,
     pub pinned: Option<bool>,
+    pub kind: Option<MessageKind>,
+    pub date_at: Option<DateTime<Utc>>,
+    pub date_from: Option<DateTime<Utc>>,
+    pub date_to: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -34,6 +41,19 @@ pub struct HistoryPage {
     pub has_newer: bool,
     pub observation_cursor: String,
     pub generation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_id: Option<Uuid>,
+}
+
+#[derive(Clone, Copy, sqlx::FromRow)]
+struct HistoryAnchor {
+    id: Uuid,
+    sequence: i64,
+}
+
+struct HistoryScope<'a> {
+    user_id: Uuid,
+    query: &'a HistoryQuery,
 }
 
 /// Validate a decimal counter without rounding it through a browser floating-point number.
@@ -54,57 +74,130 @@ pub(crate) fn page_size(limit: Option<u16>) -> Result<i64, AccountError> {
     Ok(i64::from(limit))
 }
 
-fn history_statement(
-    query: &HistoryQuery,
-    user_id: Uuid,
-) -> Result<QueryBuilder<Postgres>, AccountError> {
-    if query.before.is_some() && query.after.is_some() {
-        return Err(AccountError::Validation("choose either before or after"));
+impl HistoryQuery {
+    fn validate(&self) -> Result<(), AccountError> {
+        let has_page_edge = self.before.is_some() || self.after.is_some();
+        let has_anchor = self.around.is_some() || self.date_at.is_some();
+        if self.before.is_some() && self.after.is_some() {
+            return Err(AccountError::Validation("choose either before or after"));
+        }
+        if has_anchor && has_page_edge {
+            return Err(AccountError::Validation("an anchor cannot be combined with a page edge"));
+        }
+        if self.around.is_some() && self.date_at.is_some() {
+            return Err(AccountError::Validation("choose either a message or a date anchor"));
+        }
+        if let (Some(from), Some(to)) = (self.date_from, self.date_to)
+            && from >= to
+        {
+            return Err(AccountError::Validation("history date range is empty or inverted"));
+        }
+        Ok(())
     }
-    let mut statement = QueryBuilder::new(MESSAGE_SELECT);
-    statement.push(" WHERE message.conversation_id = ").push_bind(query.conversation_id);
-    projection::restrict_visible(&mut statement, user_id);
-    if query.pinned == Some(true) {
-        statement.push(" AND message.is_pinned");
+}
+
+impl HistoryScope<'_> {
+    fn statement(&self, select: &str) -> QueryBuilder<Postgres> {
+        let mut statement = QueryBuilder::new(select);
+        statement.push(" WHERE message.conversation_id = ").push_bind(self.query.conversation_id);
+        projection::restrict_visible(&mut statement, self.user_id);
+
+        // The same scope defines anchors, page contents, and both pagination edges.
+        if self.query.pinned == Some(true) {
+            statement.push(" AND message.is_pinned");
+        }
+        if let Some(kind) = self.query.kind {
+            kind.restrict(&mut statement);
+        }
+        if let Some(date_from) = self.query.date_from {
+            statement.push(" AND message.created_at >= ").push_bind(date_from);
+        }
+        if let Some(date_to) = self.query.date_to {
+            statement.push(" AND message.created_at < ").push_bind(date_to);
+        }
+
+        statement
     }
-    if let Some(before) = &query.before {
-        statement.push(" AND message.sequence < ").push_bind(parse_sequence(before)?);
+
+    fn page_statement(
+        &self,
+        anchor: Option<HistoryAnchor>,
+        limit: i64,
+    ) -> Result<QueryBuilder<Postgres>, AccountError> {
+        let mut statement = self.statement(MESSAGE_SELECT);
+        if let Some(before) = &self.query.before {
+            statement.push(" AND message.sequence < ").push_bind(parse_sequence(before)?);
+        }
+        let after = if let Some(anchor) = anchor {
+            Some(anchor.sequence.saturating_sub(limit / 2 + 1))
+        } else {
+            self.query.after.as_deref().map(parse_sequence).transpose()?
+        };
+        if let Some(after) = after {
+            statement.push(" AND message.sequence > ").push_bind(after);
+            statement.push(" ORDER BY message.sequence ASC LIMIT ");
+        } else {
+            statement.push(" ORDER BY message.sequence DESC LIMIT ");
+        }
+        statement.push_bind(limit);
+
+        Ok(statement)
     }
-    if let Some(after) = &query.after {
+
+    async fn anchor(
+        &self,
+        connection: &mut PgConnection,
+    ) -> Result<Option<HistoryAnchor>, AccountError> {
+        const ANCHOR_SELECT: &str = "SELECT message.id, message.sequence FROM messages message";
+        if let Some(target_id) = self.query.around {
+            let mut statement = self.statement(ANCHOR_SELECT);
+            statement.push(" AND message.id = ").push_bind(target_id);
+            let target = statement.build_query_as().fetch_optional(connection).await?;
+            return target.map(Some).ok_or(AccountError::NotFound);
+        }
+
+        let Some(date_at) = self.query.date_at else {
+            return Ok(None);
+        };
+        let mut after = self.statement(ANCHOR_SELECT);
+        after.push(" AND message.created_at >= ").push_bind(date_at);
+        after.push(" ORDER BY message.created_at ASC, message.id ASC LIMIT 1");
+        let after = after.build_query_as().fetch_optional(&mut *connection).await?;
+        if after.is_some() {
+            return Ok(after);
+        }
+
+        // An empty future interval still has a meaningful latest authorized message.
+        let mut before = self.statement(ANCHOR_SELECT);
+        before.push(" AND message.created_at < ").push_bind(date_at);
+        before.push(" ORDER BY message.created_at DESC, message.id DESC LIMIT 1");
+        Ok(before.build_query_as().fetch_optional(connection).await?)
+    }
+
+    async fn preceding(
+        &self,
+        connection: &mut PgConnection,
+        first: &CanonicalMessage,
+    ) -> Result<Option<CanonicalMessage>, AccountError> {
+        let mut statement = self.statement(MESSAGE_SELECT);
+        statement.push(" AND message.sequence < ").push_bind(parse_sequence(&first.sequence)?);
+        statement.push(" ORDER BY message.sequence DESC LIMIT 1");
+
+        Ok(statement.build_query_as().fetch_optional(connection).await?)
+    }
+
+    async fn has_newer(
+        &self,
+        connection: &mut PgConnection,
+        messages: &[CanonicalMessage],
+    ) -> Result<bool, AccountError> {
+        let after = messages.last().map(|last| last.sequence.as_str()).unwrap_or("0");
+        let mut statement = self.statement("SELECT EXISTS (SELECT 1 FROM messages message");
         statement.push(" AND message.sequence > ").push_bind(parse_sequence(after)?);
+        statement.push(")");
+
+        Ok(statement.build_query_scalar().fetch_one(connection).await?)
     }
-    if query.after.is_some() {
-        statement.push(" ORDER BY message.sequence ASC LIMIT ");
-    } else {
-        statement.push(" ORDER BY message.sequence DESC LIMIT ");
-    }
-    statement.push_bind(page_size(query.limit)?);
-
-    Ok(statement)
-}
-
-struct PrecedingQuery {
-    conversation_id: Uuid,
-    user_id: Uuid,
-    first_sequence: i64,
-    is_pinned_only: bool,
-}
-
-/// Fetch the preceding authorized message to preserve sender grouping across a remote page edge.
-async fn preceding(
-    connection: &mut PgConnection,
-    query: PrecedingQuery,
-) -> Result<Option<CanonicalMessage>, AccountError> {
-    let mut statement = QueryBuilder::new(MESSAGE_SELECT);
-    statement.push(" WHERE message.conversation_id = ").push_bind(query.conversation_id);
-    projection::restrict_visible(&mut statement, query.user_id);
-    if query.is_pinned_only {
-        statement.push(" AND message.is_pinned");
-    }
-    statement.push(" AND message.sequence < ").push_bind(query.first_sequence);
-    statement.push(" ORDER BY message.sequence DESC LIMIT 1");
-
-    Ok(statement.build_query_as().fetch_optional(connection).await?)
 }
 
 impl MessageService {
@@ -112,49 +205,29 @@ impl MessageService {
     pub async fn history(
         &self,
         actor: Actor,
-        mut query: HistoryQuery,
+        query: HistoryQuery,
     ) -> Result<HistoryPage, AccountError> {
+        query.validate()?;
+        let limit = page_size(query.limit)?;
         let mut transaction = self.snapshot(&actor).await?;
         let conversation =
             conversations::view(&mut transaction, actor.user_id, query.conversation_id).await?;
-        if let Some(target_id) = query.around {
-            if query.before.is_some() || query.after.is_some() {
-                return Err(AccountError::Validation("around cannot be combined with a page edge"));
-            }
-            let mut target = sqlx::QueryBuilder::new(
-                "SELECT message.sequence FROM messages message WHERE message.id = ",
-            );
-            target.push_bind(target_id);
-            target.push(" AND message.conversation_id = ").push_bind(query.conversation_id);
-            projection::restrict_visible(&mut target, actor.user_id);
-            let sequence: i64 = target
-                .build_query_scalar()
-                .fetch_optional(&mut *transaction)
-                .await?
-                .ok_or(AccountError::NotFound)?;
-            let radius = page_size(query.limit)? / 2;
-            query.after = Some(sequence.saturating_sub(radius + 1).to_string());
-        }
-        let mut statement = history_statement(&query, actor.user_id)?;
-        let mut messages: Vec<CanonicalMessage> =
-            statement.build_query_as().fetch_all(&mut *transaction).await?;
-        if query.after.is_none() {
+        let history = HistoryScope {
+            user_id: actor.user_id,
+            query: &query,
+        };
+        let anchor = history.anchor(&mut transaction).await?;
+        let mut statement = history.page_statement(anchor, limit)?;
+        let page = statement.build_query_as();
+        let mut messages: Vec<CanonicalMessage> = page.fetch_all(&mut *transaction).await?;
+        if anchor.is_none() && query.after.is_none() {
             messages.reverse();
         }
         for message in &mut messages {
             projection::personalize(&mut transaction, actor.user_id, message).await?;
         }
         let mut preceding_message = if let Some(first) = messages.first() {
-            preceding(
-                &mut transaction,
-                PrecedingQuery {
-                    conversation_id: query.conversation_id,
-                    user_id: actor.user_id,
-                    first_sequence: parse_sequence(&first.sequence)?,
-                    is_pinned_only: query.pinned == Some(true),
-                },
-            )
-            .await?
+            history.preceding(&mut transaction, first).await?
         } else {
             None
         };
@@ -162,18 +235,7 @@ impl MessageService {
             projection::personalize(&mut transaction, actor.user_id, message).await?;
         }
         let has_older = preceding_message.is_some();
-        let last_sequence = messages.last().map(|message| message.sequence.as_str()).unwrap_or("0");
-        let mut newer = sqlx::QueryBuilder::new(
-            "SELECT EXISTS (SELECT 1 FROM messages message WHERE message.conversation_id = ",
-        );
-        newer.push_bind(query.conversation_id);
-        newer.push(" AND message.sequence > ").push_bind(parse_sequence(last_sequence)?);
-        projection::restrict_visible(&mut newer, actor.user_id);
-        if query.pinned == Some(true) {
-            newer.push(" AND message.is_pinned");
-        }
-        newer.push(")");
-        let has_newer = newer.build_query_scalar().fetch_one(&mut *transaction).await?;
+        let has_newer = history.has_newer(&mut transaction, &messages).await?;
         let scope = crate::sync::cursor::CursorScope::read(&mut transaction, actor.user_id).await?;
         transaction.commit().await?;
 
@@ -184,6 +246,7 @@ impl MessageService {
             has_newer,
             observation_cursor: scope.encode(scope.position),
             generation: conversation.generation,
+            anchor_id: anchor.map(|entry| entry.id),
         })
     }
 

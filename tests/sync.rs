@@ -119,12 +119,9 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .history(
             alice.clone(),
             HistoryQuery {
-                pinned: None,
-                around: None,
                 conversation_id,
-                before: None,
-                after: None,
                 limit: Some(2),
+                ..Default::default()
             },
         )
         .await
@@ -137,12 +134,10 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .history(
             alice.clone(),
             HistoryQuery {
-                pinned: None,
-                around: None,
                 conversation_id,
                 before: Some("2".to_owned()),
-                after: None,
                 limit: Some(2),
+                ..Default::default()
             },
         )
         .await
@@ -153,12 +148,10 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .history(
             alice.clone(),
             HistoryQuery {
-                pinned: None,
-                around: None,
                 conversation_id,
-                before: None,
                 after: Some("1".to_owned()),
                 limit: Some(1),
+                ..Default::default()
             },
         )
         .await
@@ -174,12 +167,8 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
             .history(
                 carol,
                 HistoryQuery {
-                    pinned: None,
-                    around: None,
                     conversation_id,
-                    before: None,
-                    after: None,
-                    limit: None,
+                    ..Default::default()
                 }
             )
             .await,

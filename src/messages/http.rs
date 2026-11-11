@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use super::{
     CanonicalMessage, CommandReceipt, ForwardBatch, ForwardReceipt, HistoryPage, HistoryQuery,
-    MessageCommand, MessageService, SendMessage, SendReceipt,
+    MessageCommand, MessageKind, MessageService, SearchPage, SearchQuery, SendMessage, SendReceipt,
     polls::{PollVoterPage, PollVoterQuery},
 };
 use crate::{
@@ -26,7 +26,10 @@ use crate::{
 const MAX_MESSAGE_BODY_BYTES: usize = 128 * 1024;
 
 #[derive(OpenApi)]
-#[openapi(paths(bootstrap, sync, send, forward, message, poll_voters, history, command))]
+#[openapi(
+    paths(bootstrap, sync, search, send, forward, message, poll_voters, history, command),
+    components(schemas(MessageKind))
+)]
 pub struct MessageDocument;
 
 #[utoipa::path(
@@ -56,6 +59,23 @@ async fn sync(
 ) -> Result<Json<SyncPage>, ApiFailure> {
     let page = MessageService::new(state.accounts)
         .sync(context.actor, query)
+        .await
+        .map_err(|error| context.request.failure(error))?;
+
+    Ok(Json(page))
+}
+
+#[utoipa::path(
+    get, path = "/api/v1/chat/search", params(SearchQuery),
+    responses((status = 200, body = SearchPage))
+)]
+async fn search(
+    State(state): State<AccountHttpState>,
+    context: ActorContext,
+    SafeQuery(query): SafeQuery<SearchQuery>,
+) -> Result<Json<SearchPage>, ApiFailure> {
+    let page = MessageService::new(state.accounts)
+        .search(context.actor, query)
         .await
         .map_err(|error| context.request.failure(error))?;
 
@@ -241,6 +261,7 @@ pub(crate) fn router() -> Router<AccountHttpState> {
         routes.route("/messages", post(send)).route("/messages/{message_id}", get(message));
     routes
         .route("/chat/commands", post(command))
+        .route("/chat/search", get(search))
         .route("/messages/forward", post(forward))
         .route("/messages/{message_id}/poll/voters", get(poll_voters))
         .route("/conversations/{conversation_id}/history", get(history))

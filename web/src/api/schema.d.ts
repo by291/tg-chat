@@ -336,6 +336,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/chat/search': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['search'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/chat/sync': {
     parameters: {
       query?: never;
@@ -1290,6 +1306,8 @@ export interface components {
     /** @enum {string} */
     HealthStatus: 'ok';
     HistoryPage: {
+      /** Format: uuid */
+      anchor_id?: string | null;
       generation: string;
       has_newer: boolean;
       has_older: boolean;
@@ -1434,6 +1452,20 @@ export interface components {
       schema_version: number;
       text: string;
     };
+    /** @enum {string} */
+    MessageKind:
+      | 'photo'
+      | 'video'
+      | 'photo_video'
+      | 'file'
+      | 'voice'
+      | 'link'
+      | 'text'
+      | 'sticker'
+      | 'contact'
+      | 'poll'
+      | 'checklist'
+      | 'service';
     PasswordProof: {
       password: string;
     };
@@ -1609,6 +1641,16 @@ export interface components {
       size_bytes: number;
       /** Format: uuid */
       upload_id: string;
+    };
+    SearchPage: {
+      /** Format: date-time */
+      date_from?: string | null;
+      /** Format: date-time */
+      date_to?: string | null;
+      hits: components['schemas']['CanonicalMessage'][];
+      is_truncated: boolean;
+      next_cursor?: string | null;
+      observation_cursor: string;
     };
     SendMessage: {
       attachments?: components['schemas']['AttachmentInput'][];
@@ -2240,6 +2282,34 @@ export interface operations {
       };
     };
   };
+  search: {
+    parameters: {
+      query?: {
+        query?: string;
+        conversation_id?: string;
+        sender_id?: string;
+        date_from?: string;
+        date_to?: string;
+        kind?: components['schemas']['MessageKind'];
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SearchPage'];
+        };
+      };
+    };
+  };
   sync: {
     parameters: {
       query: {
@@ -2546,6 +2616,10 @@ export interface operations {
         limit?: number;
         around?: string;
         pinned?: boolean;
+        kind?: components['schemas']['MessageKind'];
+        date_at?: string;
+        date_from?: string;
+        date_to?: string;
       };
       header?: never;
       path: {

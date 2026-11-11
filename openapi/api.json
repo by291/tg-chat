@@ -377,6 +377,60 @@
         }
       }
     },
+    "/api/v1/chat/search": {
+      "get": {
+        "tags": [],
+        "operationId": "search",
+        "parameters": [
+          { "name": "query", "in": "query", "required": false, "schema": { "type": "string" } },
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "sender_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/MessageKind" }
+          },
+          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SearchPage" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/sync": {
       "get": {
         "tags": [],
@@ -716,7 +770,31 @@
             "required": false,
             "schema": { "type": "string", "format": "uuid" }
           },
-          { "name": "pinned", "in": "query", "required": false, "schema": { "type": "boolean" } }
+          { "name": "pinned", "in": "query", "required": false, "schema": { "type": "boolean" } },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/MessageKind" }
+          },
+          {
+            "name": "date_at",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          }
         ],
         "responses": {
           "200": {
@@ -1954,6 +2032,7 @@
         "type": "object",
         "required": ["messages", "has_older", "has_newer", "observation_cursor", "generation"],
         "properties": {
+          "anchor_id": { "type": ["string", "null"], "format": "uuid" },
           "generation": { "type": "string" },
           "has_newer": { "type": "boolean" },
           "has_older": { "type": "boolean" },
@@ -2182,6 +2261,23 @@
           "text": { "type": "string" }
         },
         "additionalProperties": false
+      },
+      "MessageKind": {
+        "type": "string",
+        "enum": [
+          "photo",
+          "video",
+          "photo_video",
+          "file",
+          "voice",
+          "link",
+          "text",
+          "sticker",
+          "contact",
+          "poll",
+          "checklist",
+          "service"
+        ]
       },
       "PasswordProof": {
         "type": "object",
@@ -2474,6 +2570,18 @@
           "upload_id": { "type": "string", "format": "uuid" }
         },
         "additionalProperties": false
+      },
+      "SearchPage": {
+        "type": "object",
+        "required": ["hits", "observation_cursor", "is_truncated"],
+        "properties": {
+          "date_from": { "type": ["string", "null"], "format": "date-time" },
+          "date_to": { "type": ["string", "null"], "format": "date-time" },
+          "hits": { "type": "array", "items": { "$ref": "#/components/schemas/CanonicalMessage" } },
+          "is_truncated": { "type": "boolean" },
+          "next_cursor": { "type": ["string", "null"] },
+          "observation_cursor": { "type": "string" }
+        }
       },
       "SendMessage": {
         "type": "object",
