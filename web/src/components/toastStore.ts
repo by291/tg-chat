@@ -5,6 +5,7 @@ const TOAST_REMOVAL_DELAY = 200;
 interface ToastSnapshot {
   message: string;
   isVisible: boolean;
+  isPassive: boolean;
 }
 
 const listeners = new Set<() => void>();
@@ -44,7 +45,7 @@ export function hideToast() {
 }
 
 /** Replace the active notification and restart its lifetime, including identical messages. */
-export function showToast(message: string) {
+export function showToast(message: string, { isPassive = false }: { isPassive?: boolean } = {}) {
   if (!message) {
     hideToast();
     return;
@@ -52,6 +53,10 @@ export function showToast(message: string) {
 
   clearTimeout(lifetimeTimer);
   clearTimeout(removalTimer);
-  publish({ message, isVisible: true });
+  publish({
+    message,
+    isVisible: true,
+    isPassive,
+  });
   lifetimeTimer = setTimeout(hideToast, TOAST_DURATION);
 }

@@ -82,3 +82,19 @@ it('dismisses on Escape without closing the panel beneath it', () => {
   expect(closePanel).not.toHaveBeenCalled();
   expect(screen.queryByRole('status')).toBeNull();
 });
+
+it('dismisses a passive message alert while allowing the outside pointer action', () => {
+  const openConversation = vi.fn();
+  render(
+    <>
+      <button onClick={openConversation}>Open conversation</button>
+      <ToastViewport />
+    </>,
+  );
+
+  act(() => showToast('New message', { isPassive: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }), { detail: 1 });
+
+  expect(openConversation).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('status')).toBeNull();
+});

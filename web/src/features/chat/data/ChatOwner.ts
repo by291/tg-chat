@@ -1423,7 +1423,7 @@ export class ChatOwner {
     const canPreview = conversation && category(conversation.kind)?.should_show_preview;
     const preview = canPreview ? group?.message?.content.text.trim() : undefined;
     const text = preview ? Array.from(preview).slice(0, MAX_ALERT_PREVIEW).join('') : undefined;
-    showToast(text ? `New message: ${text}` : 'New message');
+    showToast(text ? `New message: ${text}` : 'New message', { isPassive: true });
     if (defaults?.should_play_sound) {
       void playNotificationSound({ volume: defaults.volume });
     }

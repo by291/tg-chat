@@ -8,6 +8,7 @@ export function ToastViewport() {
   const toast = useSyncExternalStore(subscribeToast, getToastSnapshot);
   const toastRef = useRef<HTMLDivElement>(null);
   const isVisible = toast?.isVisible ?? false;
+  const isPassive = toast?.isPassive ?? false;
 
   useEffect(() => {
     if (!isVisible) {
@@ -19,8 +20,8 @@ export function ToastViewport() {
         return;
       }
 
-      // Pointer dismissal consumes the click; keyboard activation still reaches its control.
-      if (event.detail > 0) {
+      // User-triggered toasts consume the pointer dismissal. Incoming alerts leave it usable.
+      if (!isPassive && event.detail > 0) {
         event.preventDefault();
         event.stopPropagation();
       }
@@ -33,8 +34,10 @@ export function ToastViewport() {
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
+      if (!isPassive) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       hideToast();
     }
 
@@ -47,7 +50,7 @@ export function ToastViewport() {
       document.removeEventListener('contextmenu', dismissOnClick, { capture: true });
       document.removeEventListener('keydown', dismissOnEscape, { capture: true });
     };
-  }, [isVisible]);
+  }, [isVisible, isPassive]);
 
   return (
     <Portal>
