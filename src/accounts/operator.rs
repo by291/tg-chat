@@ -56,6 +56,8 @@ pub(crate) enum AuditTarget {
     Registration,
     Account(Uuid),
     Case(Uuid),
+    Conversation(Uuid),
+    Job(Uuid),
 }
 
 pub(crate) enum AuditOutcome {
@@ -126,6 +128,8 @@ pub(crate) async fn append_audit(
         AuditTarget::Registration => ("registration", None, None),
         AuditTarget::Account(user_id) => ("account", Some(user_id), Some(user_id)),
         AuditTarget::Case(case_id) => ("case", Some(case_id), None),
+        AuditTarget::Conversation(conversation_id) => ("conversation", Some(conversation_id), None),
+        AuditTarget::Job(job_id) => ("job", Some(job_id), None),
     };
     let outcome = match event.outcome {
         AuditOutcome::Succeeded => "succeeded",

@@ -1,5 +1,6 @@
 import {
   ContactRound,
+  Gavel,
   LockKeyhole,
   LogOut,
   MessageCircle,
@@ -14,6 +15,7 @@ import { Avatar } from '@/components/Avatar';
 import { ToastViewport } from '@/components/Toast';
 import { SettingsRow } from '@/features/settings/SettingsControls';
 import { DevicesSettingsPage } from '@/features/settings/devices/DevicesSettingsPage';
+import { OperatorWorkspace } from '@/features/operator/OperatorWorkspace';
 import { SessionOwner, isCancelled } from '../auth/SessionOwner';
 import { CommunityWorkspace } from '../communities/CommunityWorkspace';
 import { conversationDestination, type Conversation } from '../communities/communityModels';
@@ -27,7 +29,14 @@ import { SecurityPanel } from './SecurityPanel';
 import styles from './Accounts.module.css';
 
 type Page =
-  'messages' | 'profile' | 'privacy' | 'devices' | 'contacts' | 'security' | 'communities';
+  | 'messages'
+  | 'profile'
+  | 'privacy'
+  | 'devices'
+  | 'contacts'
+  | 'security'
+  | 'communities'
+  | 'operator';
 
 interface WorkspaceProps {
   owner: SessionOwner;
@@ -77,6 +86,12 @@ const NAVIGATION = [
     label: 'Password & recovery',
     icon: LockKeyhole,
     color: 'purple',
+  },
+  {
+    page: 'operator',
+    label: 'Administration',
+    icon: Gavel,
+    color: 'blue',
   },
 ] as const;
 
@@ -176,6 +191,9 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const profile = auth.user;
   let content;
   switch (page) {
+    case 'operator':
+      content = profile.is_operator ? <OperatorWorkspace owner={owner} /> : null;
+      break;
     case 'communities':
       content = chat ? (
         <CommunityWorkspace
@@ -230,6 +248,9 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
           </div>
           <nav className={styles.navigation} aria-label="Account navigation">
             {NAVIGATION.filter((entry) => {
+              if (entry.page === 'operator') {
+                return profile.is_operator;
+              }
               const needsChat = entry.page === 'messages' || entry.page === 'communities';
               return !needsChat || Boolean(chat);
             }).map((entry) => (

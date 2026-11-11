@@ -137,14 +137,21 @@ impl WakeupQueue {
 
     /// Explicitly retry one exhausted account wakeup after an operator repairs its dependency.
     pub async fn retry(&self, user_id: Uuid) -> Result<bool, AccountError> {
-        let update = sqlx::query(
-            "UPDATE sync_wakeups SET status = 'pending', attempts = 0, available_at = now(),
-             last_error = NULL WHERE user_id = $1 AND status = 'exhausted'",
-        )
-        .bind(user_id)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(update.rows_affected() == 1)
+        let mut connection = self.pool.acquire().await?;
+        retry_exhausted(&mut connection, user_id).await
     }
+}
+
+/// Requeue an exhausted wakeup inside the caller's audit transaction.
+pub(crate) async fn retry_exhausted(
+    connection: &mut sqlx::PgConnection,
+    user_id: Uuid,
+) -> Result<bool, AccountError> {
+    let update = sqlx::query(
+        "UPDATE sync_wakeups SET status = 'pending', attempts = 0, available_at = now(),
+         last_error = NULL WHERE user_id = $1 AND status = 'exhausted'",
+    );
+    let changed = update.bind(user_id).execute(connection).await?.rows_affected();
+
+    Ok(changed == 1)
 }

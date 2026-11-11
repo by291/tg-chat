@@ -1138,6 +1138,34 @@
         }
       }
     },
+    "/api/v1/operator/accounts": {
+      "get": {
+        "tags": [],
+        "operationId": "operator_accounts",
+        "parameters": [
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/OperatorAccount" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/operator/cases": {
       "get": {
         "tags": [],
@@ -1243,6 +1271,83 @@
             "description": "",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operator/communities": {
+      "get": {
+        "tags": [],
+        "operationId": "operator_communities",
+        "parameters": [
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/OperatorCommunity" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operator/jobs": {
+      "get": {
+        "tags": [],
+        "operationId": "operator_jobs",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/OperatorJobKind" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/OperatorJob" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operator/storage/{user_id}": {
+      "get": {
+        "tags": [],
+        "operationId": "storage",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/StorageUsage" } }
             }
           }
         }
@@ -2505,6 +2610,16 @@
           "service"
         ]
       },
+      "OperatorAccount": {
+        "type": "object",
+        "required": ["id", "username", "display_name", "is_suspended"],
+        "properties": {
+          "display_name": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "is_suspended": { "type": "boolean" },
+          "username": { "type": "string" }
+        }
+      },
       "OperatorAction": {
         "oneOf": [
           {
@@ -2540,6 +2655,33 @@
               "deadline": { "type": "string", "format": "date-time" },
               "kind": { "type": "string", "enum": ["extend_evidence"] }
             }
+          },
+          {
+            "type": "object",
+            "required": ["target", "is_quarantined", "kind"],
+            "properties": {
+              "is_quarantined": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["set_quarantine"] },
+              "target": { "$ref": "#/components/schemas/QuarantineTarget" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["set_account_storage_limit"] },
+              "limit_bytes": { "type": ["string", "null"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["job_kind", "job_id", "kind"],
+            "properties": {
+              "job_id": { "type": "string", "format": "uuid" },
+              "job_kind": { "$ref": "#/components/schemas/OperatorJobKind" },
+              "kind": { "type": "string", "enum": ["retry_job"] }
+            }
           }
         ]
       },
@@ -2553,6 +2695,29 @@
         },
         "additionalProperties": false
       },
+      "OperatorCommunity": {
+        "type": "object",
+        "required": ["id", "title", "kind", "is_quarantined"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "is_quarantined": { "type": "boolean" },
+          "kind": { "type": "string" },
+          "title": { "type": "string" }
+        }
+      },
+      "OperatorJob": {
+        "type": "object",
+        "required": ["id", "status", "attempts", "recorded_at", "failure_code", "can_retry"],
+        "properties": {
+          "attempts": { "type": "integer", "format": "int32" },
+          "can_retry": { "type": "boolean" },
+          "failure_code": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "recorded_at": { "type": "string", "format": "date-time" },
+          "status": { "type": "string" }
+        }
+      },
+      "OperatorJobKind": { "type": "string", "enum": ["mail", "sync_wakeup", "media"] },
       "PasswordProof": {
         "type": "object",
         "required": ["password"],
@@ -2776,6 +2941,26 @@
           "username": { "type": "string" }
         }
       },
+      "QuarantineTarget": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["case_id", "kind"],
+            "properties": {
+              "case_id": { "type": "string", "format": "uuid" },
+              "kind": { "type": "string", "enum": ["case"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["conversation_id", "kind"],
+            "properties": {
+              "conversation_id": { "type": "string", "format": "uuid" },
+              "kind": { "type": "string", "enum": ["community"] }
+            }
+          }
+        ]
+      },
       "QuizInput": {
         "type": "object",
         "required": ["correct_option_ids"],
@@ -2952,6 +3137,25 @@
           },
           "part_number": { "type": ["integer", "null"], "format": "int32" },
           "url": { "type": "string" }
+        }
+      },
+      "StorageUsage": {
+        "type": "object",
+        "required": [
+          "account_bytes",
+          "account_limit_bytes",
+          "staging_bytes",
+          "staging_limit_bytes",
+          "original_bytes",
+          "original_limit_bytes"
+        ],
+        "properties": {
+          "account_bytes": { "type": "string" },
+          "account_limit_bytes": { "type": "string" },
+          "original_bytes": { "type": "string" },
+          "original_limit_bytes": { "type": "string" },
+          "staging_bytes": { "type": "string" },
+          "staging_limit_bytes": { "type": "string" }
         }
       },
       "SyncGroup": {

@@ -127,7 +127,12 @@ impl UploadReservations {
         )
         .bind(actor.user_id);
         let allocation = allocation.fetch_one(&mut *connection).await?;
-        let is_account_full = allocation.bytes > self.limits.account_bytes - size_bytes
+        let account_limit = sqlx::query_scalar::<_, i64>(
+            "SELECT limit_bytes FROM account_storage_limits WHERE user_id = $1",
+        );
+        let account_limit = account_limit.bind(actor.user_id).fetch_optional(&mut *connection);
+        let account_limit = account_limit.await?.unwrap_or(self.limits.account_bytes);
+        let is_account_full = allocation.bytes > account_limit - size_bytes
             || allocation.active_uploads >= self.limits.active_uploads_per_account;
         if is_account_full {
             return Err(AccountError::QuotaExceeded);

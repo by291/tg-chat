@@ -720,6 +720,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/operator/accounts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['operator_accounts'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/operator/cases': {
     parameters: {
       query?: never;
@@ -778,6 +794,54 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations['operator_command'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/operator/communities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['operator_communities'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/operator/jobs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['operator_jobs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/operator/storage/{user_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['storage'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1598,6 +1662,13 @@ export interface components {
       | 'poll'
       | 'checklist'
       | 'service';
+    OperatorAccount: {
+      display_name: string;
+      /** Format: uuid */
+      id: string;
+      is_suspended: boolean;
+      username: string;
+    };
     OperatorAction:
       | {
           is_open: boolean;
@@ -1624,6 +1695,26 @@ export interface components {
           deadline: string;
           /** @enum {string} */
           kind: 'extend_evidence';
+        }
+      | {
+          is_quarantined: boolean;
+          /** @enum {string} */
+          kind: 'set_quarantine';
+          target: components['schemas']['QuarantineTarget'];
+        }
+      | {
+          /** @enum {string} */
+          kind: 'set_account_storage_limit';
+          limit_bytes?: string | null;
+          /** Format: uuid */
+          user_id: string;
+        }
+      | {
+          /** Format: uuid */
+          job_id: string;
+          job_kind: components['schemas']['OperatorJobKind'];
+          /** @enum {string} */
+          kind: 'retry_job';
         };
     OperatorCommand: {
       action: components['schemas']['OperatorAction'];
@@ -1631,6 +1722,26 @@ export interface components {
       operation_id: string;
       reason: string;
     };
+    OperatorCommunity: {
+      /** Format: uuid */
+      id: string;
+      is_quarantined: boolean;
+      kind: string;
+      title: string;
+    };
+    OperatorJob: {
+      /** Format: int32 */
+      attempts: number;
+      can_retry: boolean;
+      failure_code: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      recorded_at: string;
+      status: string;
+    };
+    /** @enum {string} */
+    OperatorJobKind: 'mail' | 'sync_wakeup' | 'media';
     PasswordProof: {
       password: string;
     };
@@ -1766,6 +1877,19 @@ export interface components {
       id: string;
       username: string;
     };
+    QuarantineTarget:
+      | {
+          /** Format: uuid */
+          case_id: string;
+          /** @enum {string} */
+          kind: 'case';
+        }
+      | {
+          /** Format: uuid */
+          conversation_id: string;
+          /** @enum {string} */
+          kind: 'community';
+        };
     QuizInput: {
       correct_option_ids: string[];
       explanation?: string | null;
@@ -1884,6 +2008,14 @@ export interface components {
       /** Format: int32 */
       part_number?: number | null;
       url: string;
+    };
+    StorageUsage: {
+      account_bytes: string;
+      account_limit_bytes: string;
+      original_bytes: string;
+      original_limit_bytes: string;
+      staging_bytes: string;
+      staging_limit_bytes: string;
     };
     SyncGroup: {
       conversation?: null | components['schemas']['ConversationView'];
@@ -3114,6 +3246,28 @@ export interface operations {
       };
     };
   };
+  operator_accounts: {
+    parameters: {
+      query?: {
+        search?: string;
+        after?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OperatorAccount'][];
+        };
+      };
+    };
+  };
   cases: {
     parameters: {
       query?: {
@@ -3235,6 +3389,70 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  operator_communities: {
+    parameters: {
+      query?: {
+        search?: string;
+        after?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OperatorCommunity'][];
+        };
+      };
+    };
+  };
+  operator_jobs: {
+    parameters: {
+      query: {
+        kind: components['schemas']['OperatorJobKind'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OperatorJob'][];
+        };
+      };
+    };
+  };
+  storage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StorageUsage'];
         };
       };
     };

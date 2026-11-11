@@ -18,6 +18,9 @@ use crate::accounts::{
 
 pub mod evidence;
 pub(crate) mod http;
+pub(crate) mod jobs;
+pub(crate) mod quarantine;
+pub(crate) mod quotas;
 pub(crate) mod report_http;
 pub mod reports;
 
@@ -46,6 +49,18 @@ pub enum OperatorAction {
         case_id: Uuid,
         deadline: DateTime<Utc>,
     },
+    SetQuarantine {
+        target: quarantine::QuarantineTarget,
+        is_quarantined: bool,
+    },
+    SetAccountStorageLimit {
+        user_id: Uuid,
+        limit_bytes: Option<String>,
+    },
+    RetryJob {
+        job_kind: jobs::OperatorJobKind,
+        job_id: Uuid,
+    },
 }
 
 struct OperatorReceipt<'a> {
@@ -58,7 +73,7 @@ async fn lock_command_targets(
     connection: &mut PgConnection,
     actor: &Actor,
     action: &OperatorAction,
-) -> Result<(), AccountError> {
+) -> Result<Option<quarantine::QuarantineScope>, AccountError> {
     let target = match action {
         OperatorAction::SetRegistration {
             ..
@@ -75,9 +90,24 @@ async fn lock_command_targets(
         }
         | OperatorAction::ExtendEvidence {
             ..
+        }
+        | OperatorAction::RetryJob {
+            ..
         } => None,
+        OperatorAction::SetQuarantine {
+            target,
+            ..
+        } => {
+            return quarantine::lock_scope(connection, actor, target).await.map(Some);
+        }
+        OperatorAction::SetAccountStorageLimit {
+            user_id,
+            ..
+        } => Some(*user_id),
     };
-    lock_operator_accounts(connection, actor, target).await
+    lock_operator_accounts(connection, actor, target).await?;
+
+    Ok(None)
 }
 
 async fn is_replayed(
@@ -114,6 +144,7 @@ async fn is_replayed(
 async fn apply_action(
     connection: &mut PgConnection,
     action: OperatorAction,
+    scope: Option<quarantine::QuarantineScope>,
 ) -> Result<(AuditTarget, &'static str), AccountError> {
     match action {
         OperatorAction::SetRegistration {
@@ -163,6 +194,37 @@ async fn apply_action(
 
             Ok((AuditTarget::Case(case_id), "evidence_extended"))
         }
+        OperatorAction::SetQuarantine {
+            is_quarantined,
+            ..
+        } => {
+            let scope = scope.ok_or(AccountError::Unavailable)?;
+            let target = AuditTarget::Conversation(scope.conversation_id);
+            quarantine::set(connection, scope, is_quarantined).await?;
+            let action = if is_quarantined {
+                "conversation_quarantined"
+            } else {
+                "conversation_restored"
+            };
+
+            Ok((target, action))
+        }
+        OperatorAction::SetAccountStorageLimit {
+            user_id,
+            limit_bytes,
+        } => {
+            quotas::set_limit(connection, user_id, limit_bytes).await?;
+
+            Ok((AuditTarget::Account(user_id), "account_storage_limit_changed"))
+        }
+        OperatorAction::RetryJob {
+            job_kind,
+            job_id,
+        } => {
+            jobs::retry(connection, job_kind, job_id).await?;
+
+            Ok((AuditTarget::Job(job_id), "exhausted_job_retried"))
+        }
     }
 }
 
@@ -173,12 +235,21 @@ impl AccountService {
         actor: &Actor,
         command: OperatorCommand,
     ) -> Result<(), AccountError> {
+        // Reject ordinary accounts before they can inspect or lock a privileged target.
+        let has_operator_role = sqlx::query_scalar::<_, bool>(
+            "SELECT is_operator FROM users WHERE id = $1 AND NOT is_suspended",
+        );
+        let has_operator_role = has_operator_role.bind(actor.user_id).fetch_optional(&self.pool);
+        if has_operator_role.await? != Some(true) {
+            return Err(AccountError::Forbidden);
+        }
+
         let reason = validate_reason(&command.reason)?;
         let encoded = serde_json::to_vec(&command).map_err(|_| AccountError::Unavailable)?;
         let payload_hash = Sha256::digest(encoded);
         let mut transaction = self.pool.begin().await?;
 
-        lock_command_targets(&mut transaction, actor, &command.action).await?;
+        let scope = lock_command_targets(&mut transaction, actor, &command.action).await?;
         let operator = authorize_operator(&mut transaction, actor, &self.settings).await?;
         let receipt = OperatorReceipt {
             actor_user_id: actor.user_id,
@@ -190,13 +261,16 @@ impl AccountService {
             return Ok(());
         }
 
-        let is_case_action = matches!(
+        let should_recheck = matches!(
             &command.action,
-            OperatorAction::ResolveCase { .. } | OperatorAction::ExtendEvidence { .. }
+            OperatorAction::ResolveCase { .. }
+                | OperatorAction::ExtendEvidence { .. }
+                | OperatorAction::SetAccountStorageLimit { .. }
+                | OperatorAction::RetryJob { .. }
         );
-        let (target, action) = apply_action(&mut transaction, command.action).await?;
-        if is_case_action {
-            // Case actions can wait on expiry work after taking the operator session lock.
+        let (target, action) = apply_action(&mut transaction, command.action, scope).await?;
+        if should_recheck {
+            // Case, quota, and retry actions may wait after taking the operator session lock.
             authorize_operator(&mut transaction, actor, &self.settings).await?;
         }
         append_audit(
