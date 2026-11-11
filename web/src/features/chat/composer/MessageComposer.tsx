@@ -366,21 +366,24 @@ export function MessageComposer({
               isExpanded={isExpanded}
               onSelect={selectAttachment}
             />
-            <input
-              ref={isMediaAvailable ? connectedInput : attachments.fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
-              className={styles.fileInput}
-              aria-label="Choose an attachment"
-              onChange={(event) => {
-                if (!isMediaAvailable) {
-                  attachments.changeFile(event);
-                  return;
-                }
-                appendFiles(Array.from(event.target.files ?? []), connectedMode.current);
-                event.target.value = '';
-              }}
-            />
+            {(!isTextOnly || isMediaAvailable) && (
+              <input
+                ref={isMediaAvailable ? connectedInput : attachments.fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                className={styles.fileInput}
+                aria-label="Choose an attachment"
+                onChange={(event) => {
+                  if (!isMediaAvailable) {
+                    attachments.changeFile(event);
+                    return;
+                  }
+
+                  appendFiles(Array.from(event.target.files ?? []), connectedMode.current);
+                  event.target.value = '';
+                }}
+              />
+            )}
           </>
         )}
         <EmojiEditor
