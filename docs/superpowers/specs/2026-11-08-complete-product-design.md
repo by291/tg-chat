@@ -575,7 +575,8 @@ for orphan candidates and abandoned multipart uploads; count variants in deploym
 Generate URL previews asynchronously after message acceptance. Only fetch HTTP(S), block private,
 loopback, link-local, and metadata addresses, validate each redirect and resolved destination, bound
 response size/time, and isolate network egress. Defend against DNS rebinding; a hostname check alone
-is insufficient. Strip active markup and copy eligible preview images through the same processing
+is insufficient. [M7](2026-11-11-m7-message-interactions-design.md#text-link-previews) publishes
+only the site name, title, and summary. Thumbnail support can later reuse the media processing
 pipeline. Failure leaves a normal clickable link. Do not fetch private/internal links. Edits and
 deletions fence obsolete preview jobs so they cannot restore old content.
 

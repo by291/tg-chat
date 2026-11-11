@@ -359,6 +359,8 @@ physical iOS Safari and Android Chrome results in the
 
 ## M7: Complete message interactions and history discovery
 
+[Detailed M7 design](../specs/2026-11-11-m7-message-interactions-design.md).
+
 **Outcome:** The existing advanced frontend capabilities operate on shared server state: search,
 forwarding, interactive polls/checklists, bundled assets, contact cards, and safe link previews.
 
@@ -378,8 +380,9 @@ semantics; catalog IDs; permission-filtered substring search and target neighbor
 - [ ] Deliver conversation/global search with visibility checks, Chinese/English substring behavior,
       bounded short-query work, filters, date anchors, pins, and media-history pagination. Connect
       sidebar/chat search and distant navigation without loading the intervening history.
-- [ ] Deliver isolated asynchronous link previews with destination/redirect/DNS checks, network
-      egress restrictions, bounded fetches, and edit/delete fencing.
+- [ ] Deliver asynchronous text link previews with site name, title, and summary. Isolate network
+      egress, check destinations and redirects, bound fetches, and fence edits and deletions.
+      Thumbnail support is deferred.
 - [ ] Verify concurrent votes, hidden quiz secrets, checklist conflicts, forwarded-copy survival
       after source deletion, forwarding-policy changes, reference/GC races, inaccessible search
       results, short Chinese queries, and SSRF/redirect/rebinding cases.
@@ -389,7 +392,7 @@ documented excluded creation mode. Search and advanced actions never bypass the 
 predicate used by ordinary history. No local aggregate is trusted as a server result.
 
 **Verification ownership:** `tests/message_interactions.rs`, `tests/forwarding.rs`,
-`tests/search.rs`, `tests/link_previews.rs`, and `web/e2e/message-interactions.spec.ts`. Extend
+`tests/search.rs`, `tests/link_previews.rs`, and `web/e2e-accounts/message-interactions.spec.ts`. Extend
 existing poll/checklist, forwarding, search, and viewport browser tests instead of duplicating their
 behavior.
 
