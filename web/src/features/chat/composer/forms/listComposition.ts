@@ -1,6 +1,7 @@
 import type { MessageMedia } from '@/domain/messages/media';
 
 export const MIN_POLL_OPTIONS = 2;
+export const KEEP_POLL_DEADLINE = 0;
 export const MAX_TITLE_LENGTH = 255;
 export const MAX_DESCRIPTION_LENGTH = 1024;
 export const MAX_EXPLANATION_LENGTH = 200;
@@ -78,6 +79,8 @@ export function composePoll({
   settings,
   correctOptionIds,
   explanation,
+  previousDeadline,
+  isConnected,
 }: {
   title: string;
   description: string;
@@ -85,6 +88,8 @@ export function composePoll({
   settings: PollSettings;
   correctOptionIds: string[];
   explanation: string;
+  previousDeadline?: number;
+  isConnected?: boolean;
 }): MessageMedia {
   const options = entries
     .filter((entry) => entry.text.trim())
@@ -97,9 +102,13 @@ export function composePoll({
   if (settings.shouldShuffleOptions) {
     shuffleAnswers(options);
   }
-  const closesAt = settings.hasTimeLimit
-    ? Date.now() + settings.durationHours * MILLISECONDS_PER_HOUR
-    : undefined;
+  let closesAt: number | undefined;
+  if (settings.hasTimeLimit) {
+    closesAt =
+      settings.durationHours === KEEP_POLL_DEADLINE
+        ? previousDeadline
+        : Date.now() + settings.durationHours * MILLISECONDS_PER_HOUR;
+  }
 
   return {
     kind: 'poll',
@@ -114,6 +123,6 @@ export function composePoll({
     correctOptionIds: settings.hasCorrectAnswer ? correctOptionIds : undefined,
     explanation: settings.hasCorrectAnswer ? explanation.trim() : undefined,
     closesAt,
-    shouldHideResults: settings.hasTimeLimit && settings.shouldHideResults,
+    shouldHideResults: (isConnected || settings.hasTimeLimit) && settings.shouldHideResults,
   };
 }

@@ -3,6 +3,7 @@
 pub mod bodies;
 pub mod content;
 mod markup;
+pub mod polls;
 
 pub(crate) mod acceptance;
 mod model;

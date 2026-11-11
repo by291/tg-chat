@@ -978,6 +978,40 @@
         }
       }
     },
+    "/api/v1/messages/{message_id}/poll/voters": {
+      "get": {
+        "tags": [],
+        "operationId": "poll_voters",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "option_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PollVoterPage" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "get": {
         "tags": [],
@@ -1270,6 +1304,43 @@
             "properties": {
               "is_pinned": { "type": "boolean" },
               "kind": { "type": "string", "enum": ["pin"] },
+              "message_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "option_ids", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["vote_poll"] },
+              "message_id": { "type": "string", "format": "uuid" },
+              "option_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "expected_poll_version", "poll", "kind"],
+            "properties": {
+              "expected_poll_version": { "type": "string" },
+              "kind": { "type": "string", "enum": ["edit_poll"] },
+              "message_id": { "type": "string", "format": "uuid" },
+              "poll": { "$ref": "#/components/schemas/PollInput" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "expected_poll_version", "option", "kind"],
+            "properties": {
+              "expected_poll_version": { "type": "string" },
+              "kind": { "type": "string", "enum": ["add_poll_option"] },
+              "message_id": { "type": "string", "format": "uuid" },
+              "option": { "$ref": "#/components/schemas/PollOptionInput" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["close_poll"] },
               "message_id": { "type": "string", "format": "uuid" }
             }
           }
@@ -1785,6 +1856,16 @@
       "MessageBodyInput": {
         "oneOf": [
           {
+            "allOf": [
+              { "$ref": "#/components/schemas/PollInput" },
+              {
+                "type": "object",
+                "required": ["kind"],
+                "properties": { "kind": { "type": "string", "enum": ["poll"] } }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": ["sticker_id", "kind"],
             "properties": {
@@ -1806,6 +1887,16 @@
       },
       "MessageBodyView": {
         "oneOf": [
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/PollView" },
+              {
+                "type": "object",
+                "required": ["kind"],
+                "properties": { "kind": { "type": "string", "enum": ["poll"] } }
+              }
+            ]
+          },
           {
             "type": "object",
             "required": ["sticker_id", "kind"],
@@ -1870,6 +1961,109 @@
         "required": ["token", "new_password"],
         "properties": { "new_password": { "type": "string" }, "token": { "type": "string" } },
         "additionalProperties": false
+      },
+      "PollInput": {
+        "type": "object",
+        "required": ["question", "options", "is_anonymous"],
+        "properties": {
+          "can_add_options": { "type": "boolean" },
+          "can_revote": { "type": "boolean" },
+          "closes_at": { "type": ["string", "null"], "format": "date-time" },
+          "description": { "type": ["string", "null"] },
+          "hide_results_until_close": { "type": "boolean" },
+          "is_anonymous": { "type": "boolean" },
+          "is_multiple_choice": { "type": "boolean" },
+          "options": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PollOptionInput" }
+          },
+          "question": { "type": "string" },
+          "quiz": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/QuizInput" }] }
+        },
+        "additionalProperties": false
+      },
+      "PollOptionInput": {
+        "type": "object",
+        "required": ["id", "text"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "text": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "PollOptionView": {
+        "type": "object",
+        "required": ["id", "text"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "text": { "type": "string" },
+          "votes": { "type": ["integer", "null"], "format": "int64" }
+        }
+      },
+      "PollView": {
+        "type": "object",
+        "required": [
+          "question",
+          "options",
+          "version",
+          "is_anonymous",
+          "is_multiple_choice",
+          "can_revote",
+          "can_add_options",
+          "can_vote",
+          "can_edit",
+          "can_close",
+          "hide_results_until_close",
+          "is_closed",
+          "is_quiz",
+          "selected_option_ids"
+        ],
+        "properties": {
+          "can_add_options": { "type": "boolean" },
+          "can_close": { "type": "boolean" },
+          "can_edit": { "type": "boolean" },
+          "can_revote": { "type": "boolean" },
+          "can_vote": { "type": "boolean" },
+          "closes_at": { "type": ["string", "null"], "format": "date-time" },
+          "correct_option_ids": {
+            "type": ["array", "null"],
+            "items": { "type": "string", "format": "uuid" }
+          },
+          "description": { "type": ["string", "null"] },
+          "explanation": { "type": ["string", "null"] },
+          "hide_results_until_close": { "type": "boolean" },
+          "is_anonymous": { "type": "boolean" },
+          "is_closed": { "type": "boolean" },
+          "is_multiple_choice": { "type": "boolean" },
+          "is_quiz": { "type": "boolean" },
+          "options": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PollOptionView" }
+          },
+          "question": { "type": "string" },
+          "selected_option_ids": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" }
+          },
+          "version": { "type": "string" },
+          "voter_count": { "type": ["integer", "null"], "format": "int64" }
+        }
+      },
+      "PollVoter": {
+        "type": "object",
+        "required": ["user_id", "display_name"],
+        "properties": {
+          "display_name": { "type": "string" },
+          "user_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "PollVoterPage": {
+        "type": "object",
+        "required": ["voters"],
+        "properties": {
+          "next_after": { "type": ["string", "null"], "format": "uuid" },
+          "voters": { "type": "array", "items": { "$ref": "#/components/schemas/PollVoter" } }
+        }
       },
       "PreferenceChange": {
         "oneOf": [
@@ -1969,6 +2163,18 @@
           "id": { "type": "string", "format": "uuid" },
           "username": { "type": "string" }
         }
+      },
+      "QuizInput": {
+        "type": "object",
+        "required": ["correct_option_ids"],
+        "properties": {
+          "correct_option_ids": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" }
+          },
+          "explanation": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
       },
       "ReactionView": {
         "type": "object",

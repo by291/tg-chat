@@ -190,6 +190,43 @@ pub(crate) async fn authorize_send(
     Ok(())
 }
 
+/// Apply participation restrictions without granting channel subscribers posting rights.
+pub(crate) async fn authorize_interaction(
+    connection: &mut PgConnection,
+    actor: &Actor,
+    conversation: &LockedConversation,
+) -> Result<(), AccountError> {
+    if !can_interact(connection, actor.user_id, conversation.id).await? {
+        return Err(AccountError::ConversationUnavailable);
+    }
+
+    Ok(())
+}
+
+/// Derive the same participation capability for projections and mutations.
+pub(crate) async fn can_interact(
+    connection: &mut PgConnection,
+    user_id: Uuid,
+    conversation_id: Uuid,
+) -> Result<bool, sqlx::Error> {
+    // Subscriber actions follow membership and mute policy without applying the posting role.
+    let query = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM conversations conversation
+         JOIN conversation_members member ON member.conversation_id = conversation.id
+         WHERE conversation.id = $1 AND member.user_id = $2
+           AND member.directory_active AND NOT member.is_banned
+           AND (member.posting_muted_until IS NULL
+                OR member.posting_muted_until <= clock_timestamp())
+           AND (conversation.kind <> 'direct' OR NOT EXISTS (
+              SELECT 1 FROM blocks WHERE
+                (owner_id = conversation.participant_low AND target_id = conversation.participant_high)
+                OR (owner_id = conversation.participant_high AND target_id = conversation.participant_low)
+           )))",
+    );
+    let query = query.bind(conversation_id).bind(user_id);
+    query.fetch_one(connection).await
+}
+
 /// Admit both directory memberships while their account rows serialize capacity decisions.
 pub(crate) async fn admit_members(
     connection: &mut PgConnection,

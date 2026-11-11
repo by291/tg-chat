@@ -28,7 +28,7 @@ interface MessageBubbleProps {
   isGroupStart: boolean;
   isGroupEnd: boolean;
   isHighlighted: boolean;
-  onInteract: (messageId: string, interaction: MessageInteraction) => void;
+  onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMedia: (message: Message) => void;
   onJumpToMessage: (messageId: string) => void;

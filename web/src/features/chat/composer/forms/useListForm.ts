@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { PollMedia } from '@/domain/messages/media';
 import { useFieldArray, useForm, type FieldPathValue } from 'react-hook-form';
 import {
   createListEntry,
   INITIAL_POLL_SETTINGS,
+  KEEP_POLL_DEADLINE,
   MIN_POLL_OPTIONS,
   type PollSettings,
 } from './listComposition';
@@ -10,22 +12,58 @@ import { listFormSchema, type ListFormValues } from './listFormSchema';
 
 const FIELD_CHANGE_OPTIONS = { shouldDirty: true, shouldValidate: true };
 
+interface ListFormOptions {
+  kind: ListFormValues['kind'];
+  initialPoll?: PollMedia;
+  isPollAnonymousOnly?: boolean;
+  isConnected?: boolean;
+}
+
+function initialValues(options: ListFormOptions): ListFormValues {
+  const { kind, initialPoll, isPollAnonymousOnly, isConnected } = options;
+  const settings = { ...INITIAL_POLL_SETTINGS };
+  if (initialPoll) {
+    settings.shouldShowVoters = Boolean(initialPoll.shouldShowVoters);
+    settings.canChooseMultiple = Boolean(initialPoll.canChooseMultiple);
+    settings.canAddOptions = Boolean(initialPoll.canAddOptions);
+    settings.canRevote = Boolean(initialPoll.canRevote);
+    settings.hasCorrectAnswer = Boolean(initialPoll.isQuiz);
+    settings.hasTimeLimit = initialPoll.closesAt !== undefined;
+    settings.shouldHideResults = Boolean(initialPoll.shouldHideResults);
+    // Zero represents retaining the exact existing deadline.
+    if (settings.hasTimeLimit) {
+      settings.durationHours = KEEP_POLL_DEADLINE;
+    }
+  }
+  if (isPollAnonymousOnly) {
+    settings.shouldShowVoters = false;
+    settings.canAddOptions = false;
+  }
+  if (isConnected) {
+    settings.shouldShuffleOptions = false;
+  }
+
+  return {
+    kind,
+    title: initialPoll?.question ?? '',
+    description: initialPoll?.description ?? '',
+    entries:
+      initialPoll?.options.map(({ id, text }) => ({ id, text })) ??
+      Array.from({ length: kind === 'poll' ? MIN_POLL_OPTIONS : 1 }, createListEntry),
+    settings,
+    correctOptionIds: initialPoll?.correctOptionIds ?? [],
+    explanation: initialPoll?.explanation ?? '',
+    canOthersComplete: false,
+    canOthersAppend: false,
+  };
+}
+
 /** Own structured-message fields, stable row operations, and dependent answer validation. */
-export function useListForm(kind: ListFormValues['kind']) {
+export function useListForm(options: ListFormOptions) {
   const form = useForm<ListFormValues>({
     mode: 'onChange',
     resolver: zodResolver(listFormSchema),
-    defaultValues: {
-      kind,
-      title: '',
-      description: '',
-      entries: Array.from({ length: kind === 'poll' ? MIN_POLL_OPTIONS : 1 }, createListEntry),
-      settings: INITIAL_POLL_SETTINGS,
-      correctOptionIds: [],
-      explanation: '',
-      canOthersComplete: false,
-      canOthersAppend: false,
-    },
+    defaultValues: initialValues(options),
   });
   const entryFields = useFieldArray({ control: form.control, name: 'entries' });
   const values = form.watch();

@@ -179,6 +179,7 @@
 
 .footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   margin-top: 4px;
@@ -272,4 +273,10 @@
     animation: none;
     transition: none;
   }
+}
+
+.correctAnswer {
+  display: block;
+  color: var(--result-color);
+  font-size: 12px;
 }

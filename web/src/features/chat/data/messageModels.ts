@@ -1,4 +1,5 @@
 import type { components } from '@/api/schema';
+import type { PollMedia } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
 import type { PendingMessage } from './pendingMessages';
 
@@ -32,12 +33,23 @@ export function mergeMessages(options: {
       continue;
     }
     const content = compareCounter(message.version, existing.version) >= 0 ? message : existing;
-    const interactions =
-      compareCounter(message.interaction_version, existing.interaction_version) >= 0
-        ? message
-        : existing;
+    const interactionOrder = compareCounter(
+      message.interaction_version,
+      existing.interaction_version,
+    );
+    const interactions = interactionOrder >= 0 ? message : existing;
+    let body = content.body;
+    if (body?.kind === 'poll' && interactions.body?.kind === 'poll') {
+      body = interactions.body;
+      // Reads observe deadline closure before maintenance publishes a new interaction version.
+      const previousPoll = existing.body?.kind === 'poll' ? existing.body : undefined;
+      if (interactionOrder === 0 && previousPoll?.is_closed && !body.is_closed) {
+        body = previousPoll;
+      }
+    }
     messages.set(message.id, {
       ...content,
+      ...(body !== undefined && { body }),
       interaction_version: interactions.interaction_version,
       is_pinned: !content.is_deleted && interactions.is_pinned,
       reactions: content.is_deleted ? [] : interactions.reactions,
@@ -84,10 +96,67 @@ export function destinationKey(destination: Destination): string {
   }
 }
 
+function renderPoll(poll: components['schemas']['PollView']): PollMedia {
+  const hasVisibleResults = poll.voter_count != null;
+  return {
+    kind: 'poll',
+    question: poll.question,
+    description: poll.description ?? undefined,
+    options: poll.options.map((option) => ({
+      id: option.id,
+      text: option.text,
+      votes: option.votes ?? 0,
+    })),
+    voterCount: poll.voter_count ?? undefined,
+    selectedOptionIds: poll.selected_option_ids,
+    shouldShowVoters: !poll.is_anonymous,
+    canChooseMultiple: poll.is_multiple_choice,
+    canAddOptions: poll.can_add_options,
+    canRevote: poll.can_revote,
+    canVote: poll.can_vote,
+    correctOptionIds: poll.correct_option_ids ?? undefined,
+    explanation: poll.explanation ?? undefined,
+    closesAt: poll.closes_at ? Date.parse(poll.closes_at) : undefined,
+    shouldHideResults: poll.hide_results_until_close,
+    isClosed: poll.is_closed,
+    isQuiz: poll.is_quiz,
+    hasVisibleResults,
+    canClose: poll.can_close,
+    canEdit: poll.can_edit,
+    canViewVoters: !poll.is_anonymous && hasVisibleResults,
+  };
+}
+
+function renderPendingPoll(poll: components['schemas']['PollInput']): PollMedia {
+  return {
+    kind: 'poll',
+    question: poll.question,
+    description: poll.description ?? undefined,
+    options: poll.options.map((option) => ({ ...option, votes: 0 })),
+    shouldShowVoters: !poll.is_anonymous,
+    canChooseMultiple: poll.is_multiple_choice,
+    isQuiz: Boolean(poll.quiz),
+    canVote: false,
+    hasVisibleResults: false,
+    closesAt: poll.closes_at ? Date.parse(poll.closes_at) : undefined,
+  };
+}
+
 /** Adapt accepted transport content to the existing renderer without demo state. */
 export function renderMessage(message: CanonicalMessage): Message {
   const body = message.is_deleted ? undefined : message.body;
-  const contact = body?.kind === 'contact' ? body : undefined;
+  let media: Message['media'];
+  if (body?.kind === 'poll') {
+    media = renderPoll(body);
+  } else if (body?.kind === 'contact') {
+    media = {
+      kind: 'contact',
+      name: body.display_name,
+      userId: body.account_id ?? undefined,
+      phone: body.phone ?? '',
+      initials: '',
+    };
+  }
 
   return {
     id: message.id,
@@ -96,13 +165,7 @@ export function renderMessage(message: CanonicalMessage): Message {
     authorName: message.author_name,
     text: message.content.text,
     sticker: body?.kind === 'sticker' ? body.sticker_id : undefined,
-    media: contact && {
-      kind: 'contact',
-      name: contact.display_name,
-      userId: contact.account_id ?? undefined,
-      phone: contact.phone ?? '',
-      initials: '',
-    },
+    media,
     richText: message.content.rich_text ?? undefined,
     customEmoji: message.content.custom_emoji.map((entity) => ({
       documentId: entity.document_id,
@@ -138,13 +201,14 @@ export function renderPending(options: {
   conversationId: string;
 }): Message {
   const { pending, user, conversationId } = options;
+  const body = pending.request.body;
   const message = renderMessage({
     id: pending.request.message_id,
     conversation_id: conversationId,
     author_id: user.id,
     author_name: user.display_name,
     content: pending.request.content,
-    body: pending.request.body,
+    body: body?.kind === 'poll' ? undefined : body,
     created_at: new Date(pending.createdAt).toISOString(),
     sequence: '0',
     version: '0',
@@ -181,5 +245,10 @@ export function renderPending(options: {
       }
     : undefined;
 
-  return { ...message, deliveryStatus: pending.status, pendingMedia };
+  return {
+    ...message,
+    media: body?.kind === 'poll' ? renderPendingPoll(body) : message.media,
+    deliveryStatus: pending.status,
+    pendingMedia,
+  };
 }

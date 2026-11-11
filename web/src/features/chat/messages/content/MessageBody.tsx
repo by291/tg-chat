@@ -19,7 +19,7 @@ interface MessageBodyProps {
   message: Message;
   metadata?: ReactNode;
   onOpenMedia: (message: Message) => void;
-  onInteract: (messageId: string, interaction: MessageInteraction) => void;
+  onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
 }
 
 /** Select one explicit content renderer while the bubble keeps ownership of shared chrome. */

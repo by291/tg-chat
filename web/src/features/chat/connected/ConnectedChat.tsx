@@ -6,12 +6,17 @@ import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { isCancelled, requirePayload, type SessionOwner } from '@/features/auth/SessionOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
+import type { MessageInteraction } from '@/domain/messages/interaction';
+import type { PollMedia } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
 import type { MessageCommand } from '../messages/commands';
 import { canonicalMessageContent } from '../data/messageContent';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
 import { PinnedMessages } from './PinnedMessages';
+import { PollVotersDialog } from './PollVotersDialog';
+import { ComposerListDialog } from '../composer/forms/ComposerListDialog';
+import { pollInput } from '../data/pollInput';
 import { ChatOwner } from '../data/ChatOwner';
 import {
   compareCounter,
@@ -68,6 +73,10 @@ function title(conversation: Conversation): string {
   return conversation.title || conversation.peer_name;
 }
 
+function canEditPoll(message: CanonicalMessage | undefined): boolean {
+  return message?.body?.kind === 'poll' && !message.is_deleted && message.body.can_edit;
+}
+
 /** Reuse the editor and bounded virtual timeline with authenticated, server-owned message state. */
 export function ConnectedChat({
   owner,
@@ -89,6 +98,20 @@ export function ConnectedChat({
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [isPinsOpen, setIsPinsOpen] = useState(false);
   const [contactDestination, setContactDestination] = useState<string>();
+  const [voterMessageId, setVoterMessageId] = useState<string>();
+  const [pollEditor, setPollEditor] = useState<{
+    messageId: string;
+    version: string;
+    initialPoll: PollMedia;
+  }>();
+  const voterMessage = snapshot.messages.find((entry) => entry.id === voterMessageId);
+  const voterPoll = voterMessage?.is_deleted ? undefined : voterMessage?.body;
+  const canViewVoters =
+    voterPoll?.kind === 'poll' && !voterPoll.is_anonymous && voterPoll.voter_count != null;
+  const currentEditorMessage = snapshot.messages.find(
+    (entry) => entry.id === pollEditor?.messageId,
+  );
+  const canShowPollEditor = canEditPoll(currentEditorMessage);
   // Keep the editor's captured object stable while canonical updates arrive underneath it.
   const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
@@ -146,7 +169,9 @@ export function ConnectedChat({
     setIsPinsOpen(false);
     setConfirmation(undefined);
     setContactDestination(undefined);
-  }, [selectedKey]);
+    setVoterMessageId(undefined);
+    setPollEditor(undefined);
+  }, [selectedKey, conversation?.generation]);
   useEffect(() => {
     if (!canPost) {
       setEditing(undefined);
@@ -224,6 +249,83 @@ export function ConnectedChat({
   async function queueContact(body: MessageBodyInput): Promise<boolean> {
     try {
       await owner.queueBody(body);
+      return true;
+    } catch (failure) {
+      report(failure);
+      return false;
+    }
+  }
+
+  async function queuePoll(message: ComposedMessage): Promise<boolean> {
+    if (message.media?.kind !== 'poll') {
+      return false;
+    }
+
+    await owner.queueBody({ ...pollInput(message.media), kind: 'poll' });
+    return true;
+  }
+
+  async function savePoll(message: ComposedMessage): Promise<boolean> {
+    if (!pollEditor || message.media?.kind !== 'poll') {
+      return false;
+    }
+
+    await owner.command({
+      kind: 'edit_poll',
+      message_id: pollEditor.messageId,
+      expected_poll_version: pollEditor.version,
+      poll: pollInput(message.media),
+    });
+    return true;
+  }
+
+  async function interact(messageId: string, interaction: MessageInteraction): Promise<boolean> {
+    const message = snapshot.messages.find((entry) => entry.id === messageId);
+    const body = message?.body;
+    if (!message || message.is_deleted || body?.kind !== 'poll') {
+      return false;
+    }
+
+    try {
+      switch (interaction.type) {
+        case 'vote':
+          await owner.command({
+            kind: 'vote_poll',
+            message_id: messageId,
+            option_ids: interaction.optionIds,
+          });
+          break;
+        case 'add-option':
+          await owner.command({
+            kind: 'add_poll_option',
+            message_id: messageId,
+            expected_poll_version: body.version,
+            option: { id: interaction.id, text: interaction.text },
+          });
+          break;
+        case 'edit-poll': {
+          const poll = renderMessage(message).media;
+          if (poll?.kind === 'poll' && body.can_edit) {
+            setPollEditor({ messageId, version: body.version, initialPoll: poll });
+          }
+          break;
+        }
+        case 'close-poll':
+          setConfirmation({
+            title: 'Close poll?',
+            description: 'Voting will end immediately.',
+            choices: [
+              {
+                label: 'Close poll',
+                action: () => owner.command({ kind: 'close_poll', message_id: messageId }),
+              },
+            ],
+          });
+          break;
+        case 'view-voters':
+          setVoterMessageId(messageId);
+          break;
+      }
       return true;
     } catch (failure) {
       report(failure);
@@ -575,7 +677,7 @@ export function ConnectedChat({
                     searchQuery=""
                     onCommand={messageCommand}
                     onReact={react}
-                    onInteract={() => undefined}
+                    onInteract={interact}
                     onOpenMedia={() => undefined}
                     onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
                   />
@@ -634,6 +736,8 @@ export function ConnectedChat({
                     isTextOnly
                     canSendSticker
                     onShareContact={session ? () => setContactDestination(selectedKey) : undefined}
+                    isPollAnonymousOnly={conversation?.kind === 'channel'}
+                    onPollSubmit={queuePoll}
                     isMediaAvailable={isMediaAvailable}
                     onMediaSubmit={submit}
                     editingMessage={editingMessage}
@@ -664,6 +768,26 @@ export function ConnectedChat({
             session={session}
             onClose={() => setContactDestination(undefined)}
             onSubmit={queueContact}
+          />
+        )}
+        {pollEditor && canShowPollEditor && canPost && (
+          <ComposerListDialog
+            key={pollEditor.messageId}
+            kind="poll"
+            isConnected
+            isPollAnonymousOnly={conversation?.kind === 'channel'}
+            initialPoll={pollEditor.initialPoll}
+            onClose={() => setPollEditor(undefined)}
+            onSubmit={savePoll}
+          />
+        )}
+        {voterMessageId && canViewVoters && (
+          <PollVotersDialog
+            key={`${conversation?.generation}:${voterMessageId}:${voterPoll.version}`}
+            owner={owner}
+            messageId={voterMessageId}
+            options={voterPoll.options}
+            onClose={() => setVoterMessageId(undefined)}
           />
         )}
         <ActionConfirmation

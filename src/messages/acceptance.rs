@@ -127,6 +127,15 @@ pub(crate) async fn insert(
         .bind(sequence)
         .bind(sqlx::types::Json(&message.input.content));
     insert.bind(body).execute(&mut *connection).await?;
+    if let Some(super::bodies::MessageBodyInput::Poll(poll)) = &message.input.body {
+        // Store quiz secrets before the accepted message becomes visible on the feed.
+        let input = super::polls::NewPoll {
+            message_id: message.input.message_id,
+            conversation: message.conversation,
+            poll,
+        };
+        super::polls::insert(connection, input).await?;
+    }
     references::attach_message(
         connection,
         MessageReferences {

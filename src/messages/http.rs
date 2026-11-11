@@ -13,6 +13,7 @@ use uuid::Uuid;
 use super::{
     CanonicalMessage, CommandReceipt, HistoryPage, HistoryQuery, MessageCommand, MessageService,
     SendMessage, SendReceipt,
+    polls::{PollVoterPage, PollVoterQuery},
 };
 use crate::{
     accounts::{
@@ -25,7 +26,7 @@ use crate::{
 const MAX_MESSAGE_BODY_BYTES: usize = 128 * 1024;
 
 #[derive(OpenApi)]
-#[openapi(paths(bootstrap, sync, send, message, history, command))]
+#[openapi(paths(bootstrap, sync, send, message, poll_voters, history, command))]
 pub struct MessageDocument;
 
 #[utoipa::path(
@@ -98,6 +99,25 @@ async fn message(
         .map_err(|error| context.request.failure(error))?;
 
     Ok(Json(message))
+}
+
+#[utoipa::path(
+    get, path = "/api/v1/messages/{message_id}/poll/voters",
+    params(("message_id" = Uuid, Path), PollVoterQuery),
+    responses((status = 200, body = PollVoterPage))
+)]
+async fn poll_voters(
+    State(state): State<AccountHttpState>,
+    context: ActorContext,
+    Path(message_id): Path<Uuid>,
+    SafeQuery(query): SafeQuery<PollVoterQuery>,
+) -> Result<Json<PollVoterPage>, ApiFailure> {
+    let page = MessageService::new(state.accounts)
+        .poll_voters(context.actor, message_id, query)
+        .await
+        .map_err(|error| context.request.failure(error))?;
+
+    Ok(Json(page))
 }
 
 struct HistoryRequest {
@@ -199,6 +219,7 @@ pub(crate) fn router() -> Router<AccountHttpState> {
         routes.route("/messages", post(send)).route("/messages/{message_id}", get(message));
     routes
         .route("/chat/commands", post(command))
+        .route("/messages/{message_id}/poll/voters", get(poll_voters))
         .route("/conversations/{conversation_id}/history", get(history))
         .layer(DefaultBodyLimit::max(MAX_MESSAGE_BODY_BYTES))
 }

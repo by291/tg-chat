@@ -2,7 +2,12 @@ import { CircleCheck, Eye, ListChecks, Plus, Repeat2, Shuffle, Timer } from 'luc
 import { ListSetting } from './ListDialogFields';
 import { FormReveal } from './FormReveal';
 import { PollTextField } from './PollTextField';
-import { changePollSetting, MAX_EXPLANATION_LENGTH, type PollSettings } from './listComposition';
+import {
+  changePollSetting,
+  KEEP_POLL_DEADLINE,
+  MAX_EXPLANATION_LENGTH,
+  type PollSettings,
+} from './listComposition';
 import styles from './ComposerListDialog.module.css';
 
 const DURATION_CHOICES = [
@@ -72,18 +77,30 @@ export function PollSettingsFields({
   onChange,
   explanation,
   onExplanationChange,
+  isPollAnonymousOnly,
+  isConnected,
+  previousDeadline,
 }: {
   settings: PollSettings;
   onChange: (settings: PollSettings) => void;
   explanation: string;
   onExplanationChange: (value: string) => void;
+  isPollAnonymousOnly?: boolean;
+  isConnected?: boolean;
+  previousDeadline?: number;
 }) {
   return (
     <section className={styles.section}>
       <h3>Settings</h3>
       {SETTINGS.map(({ name, title, description, Icon, color }) => {
+        if (name === 'shouldShuffleOptions' && isConnected) {
+          return null;
+        }
+
         const isAddingDisabled =
           name === 'canAddOptions' && (!settings.shouldShowVoters || settings.hasCorrectAnswer);
+        const isPublicDisabled = name === 'shouldShowVoters' && isPollAnonymousOnly;
+        const isRevoteDisabled = name === 'canRevote' && settings.hasCorrectAnswer;
 
         return (
           <ListSetting
@@ -93,7 +110,7 @@ export function PollSettingsFields({
             icon={<Icon size={24} />}
             color={color}
             isChecked={settings[name]}
-            isDisabled={isAddingDisabled}
+            isDisabled={isAddingDisabled || isPublicDisabled || isRevoteDisabled}
             onChange={({ isChecked }) =>
               onChange(
                 changePollSetting({
@@ -117,6 +134,9 @@ export function PollSettingsFields({
               }}
               tabIndex={settings.hasTimeLimit ? 0 : -1}
             >
+              {previousDeadline !== undefined && (
+                <option value={KEEP_POLL_DEADLINE}>Keep current deadline</option>
+              )}
               {DURATION_CHOICES.map((choice) => (
                 <option key={choice.hours} value={choice.hours}>
                   {choice.label}
@@ -124,16 +144,16 @@ export function PollSettingsFields({
               ))}
             </select>
           </label>
-          {settings.hasTimeLimit && (
-            <ListSetting
-              title="Hide Results"
-              description="Show results only after the poll closes"
-              isChecked={settings.shouldHideResults}
-              onChange={({ isChecked }) => onChange({ ...settings, shouldHideResults: isChecked })}
-            />
-          )}
         </div>
       </FormReveal>
+      {(isConnected || settings.hasTimeLimit) && (
+        <ListSetting
+          title="Hide Results"
+          description="Show results only after the poll closes"
+          isChecked={settings.shouldHideResults}
+          onChange={({ isChecked }) => onChange({ ...settings, shouldHideResults: isChecked })}
+        />
+      )}
       <FormReveal isOpen={settings.hasCorrectAnswer}>
         <div>
           <PollTextField

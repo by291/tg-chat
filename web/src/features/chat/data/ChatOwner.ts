@@ -814,6 +814,53 @@ export class ChatOwner {
     return page;
   }
 
+  /** Page public voters within the current message and membership generation. */
+  async loadPollVoters(input: {
+    messageId: string;
+    optionId?: string;
+    after?: string;
+    signal: AbortSignal;
+  }): Promise<components['schemas']['PollVoterPage']> {
+    const conversation = this.selectedConversation();
+    if (!conversation) {
+      throw new Error('Choose a conversation first.');
+    }
+
+    const generation = this.viewGeneration;
+    const cachedBefore = await this.requireCache().read();
+    const reply = await this.session.client.GET('/api/v1/messages/{message_id}/poll/voters', {
+      params: {
+        path: { message_id: input.messageId },
+        query: { option_id: input.optionId, after: input.after },
+      },
+      signal: input.signal,
+    });
+    const page = requirePayload(reply);
+    const cachedAfter = await this.requireCache().read();
+    const message = this.snapshot.messages.find((entry) => entry.id === input.messageId);
+    const poll = message?.body;
+    const isExpired = message?.expires_at && Date.parse(message.expires_at) <= Date.now();
+    const invalidatedBefore = cachedBefore.invalidations[conversation.id];
+    const invalidatedAfter = cachedAfter.invalidations[conversation.id];
+    // This response has no observation cursor, so any visibility change supersedes it.
+    const isCurrent =
+      !input.signal.aborted &&
+      this.isCurrentView(generation) &&
+      cachedBefore.epoch === cachedAfter.epoch &&
+      invalidatedBefore === invalidatedAfter &&
+      message?.conversation_id === conversation.id &&
+      !message.is_deleted &&
+      !isExpired &&
+      poll?.kind === 'poll' &&
+      !poll.is_anonymous &&
+      poll.voter_count != null;
+    if (!isCurrent) {
+      throw new DOMException('The poll changed while loading voters.', 'AbortError');
+    }
+
+    return page;
+  }
+
   /** Advance only through an actual mounted message reached in a focused foreground document. */
   async markReached(messageId: string): Promise<void> {
     if (document.visibilityState !== 'visible' || !document.hasFocus()) {

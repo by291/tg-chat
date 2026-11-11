@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH, type PollMedia } from '@/domain/messages/media';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import { getSelectedPollOptions } from '../../../state/pollVoting';
@@ -11,7 +11,7 @@ import styles from './PollMessage.module.css';
 
 const MAX_TIMEOUT = 2_147_483_647;
 
-/** Render a local poll with explicit submission, quiz results, and revoting rules. */
+/** Render a poll with explicit submission, quiz results, and revoting rules. */
 export function PollMessage({
   poll,
   messageId,
@@ -19,7 +19,7 @@ export function PollMessage({
 }: {
   poll: PollMedia;
   messageId?: string;
-  onInteract: (interaction: MessageInteraction) => void;
+  onInteract: (interaction: MessageInteraction) => void | Promise<boolean>;
 }) {
   const selectedIds = getSelectedPollOptions(poll);
   const [pendingIds, setPendingIds] = useState(selectedIds);
@@ -27,33 +27,50 @@ export function PollMessage({
   const [newOption, setNewOption] = useState('');
   const [isAddingOption, setIsAddingOption] = useState(false);
   const [now, setNow] = useState(Date.now);
-  const isClosed = poll.closesAt !== undefined && poll.closesAt <= now;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasPendingAction = useRef(false);
+  const isPastDeadline = poll.closesAt !== undefined && poll.closesAt <= now;
+  const isClosed = poll.isClosed === true || isPastDeadline;
   const hasVoted = selectedIds.length > 0;
-  const canVote = !isClosed && (!hasVoted || isEditingVote);
+  const canVote =
+    !isSubmitting && poll.canVote !== false && !isClosed && (!hasVoted || isEditingVote);
+  const canChangeVote = poll.canVote !== false && hasVoted && !isClosed && poll.canRevote !== false;
+  const canAddOption = !isClosed && poll.canAddOptions && poll.options.length < MAX_POLL_OPTIONS;
+  const shouldShowAnswer = Boolean(poll.correctOptionIds?.length) && (hasVoted || isClosed);
+  const currentOptionIds = new Set(poll.options.map((option) => option.id));
+  const validPendingIds = pendingIds.filter((id) => currentOptionIds.has(id));
+  const canRevealResults = poll.hasVisibleResults ?? (!poll.shouldHideResults || isClosed);
   const shouldShowResults =
-    (!isEditingVote || isClosed) && (hasVoted || isClosed) && (!poll.shouldHideResults || isClosed);
+    (!isEditingVote || isClosed) && (hasVoted || isClosed) && canRevealResults;
   const totalVotes =
     poll.voterCount ?? poll.options.reduce((total, option) => total + option.votes, 0);
-  const isQuiz = Boolean(poll.correctOptionIds?.length);
+  const isQuiz = poll.isQuiz ?? Boolean(poll.correctOptionIds?.length);
   const memberLabel = totalVotes === 1 ? '1 member' : `${totalVotes} members`;
   const votesLabel = `${memberLabel} ${isQuiz ? 'answered' : 'voted'}`;
   const resultLabel = totalVotes ? votesLabel : 'No votes';
-  const footerLabel = (hasVoted && !isEditingVote) || isClosed ? resultLabel : 'Select an option';
+  let footerLabel = (hasVoted && !isEditingVote) || isClosed ? resultLabel : 'Select an option';
+  if (isClosed && !canRevealResults) {
+    footerLabel = 'Waiting for results';
+  } else if (!hasVoted && !isClosed && poll.canVote === false) {
+    footerLabel = 'Voting unavailable';
+  }
   const percentages = getPollPercentages(poll);
   const typeLabel = isQuiz ? 'Quiz' : 'Poll';
-  const pollLabel = poll.shouldShowVoters ? typeLabel : `Anonymous ${typeLabel}`;
+  const pollLabel = poll.shouldShowVoters ? `Public ${typeLabel}` : `Anonymous ${typeLabel}`;
+
+  function changeVote() {
+    if (!canChangeVote) {
+      return;
+    }
+
+    setPendingIds(selectedIds);
+    setIsEditingVote(true);
+  }
 
   useStructuredMessageAction({
     messageId,
     action: 'change-vote',
-    onAction: () => {
-      if (!hasVoted || isClosed || poll.canRevote === false) {
-        return;
-      }
-
-      setPendingIds(selectedIds);
-      setIsEditingVote(true);
-    },
+    onAction: changeVote,
   });
 
   // prettier-ignore
@@ -72,13 +89,35 @@ export function PollMessage({
     now
   ]);
 
+  async function submitAction(interaction: MessageInteraction) {
+    if (hasPendingAction.current) {
+      return false;
+    }
+
+    // Keep unsubmitted choices editable after a rejected command and prevent concurrent writes.
+    hasPendingAction.current = true;
+    setIsSubmitting(true);
+    try {
+      return (await onInteract(interaction)) !== false;
+    } finally {
+      hasPendingAction.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
+  async function submitVote(optionIds: string[]) {
+    if (await submitAction({ type: 'vote', optionIds })) {
+      setPendingIds([]);
+      setIsEditingVote(false);
+    }
+  }
+
   function chooseOption(id: string) {
     if (!canVote) {
       return;
     }
     if (!poll.canChooseMultiple) {
-      onInteract({ type: 'vote', optionIds: [id] });
-      setIsEditingVote(false);
+      void submitVote([id]);
       return;
     }
 
@@ -87,19 +126,21 @@ export function PollMessage({
     });
   }
 
-  function addOption() {
+  async function addOption() {
     const text = newOption.trim();
     if (!text) {
       return;
     }
 
-    onInteract({
+    const isAccepted = await submitAction({
       type: 'add-option',
       id: crypto.randomUUID(),
       text,
     });
-    setNewOption('');
-    setIsAddingOption(false);
+    if (isAccepted) {
+      setNewOption('');
+      setIsAddingOption(false);
+    }
   }
 
   return (
@@ -111,7 +152,7 @@ export function PollMessage({
       </header>
       <div className={styles.options}>
         {poll.options.map((option, index) => {
-          const displayedIds = canVote && poll.canChooseMultiple ? pendingIds : selectedIds;
+          const displayedIds = canVote && poll.canChooseMultiple ? validPendingIds : selectedIds;
 
           return (
             <PollOption
@@ -123,14 +164,14 @@ export function PollMessage({
               hasResults={shouldShowResults}
               isSelected={displayedIds.includes(option.id)}
               isMultiple={Boolean(poll.canChooseMultiple)}
-              isQuiz={isQuiz}
+              isQuiz={shouldShowAnswer}
               isCorrect={Boolean(poll.correctOptionIds?.includes(option.id))}
               onChoose={() => chooseOption(option.id)}
             />
           );
         })}
       </div>
-      {canVote && poll.canAddOptions && !isQuiz && poll.options.length < MAX_POLL_OPTIONS && (
+      {canAddOption && (
         <button
           type="button"
           className={`${styles.option} ${styles.addOption}`}
@@ -143,12 +184,12 @@ export function PollMessage({
           <Ripple />
         </button>
       )}
-      {isAddingOption && canVote && !isQuiz && (
+      {isAddingOption && canAddOption && (
         <form
           className={styles.appendForm}
           onSubmit={(event) => {
             event.preventDefault();
-            addOption();
+            void addOption();
           }}
         >
           <input
@@ -156,25 +197,28 @@ export function PollMessage({
             placeholder="Option"
             value={newOption}
             maxLength={MAX_POLL_OPTION_LENGTH}
+            disabled={isSubmitting}
             onChange={(event) => setNewOption(event.target.value)}
           />
-          <button type="submit" className={styles.action} disabled={!newOption.trim()}>
+          <button
+            type="submit"
+            className={styles.action}
+            disabled={isSubmitting || !newOption.trim()}
+          >
             Add
           </button>
         </form>
       )}
-      {shouldShowResults && isQuiz && poll.explanation && (
+      {shouldShowAnswer && poll.explanation && (
         <p className={styles.explanation}>{poll.explanation}</p>
       )}
       <div className={styles.footer}>
-        {canVote && poll.canChooseMultiple && pendingIds.length > 0 ? (
+        {(canVote || isSubmitting) && poll.canChooseMultiple && validPendingIds.length > 0 ? (
           <button
             type="button"
             className={styles.action}
-            onClick={() => {
-              onInteract({ type: 'vote', optionIds: pendingIds });
-              setIsEditingVote(false);
-            }}
+            disabled={!canVote}
+            onClick={() => void submitVote(validPendingIds)}
           >
             Vote
             <Ripple />
@@ -187,6 +231,47 @@ export function PollMessage({
           </span>
         )}
       </div>
+      {(poll.canEdit || poll.canClose || poll.canViewVoters || canChangeVote) && (
+        <div className={styles.footer}>
+          {canChangeVote && !isEditingVote && poll.canVote !== undefined && (
+            <button
+              type="button"
+              className={styles.action}
+              disabled={isSubmitting}
+              onClick={changeVote}
+            >
+              Change vote
+            </button>
+          )}
+          {poll.canEdit && !isClosed && (
+            <button
+              type="button"
+              className={styles.action}
+              onClick={() => onInteract({ type: 'edit-poll' })}
+            >
+              Edit poll
+            </button>
+          )}
+          {poll.canClose && !isClosed && (
+            <button
+              type="button"
+              className={styles.action}
+              onClick={() => onInteract({ type: 'close-poll' })}
+            >
+              Close poll
+            </button>
+          )}
+          {poll.canViewVoters && (
+            <button
+              type="button"
+              className={styles.action}
+              onClick={() => onInteract({ type: 'view-voters' })}
+            >
+              View voters
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }

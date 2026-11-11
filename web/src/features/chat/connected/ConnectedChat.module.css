@@ -222,3 +222,9 @@
   border-radius: 8px;
   cursor: pointer;
 }
+
+.voterList {
+  max-block-size: 50vh;
+  overflow-y: auto;
+  padding-inline-start: 1.25rem;
+}

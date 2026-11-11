@@ -7,7 +7,7 @@ use sqlx::PgConnection;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::service::AcceptanceError;
+use super::{polls, service::AcceptanceError};
 use crate::{accounts::AccountError, contacts};
 
 const MAX_CONTACT_NAME_LENGTH: usize = 80;
@@ -41,6 +41,7 @@ struct StickerAsset {
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MessageBodyInput {
+    Poll(polls::PollInput),
     Sticker {
         sticker_id: String,
     },
@@ -56,6 +57,7 @@ pub enum MessageBodyInput {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum StoredMessageBody {
+    Poll,
     Sticker {
         sticker_id: String,
     },
@@ -71,6 +73,7 @@ pub(crate) enum StoredMessageBody {
 #[derive(Clone, Serialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum MessageBodyView {
+    Poll(polls::PollView),
     Sticker {
         sticker_id: String,
     },
@@ -90,6 +93,10 @@ fn validate_contact_field(field: &str, max_length: usize) -> bool {
 /// Normalize typed content before deriving its durable request fingerprint.
 pub(crate) fn normalize(body: MessageBodyInput) -> Result<MessageBodyInput, AccountError> {
     match body {
+        MessageBodyInput::Poll(mut poll) => {
+            polls::normalize(&mut poll)?;
+            Ok(MessageBodyInput::Poll(poll))
+        }
         MessageBodyInput::Sticker {
             sticker_id,
         } => Ok(MessageBodyInput::Sticker {
@@ -130,6 +137,7 @@ pub(crate) async fn store(
     body: &MessageBodyInput,
 ) -> Result<StoredMessageBody, AcceptanceError> {
     match body {
+        MessageBodyInput::Poll(_) => Ok(StoredMessageBody::Poll),
         MessageBodyInput::Sticker {
             sticker_id,
         } => {
@@ -163,8 +171,13 @@ pub(crate) async fn store(
 }
 
 /// Project a retained body without exposing any storage-only fields.
-pub(crate) fn project(body: StoredMessageBody) -> MessageBodyView {
-    match body {
+pub(crate) async fn project(
+    connection: &mut PgConnection,
+    reader: polls::PollReader<'_>,
+    body: StoredMessageBody,
+) -> Result<MessageBodyView, AccountError> {
+    let view = match body {
+        StoredMessageBody::Poll => MessageBodyView::Poll(polls::view(connection, reader).await?),
         StoredMessageBody::Sticker {
             sticker_id,
         } => MessageBodyView::Sticker {
@@ -179,5 +192,7 @@ pub(crate) fn project(body: StoredMessageBody) -> MessageBodyView {
             account_id,
             phone,
         },
-    }
+    };
+
+    Ok(view)
 }

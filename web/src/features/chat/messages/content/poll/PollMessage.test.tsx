@@ -79,6 +79,14 @@ afterEach(() => {
 });
 
 describe('poll result transitions', () => {
+  it('labels an unanswered server quiz without exposing an answer', () => {
+    const quiz = { ...poll, isQuiz: true };
+    render(<PollMessage poll={quiz} onInteract={() => undefined} />);
+
+    expect(screen.getByText('Anonymous Quiz')).toBeTruthy();
+    expect(screen.queryByText('100%')).toBeNull();
+  });
+
   it('reveals results progressively after voting without delaying the saved result on remount', async () => {
     const view = render(<VotingPoll />);
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
@@ -134,6 +142,27 @@ describe('poll result transitions', () => {
     );
     expect(screen.queryByText(/\d+%/)).toBeNull();
     expect(screen.getByText('Results hidden until the poll closes')).toBeTruthy();
+  });
+
+  it('identifies a revealed quiz answer while keeping vote totals private', () => {
+    render(
+      <PollMessage
+        poll={{
+          ...poll,
+          isQuiz: true,
+          hasVisibleResults: false,
+          shouldHideResults: true,
+          selectedOptionIds: ['motion'],
+          correctOptionIds: ['layout'],
+          explanation: 'Layout was chosen for the release.',
+        }}
+        onInteract={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Layout, correct answer' })).toBeTruthy();
+    expect(screen.getByText('Layout was chosen for the release.')).toBeTruthy();
+    expect(screen.queryByText(/\d+%/)).toBeNull();
   });
 
   it('distributes rounded percentages over selected answers without counting people twice', () => {

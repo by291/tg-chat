@@ -42,6 +42,7 @@ interface MessageComposerProps {
   isTextOnly?: boolean;
   canSendSticker?: boolean;
   isMediaAvailable?: boolean;
+  isPollAnonymousOnly?: boolean;
   isDisabled?: boolean;
   draftCustomEmoji?: CustomEmojiEntity[];
   draftRichText?: string;
@@ -52,6 +53,7 @@ interface MessageComposerProps {
   onSubmit: (message: ComposedMessage) => void;
   onMediaSubmit?: (message: ComposedMessage) => Promise<boolean>;
   onShareContact?: () => void;
+  onPollSubmit?: (message: ComposedMessage) => Promise<boolean>;
   onCancelContext: () => void;
   onJumpToMessage: (messageId: string) => void;
   onNotify: (message: string) => void;
@@ -63,6 +65,7 @@ export function MessageComposer({
   isTextOnly = false,
   canSendSticker = false,
   isMediaAvailable = false,
+  isPollAnonymousOnly = false,
   isDisabled = false,
   draftCustomEmoji,
   draftRichText,
@@ -73,6 +76,7 @@ export function MessageComposer({
   onSubmit,
   onMediaSubmit,
   onShareContact,
+  onPollSubmit,
   onCancelContext,
   onJumpToMessage,
   onNotify,
@@ -331,12 +335,13 @@ export function MessageComposer({
       )}
       {isMediaAvailable && recorder.error && <p role="alert">{recorder.error}</p>}
       <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
-        {(!isTextOnly || isMediaAvailable || onShareContact) && (
+        {(!isTextOnly || isMediaAvailable || onShareContact || onPollSubmit) && (
           <>
             <AttachmentMenu
               isConnected={isTextOnly}
               isMediaAvailable={isMediaAvailable}
               canShareContact={Boolean(onShareContact)}
+              canSendPoll={Boolean(onPollSubmit)}
               isDisabled={Boolean(editingMessage) || isLoadingAttachment || isDisabled}
               isExpanded={isExpanded}
               onSelect={selectAttachment}
@@ -416,8 +421,14 @@ export function MessageComposer({
       {listDialog && (
         <ComposerListDialog
           kind={listDialog}
+          isConnected={isTextOnly}
+          isPollAnonymousOnly={isPollAnonymousOnly}
           onClose={() => setListDialog(undefined)}
           onSubmit={(message) => {
+            if (message.media?.kind === 'poll' && onPollSubmit) {
+              return onPollSubmit(message);
+            }
+
             onSubmit(message);
             // Sending clears the stored draft; independent polls and lists must restore it.
             onDraftChange(value);

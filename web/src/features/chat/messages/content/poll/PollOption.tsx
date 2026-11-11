@@ -34,17 +34,18 @@ export function PollOption({
   const hasChosenMark = frame.stage === 'result' && (isSelected || isQuiz);
   const resultTone = isCorrect ? 'correct' : 'wrong';
   const quizLabel = isCorrect ? ', correct answer' : ', incorrect answer';
-  const resultLabel = `${text}, ${percentage}%, ${votes} votes${isQuiz ? quizLabel : ''}`;
+  const optionLabel = hasResults ? `${text}, ${percentage}%, ${votes} votes` : text;
+  const accessibleLabel = isQuiz ? `${optionLabel}${quizLabel}` : optionLabel;
 
   return (
     <button
       type="button"
       className={styles.option}
-      aria-label={hasResults ? resultLabel : text}
+      aria-label={accessibleLabel}
       aria-pressed={isSelected}
       disabled={!canVote}
       data-stage={frame.stage}
-      data-tone={isQuiz && hasResults ? resultTone : undefined}
+      data-tone={isQuiz ? resultTone : undefined}
       onClick={onChoose}
     >
       <span className={styles.choiceContainer}>
@@ -56,7 +57,12 @@ export function PollOption({
         )}
       </span>
       <span className={styles.optionLabel}>
-        <span className={styles.optionText}>{text}</span>
+        <span className={styles.optionText}>
+          {text}
+          {isQuiz && isCorrect && !hasResults && (
+            <span className={styles.correctAnswer}>Correct answer</span>
+          )}
+        </span>
         {hasResults && votes > 0 && <span className={styles.voterCount}>{votes}</span>}
         {frame.stage === 'path' && (
           <svg

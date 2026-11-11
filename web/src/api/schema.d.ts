@@ -656,6 +656,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/messages/{message_id}/poll/voters': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['poll_voters'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/users': {
     parameters: {
       query?: never;
@@ -852,6 +868,35 @@ export interface components {
           is_pinned: boolean;
           /** @enum {string} */
           kind: 'pin';
+          /** Format: uuid */
+          message_id: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'vote_poll';
+          /** Format: uuid */
+          message_id: string;
+          option_ids: string[];
+        }
+      | {
+          expected_poll_version: string;
+          /** @enum {string} */
+          kind: 'edit_poll';
+          /** Format: uuid */
+          message_id: string;
+          poll: components['schemas']['PollInput'];
+        }
+      | {
+          expected_poll_version: string;
+          /** @enum {string} */
+          kind: 'add_poll_option';
+          /** Format: uuid */
+          message_id: string;
+          option: components['schemas']['PollOptionInput'];
+        }
+      | {
+          /** @enum {string} */
+          kind: 'close_poll';
           /** Format: uuid */
           message_id: string;
         };
@@ -1201,6 +1246,10 @@ export interface components {
     /** @enum {string} */
     MediaVariant: 'original' | 'thumbnail' | 'poster' | 'playback';
     MessageBodyInput:
+      | (components['schemas']['PollInput'] & {
+          /** @enum {string} */
+          kind: 'poll';
+        })
       | {
           /** @enum {string} */
           kind: 'sticker';
@@ -1215,6 +1264,10 @@ export interface components {
           phone?: string | null;
         };
     MessageBodyView:
+      | (components['schemas']['PollView'] & {
+          /** @enum {string} */
+          kind: 'poll';
+        })
       | {
           /** @enum {string} */
           kind: 'sticker';
@@ -1252,6 +1305,64 @@ export interface components {
     PasswordReset: {
       new_password: string;
       token: string;
+    };
+    PollInput: {
+      can_add_options?: boolean;
+      can_revote?: boolean;
+      /** Format: date-time */
+      closes_at?: string | null;
+      description?: string | null;
+      hide_results_until_close?: boolean;
+      is_anonymous: boolean;
+      is_multiple_choice?: boolean;
+      options: components['schemas']['PollOptionInput'][];
+      question: string;
+      quiz?: null | components['schemas']['QuizInput'];
+    };
+    PollOptionInput: {
+      /** Format: uuid */
+      id: string;
+      text: string;
+    };
+    PollOptionView: {
+      /** Format: uuid */
+      id: string;
+      text: string;
+      /** Format: int64 */
+      votes?: number | null;
+    };
+    PollView: {
+      can_add_options: boolean;
+      can_close: boolean;
+      can_edit: boolean;
+      can_revote: boolean;
+      can_vote: boolean;
+      /** Format: date-time */
+      closes_at?: string | null;
+      correct_option_ids?: string[] | null;
+      description?: string | null;
+      explanation?: string | null;
+      hide_results_until_close: boolean;
+      is_anonymous: boolean;
+      is_closed: boolean;
+      is_multiple_choice: boolean;
+      is_quiz: boolean;
+      options: components['schemas']['PollOptionView'][];
+      question: string;
+      selected_option_ids: string[];
+      version: string;
+      /** Format: int64 */
+      voter_count?: number | null;
+    };
+    PollVoter: {
+      display_name: string;
+      /** Format: uuid */
+      user_id: string;
+    };
+    PollVoterPage: {
+      /** Format: uuid */
+      next_after?: string | null;
+      voters: components['schemas']['PollVoter'][];
     };
     PreferenceChange:
       | {
@@ -1318,6 +1429,10 @@ export interface components {
       /** Format: uuid */
       id: string;
       username: string;
+    };
+    QuizInput: {
+      correct_option_ids: string[];
+      explanation?: string | null;
     };
     ReactionView: {
       count: string;
@@ -2530,6 +2645,30 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['CanonicalMessage'];
+        };
+      };
+    };
+  };
+  poll_voters: {
+    parameters: {
+      query?: {
+        option_id?: string;
+        after?: string;
+      };
+      header?: never;
+      path: {
+        message_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PollVoterPage'];
         };
       };
     };

@@ -1,9 +1,10 @@
-import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH } from '@/domain/messages/media';
+import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH, type PollMedia } from '@/domain/messages/media';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRef, useState } from 'react';
+import { isCancelled } from '@/features/auth/SessionOwner';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import type { ComposedMessage } from '../MessageComposer';
@@ -21,15 +22,31 @@ import styles from './ComposerListDialog.module.css';
 interface ComposerListDialogProps {
   kind: 'poll' | 'checklist';
   onClose: () => void;
-  onSubmit: (message: ComposedMessage) => void;
+  onSubmit: (message: ComposedMessage) => void | Promise<boolean>;
+  initialPoll?: PollMedia;
+  isPollAnonymousOnly?: boolean;
+  isConnected?: boolean;
 }
 
 /** Compose a structured poll or checklist without consuming the ordinary message draft. */
-export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDialogProps) {
+export function ComposerListDialog({
+  kind,
+  onClose,
+  onSubmit,
+  initialPoll,
+  isPollAnonymousOnly,
+  isConnected,
+}: ComposerListDialogProps) {
   const isPoll = kind === 'poll';
   const [isOpen, setIsOpen] = useState(true);
+  const [submitError, setSubmitError] = useState('');
   const isSorting = useRef(false);
-  const listForm = useListForm(kind);
+  const listForm = useListForm({
+    kind,
+    initialPoll,
+    isPollAnonymousOnly,
+    isConnected,
+  });
   const { form, values, changeField } = listForm;
   const {
     title,
@@ -46,11 +63,12 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
   const hasSubmitted = useRef(false);
   const filledEntries = entries.filter((entry) => entry.text.trim());
   const needsCorrectAnswer = isPoll && settings.hasCorrectAnswer;
-  const canSubmit = form.formState.isValid;
+  const canSubmit = form.formState.isValid && !form.formState.isSubmitting;
+  const pollTitle = initialPoll ? 'Edit Poll' : 'New Poll';
   const entriesError = form.formState.errors.entries;
   const entryErrorMessage = entriesError?.message ?? entriesError?.root?.message;
 
-  function submit(submitted: ListFormValues) {
+  async function submit(submitted: ListFormValues) {
     if (hasSubmitted.current) {
       return;
     }
@@ -60,8 +78,10 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
     });
     // Prevent a second activation while the dialog remains mounted for its exit animation.
     hasSubmitted.current = true;
+    setSubmitError('');
+    let message: ComposedMessage;
     if (isPoll) {
-      onSubmit({
+      message = {
         text: '',
         media: composePoll({
           title: submitted.title,
@@ -70,10 +90,12 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
           settings: submitted.settings,
           correctOptionIds: validCorrectIds,
           explanation: submitted.explanation,
+          previousDeadline: initialPoll?.closesAt,
+          isConnected,
         }),
-      });
+      };
     } else {
-      onSubmit({
+      message = {
         text: '',
         media: {
           kind: 'checklist',
@@ -86,9 +108,22 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
           canOthersComplete: submitted.canOthersComplete,
           canOthersAppend: submitted.canOthersAppend,
         },
-      });
+      };
     }
-    setIsOpen(false);
+
+    try {
+      const isAccepted = await onSubmit(message);
+      if (isAccepted === false) {
+        hasSubmitted.current = false;
+        return;
+      }
+      setIsOpen(false);
+    } catch (error) {
+      hasSubmitted.current = false;
+      if (!isCancelled(error)) {
+        setSubmitError(error instanceof Error ? error.message : 'Unable to save the poll.');
+      }
+    }
   }
 
   return (
@@ -123,12 +158,17 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                 <IconButton label="Close" onClick={() => setIsOpen(false)}>
                   <X size={24} />
                 </IconButton>
-                <Dialog.Title>{isPoll ? 'New Poll' : 'New Checklist'}</Dialog.Title>
+                <Dialog.Title>{isPoll ? pollTitle : 'New Checklist'}</Dialog.Title>
                 <button className={styles.create} type="submit" disabled={!canSubmit || !isOpen}>
-                  Create
+                  {initialPoll ? 'Save' : 'Create'}
                   <Ripple />
                 </button>
               </header>
+              {submitError && (
+                <p className={styles.hint} role="alert">
+                  {submitError}
+                </p>
+              )}
               <motion.div
                 ref={scrollContainerRef}
                 className={styles.scrollBody}
@@ -199,12 +239,21 @@ export function ComposerListDialog({ kind, onClose, onSubmit }: ComposerListDial
                 {isPoll && (
                   <p className={styles.hint}>
                     You can add {MAX_POLL_OPTIONS - filledEntries.length} more options
-                    {needsCorrectAnswer && <span>Select the correct answer above.</span>}
+                    {needsCorrectAnswer && (
+                      <span>
+                        {initialPoll
+                          ? 'Set the correct answer and optional explanation again before saving.'
+                          : 'Select the correct answer above.'}
+                      </span>
+                    )}
                   </p>
                 )}
                 {isPoll ? (
                   <PollSettingsFields
                     settings={settings}
+                    isPollAnonymousOnly={isPollAnonymousOnly}
+                    isConnected={isConnected}
+                    previousDeadline={initialPoll?.closesAt}
                     onChange={listForm.updateSettings}
                     explanation={explanation}
                     onExplanationChange={(value) => changeField('explanation', value)}

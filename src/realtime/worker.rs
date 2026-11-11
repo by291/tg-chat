@@ -81,6 +81,11 @@ async fn maintenance_batch(pool: &PgPool) -> Result<(), AccountError> {
             break;
         }
     }
+    for _ in 0..BATCH_SIZE {
+        if !maintenance::close_due_poll(pool).await? {
+            break;
+        }
+    }
     maintenance::prune_one(pool).await?;
     // General command receipts are bounded separately from permanent send identity bindings.
     sqlx::query(

@@ -81,6 +81,23 @@ pub enum CommandAction {
         message_id: Uuid,
         is_pinned: bool,
     },
+    VotePoll {
+        message_id: Uuid,
+        option_ids: Vec<Uuid>,
+    },
+    EditPoll {
+        message_id: Uuid,
+        expected_poll_version: String,
+        poll: super::polls::PollInput,
+    },
+    AddPollOption {
+        message_id: Uuid,
+        expected_poll_version: String,
+        option: super::polls::PollOptionInput,
+    },
+    ClosePoll {
+        message_id: Uuid,
+    },
 }
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
@@ -134,6 +151,21 @@ impl CommandAction {
             | Self::Pin {
                 message_id,
                 ..
+            }
+            | Self::VotePoll {
+                message_id,
+                ..
+            }
+            | Self::EditPoll {
+                message_id,
+                ..
+            }
+            | Self::AddPollOption {
+                message_id,
+                ..
+            }
+            | Self::ClosePoll {
+                message_id,
             } => Some(*message_id),
             _ => None,
         }
@@ -293,6 +325,7 @@ async fn apply(
             .execute(&mut *connection)
             .await?;
             crate::media::references::detach_message(connection, message.id).await?;
+            super::polls::delete(connection, message.id).await?;
             // Scrub stored excerpts as well as read projections; the target identity remains.
             sqlx::query("UPDATE messages SET reply_quote = NULL WHERE reply_id = $1")
                 .bind(message.id)
@@ -319,12 +352,7 @@ async fn apply(
             ..
         } => {
             set_reaction(connection, context).await?;
-            sqlx::query(
-                "UPDATE messages SET interaction_version = interaction_version + 1 WHERE id = $1",
-            )
-            .bind(message.id)
-            .execute(&mut *connection)
-            .await?;
+            advance_interaction(connection, message.id).await?;
         }
         CommandAction::Pin {
             is_pinned,
@@ -340,8 +368,36 @@ async fn apply(
             .execute(&mut *connection)
             .await?;
         }
+        CommandAction::VotePoll {
+            ..
+        }
+        | CommandAction::EditPoll {
+            ..
+        }
+        | CommandAction::AddPollOption {
+            ..
+        }
+        | CommandAction::ClosePoll {
+            ..
+        } => {
+            super::polls::apply(connection, context, &message).await?;
+            advance_interaction(connection, message.id).await?;
+        }
         _ => return Err(AccountError::Validation("expected a message action").into()),
     }
+
+    Ok(())
+}
+
+/// Invalidate older projections after changing the authoritative interaction state.
+pub(crate) async fn advance_interaction(
+    connection: &mut PgConnection,
+    message_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    let update = sqlx::query(
+        "UPDATE messages SET interaction_version = interaction_version + 1 WHERE id = $1",
+    );
+    update.bind(message_id).execute(connection).await?;
 
     Ok(())
 }

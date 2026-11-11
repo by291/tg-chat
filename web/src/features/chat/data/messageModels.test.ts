@@ -90,6 +90,80 @@ it('merges content and interaction versions independently when responses cross',
   expect(merged[0].reactions[0].count).toBe('2');
 });
 
+function hiddenPoll(): Extract<CanonicalMessage['body'], { kind: 'poll' }> {
+  return {
+    kind: 'poll',
+    question: 'When?',
+    options: [
+      { id: 'today', text: 'Today' },
+      { id: 'tomorrow', text: 'Tomorrow' },
+    ],
+    version: '2',
+    is_anonymous: true,
+    is_multiple_choice: false,
+    can_revote: false,
+    can_vote: true,
+    can_add_options: false,
+    can_edit: false,
+    can_close: false,
+    hide_results_until_close: true,
+    is_closed: false,
+    is_quiz: false,
+    selected_option_ids: ['today'],
+  };
+}
+
+it('keeps a newer poll selection when a delayed message body arrives', () => {
+  const poll = hiddenPoll();
+  const current = {
+    ...message(1),
+    version: '2',
+    interaction_version: '2',
+    body: poll,
+  };
+  const delayed = {
+    ...current,
+    version: '3',
+    interaction_version: '1',
+    body: { ...current.body, selected_option_ids: [] },
+  };
+
+  const merged = mergeMessages({
+    current: [current],
+    incoming: [delayed],
+    edge: 'latest',
+  });
+
+  expect(renderMessage(merged[0]).media).toMatchObject({
+    kind: 'poll',
+    selectedOptionIds: ['today'],
+    hasVisibleResults: false,
+  });
+});
+
+it('retains closure when an equal-version projection predates the database deadline', () => {
+  const openPoll = hiddenPoll();
+  const closedPoll = {
+    ...openPoll,
+    is_closed: true,
+    voter_count: 1,
+  };
+  const current = { ...message(1), body: closedPoll };
+  const delayed = { ...message(1), body: openPoll };
+
+  const merged = mergeMessages({
+    current: [current],
+    incoming: [delayed],
+    edge: 'latest',
+  });
+
+  expect(renderMessage(merged[0]).media).toMatchObject({
+    isClosed: true,
+    hasVisibleResults: true,
+    voterCount: 1,
+  });
+});
+
 it('renders unavailable replies without exposing their former quote and keeps aggregate reactions', () => {
   const canonical = message(1);
   canonical.reply = {

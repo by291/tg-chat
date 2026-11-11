@@ -21,7 +21,7 @@ const pollSettingsSchema = z.object({
   shouldShuffleOptions: z.boolean(),
   hasCorrectAnswer: z.boolean(),
   hasTimeLimit: z.boolean(),
-  durationHours: z.number().positive().finite(),
+  durationHours: z.number().nonnegative().finite(),
   shouldHideResults: z.boolean(),
 });
 

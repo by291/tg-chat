@@ -45,6 +45,25 @@ function fillField(name: string, value: string) {
 }
 
 describe('structured message composition', () => {
+  it('keeps channel polls anonymous when composing without media uploads', async () => {
+    const onSubmit = vi.fn();
+    render(
+      <ComposerListDialog kind="poll" isPollAnonymousOnly onClose={() => {}} onSubmit={onSubmit} />,
+    );
+    fillField('Ask a Question', 'Which one?');
+    fillField('Option 1', 'First');
+    fillField('Option 2', 'Second');
+    expect(screen.getByRole('checkbox', { name: 'Show Who Voted' }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(onSubmit.mock.calls[0][0].media).toMatchObject({
+      shouldShowVoters: false,
+      canAddOptions: false,
+    });
+  });
+
   it('cancels keyboard sorting without changing the answers', async () => {
     const user = userEvent.setup();
     render(<ComposerListDialog kind="poll" onClose={() => {}} onSubmit={() => {}} />);

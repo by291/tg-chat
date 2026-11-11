@@ -64,7 +64,13 @@ pub(crate) async fn personalize(
         message.is_pinned = false;
         return Ok(());
     }
-    message.body = message.stored_body.take().map(bodies::project);
+    if let Some(body) = message.stored_body.take() {
+        let reader = super::polls::PollReader {
+            message,
+            user_id,
+        };
+        message.body = Some(bodies::project(connection, reader, body).await?);
+    }
     if message.has_attachments {
         message.attachments = references::attachment_views(connection, message.id).await?;
     }

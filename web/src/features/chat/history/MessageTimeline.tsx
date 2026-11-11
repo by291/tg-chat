@@ -65,7 +65,7 @@ interface MessageTimelineProps {
   onSetSelection?: (change: MessageSelectionChange) => void;
   onCommand: (command: MessageCommand) => void;
   onReact: (messageId: string, emoji: string) => void;
-  onInteract: (messageId: string, interaction: MessageInteraction) => void;
+  onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
   onOpenMedia: (message: Message) => void;
   onJumpToMessage: (messageId: string) => void;
 }
