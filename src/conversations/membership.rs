@@ -146,12 +146,18 @@ async fn transfer(
         .bind(context.community.id)
         .bind(target);
     update.execute(&mut *connection).await?;
+    let is_channel = context.community.kind == "channel";
+    // A subscriber gaining ownership must refresh history to receive moderator attribution.
     let roles = sqlx::query(
-        "UPDATE conversation_members SET role = CASE WHEN user_id = $2 THEN 'owner' ELSE 'admin' END
+        "UPDATE conversation_members
+         SET role = CASE WHEN user_id = $2 THEN 'owner' ELSE 'admin' END,
+             generation = generation
+                 + CASE WHEN $3 AND user_id = $2 AND role = 'member' THEN 1 ELSE 0 END
          WHERE conversation_id = $1 AND (role = 'owner' OR user_id = $2)",
     )
     .bind(context.community.id)
-    .bind(target);
+    .bind(target)
+    .bind(is_channel);
     roles.execute(connection).await?;
     Ok(())
 }
@@ -205,12 +211,17 @@ async fn moderate(
                 return Err(AccountError::NotFound.into());
             }
             role(connection, context.community.id, target).await?;
+            let is_channel = context.community.kind == "channel";
+            // Fence cached history and in-flight pages when checklist attribution access changes.
             let update = sqlx::query(
-                "UPDATE conversation_members SET role = $3 WHERE conversation_id = $1 AND user_id = $2",
+                "UPDATE conversation_members SET role = $3,
+                     generation = generation + CASE WHEN $4 AND role <> $3 THEN 1 ELSE 0 END
+                 WHERE conversation_id = $1 AND user_id = $2",
             )
             .bind(context.community.id)
             .bind(target)
             .bind(desired);
+            let update = update.bind(is_channel);
             update.execute(connection).await?;
         }
         _ => return Err(AccountError::Validation("expected a moderation action").into()),

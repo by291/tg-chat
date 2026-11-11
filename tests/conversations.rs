@@ -577,3 +577,102 @@ async fn stale_settings_cannot_overwrite_newer_privacy_or_metadata(pool: PgPool)
     assert!(!current.is_public);
     assert_eq!(current.title, "Book club");
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn demoting_channel_admin_invalidates_history_with_completion_attribution(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let admin = support::account(&accounts, "moderator").await;
+    let service = MessageService::new(accounts);
+    let channel_id = community(&pool, &owner, "channel").await;
+    let admit = sqlx::query(
+        "INSERT INTO conversation_members (conversation_id, user_id, role)
+         VALUES ($1, $2, 'admin')",
+    );
+    admit.bind(channel_id).bind(admin.user_id).execute(&pool).await.unwrap();
+
+    let task_id = Uuid::new_v4();
+    let mut input = message(channel_id);
+    input.body = Some(
+        serde_json::from_value(json!({
+            "kind": "checklist",
+            "title": "Opening tasks",
+            "tasks": [{"id": task_id, "text": "Open the doors"}],
+        }))
+        .unwrap(),
+    );
+    let sent = service.send(owner.clone(), input).await.unwrap();
+    let complete = support::messaging::command(
+        channel_id,
+        json!({
+            "kind": "set_checklist_task",
+            "message_id": sent.message.id,
+            "task_id": task_id,
+            "expected_task_version": "1",
+            "is_complete": true,
+        }),
+    );
+    service.command(owner.clone(), complete).await.unwrap();
+
+    let history_query = || HistoryQuery {
+        conversation_id: channel_id,
+        ..Default::default()
+    };
+    let before = service.history(admin.clone(), history_query()).await.unwrap();
+    let before_message = serde_json::to_value(&before.messages[0]).unwrap();
+    assert_eq!(before_message["body"]["tasks"][0]["completed_by"]["user_id"], json!(owner.user_id),);
+
+    let demote = community_command(
+        channel_id,
+        json!({"kind": "role", "user_id": admin.user_id, "role": "member"}),
+    );
+    service.community_command(owner, demote).await.unwrap();
+    let after = service.history(admin.clone(), history_query()).await.unwrap();
+    let after_message = serde_json::to_value(&after.messages[0]).unwrap();
+    let task = &after_message["body"]["tasks"][0];
+    assert_eq!(task["is_complete"], true);
+    assert!(task.get("completed_by").is_none());
+    assert_ne!(before.generation, after.generation);
+
+    let changes = service
+        .sync(
+            admin,
+            tg_chat::sync::SyncQuery {
+                cursor: before.observation_cursor,
+                limit: None,
+            },
+        )
+        .await
+        .unwrap();
+    let notification = changes.groups.iter().find_map(|group| group.conversation.as_ref());
+    assert_eq!(notification.unwrap().generation, after.generation);
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn transferring_channel_to_subscriber_invalidates_the_new_owners_history(pool: PgPool) {
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let owner = support::account(&accounts, "owner").await;
+    let subscriber = support::account(&accounts, "subscriber").await;
+    let service = MessageService::new(accounts);
+    let channel_id = community(&pool, &owner, "channel").await;
+    let admit =
+        sqlx::query("INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)");
+    admit.bind(channel_id).bind(subscriber.user_id).execute(&pool).await.unwrap();
+
+    let history_query = || HistoryQuery {
+        conversation_id: channel_id,
+        ..Default::default()
+    };
+    let subscriber_before = service.history(subscriber.clone(), history_query()).await.unwrap();
+    let owner_before = service.history(owner.clone(), history_query()).await.unwrap();
+    let transfer =
+        community_command(channel_id, json!({"kind": "transfer", "user_id": subscriber.user_id}));
+    service.community_command(owner.clone(), transfer).await.unwrap();
+
+    let subscriber_after = service.history(subscriber, history_query()).await.unwrap();
+    let owner_after = service.history(owner, history_query()).await.unwrap();
+    assert_ne!(subscriber_before.generation, subscriber_after.generation);
+    assert_eq!(owner_before.generation, owner_after.generation);
+}
