@@ -33,6 +33,7 @@ export const listFormSchema = z
     entries: z.array(z.object({ id: z.string(), text: z.string() })),
     settings: pollSettingsSchema,
     correctOptionIds: z.array(z.string()),
+    shouldPreserveQuiz: z.boolean(),
     explanation: z.string().max(MAX_EXPLANATION_LENGTH),
     canOthersComplete: z.boolean(),
     canOthersAppend: z.boolean(),
@@ -65,6 +66,10 @@ export const listFormSchema = z
         path: ['entries'],
         message: 'Each option must have a different answer.',
       });
+    }
+
+    if (values.shouldPreserveQuiz) {
+      return;
     }
 
     // Correct answers must reference non-empty rows that remain in the submitted poll.

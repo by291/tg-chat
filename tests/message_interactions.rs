@@ -107,7 +107,7 @@ async fn quiz_answers_follow_reader_visibility(pool: PgPool) {
         },
     });
     let input = serde_json::from_value(input).unwrap();
-    let sent = service.send(sender, input).await.unwrap();
+    let sent = service.send(sender.clone(), input).await.unwrap();
     let poll = PollFixture {
         conversation: sent.conversation.id,
         message: sent.message.id,
@@ -118,6 +118,29 @@ async fn quiz_answers_follow_reader_visibility(pool: PgPool) {
     let before = serde_json::to_value(before).unwrap();
     assert_eq!(before["body"].get("correct_option_ids"), None);
     assert_eq!(before["body"].get("explanation"), None);
+
+    let edit = command(
+        poll.conversation,
+        json!({
+            "kind": "edit_poll",
+            "message_id": poll.message,
+            "expected_poll_version": before["body"]["version"],
+            "preserve_quiz": true,
+            "poll": {
+                "question": "Which trail is correct?",
+                "is_anonymous": true,
+                "options": [
+                    {"id": options[0], "text": "First trail"},
+                    {"id": options[1], "text": "Second trail"},
+                ],
+            },
+        }),
+    );
+    let edited = service.command(sender, edit).await.unwrap();
+    let edited = serde_json::to_value(edited.message.unwrap()).unwrap();
+    assert_eq!(edited["body"]["question"], "Which trail is correct?");
+    assert!(edited["body"].get("correct_option_ids").is_none());
+    assert!(edited["body"].get("explanation").is_none());
 
     let selection = vote(&poll, options[0]);
     let accepted = service.command(reader.clone(), selection.clone()).await.unwrap();

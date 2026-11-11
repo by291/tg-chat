@@ -432,6 +432,7 @@ pub(super) async fn apply(
         CommandAction::EditPoll {
             expected_poll_version,
             poll,
+            preserve_quiz,
             ..
         } => {
             edit_poll(
@@ -441,6 +442,7 @@ pub(super) async fn apply(
                     message,
                     expected_poll_version,
                     poll,
+                    should_preserve_quiz: preserve_quiz.unwrap_or_default(),
                 },
             )
             .await?;
@@ -480,6 +482,23 @@ struct PollEdit<'a> {
     message: &'a CanonicalMessage,
     expected_poll_version: &'a str,
     poll: &'a PollInput,
+    should_preserve_quiz: bool,
+}
+
+fn preserve_quiz(current: PollInput, updated: &mut PollInput) -> Result<(), AccountError> {
+    // Validate public options before using the hidden answer so edits cannot reveal it.
+    let retains_options = current
+        .options
+        .iter()
+        .all(|existing| updated.options.iter().any(|option| option.id == existing.id));
+    let retains_selection_mode = !current.is_multiple_choice || updated.is_multiple_choice;
+    if updated.quiz.is_some() || !retains_options || !retains_selection_mode {
+        return Err(AccountError::Validation("cannot preserve the quiz with these changes"));
+    }
+    let quiz = current.quiz.ok_or(AccountError::Validation("there is no quiz to preserve"))?;
+    updated.quiz = Some(quiz);
+
+    Ok(())
 }
 
 async fn edit_poll(
@@ -497,7 +516,11 @@ async fn edit_poll(
     if current.is_closed || current.has_voted || current.version != version {
         return Err(AccountError::MessageConflict.into());
     }
+
     let mut poll = edit.poll.clone();
+    if edit.should_preserve_quiz {
+        preserve_quiz(current.definition.0, &mut poll)?;
+    }
     normalize(&mut poll)?;
     let update = NewPoll {
         message_id: edit.message.id,

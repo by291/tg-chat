@@ -24,14 +24,31 @@ import overlays from '@/components/overlays/overlays.module.css';
 import dialogs from '@/components/overlays/dialogs.module.css';
 import styles from './ComposerListDialog.module.css';
 
+export interface ListSubmitOptions {
+  shouldPreserveQuiz: boolean;
+}
+
 interface ComposerListDialogProps {
   kind: 'poll' | 'checklist';
   onClose: () => void;
-  onSubmit: (message: ComposedMessage) => void | Promise<boolean>;
+  onSubmit: (message: ComposedMessage, options?: ListSubmitOptions) => void | Promise<boolean>;
   initialPoll?: PollMedia;
   initialChecklist?: ChecklistMedia;
   isPollAnonymousOnly?: boolean;
   isConnected?: boolean;
+}
+
+function canPreserveQuiz(poll: PollMedia | undefined, values: ListFormValues): boolean {
+  if (!poll?.isQuiz || !values.shouldPreserveQuiz || !values.settings.hasCorrectAnswer) {
+    return true;
+  }
+
+  // Preserve every possible correct option without asking which option the server retained.
+  const filledOptions = values.entries.filter((entry) => entry.text.trim());
+  const filledIds = new Set(filledOptions.map((entry) => entry.id));
+  const keepsOptions = poll.options.every((option) => filledIds.has(option.id));
+  const keepsAnswerCount = !poll.canChooseMultiple || values.settings.canChooseMultiple;
+  return keepsOptions && keepsAnswerCount;
 }
 
 /** Compose a structured poll or checklist without consuming the ordinary message draft. */
@@ -70,8 +87,10 @@ export function ComposerListDialog({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasSubmitted = useRef(false);
   const filledEntries = entries.filter((entry) => entry.text.trim());
-  const needsCorrectAnswer = isPoll && settings.hasCorrectAnswer;
-  const canSubmit = form.formState.isValid && !form.formState.isSubmitting;
+  const hasExistingQuiz = Boolean(initialPoll?.isQuiz);
+  const needsCorrectAnswer = isPoll && settings.hasCorrectAnswer && !values.shouldPreserveQuiz;
+  const keepsQuizCompatible = canPreserveQuiz(initialPoll, values);
+  const canSubmit = form.formState.isValid && !form.formState.isSubmitting && keepsQuizCompatible;
   const pollTitle = initialPoll ? 'Edit Poll' : 'New Poll';
   const checklistTitle = initialChecklist ? 'Edit Checklist' : 'New Checklist';
   const isEditing = Boolean(initialPoll || initialChecklist);
@@ -79,7 +98,7 @@ export function ComposerListDialog({
   const entryErrorMessage = entriesError?.message ?? entriesError?.root?.message;
 
   async function submit(submitted: ListFormValues) {
-    if (hasSubmitted.current) {
+    if (hasSubmitted.current || !canPreserveQuiz(initialPoll, submitted)) {
       return;
     }
 
@@ -89,6 +108,7 @@ export function ComposerListDialog({
     // Prevent a second activation while the dialog remains mounted for its exit animation.
     hasSubmitted.current = true;
     setSubmitError('');
+    const shouldPreserveQuiz = submitted.settings.hasCorrectAnswer && submitted.shouldPreserveQuiz;
     let message: ComposedMessage;
     if (isPoll) {
       message = {
@@ -97,7 +117,10 @@ export function ComposerListDialog({
           title: submitted.title,
           description: submitted.description,
           entries: submitted.entries,
-          settings: submitted.settings,
+          settings: {
+            ...submitted.settings,
+            hasCorrectAnswer: submitted.settings.hasCorrectAnswer && !shouldPreserveQuiz,
+          },
           correctOptionIds: validCorrectIds,
           explanation: submitted.explanation,
           previousDeadline: initialPoll?.closesAt,
@@ -122,7 +145,9 @@ export function ComposerListDialog({
     }
 
     try {
-      const isAccepted = await onSubmit(message);
+      const isAccepted = await (shouldPreserveQuiz
+        ? onSubmit(message, { shouldPreserveQuiz })
+        : onSubmit(message));
       if (isAccepted === false) {
         hasSubmitted.current = false;
         return;
@@ -249,13 +274,12 @@ export function ComposerListDialog({
                 {isPoll && (
                   <p className={styles.hint}>
                     You can add {MAX_POLL_OPTIONS - filledEntries.length} more options
-                    {needsCorrectAnswer && (
-                      <span>
-                        {initialPoll
-                          ? 'Set the correct answer and optional explanation again before saving.'
-                          : 'Select the correct answer above.'}
-                      </span>
-                    )}
+                    {needsCorrectAnswer && <span>Select the correct answer above.</span>}
+                  </p>
+                )}
+                {!keepsQuizCompatible && (
+                  <p className={styles.hint} role="alert">
+                    Keep all existing options and answer rules, or choose Replace quiz answer.
                   </p>
                 )}
                 {isPoll ? (
@@ -265,6 +289,15 @@ export function ComposerListDialog({
                     isConnected={isConnected}
                     previousDeadline={initialPoll?.closesAt}
                     onChange={listForm.updateSettings}
+                    quizPreservation={
+                      hasExistingQuiz
+                        ? {
+                            shouldPreserveQuiz: values.shouldPreserveQuiz,
+                            onReplaceChange: ({ isChecked }) =>
+                              changeField('shouldPreserveQuiz', !isChecked),
+                          }
+                        : undefined
+                    }
                     explanation={explanation}
                     onExplanationChange={(value) => changeField('explanation', value)}
                   />

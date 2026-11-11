@@ -2,7 +2,18 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PollMedia } from '@/domain/messages/media';
 import { ComposerListDialog } from './ComposerListDialog';
+
+const EXISTING_QUIZ: PollMedia = {
+  kind: 'poll',
+  question: 'Which weekday?',
+  isQuiz: true,
+  options: [
+    { id: 'monday', text: 'Monday', votes: 0 },
+    { id: 'tuesday', text: 'Tuesday', votes: 0 },
+  ],
+};
 
 beforeEach(() => {
   // Motion restores document scroll after layout measurements; jsdom has no scrolling viewport.
@@ -45,6 +56,72 @@ function fillField(name: string, value: string) {
 }
 
 describe('structured message composition', () => {
+  it('saves changes to an existing quiz without requiring its hidden answer', async () => {
+    const onSubmit = vi.fn();
+    render(
+      <ComposerListDialog
+        kind="poll"
+        isConnected
+        initialPoll={EXISTING_QUIZ}
+        onClose={() => {}}
+        onSubmit={onSubmit}
+      />,
+    );
+    fillField('Ask a Question', 'Which day works best?');
+    expect(screen.queryByRole('radio', { name: 'Correct answer 1' })).toBeNull();
+
+    // Add a third choice so clearing a saved choice still leaves enough valid options.
+    fillField('Option 2', 'Tuesday afternoon');
+    fillField('Option 3', 'Wednesday');
+    fillField('Option 2', '');
+    const save = screen.getByRole<HTMLButtonElement>('button', { name: /^Save$/ });
+    expect(save.disabled).toBe(true);
+
+    fillField('Option 2', 'Tuesday afternoon');
+    await userEvent.click(save);
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media: expect.objectContaining({
+          question: 'Which day works best?',
+          correctOptionIds: undefined,
+          explanation: undefined,
+        }),
+      }),
+      { shouldPreserveQuiz: true },
+    );
+  });
+
+  it('requires a new answer when the author explicitly chooses to replace the quiz answer', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ComposerListDialog
+        kind="poll"
+        isConnected
+        initialPoll={EXISTING_QUIZ}
+        onClose={() => {}}
+        onSubmit={onSubmit}
+      />,
+    );
+    await user.click(screen.getByText('Replace quiz answer', { exact: true }));
+    const save = screen.getByRole<HTMLButtonElement>('button', { name: /^Save$/ });
+    expect(save.disabled).toBe(true);
+
+    await user.click(screen.getByRole('radio', { name: 'Correct answer 2' }));
+    fillField('Explanation (optional)', 'The Tuesday schedule is open.');
+    await user.click(save);
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media: expect.objectContaining({
+          correctOptionIds: ['tuesday'],
+          explanation: 'The Tuesday schedule is open.',
+        }),
+      }),
+    );
+  });
+
   it('keeps channel polls anonymous when composing without media uploads', async () => {
     const onSubmit = vi.fn();
     render(

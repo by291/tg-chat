@@ -80,6 +80,7 @@ export function PollSettingsFields({
   isPollAnonymousOnly,
   isConnected,
   previousDeadline,
+  quizPreservation,
 }: {
   settings: PollSettings;
   onChange: (settings: PollSettings) => void;
@@ -88,7 +89,13 @@ export function PollSettingsFields({
   isPollAnonymousOnly?: boolean;
   isConnected?: boolean;
   previousDeadline?: number;
+  quizPreservation?: {
+    shouldPreserveQuiz: boolean;
+    onReplaceChange: (options: { isChecked: boolean }) => void;
+  };
 }) {
+  const shouldShowExplanation = settings.hasCorrectAnswer && !quizPreservation?.shouldPreserveQuiz;
+
   return (
     <section className={styles.section}>
       <h3>Settings</h3>
@@ -154,7 +161,15 @@ export function PollSettingsFields({
           onChange={({ isChecked }) => onChange({ ...settings, shouldHideResults: isChecked })}
         />
       )}
-      <FormReveal isOpen={settings.hasCorrectAnswer}>
+      {settings.hasCorrectAnswer && quizPreservation && (
+        <ListSetting
+          title="Replace quiz answer"
+          description="Choose a new correct answer and optional explanation"
+          isChecked={!quizPreservation.shouldPreserveQuiz}
+          onChange={quizPreservation.onReplaceChange}
+        />
+      )}
+      <FormReveal isOpen={shouldShowExplanation}>
         <div>
           <PollTextField
             className={styles.explanationField}

@@ -92,6 +92,8 @@ pub enum CommandAction {
         message_id: Uuid,
         expected_poll_version: String,
         poll: super::polls::PollInput,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        preserve_quiz: Option<bool>,
     },
     AddPollOption {
         message_id: Uuid,

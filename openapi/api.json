@@ -1513,7 +1513,8 @@
               "expected_poll_version": { "type": "string" },
               "kind": { "type": "string", "enum": ["edit_poll"] },
               "message_id": { "type": "string", "format": "uuid" },
-              "poll": { "$ref": "#/components/schemas/PollInput" }
+              "poll": { "$ref": "#/components/schemas/PollInput" },
+              "preserve_quiz": { "type": ["boolean", "null"] }
             }
           },
           {

@@ -53,8 +53,10 @@ function initialValues(options: ListFormOptions): ListFormValues {
       initialPoll?.options.map(({ id, text }) => ({ id, text })) ??
       Array.from({ length: kind === 'poll' ? MIN_POLL_OPTIONS : 1 }, createListEntry),
     settings,
-    correctOptionIds: initialPoll?.correctOptionIds ?? [],
-    explanation: initialPoll?.explanation ?? '',
+    // A new answer is entered from scratch; preservation is resolved by the server.
+    correctOptionIds: [],
+    explanation: '',
+    shouldPreserveQuiz: Boolean(initialPoll?.isQuiz),
     canOthersComplete: initialChecklist?.canOthersComplete ?? false,
     canOthersAppend: initialChecklist?.canOthersAppend ?? false,
   };

@@ -961,6 +961,7 @@ export interface components {
           /** Format: uuid */
           message_id: string;
           poll: components['schemas']['PollInput'];
+          preserve_quiz?: boolean | null;
         }
       | {
           expected_poll_version: string;

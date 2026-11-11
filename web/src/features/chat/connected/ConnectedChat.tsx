@@ -23,7 +23,7 @@ import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
 import { PinnedMessages } from './PinnedMessages';
 import { PollVotersDialog } from './PollVotersDialog';
-import { ComposerListDialog } from '../composer/forms/ComposerListDialog';
+import { ComposerListDialog, type ListSubmitOptions } from '../composer/forms/ComposerListDialog';
 import { pollInput } from '../data/pollInput';
 import { ChatOwner } from '../data/ChatOwner';
 import {
@@ -349,7 +349,7 @@ export function ConnectedChat({
     return true;
   }
 
-  async function savePoll(message: ComposedMessage): Promise<boolean> {
+  async function savePoll(message: ComposedMessage, options?: ListSubmitOptions): Promise<boolean> {
     if (!pollEditor || message.media?.kind !== 'poll') {
       return false;
     }
@@ -359,6 +359,7 @@ export function ConnectedChat({
       message_id: pollEditor.messageId,
       expected_poll_version: pollEditor.version,
       poll: pollInput(message.media),
+      preserve_quiz: options?.shouldPreserveQuiz,
     });
     return true;
   }
