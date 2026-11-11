@@ -29,6 +29,7 @@ import {
   renderMessage,
   renderPending,
   type Conversation,
+  type Destination,
 } from '../data/messageModels';
 import { MessageComposer, type ComposedMessage } from '../composer/MessageComposer';
 import { MessageTimeline } from '../history/MessageTimeline';
@@ -37,6 +38,7 @@ import { GlobalMessageSearch } from '../search/GlobalMessageSearch';
 import { ShareContactDialog } from '../composer/ShareContactDialog';
 import { ContactLinkContext } from '../messages/content/contact/ContactActions';
 import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
+import type { MessageSelectionChange } from '../messages/selection/useMessageSelectionGesture';
 import styles from './ConnectedChat.module.css';
 
 // prettier-ignore
@@ -55,6 +57,8 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'clear-selection',
 ];
 const MAX_BATCH_MESSAGES = 20;
+const REMOVE_MESSAGE_DESCRIPTION =
+  'Choose whose history should change. Deletion cannot be undone. Existing forwarded copies remain available.';
 // prettier-ignore
 const REACTIONS = [
   '👍',
@@ -85,6 +89,19 @@ function title(conversation: Conversation): string {
     return 'Saved Messages';
   }
   return conversation.title || conversation.peer_name;
+}
+
+function forwardDestinationTitle(destination: Destination, conversations: Conversation[]): string {
+  if (destination.kind === 'saved') {
+    return 'Saved Messages';
+  }
+
+  const conversation = conversations.find((entry) => {
+    return destination.kind === 'conversation'
+      ? entry.id === destination.conversation_id
+      : entry.kind === 'direct' && entry.peer_id === destination.user_id;
+  });
+  return conversation ? title(conversation) : 'Unavailable conversation';
 }
 
 function pickerConversation(conversation: Conversation): PickerConversation {
@@ -549,7 +566,7 @@ export function ConnectedChat({
         }
         setConfirmation({
           title: 'Remove message?',
-          description: 'Choose whose history should change. Deletion cannot be undone.',
+          description: REMOVE_MESSAGE_DESCRIPTION,
           choices,
         });
         break;
@@ -559,16 +576,31 @@ export function ConnectedChat({
 
   function toggleSelection(messageId: string) {
     const current = selectedIds ?? [];
-    if (current.includes(messageId)) {
-      setSelectedIds(current.filter((id) => id !== messageId));
-      return;
-    }
-    if (current.length >= MAX_BATCH_MESSAGES) {
-      setError('You can select up to 20 messages.');
+    setMessageSelection({ messageIds: [messageId], shouldSelect: !current.includes(messageId) });
+  }
+
+  function setMessageSelection({ messageIds, shouldSelect }: MessageSelectionChange) {
+    if (!shouldSelect) {
+      setSelectedIds((current) => current?.filter((id) => !messageIds.includes(id)));
       return;
     }
 
-    setSelectedIds([...current, messageId]);
+    const eligibleMessages = snapshot.messages.filter(
+      (message) => !message.is_deleted && !message.service_kind && messageIds.includes(message.id),
+    );
+    if (eligibleMessages.length === 0) {
+      return;
+    }
+
+    const eligibleIds = eligibleMessages.map((message) => message.id);
+    const selected = new Set([...(selectedIds ?? []), ...eligibleIds]);
+    if (selected.size > MAX_BATCH_MESSAGES) {
+      setError(`You can select up to ${MAX_BATCH_MESSAGES} messages.`);
+    }
+    setSelectedIds((current) => {
+      const ids = new Set([...(current ?? []), ...eligibleIds]);
+      return Array.from(ids).slice(0, MAX_BATCH_MESSAGES);
+    });
   }
 
   function confirmSelectedRemoval() {
@@ -593,7 +625,7 @@ export function ConnectedChat({
     }
     setConfirmation({
       title: 'Remove selected messages?',
-      description: 'Choose whose history should change. Deletion cannot be undone.',
+      description: REMOVE_MESSAGE_DESCRIPTION,
       choices,
     });
   }
@@ -841,6 +873,9 @@ export function ConnectedChat({
               <h2>Pending forwards</h2>
               {snapshot.pendingForwards.map((entry) => (
                 <div className={styles.pendingItem} key={entry.request.operation_id}>
+                  <strong>
+                    {forwardDestinationTitle(entry.request.destination, snapshot.conversations)}
+                  </strong>
                   <p>{entry.error ?? 'Waiting for server confirmation'}</p>
                   {entry.error && (
                     <button
@@ -1008,6 +1043,8 @@ export function ConnectedChat({
                     shouldShowSender={conversation?.kind === 'group'}
                     allowedActions={allowedActions}
                     selectedIds={selectedIds}
+                    onToggleSelection={toggleSelection}
+                    onSetSelection={setMessageSelection}
                     reactionChoices={REACTIONS}
                     navigation={snapshot.navigation}
                     onReachLatest={() => {
