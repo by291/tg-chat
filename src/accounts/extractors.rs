@@ -54,6 +54,7 @@ impl IntoResponse for ApiFailure {
             AccountError::NotFound => (StatusCode::NOT_FOUND, "not_found"),
             AccountError::Forbidden => (StatusCode::FORBIDDEN, "forbidden"),
             AccountError::MessageConflict => (StatusCode::CONFLICT, "message_conflict"),
+            AccountError::MediaFileUnavailable => (StatusCode::CONFLICT, "media_file_unavailable"),
             AccountError::ConversationUnavailable => {
                 (StatusCode::CONFLICT, "conversation_unavailable")
             }

@@ -88,6 +88,7 @@ impl MediaWorkerSettings {
     }
 }
 
+/// Address a stored variant only inside its server-owned attempt namespace.
 pub(super) fn variant_key(file_id: Uuid, kind: MediaVariant) -> String {
     format!("files/{file_id}/{}", kind.object_name())
 }
@@ -181,6 +182,7 @@ impl MediaWorker {
 
     async fn claim(&self) -> Result<Option<Claim>, AccountError> {
         let mut transaction = self.pool.begin().await?;
+        // The reservation covers one candidate original, so retries wait for prior cleanup.
         let job = sqlx::query_as::<_, Job>(
             "SELECT upload.id AS upload_id, upload.purpose, upload.size_bytes, upload.sha256,
                     job.attempts
@@ -189,6 +191,8 @@ impl MediaWorker {
              WHERE upload.state IN ('uploaded', 'processing')
                AND job.available_at <= now()
                AND (job.lease_until IS NULL OR job.lease_until <= now())
+               AND NOT EXISTS (SELECT 1 FROM media_processing_attempts previous
+                   WHERE previous.upload_id = upload.id AND previous.released_at IS NULL)
              ORDER BY job.available_at, upload.id
              LIMIT 1 FOR UPDATE OF upload SKIP LOCKED",
         );

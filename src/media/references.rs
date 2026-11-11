@@ -90,7 +90,7 @@ async fn lock_message_files(
     .bind(reference.owner_id);
     let files = files.fetch_all(connection).await?;
     if files.len() != requested.len() {
-        return Err(AccountError::NotFound);
+        return Err(AccountError::MediaFileUnavailable);
     }
 
     let is_album = reference.attachments.len() > 1;

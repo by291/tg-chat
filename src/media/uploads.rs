@@ -121,8 +121,8 @@ impl UploadReservations {
 
         let allocation = sqlx::query_as::<_, AccountAllocation>(
             "SELECT COALESCE(sum(size_bytes), 0)::bigint AS bytes,
-                    count(*) FILTER (WHERE state IN ('reserved', 'uploaded', 'processing')
-                        AND expires_at > now()) AS active_uploads
+                    count(*) FILTER (WHERE state IN ('uploaded', 'processing')
+                        OR (state = 'reserved' AND expires_at > now())) AS active_uploads
              FROM media_uploads WHERE owner_id = $1 AND released_at IS NULL",
         )
         .bind(actor.user_id);
@@ -158,8 +158,16 @@ pub(super) async fn find_owned(
     upload_id: Uuid,
 ) -> Result<Option<UploadRecord>, sqlx::Error> {
     let query = sqlx::query_as::<_, UploadRecord>(
-        "SELECT *, expires_at <= now() AS is_expired
-         FROM media_uploads WHERE id = $1 AND owner_id = $2 AND session_id = $3",
+        "SELECT upload.*,
+                CASE WHEN upload.state = 'ready' THEN NOT EXISTS (
+                    SELECT 1 FROM media_files file
+                    WHERE file.id = upload.file_id AND file.deleting_at IS NULL
+                      AND file.deleted_at IS NULL AND (file.ready_until > now() OR EXISTS (
+                          SELECT 1 FROM media_live_file_references reference
+                          WHERE reference.file_id = file.id
+                      ))
+                ) ELSE upload.expires_at <= now() END AS is_expired
+         FROM media_uploads upload WHERE id = $1 AND owner_id = $2 AND session_id = $3",
     )
     .bind(upload_id)
     .bind(actor.user_id)

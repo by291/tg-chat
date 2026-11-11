@@ -147,6 +147,8 @@ async fn upload_object(
     statement.push_bind(upload_id);
     statement.push(" AND upload.owner_id = ").push_bind(actor.user_id);
     statement.push(" AND upload.session_id = ").push_bind(actor.session_id);
+    // Once published, this file can be read only through its current live reference.
+    statement.push(" AND upload.state = 'ready' AND file.ready_until > now()");
     statement.push(" AND variant.kind = ").push_bind(variant);
     statement.push(" AND (upload.purpose <> 'avatar' OR variant.kind = 'thumbnail')");
 

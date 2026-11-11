@@ -314,3 +314,26 @@ async fn staging_cleanup_waits_for_a_signed_write_to_expire(pool: PgPool) {
             .unwrap();
     assert!(released);
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn retry_waits_for_the_previous_candidate_to_release_its_bytes(pool: PgPool) {
+    use tg_chat::media::MediaCleanup;
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let actor = support::account(&accounts, "file_owner").await;
+    let uploads = test_upload_service(accounts);
+    transfer_document(&uploads, &actor).await;
+    let abandoned = sqlx::query(
+        "INSERT INTO media_processing_attempts (id, upload_id, created_at)
+         SELECT $1, id, now() - interval '1 hour' FROM media_uploads",
+    );
+    abandoned.bind(Uuid::new_v4()).execute(&pool).await.unwrap();
+
+    let worker = MediaWorker::new(pool.clone(), storage_settings(), MediaWorkerSettings::default());
+    assert!(!worker.process_next().await.unwrap());
+
+    let cleanup = MediaCleanup::new(pool, storage_settings());
+    assert!(cleanup.process_next().await.unwrap());
+    assert!(worker.process_next().await.unwrap());
+}

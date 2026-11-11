@@ -182,7 +182,8 @@ impl UploadRecord {
         } else {
             (TransferMode::SinglePut, None)
         };
-        let state = if self.state == UploadState::Reserved && self.is_expired {
+        let can_expire = matches!(self.state, UploadState::Reserved | UploadState::Ready);
+        let state = if can_expire && self.is_expired {
             UploadState::Expired
         } else {
             self.state
@@ -194,7 +195,11 @@ impl UploadRecord {
             expires_at: self.expires_at,
             transfer_mode,
             part_size_bytes,
-            file_id: self.file_id,
+            file_id: if state == UploadState::Expired {
+                None
+            } else {
+                self.file_id
+            },
             error_code: self.error_code,
         }
     }

@@ -259,7 +259,7 @@ async fn sending_a_foreign_ready_file_leaves_no_message(pool: PgPool) {
     let message_id = command.message_id;
     let service = MessageService::new(accounts);
     let rejected = service.send(outsider, command).await;
-    assert!(matches!(rejected, Err(AccountError::NotFound)));
+    assert!(matches!(rejected, Err(AccountError::MediaFileUnavailable)));
     let accepted = service.message(owner, message_id).await;
     assert!(matches!(accepted, Err(AccountError::NotFound)));
 }
@@ -438,4 +438,39 @@ async fn album_preserves_repeated_file_occurrences_after_caption_edit(pool: PgPo
     let order: Vec<Uuid> = edited.attachments.iter().map(|item| item.occurrence_id).collect();
     assert_eq!(order, occurrences);
     assert!(edited.content.text.is_empty());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL and SeaweedFS"]
+async fn publishing_consumes_the_upload_preview_authority(pool: PgPool) {
+    use tg_chat::{
+        media::{AttachmentInput, DownloadReference, MediaVariant},
+        messages::MessageService,
+    };
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let sender = support::account(&accounts, "sender").await;
+    let recipient = support::account(&accounts, "recipient").await;
+    let file_id = prepared_document(&pool, &sender).await;
+    let upload_id = sqlx::query_scalar("SELECT id FROM media_uploads WHERE file_id = $1")
+        .bind(file_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let preview = DownloadReference::Upload {
+        upload_id,
+        variant: MediaVariant::Original,
+    };
+    let media = test_upload_service(accounts.clone());
+    assert!(media.sign_download(&sender, preview).await.is_ok());
+
+    let mut input = support::messaging::send_input(recipient.user_id);
+    input.attachments.push(AttachmentInput {
+        occurrence_id: Uuid::new_v4(),
+        file_id,
+    });
+    MessageService::new(accounts).send(sender.clone(), input).await.unwrap();
+
+    let denied = media.sign_download(&sender, preview).await;
+    assert!(matches!(denied, Err(AccountError::NotFound)));
 }

@@ -216,7 +216,14 @@ impl UploadService {
                 return Err(AccountError::Validation("single PUT does not accept part numbers"));
             }
 
-            let plan = self.plan_single(upload, &key, is_complete, signed_at).await?;
+            let plan = if is_complete {
+                TransferPlan {
+                    single_put_complete: true,
+                    ..TransferPlan::default()
+                }
+            } else {
+                self.plan_single(upload, &key, signed_at).await?
+            };
             return Ok(PlannedTransfer {
                 plan,
                 multipart_id: None,
@@ -260,16 +267,8 @@ impl UploadService {
         &self,
         upload: &UploadRecord,
         key: &str,
-        is_complete: bool,
         signed_at: DateTime<Utc>,
     ) -> Result<TransferPlan, AccountError> {
-        if is_complete {
-            return Ok(TransferPlan {
-                single_put_complete: true,
-                ..TransferPlan::default()
-            });
-        }
-
         let signature = self.storage.sign(UploadSignature {
             key,
             size_bytes: upload.size_bytes,
