@@ -74,6 +74,28 @@ jobs:
         run: rustup override set 1.98.0
       - name: Install frontend tooling
         run: pnpm --dir web install --frozen-lockfile
+      - name: Install media processor prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ffmpeg libseccomp-dev util-linux
+      - name: Start isolated object storage
+        run: |
+          node --input-type=module - <<'JS'
+          import { appendFileSync, writeFileSync } from 'node:fs';
+          import { createRuntimeEnvironment, serializeEnvironment } from './scripts/runtime-environment.mjs';
+
+          const environment = createRuntimeEnvironment();
+          const path = process.env.RUNNER_TEMP + '/tg-chat-media.env';
+          writeFileSync(path, serializeEnvironment(environment), { mode: 0o600 });
+          const testSettings = {
+            TG_CHAT_TEST_S3_ENDPOINT: environment.TG_CHAT_S3_PUBLIC_ENDPOINT,
+            TG_CHAT_TEST_S3_ACCESS_KEY: environment.TG_CHAT_S3_ACCESS_KEY,
+            TG_CHAT_TEST_S3_SECRET_KEY: environment.TG_CHAT_S3_SECRET_KEY,
+          };
+          appendFileSync(process.env.GITHUB_ENV, serializeEnvironment(testSettings));
+          JS
+          docker compose --env-file "$RUNNER_TEMP/tg-chat-media.env" \
+            -p tg-chat-native-media up -d --wait seaweedfs
       - name: Check formatting
         run: |
           cargo fmt --all --check

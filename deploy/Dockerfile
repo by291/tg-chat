@@ -1,6 +1,10 @@
 FROM rust:1.98.0-bookworm AS build
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y libseccomp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY Cargo.toml Cargo.lock rustfmt.toml build.rs ./
 COPY src ./src
 COPY migrations ./migrations
@@ -10,6 +14,9 @@ COPY web/src/features/emoji/publicEmojiPacks.json ./web/src/features/emoji/publi
 RUN cargo build --locked --release --bins
 
 FROM build AS verification
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ffmpeg util-linux \
+    && rm -rf /var/lib/apt/lists/*
 CMD [ \
     "cargo", \
     "test", \
@@ -29,6 +36,15 @@ COPY --from=build /app/target/release/api /usr/local/bin/api
 COPY --from=build /app/target/release/worker /usr/local/bin/worker
 USER app
 CMD ["api", "serve"]
+
+FROM runtime AS media-worker
+USER root
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ffmpeg libseccomp2 util-linux \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/target/release/media-processor /usr/local/bin/media-processor
+USER app
+CMD ["worker"]
 
 FROM node:24.15.0-bookworm-slim AS frontend
 WORKDIR /app/web

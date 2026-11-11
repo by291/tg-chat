@@ -19,6 +19,12 @@ struct AccountAllocation {
     active_uploads: i64,
 }
 
+#[derive(FromRow)]
+struct DeploymentAllocation {
+    staging_bytes: i64,
+    original_bytes: i64,
+}
+
 impl UploadReservations {
     /// Bind media reservations to the account session and configured byte budgets.
     pub fn new(accounts: AccountService, limits: MediaLimits) -> Self {
@@ -123,13 +129,17 @@ impl UploadReservations {
             return Err(AccountError::QuotaExceeded);
         }
 
-        let staging_bytes: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(sum(size_bytes), 0)::bigint
+        let deployment = sqlx::query_as::<_, DeploymentAllocation>(
+            "SELECT COALESCE(sum(size_bytes) FILTER (WHERE staging_released_at IS NULL), 0)::bigint
+                        AS staging_bytes,
+                    COALESCE(sum(size_bytes), 0)::bigint AS original_bytes
              FROM media_uploads WHERE released_at IS NULL",
         )
         .fetch_one(connection)
         .await?;
-        if staging_bytes > self.limits.staging_bytes - size_bytes {
+        let is_deployment_full = deployment.staging_bytes > self.limits.staging_bytes - size_bytes
+            || deployment.original_bytes > self.limits.original_bytes - size_bytes;
+        if is_deployment_full {
             return Err(AccountError::QuotaExceeded);
         }
 

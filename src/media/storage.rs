@@ -7,10 +7,11 @@ use aws_sdk_s3::{
         BehaviorVersion, Credentials, Region, RequestChecksumCalculation, timeout::TimeoutConfig,
     },
     presigning::PresigningConfig,
+    primitives::ByteStream,
     types::{CompletedMultipartUpload, CompletedPart, CorsConfiguration, CorsRule},
 };
 use chrono::{DateTime, Utc};
-use tokio::sync::OnceCell;
+use tokio::{io::AsyncWriteExt, sync::OnceCell};
 
 use crate::accounts::AccountError;
 
@@ -44,6 +45,19 @@ pub(super) struct UploadSignature<'a> {
 pub(super) struct MultipartPart<'a> {
     pub upload_id: &'a str,
     pub number: i32,
+}
+
+pub(super) struct StoredSource<'a> {
+    pub key: &'a str,
+    pub path: &'a std::path::Path,
+    pub size_bytes: i64,
+}
+
+pub(super) struct VariantObject<'a> {
+    pub key: &'a str,
+    pub path: &'a std::path::Path,
+    pub size_bytes: i64,
+    pub mime_type: &'a str,
 }
 
 fn client(settings: &MediaStorageSettings, endpoint: &str) -> Client {
@@ -259,5 +273,67 @@ impl MediaStorage {
             part_number,
             expires_at: input.issued_at + chrono::Duration::seconds(WRITE_SECONDS),
         })
+    }
+
+    /// Copy staging into a fresh server-owned attempt namespace.
+    pub(super) async fn copy_candidate(
+        &self,
+        source_key: &str,
+        candidate_key: &str,
+    ) -> Result<(), AccountError> {
+        let source = format!("{}/{source_key}", self.bucket);
+        let request = self.internal.copy_object().bucket(&self.bucket).key(candidate_key);
+        let request = request.copy_source(source);
+        request.send().await.map_err(|_| storage_unavailable("copy_candidate"))?;
+
+        Ok(())
+    }
+
+    /// Stream the candidate to scratch while bounding the bytes read.
+    pub(super) async fn download_candidate(
+        &self,
+        source: StoredSource<'_>,
+    ) -> Result<String, AccountError> {
+        use sha2::{Digest, Sha256};
+
+        let request = self.internal.get_object().bucket(&self.bucket).key(source.key);
+        let result = request.send().await.map_err(|_| storage_unavailable("get_candidate"))?;
+        if result.content_length() != Some(source.size_bytes) {
+            return Err(AccountError::Validation("size_mismatch"));
+        }
+
+        let mut file = tokio::fs::File::create(source.path)
+            .await
+            .map_err(|_| storage_unavailable("open_candidate_scratch"))?;
+        let mut remaining = source.size_bytes;
+        let mut hash = Sha256::new();
+        let mut body = result.body;
+        while let Some(chunk) = body.next().await {
+            let chunk = chunk.map_err(|_| storage_unavailable("read_candidate"))?;
+            remaining -= chunk.len() as i64;
+            if remaining < 0 {
+                return Err(AccountError::Validation("size_mismatch"));
+            }
+            hash.update(&chunk);
+            file.write_all(&chunk).await.map_err(|_| storage_unavailable("write_candidate"))?;
+        }
+        if remaining != 0 {
+            return Err(AccountError::Validation("size_mismatch"));
+        }
+
+        Ok(hex::encode(hash.finalize()))
+    }
+
+    /// Persist a bounded derivative under its attempt's private key.
+    pub(super) async fn put_variant(&self, variant: VariantObject<'_>) -> Result<(), AccountError> {
+        let body = ByteStream::from_path(variant.path)
+            .await
+            .map_err(|_| storage_unavailable("open_variant"))?;
+        let request = self.internal.put_object().bucket(&self.bucket).key(variant.key);
+        let request = request.body(body).content_length(variant.size_bytes);
+        let request = request.content_type(variant.mime_type);
+        request.send().await.map_err(|_| storage_unavailable("put_variant"))?;
+
+        Ok(())
     }
 }

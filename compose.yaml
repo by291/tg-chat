@@ -14,6 +14,8 @@ x-application: &application
     TG_CHAT_CENTRIFUGO_PROXY_KEY: ${TG_CHAT_CENTRIFUGO_PROXY_KEY:?Generate .env first}
     TG_CHAT_MEDIA_ENABLED: ${TG_CHAT_MEDIA_ENABLED:-false}
     TG_CHAT_MEDIA_STAGING_BYTES: ${TG_CHAT_MEDIA_STAGING_BYTES:-536870912}
+    TG_CHAT_MEDIA_ORIGINAL_BYTES: ${TG_CHAT_MEDIA_ORIGINAL_BYTES:-1073741824}
+    TG_CHAT_MEDIA_VARIANT_BYTES: ${TG_CHAT_MEDIA_VARIANT_BYTES:-536870912}
     TG_CHAT_S3_INTERNAL_ENDPOINT: ${TG_CHAT_S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
     TG_CHAT_S3_PUBLIC_ENDPOINT: ${TG_CHAT_S3_PUBLIC_ENDPOINT:-http://localhost:8333}
     TG_CHAT_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
@@ -146,6 +148,10 @@ services:
 
   worker:
     <<: *application
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: media-worker
     command: [worker]
     environment:
       <<: *application-environment

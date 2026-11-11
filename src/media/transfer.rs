@@ -33,7 +33,8 @@ struct PlannedTransfer {
     signed_at: DateTime<Utc>,
 }
 
-fn staging_key(upload_id: Uuid) -> String {
+/// Derive the staging object key from the reserved upload identity.
+pub(super) fn staging_key(upload_id: Uuid) -> String {
     format!("staging/{upload_id}")
 }
 

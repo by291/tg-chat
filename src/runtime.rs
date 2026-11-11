@@ -16,7 +16,7 @@ use crate::{
     database::connect_pool,
     http::{ApplicationState, router_with_api},
     jobs::{MailQueue, MailSettings},
-    media::{MediaLimits, MediaStorageSettings, UploadService},
+    media::{MediaLimits, MediaStorageSettings, MediaWorker, MediaWorkerSettings, UploadService},
     realtime::{self, RealtimeClient, RealtimeSettings, WorkerServices},
 };
 
@@ -89,6 +89,8 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         .map(RealtimeClient::new)
         .transpose()
         .map_err(|_| RuntimeError::AccountConfiguration)?;
+    let media_storage =
+        MediaStorageSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
     let worker = if matches!(service, ServiceKind::Worker) {
         let queue = mail.clone();
         let stop = shutdown.clone();
@@ -97,8 +99,24 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             client: realtime_client,
             idle_days: account_settings.idle_days,
         };
+        let media = if let Some(storage) = media_storage.clone() {
+            let settings =
+                MediaWorkerSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
+            Some(MediaWorker::new(pool.clone(), storage, settings))
+        } else {
+            None
+        };
         Some(tokio::spawn(async move {
-            tokio::join!(queue.run(stop.clone()), realtime::run(services, stop));
+            let prepare_media = async {
+                if let Some(worker) = media {
+                    worker.run(stop.clone()).await;
+                }
+            };
+            tokio::join!(
+                queue.run(stop.clone()),
+                realtime::run(services, stop.clone()),
+                prepare_media
+            );
         }))
     } else {
         None
@@ -108,9 +126,7 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
         let mut state = AccountHttpState::new(accounts.clone(), transport, mail);
-        let media =
-            MediaStorageSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
-        if let Some(media) = media {
+        if let Some(media) = media_storage {
             let limits = MediaLimits::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
             state = state.with_media(UploadService::new(accounts.clone(), limits, media));
         }

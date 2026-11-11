@@ -20,6 +20,9 @@ lettre = { version = "=0.11.23", default-features = false, features = [
     "pool",
     "tokio1-rustls-tls",
 ] }
+hex = "=0.4.3"
+infer = { version = "=0.22.0", default-features = false }
+tempfile = "=3.27.0"
 argon2 = { version = "=0.6.0", features = ["getrandom"] }
 base64 = "=0.22.1"
 chrono = { version = "=0.4.45", features = ["serde"] }
@@ -45,6 +48,9 @@ sqlx = { version = "=0.9.0", default-features = false, features = [
 ] }
 thiserror = "=2.0.21"
 tokio = { version = "=1.54.1", features = [
+    "fs",
+    "io-util",
+    "process",
     "macros",
     "rt-multi-thread",
     "signal",
@@ -60,6 +66,9 @@ ammonia = "=4.2.3"
 scraper = "=0.27.0"
 
 reqwest = { version = "=0.13.5", default-features = false, features = ["json", "rustls"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libseccomp = "=0.4.0"
 
 [dev-dependencies]
 http-body-util = "0.1"

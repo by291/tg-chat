@@ -2,6 +2,7 @@
 mod support;
 
 use sqlx::PgPool;
+use support::media::{put, test_upload_service};
 use tg_chat::{
     accounts::{AccountError, AccountService, AccountSettings},
     media::{MediaLimits, ReserveUpload, UploadPurpose, UploadReservations},
@@ -18,30 +19,6 @@ fn document(size_bytes: i64) -> ReserveUpload {
         size_bytes,
         sha256: "a".repeat(64),
     }
-}
-
-fn test_upload_service(accounts: AccountService) -> tg_chat::media::UploadService {
-    let endpoint = std::env::var("TG_CHAT_TEST_S3_ENDPOINT").unwrap();
-    let settings = tg_chat::media::MediaStorageSettings {
-        internal_endpoint: endpoint.clone(),
-        public_endpoint: endpoint,
-        access_key: std::env::var("TG_CHAT_TEST_S3_ACCESS_KEY").unwrap(),
-        secret_key: std::env::var("TG_CHAT_TEST_S3_SECRET_KEY").unwrap(),
-        browser_origin: "http://localhost:8080".to_owned(),
-        // One bucket mirrors deployment and avoids allocating a SeaweedFS volume per test.
-        bucket: "tg-chat-test-media".to_owned(),
-    };
-    tg_chat::media::UploadService::new(accounts, MediaLimits::default(), settings)
-}
-
-async fn put(request: &tg_chat::media::SignedUpload, bytes: Vec<u8>) -> reqwest::Response {
-    let mut upload = reqwest::Client::new().put(&request.url);
-
-    for (name, value) in &request.headers {
-        upload = upload.header(name, value);
-    }
-
-    upload.body(bytes).send().await.unwrap()
 }
 
 #[sqlx::test]

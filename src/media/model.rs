@@ -62,6 +62,28 @@ pub struct UploadStatus {
     pub error_code: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, sqlx::Type, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "media_variant_kind", rename_all = "snake_case")]
+pub enum MediaVariant {
+    Original,
+    Thumbnail,
+    Poster,
+    Playback,
+}
+
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct MediaFileView {
+    pub file_id: Uuid,
+    pub kind: UploadPurpose,
+    pub size_bytes: i64,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    pub duration_ms: Option<i64>,
+    pub waveform: Option<Vec<i16>>,
+    pub variants: Vec<MediaVariant>,
+}
+
 #[derive(sqlx::FromRow)]
 pub(super) struct UploadRecord {
     pub id: Uuid,
@@ -97,6 +119,18 @@ pub struct TransferPlan {
     pub confirmed_parts: Vec<i32>,
     pub single_put_complete: bool,
     pub requests: Vec<SignedUpload>,
+}
+
+impl MediaVariant {
+    /// Use a server-controlled path component for each persisted variant.
+    pub(super) fn object_name(self) -> &'static str {
+        match self {
+            Self::Original => "original",
+            Self::Thumbnail => "thumbnail",
+            Self::Poster => "poster",
+            Self::Playback => "playback",
+        }
+    }
 }
 
 impl ReserveUpload {

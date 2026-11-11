@@ -64,3 +64,6 @@ pub async fn mailed_token(queue: &MailQueue) -> String {
 
     token
 }
+
+#[allow(dead_code)]
+pub mod media;

@@ -17,6 +17,7 @@ const DEFAULT_ACTIVE_UPLOADS: i64 = 20;
 pub struct MediaLimits {
     pub account_bytes: i64,
     pub staging_bytes: i64,
+    pub original_bytes: i64,
     pub active_uploads_per_account: i64,
 }
 
@@ -35,6 +36,7 @@ impl Default for MediaLimits {
         Self {
             account_bytes: GIBIBYTE,
             staging_bytes: 512 * MEBIBYTE,
+            original_bytes: GIBIBYTE,
             active_uploads_per_account: DEFAULT_ACTIVE_UPLOADS,
         }
     }
@@ -96,25 +98,35 @@ fn validate_origin(value: &str) -> Result<(), crate::accounts::AccountError> {
     Ok(())
 }
 
+/// Parse a positive deployment byte ceiling without exposing configuration values.
+pub(super) fn byte_budget(name: &str, default: i64) -> Result<i64, crate::accounts::AccountError> {
+    use crate::accounts::AccountError;
+
+    let raw = match std::env::var(name) {
+        Ok(raw) => raw,
+        Err(std::env::VarError::NotPresent) => return Ok(default),
+        Err(_) => return Err(AccountError::Validation("invalid media byte budget")),
+    };
+    let bytes =
+        raw.parse::<i64>().map_err(|_| AccountError::Validation("invalid media byte budget"))?;
+    if bytes <= 0 {
+        return Err(AccountError::Validation("invalid media byte budget"));
+    }
+
+    Ok(bytes)
+}
+
 impl MediaLimits {
-    /// Load the deployment staging ceiling while keeping the agreed per-account limit.
+    /// Load independent storage ceilings while keeping the agreed per-account limit.
     pub(crate) fn from_env() -> Result<Self, crate::accounts::AccountError> {
-        use crate::accounts::AccountError;
+        let defaults = Self::default();
+        let staging_bytes = byte_budget("TG_CHAT_MEDIA_STAGING_BYTES", defaults.staging_bytes)?;
+        let original_bytes = byte_budget("TG_CHAT_MEDIA_ORIGINAL_BYTES", defaults.original_bytes)?;
 
-        let mut limits = Self::default();
-        let raw = match std::env::var("TG_CHAT_MEDIA_STAGING_BYTES") {
-            Ok(raw) => raw,
-            Err(std::env::VarError::NotPresent) => return Ok(limits),
-            Err(_) => return Err(AccountError::Validation("invalid media staging budget")),
-        };
-        let bytes = raw
-            .parse::<i64>()
-            .map_err(|_| AccountError::Validation("invalid media staging budget"))?;
-        if bytes <= 0 {
-            return Err(AccountError::Validation("invalid media staging budget"));
-        }
-        limits.staging_bytes = bytes;
-
-        Ok(limits)
+        Ok(Self {
+            staging_bytes,
+            original_bytes,
+            ..defaults
+        })
     }
 }
