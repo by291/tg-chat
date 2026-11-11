@@ -23,16 +23,19 @@ export interface ForwardRecipients {
   richText?: string;
 }
 
-interface ForwardMessageDialogProps {
-  state: ChatState;
+type RecipientDirectory =
+  { state: ChatState; conversations?: never } | { state?: never; conversations: Conversation[] };
+
+type ForwardMessageDialogProps = RecipientDirectory & {
   onClose: () => void;
   onChooseRecipient: (conversation: Conversation) => void;
   onSend: (options: ForwardRecipients) => void;
-}
+};
 
-/** Pick a destination draft, or explicitly send to several local recipients. */
+/** Pick one or several destinations from the active chat directory. */
 export function ForwardMessageDialog({
   state,
+  conversations: connectedConversations,
   onClose,
   onChooseRecipient,
   onSend,
@@ -43,9 +46,11 @@ export function ForwardMessageDialog({
   const [caption, setCaption] = useState<EmojiText>({ text: '' });
   const [editorError, setEditorError] = useState('');
   const editorRef = useRef<EmojiEditorControls>(null);
-  const [isSelecting, setIsSelecting] = useState(false);
+  // Connected sends require explicit confirmation without opening a destination draft.
+  const [isSelecting, setIsSelecting] = useState(state === undefined);
   const [recipientIds, setRecipientIds] = useState<string[]>([]);
-  const conversations = getConversationList(state).sort((first, second) => {
+  const directory = state ? getConversationList(state) : connectedConversations;
+  const conversations = [...directory].sort((first, second) => {
     return Number(second.kind === 'saved') - Number(first.kind === 'saved');
   });
   const saved = conversations.find((conversation) => conversation.kind === 'saved');
@@ -184,23 +189,25 @@ export function ForwardMessageDialog({
             </div>
             {editorError && <p role="alert">{editorError}</p>}
             <footer className={styles.footer} inert={!isSelecting} aria-hidden={!isSelecting}>
-              <div className={styles.caption}>
-                <EmojiPicker
-                  onSelectEmoji={(emoji) => editorRef.current?.insertEmoji(emoji)}
-                  onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
-                />
-                <EmojiEditor
-                  controlsRef={editorRef}
-                  label="Forward caption"
-                  placeholder="Add a caption..."
-                  value={caption}
-                  onChange={setCaption}
-                  onSubmit={sendToRecipients}
-                  onCancel={cancelForwarding}
-                  onPasteImage={() => setEditorError('Add photos in the conversation composer.')}
-                  onError={setEditorError}
-                />
-              </div>
+              {state && (
+                <div className={styles.caption}>
+                  <EmojiPicker
+                    onSelectEmoji={(emoji) => editorRef.current?.insertEmoji(emoji)}
+                    onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
+                  />
+                  <EmojiEditor
+                    controlsRef={editorRef}
+                    label="Forward caption"
+                    placeholder="Add a caption..."
+                    value={caption}
+                    onChange={setCaption}
+                    onSubmit={sendToRecipients}
+                    onCancel={cancelForwarding}
+                    onPasteImage={() => setEditorError('Add photos in the conversation composer.')}
+                    onError={setEditorError}
+                  />
+                </div>
+              )}
               <IconButton
                 label="Send forwarded messages"
                 className={styles.send}

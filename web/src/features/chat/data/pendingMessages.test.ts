@@ -103,6 +103,39 @@ it('reuses an ambiguous command identity after reload and removes only its ackno
   expect((await first.read()).commands).toEqual([]);
 });
 
+it('restores destination batches and acknowledges one without clearing its draft', async () => {
+  const key = crypto.randomUUID();
+  const first = new PendingMessages({ key });
+  await first.open();
+  const conversationId = crypto.randomUUID();
+  const draft = { id: 'preserved', value: { text: 'My draft' } };
+  await first.saveDraft({ destination: `conversation:${conversationId}`, draft });
+  const item = { source_message_id: crypto.randomUUID(), message_id: crypto.randomUUID() };
+  const firstDestination = {
+    operation_id: crypto.randomUUID(),
+    destination: { kind: 'conversation' as const, conversation_id: conversationId },
+    items: [item],
+  };
+  const secondDestination = {
+    operation_id: crypto.randomUUID(),
+    destination: { kind: 'saved' as const },
+    items: [{ ...item, message_id: crypto.randomUUID() }],
+  };
+  await first.rememberForwards([firstDestination, secondDestination]);
+
+  const reopened = new PendingMessages({ key });
+  const snapshot = await reopened.open();
+  expect(snapshot.forwards?.map(({ request }) => request)).toEqual([
+    firstDestination,
+    secondDestination,
+  ]);
+  await reopened.removeForward(firstDestination.operation_id);
+
+  const reconciled = await reopened.read();
+  expect(reconciled.forwards?.map(({ request }) => request)).toEqual([secondDestination]);
+  expect(reconciled.drafts[`conversation:${conversationId}`]).toEqual(draft);
+});
+
 it('scrubs edited and unavailable reply quotes from active and recovered drafts', async () => {
   const store = new PendingMessages({ key: crypto.randomUUID() });
   await store.open();

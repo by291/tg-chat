@@ -48,6 +48,20 @@ export function ConversationControls(props: {
         <button type="button" onClick={props.onPins}>
           Pinned messages
         </button>
+        {conversation.can_set_forwarding_policy && (
+          <button
+            type="button"
+            onClick={() =>
+              change({
+                kind: 'set_forwarding_policy',
+                is_enabled:
+                  !conversation.is_forwarding_enabled && !conversation.has_forwarding_consent,
+              })
+            }
+          >
+            {forwardingAction(conversation)}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => preference({ field: 'archive', is_archived: !conversation.is_archived })}
@@ -121,4 +135,17 @@ export function ConversationControls(props: {
       </div>
     </details>
   );
+}
+
+function forwardingAction(conversation: Conversation): string {
+  if (conversation.is_forwarding_enabled) {
+    return 'Disable forwarding';
+  }
+  if (conversation.has_forwarding_consent) {
+    return 'Withdraw forwarding approval';
+  }
+  if (conversation.kind === 'direct') {
+    return 'Approve forwarding';
+  }
+  return 'Enable forwarding';
 }

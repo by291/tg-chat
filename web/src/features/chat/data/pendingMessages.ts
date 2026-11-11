@@ -4,6 +4,7 @@ import type { EmojiText } from '@/domain/messages/customEmoji';
 import type { PendingMedia, UploadProgress } from '@/features/media/uploadTransfer';
 
 const MAX_PENDING_MESSAGES = 100;
+const MAX_PENDING_FORWARDS = 100;
 const MAX_DRAFTS = 201;
 const MAX_DRAFT_ALTERNATIVES = 5;
 const MAX_PENDING_MEDIA_BYTES = 512 * 1024 * 1024;
@@ -26,6 +27,17 @@ export interface PendingMessage {
 export interface PendingCommand {
   request: components['schemas']['MessageCommand'];
   createdAt: number;
+}
+
+export interface ForwardRequest {
+  operation_id: string;
+  destination: components['schemas']['Destination'];
+  items: { source_message_id: string; message_id: string }[];
+}
+
+export interface PendingForward {
+  request: ForwardRequest;
+  error?: string;
 }
 
 export type PendingCommunityOperation =
@@ -57,6 +69,7 @@ export interface PendingSnapshot {
   drafts: Record<string, Draft>;
   draftAlternatives?: Record<string, Draft[]>;
   commands?: PendingCommand[];
+  forwards?: PendingForward[];
   communities?: PendingCommunityOperation[];
   replyRevisions?: Record<string, number>;
 }
@@ -453,6 +466,41 @@ export class PendingMessages {
       snapshot.commands.push({ request, createdAt: Date.now() });
     });
     return remembered;
+  }
+
+  /** Persist every destination before any request can be sent or the picker can close. */
+  async rememberForwards(requests: ForwardRequest[]): Promise<void> {
+    await this.mutate((snapshot) => {
+      const current = snapshot.forwards ?? [];
+      const known = new Set(current.map(({ request }) => request.operation_id));
+      const added = requests.filter((request) => !known.has(request.operation_id));
+      if (current.length + added.length > MAX_PENDING_FORWARDS) {
+        throw new Error('There are too many pending forwards.');
+      }
+
+      snapshot.forwards = [...current, ...added.map((request) => ({ request }))];
+    });
+  }
+
+  /** Remove only the acknowledged or discarded forwarding destination. */
+  async removeForward(operationId: string): Promise<void> {
+    await this.mutate((snapshot) => {
+      const current = snapshot.forwards ?? [];
+      snapshot.forwards = current.filter(({ request }) => request.operation_id !== operationId);
+    });
+  }
+
+  /** Preserve a terminal forwarding error without retrying other destinations. */
+  async failForward(input: { operationId: string; error: string }): Promise<void> {
+    await this.mutate((snapshot) => {
+      const current = snapshot.forwards ?? [];
+      snapshot.forwards = current.map((entry) => {
+        if (entry.request.operation_id !== input.operationId) {
+          return entry;
+        }
+        return { ...entry, error: input.error };
+      });
+    });
   }
 
   /** Forget an acknowledged or explicitly abandoned action without implying server cancellation. */

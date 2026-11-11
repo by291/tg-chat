@@ -101,6 +101,7 @@ export const messageMediaSchema = z.discriminatedUnion('kind', [
     closesAt: z.number().optional(),
     shouldHideResults: z.boolean().optional(),
     isClosed: z.boolean().optional(),
+    isSnapshot: z.boolean().optional(),
     isQuiz: z.boolean().optional(),
     hasVisibleResults: z.boolean().optional(),
     canClose: z.boolean().optional(),

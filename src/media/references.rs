@@ -133,6 +133,43 @@ pub(crate) async fn attach_message(
     Ok(())
 }
 
+/// Lock immutable source files before any destination copy advances the sync feed.
+pub(crate) async fn lock_forward_files(
+    connection: &mut PgConnection,
+    source_ids: &[Uuid],
+) -> Result<(), AccountError> {
+    let query = sqlx::query_scalar::<_, bool>(
+        "SELECT file.deleting_at IS NOT NULL OR file.deleted_at IS NOT NULL FROM media_files file
+         WHERE EXISTS (SELECT 1 FROM media_message_references reference
+             WHERE reference.file_id = file.id AND reference.message_id = ANY($1))
+         ORDER BY file.id FOR UPDATE",
+    );
+    let states = query.bind(source_ids).fetch_all(connection).await?;
+    if states.contains(&true) {
+        return Err(AccountError::MediaFileUnavailable);
+    }
+
+    Ok(())
+}
+
+/// Copy ordered references from a locked and authorized source without consuming ready holds.
+pub(crate) async fn copy_forward_references(
+    connection: &mut PgConnection,
+    source_id: Uuid,
+    destination_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    // A separate occurrence lets the destination authorize downloads independently of the source.
+    let insert = sqlx::query(
+        "INSERT INTO media_message_references (message_id, occurrence_id, file_id, position)
+         SELECT $2, gen_random_uuid(), file_id, position FROM media_message_references
+         WHERE message_id = $1 ORDER BY position",
+    );
+    let insert = insert.bind(source_id).bind(destination_id);
+    insert.execute(connection).await?;
+
+    Ok(())
+}
+
 /// End the pending hold once a durable reference keeps the file alive.
 pub(crate) async fn consume_holds(
     connection: &mut PgConnection,

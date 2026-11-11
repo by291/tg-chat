@@ -38,7 +38,7 @@ pub async fn expire_one(pool: &PgPool) -> Result<bool, AccountError> {
     let message_id: Uuid = sqlx::query_scalar(
         "UPDATE messages SET deleted_at = now(), version = version + 1, is_pinned = false,
              content = '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb,
-             body = NULL, reply_quote = NULL
+             body = NULL, forwarded_from = NULL, reply_quote = NULL
          WHERE id = (SELECT id FROM messages WHERE conversation_id = $1
              AND deleted_at IS NULL AND expires_at <= now() ORDER BY sequence LIMIT 1)
          RETURNING id",

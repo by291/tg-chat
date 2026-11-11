@@ -98,6 +98,15 @@ pub enum CommandAction {
     ClosePoll {
         message_id: Uuid,
     },
+    SetForwardingPolicy {
+        is_enabled: bool,
+    },
+    BatchHide {
+        message_ids: Vec<Uuid>,
+    },
+    BatchDelete {
+        message_ids: Vec<Uuid>,
+    },
     SetChecklistTask {
         message_id: Uuid,
         task_id: Uuid,
@@ -347,7 +356,8 @@ async fn apply(
             sqlx::query(
                 "UPDATE messages SET deleted_at = now(), version = version + 1,
                  content = '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb,
-                 body = NULL, reply_quote = NULL, is_pinned = false WHERE id = $1",
+                 body = NULL, forwarded_from = NULL, reply_quote = NULL, is_pinned = false
+                 WHERE id = $1",
             )
             .bind(message.id)
             .execute(&mut *connection)
@@ -428,6 +438,46 @@ async fn apply(
     }
 
     Ok(())
+}
+
+async fn apply_batch(
+    connection: &mut PgConnection,
+    context: &CommandContext<'_>,
+) -> Result<Option<Vec<Uuid>>, AcceptanceError> {
+    let (ids, is_personal) = match &context.input.action {
+        CommandAction::BatchHide {
+            message_ids,
+        } => (message_ids, true),
+        CommandAction::BatchDelete {
+            message_ids,
+        } => (message_ids, false),
+        _ => return Ok(None),
+    };
+    super::forwarding::validate_message_ids(ids)?;
+
+    // Every item uses the normal visibility and mutation rules in this same transaction.
+    for message_id in ids {
+        let action = if is_personal {
+            CommandAction::HideMessage {
+                message_id: *message_id,
+            }
+        } else {
+            CommandAction::Delete {
+                message_id: *message_id,
+            }
+        };
+        let input = MessageCommand {
+            action,
+            ..context.input.clone()
+        };
+        let item = CommandContext {
+            input: &input,
+            ..*context
+        };
+        apply(connection, &item).await?;
+    }
+
+    Ok(Some(ids.clone()))
 }
 
 /// Invalidate older projections after changing the authoritative interaction state.
@@ -555,7 +605,13 @@ impl MessageService {
             .bind(input.operation_id)
             .fetch_one(&mut *transaction)
             .await?;
-            if is_send_identity {
+            let is_forward_identity = super::forwarding::operation_exists(
+                &mut transaction,
+                actor.user_id,
+                input.operation_id,
+            )
+            .await?;
+            if is_send_identity || is_forward_identity {
                 return Err(AccountError::MessageConflict.into());
             }
             let context = CommandContext {
@@ -563,7 +619,10 @@ impl MessageService {
                 input,
                 conversation: &conversation,
             };
-            message_id = if input.action.message_id().is_some() {
+            let batch_ids = apply_batch(&mut transaction, &context).await?;
+            message_id = if batch_ids.is_some() {
+                None
+            } else if input.action.message_id().is_some() {
                 apply(&mut transaction, &context).await?;
                 input.action.message_id()
             } else {
@@ -577,6 +636,7 @@ impl MessageService {
             let is_personal = matches!(
                 input.action,
                 CommandAction::HideMessage { .. }
+                    | CommandAction::BatchHide { .. }
                     | CommandAction::Draft { .. }
                     | CommandAction::Preferences { .. }
                     | CommandAction::Clear
@@ -587,15 +647,18 @@ impl MessageService {
             } else {
                 access::participants(&mut transaction, &conversation).await?
             };
-            changes::append(
-                &mut transaction,
-                ChangeGroup {
+            let changed: Vec<Option<Uuid>> = match batch_ids {
+                Some(ids) => ids.into_iter().map(Some).collect(),
+                None => vec![message_id],
+            };
+            for id in changed {
+                let group = ChangeGroup {
                     participants: &participants,
                     conversation_id: conversation.id,
-                    message_id,
-                },
-            )
-            .await?;
+                    message_id: id,
+                };
+                changes::append(&mut transaction, group).await?;
+            }
             let insert = sqlx::query(
                 "INSERT INTO command_receipts
                  (actor_id, operation_id, payload_hash, conversation_id, message_id)

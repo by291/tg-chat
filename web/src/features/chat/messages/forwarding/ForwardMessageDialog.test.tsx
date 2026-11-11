@@ -40,6 +40,34 @@ it('accepts one destination while the picker is closing', async () => {
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 });
 
+it('confirms a connected recipient without opening the destination draft', async () => {
+  const recipient = {
+    id: 'connected-recipient',
+    title: 'Connected Recipient',
+    subtitle: 'Group',
+    initials: 'CR',
+    color: 'blue',
+    preview: '',
+    time: '',
+  };
+  const choose = vi.fn();
+  const send = vi.fn();
+  render(
+    <ForwardMessageDialog
+      conversations={[recipient]}
+      onClose={vi.fn()}
+      onChooseRecipient={choose}
+      onSend={send}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /^Connected Recipient/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send forwarded messages' }));
+
+  await waitFor(() => expect(send).toHaveBeenCalledOnce());
+  expect(send.mock.calls[0][0].recipients).toEqual([recipient]);
+  expect(choose).not.toHaveBeenCalled();
+});
+
 it('cancels without choosing a recipient when closed from its header', async () => {
   const onClose = vi.fn();
   const onChooseRecipient = vi.fn();

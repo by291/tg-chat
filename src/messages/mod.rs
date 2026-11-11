@@ -3,6 +3,7 @@
 pub mod bodies;
 pub mod checklists;
 pub mod content;
+pub(crate) mod forwarding;
 mod markup;
 pub mod polls;
 
@@ -10,6 +11,7 @@ pub(crate) mod acceptance;
 mod model;
 pub(crate) mod service;
 
+pub use forwarding::{ForwardBatch, ForwardItem, ForwardReceipt};
 pub use model::{CanonicalMessage, Destination, SendMessage, SendReceipt};
 pub use service::MessageService;
 

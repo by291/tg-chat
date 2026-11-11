@@ -255,6 +255,11 @@ pub(crate) async fn apply(
         CommandAction::Expiry {
             ..
         } => return Ok(Some(change_expiry(connection, context).await?)),
+        CommandAction::SetForwardingPolicy {
+            ..
+        } => {
+            crate::messages::forwarding::set_policy(connection, context).await?;
+        }
         _ => return Err(AccountError::Validation("expected a conversation action").into()),
     }
 

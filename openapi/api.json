@@ -956,6 +956,26 @@
         }
       }
     },
+    "/api/v1/messages/forward": {
+      "post": {
+        "tags": [],
+        "operationId": "forward",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ForwardBatch" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ForwardReceipt" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/messages/{message_id}": {
       "get": {
         "tags": [],
@@ -1182,6 +1202,7 @@
           "created_at": { "type": "string", "format": "date-time" },
           "edited_at": { "type": ["string", "null"], "format": "date-time" },
           "expires_at": { "type": ["string", "null"], "format": "date-time" },
+          "forwarded_from": { "type": ["string", "null"] },
           "id": { "type": "string", "format": "uuid" },
           "interaction_version": { "type": "string" },
           "is_deleted": { "type": "boolean" },
@@ -1233,6 +1254,15 @@
           "title": { "type": "string" }
         },
         "additionalProperties": false
+      },
+      "ChecklistSnapshotTask": {
+        "type": "object",
+        "required": ["id", "text", "is_complete"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "is_complete": { "type": "boolean" },
+          "text": { "type": "string" }
+        }
       },
       "ChecklistTaskInput": {
         "type": "object",
@@ -1412,6 +1442,30 @@
             "properties": {
               "kind": { "type": "string", "enum": ["close_poll"] },
               "message_id": { "type": "string", "format": "uuid" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["is_enabled", "kind"],
+            "properties": {
+              "is_enabled": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["set_forwarding_policy"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_ids", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["batch_hide"] },
+              "message_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["message_ids", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["batch_delete"] },
+              "message_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } }
             }
           },
           {
@@ -1691,6 +1745,9 @@
           "role",
           "can_post",
           "can_manage",
+          "is_forwarding_enabled",
+          "can_set_forwarding_policy",
+          "has_forwarding_consent",
           "last_sequence",
           "version",
           "summary_text",
@@ -1711,13 +1768,16 @@
           "avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "can_manage": { "type": "boolean" },
           "can_post": { "type": "boolean" },
+          "can_set_forwarding_policy": { "type": "boolean" },
           "clear_through": { "type": "string" },
           "description": { "type": "string" },
           "draft": { "$ref": "#/components/schemas/DraftView" },
           "expiry_days": { "type": "integer", "format": "int32" },
           "generation": { "type": "string" },
+          "has_forwarding_consent": { "type": "boolean" },
           "id": { "type": "string", "format": "uuid" },
           "is_archived": { "type": "boolean" },
+          "is_forwarding_enabled": { "type": "boolean" },
           "is_hidden": { "type": "boolean" },
           "is_manually_unread": { "type": "boolean" },
           "is_public": { "type": "boolean" },
@@ -1846,6 +1906,40 @@
         "type": "object",
         "required": ["error"],
         "properties": { "error": { "$ref": "#/components/schemas/ErrorDetails" } }
+      },
+      "ForwardBatch": {
+        "type": "object",
+        "required": ["operation_id", "destination", "items"],
+        "properties": {
+          "destination": { "$ref": "#/components/schemas/Destination" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ForwardItem" } },
+          "operation_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "ForwardItem": {
+        "type": "object",
+        "required": ["source_message_id", "message_id"],
+        "properties": {
+          "message_id": { "type": "string", "format": "uuid" },
+          "source_message_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "ForwardReceipt": {
+        "type": "object",
+        "required": ["observation_cursor", "message_ids", "messages"],
+        "properties": {
+          "conversation": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ConversationView" }]
+          },
+          "message_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+          "messages": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CanonicalMessage" }
+          },
+          "observation_cursor": { "type": "string" }
+        }
       },
       "HealthResponse": {
         "type": "object",
@@ -2020,6 +2114,30 @@
                 "properties": { "kind": { "type": "string", "enum": ["checklist"] } }
               }
             ]
+          },
+          {
+            "type": "object",
+            "required": ["question", "options", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["poll_snapshot"] },
+              "options": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/PollOptionInput" }
+              },
+              "question": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["title", "tasks", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["checklist_snapshot"] },
+              "tasks": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ChecklistSnapshotTask" }
+              },
+              "title": { "type": "string" }
+            }
           },
           {
             "type": "object",

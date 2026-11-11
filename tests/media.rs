@@ -2,7 +2,7 @@
 mod support;
 
 use sqlx::PgPool;
-use support::media::{put, test_upload_service};
+use support::media::{prepared_document, put, test_upload_service};
 use tg_chat::{
     accounts::{AccountError, AccountService, AccountSettings},
     media::{MediaLimits, ReserveUpload, UploadPurpose, UploadReservations},
@@ -188,31 +188,6 @@ async fn transfer_adopts_multipart_after_create_succeeds_before_recording(pool: 
     let recovered = service.transfer(&actor, upload_id, vec![1, 2]).await.unwrap();
     assert_eq!(recovered.confirmed_parts, vec![1]);
     assert_eq!(recovered.requests[0].part_number, Some(2));
-}
-
-async fn prepared_document(pool: &PgPool, actor: &tg_chat::accounts::Actor) -> Uuid {
-    use sha2::{Digest, Sha256};
-    use tg_chat::media::{MediaWorker, MediaWorkerSettings};
-
-    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let uploads = test_upload_service(accounts);
-    let contents = b"a private document";
-    let mut request = document(contents.len() as i64);
-    request.sha256 = hex::encode(Sha256::digest(contents));
-    let upload_id = request.upload_id;
-    uploads.reserve(actor, request).await.unwrap();
-    let plan = uploads.transfer(actor, upload_id, Vec::new()).await.unwrap();
-    let stored = put(&plan.requests[0], contents.to_vec()).await;
-    assert!(stored.status().is_success());
-    uploads.complete(actor, upload_id).await.unwrap();
-    let worker = MediaWorker::new(
-        pool.clone(),
-        support::media::storage_settings(),
-        MediaWorkerSettings::default(),
-    );
-    assert!(worker.process_next().await.unwrap());
-
-    uploads.status(actor, upload_id).await.unwrap().file_id.unwrap()
 }
 
 #[sqlx::test]

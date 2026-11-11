@@ -54,6 +54,9 @@ export function PollMessage({
   } else if (!hasVoted && !isClosed && poll.canVote === false) {
     footerLabel = 'Voting unavailable';
   }
+  if (poll.isSnapshot) {
+    footerLabel = 'Forwarded poll';
+  }
   const percentages = getPollPercentages(poll);
   const typeLabel = isQuiz ? 'Quiz' : 'Poll';
   const pollLabel = poll.shouldShowVoters ? `Public ${typeLabel}` : `Anonymous ${typeLabel}`;

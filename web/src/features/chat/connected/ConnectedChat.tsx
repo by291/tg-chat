@@ -9,6 +9,7 @@ import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import type { PollMedia } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
+import type { Conversation as PickerConversation } from '@/domain/conversations/conversation';
 import type { MessageCommand, MessageMenuAction } from '../messages/commands';
 import type { ChecklistMedia } from '@/domain/messages/media';
 import { checklistInput } from '../data/checklistInput';
@@ -33,6 +34,7 @@ import { MessageComposer, type ComposedMessage } from '../composer/MessageCompos
 import { MessageTimeline } from '../history/MessageTimeline';
 import { ShareContactDialog } from '../composer/ShareContactDialog';
 import { ContactLinkContext } from '../messages/content/contact/ContactActions';
+import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
 import styles from './ConnectedChat.module.css';
 
 // prettier-ignore
@@ -44,7 +46,13 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'copy',
   'add-task',
   'edit-checklist',
+  'forward',
+  'select',
+  'forward-selected',
+  'delete-selected',
+  'clear-selection',
 ];
+const MAX_BATCH_MESSAGES = 20;
 // prettier-ignore
 const REACTIONS = [
   '👍',
@@ -77,6 +85,24 @@ function title(conversation: Conversation): string {
   return conversation.title || conversation.peer_name;
 }
 
+function pickerConversation(conversation: Conversation): PickerConversation {
+  const name = title(conversation);
+  const kind = conversation.kind === 'direct' ? 'private' : conversation.kind;
+  return {
+    id: conversation.id,
+    title: name,
+    subtitle: conversation.peer_username,
+    initials: name.slice(0, 2).toUpperCase(),
+    color: '#5288c1',
+    preview: conversation.summary_text,
+    time: '',
+    kind:
+      kind === 'private' || kind === 'group' || kind === 'channel' || kind === 'saved'
+        ? kind
+        : undefined,
+  };
+}
+
 function canEditPoll(message: CanonicalMessage | undefined): boolean {
   return message?.body?.kind === 'poll' && !message.is_deleted && message.body.can_edit;
 }
@@ -102,6 +128,8 @@ export function ConnectedChat({
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [isPinsOpen, setIsPinsOpen] = useState(false);
   const [contactDestination, setContactDestination] = useState<string>();
+  const [selectedIds, setSelectedIds] = useState<string[]>();
+  const [forwardIds, setForwardIds] = useState<string[]>();
   const [voterMessageId, setVoterMessageId] = useState<string>();
   const [checklistEditor, setChecklistEditor] = useState<{
     messageId: string;
@@ -134,12 +162,16 @@ export function ConnectedChat({
   const selection = snapshot.selection;
   const isCommunity = conversation?.kind === 'group' || conversation?.kind === 'channel';
   const canPost = conversation?.can_post ?? selection?.destination.kind !== 'conversation';
+  const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
   const allowedActions = CONNECTED_ACTIONS.filter((action) => {
     if (action === 'pin') {
       return conversation?.can_manage ?? false;
     }
     if (action === 'reply' || action === 'edit') {
       return canPost;
+    }
+    if (action === 'forward' || action === 'forward-selected') {
+      return canForward;
     }
     return true;
   });
@@ -188,6 +220,8 @@ export function ConnectedChat({
     setVoterMessageId(undefined);
     setPollEditor(undefined);
     setChecklistEditor(undefined);
+    setSelectedIds(undefined);
+    setForwardIds(undefined);
   }, [selectedKey, conversation?.generation]);
   useEffect(() => {
     if (!canPost) {
@@ -450,6 +484,21 @@ export function ConnectedChat({
       return;
     }
     switch (command.action) {
+      case 'select':
+        toggleSelection(canonical.id);
+        break;
+      case 'clear-selection':
+        setSelectedIds(undefined);
+        break;
+      case 'forward':
+        setForwardIds([canonical.id]);
+        break;
+      case 'forward-selected':
+        setForwardIds(selectedIds);
+        break;
+      case 'delete-selected':
+        confirmSelectedRemoval();
+        break;
       case 'reply':
         setEditing(undefined);
         void owner.setReply({ message_id: canonical.id }).catch(report);
@@ -490,6 +539,82 @@ export function ConnectedChat({
         });
         break;
       }
+    }
+  }
+
+  function toggleSelection(messageId: string) {
+    const current = selectedIds ?? [];
+    if (current.includes(messageId)) {
+      setSelectedIds(current.filter((id) => id !== messageId));
+      return;
+    }
+    if (current.length >= MAX_BATCH_MESSAGES) {
+      setError('You can select up to 20 messages.');
+      return;
+    }
+
+    setSelectedIds([...current, messageId]);
+  }
+
+  function confirmSelectedRemoval() {
+    if (!selectedIds?.length) {
+      return;
+    }
+    const ids = selectedIds;
+    const selected = snapshot.messages.filter((message) => ids.includes(message.id));
+    const mayDelete =
+      selected.length === ids.length &&
+      selected.every((message) => {
+        return message.author_id === user.id || (isCommunity && conversation.can_manage);
+      });
+    const choices: Confirmation['choices'] = [
+      { label: 'Hide for me', action: async () => removeSelected({ ids, kind: 'batch_hide' }) },
+    ];
+    if (mayDelete) {
+      choices.push({
+        label: 'Delete for everyone',
+        action: async () => removeSelected({ ids, kind: 'batch_delete' }),
+      });
+    }
+    setConfirmation({
+      title: 'Remove selected messages?',
+      description: 'Choose whose history should change. Deletion cannot be undone.',
+      choices,
+    });
+  }
+
+  async function removeSelected(input: { ids: string[]; kind: 'batch_hide' | 'batch_delete' }) {
+    await owner.command({ kind: input.kind, message_ids: input.ids });
+    setSelectedIds(undefined);
+  }
+
+  async function forwardTo(recipients: PickerConversation[]) {
+    if (!forwardIds?.length) {
+      return;
+    }
+    // The picker closes before its callback. A changed conversation must not submit stale picks.
+    const current = owner.getSnapshot().selection;
+    if (!current || destinationKey(current.destination) !== selectedKey) {
+      return;
+    }
+    const ids = new Set(forwardIds);
+    const ordered = snapshot.messages.filter((message) => ids.has(message.id));
+    if (ordered.length !== ids.size) {
+      setForwardIds(undefined);
+      setError('Some selected messages are no longer available.');
+      return;
+    }
+    const destinations = recipients.map((recipient) => ({
+      kind: 'conversation' as const,
+      conversation_id: recipient.id,
+    }));
+    try {
+      await owner.queueForwards({ destinations, messageIds: ordered.map((message) => message.id) });
+      setSelectedIds(undefined);
+    } catch (failure) {
+      report(failure);
+    } finally {
+      setForwardIds(undefined);
     }
   }
 
@@ -671,6 +796,26 @@ export function ConnectedChat({
               </p>
             </section>
           )}
+          {snapshot.pendingForwards.length > 0 && (
+            <section className={styles.pending} aria-label="Pending forwards">
+              <h2>Pending forwards</h2>
+              {snapshot.pendingForwards.map((entry) => (
+                <div className={styles.pendingItem} key={entry.request.operation_id}>
+                  <p>{entry.error ?? 'Waiting for server confirmation'}</p>
+                  {entry.error && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void owner.dismissForward(entry.request.operation_id).catch(report)
+                      }
+                    >
+                      Dismiss forward
+                    </button>
+                  )}
+                </div>
+              ))}
+            </section>
+          )}
         </aside>
         <section className={styles.chat} aria-label="Chat">
           <header className={styles.chatHeader}>
@@ -725,6 +870,30 @@ export function ConnectedChat({
           )}
           {selection ? (
             <>
+              {selectedIds && (
+                <div className={styles.historyControls} aria-label="Message selection">
+                  <button type="button" onClick={() => setSelectedIds(undefined)}>
+                    Cancel selection
+                  </button>
+                  <span>{selectedIds.length} selected</span>
+                  {canForward && (
+                    <button
+                      type="button"
+                      disabled={!selectedIds.length}
+                      onClick={() => setForwardIds(selectedIds)}
+                    >
+                      Forward selected messages
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={!selectedIds.length}
+                    onClick={confirmSelectedRemoval}
+                  >
+                    Delete selected messages
+                  </button>
+                </div>
+              )}
               <div className={styles.historyControls}>
                 {snapshot.hasOlder && (
                   <button
@@ -752,6 +921,7 @@ export function ConnectedChat({
                     }
                     shouldShowSender={conversation?.kind === 'group'}
                     allowedActions={allowedActions}
+                    selectedIds={selectedIds}
                     reactionChoices={REACTIONS}
                     navigation={snapshot.navigation}
                     onReachLatest={() => {
@@ -860,6 +1030,16 @@ export function ConnectedChat({
             session={session}
             onClose={() => setContactDestination(undefined)}
             onSubmit={queueContact}
+          />
+        )}
+        {forwardIds && (
+          <ForwardMessageDialog
+            conversations={snapshot.conversations
+              .filter((entry) => entry.can_post)
+              .map(pickerConversation)}
+            onClose={() => setForwardIds(undefined)}
+            onChooseRecipient={(recipient) => void forwardTo([recipient])}
+            onSend={({ recipients }) => void forwardTo(recipients)}
           />
         )}
         {pollEditor && canShowPollEditor && canPost && (

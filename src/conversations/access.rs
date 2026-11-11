@@ -73,55 +73,97 @@ pub(crate) async fn lock_conversation(
     actor: &Actor,
     destination: &Destination,
 ) -> Result<LockedConversation, AcceptanceError> {
-    let conversation_id = match destination {
-        Destination::Conversation {
-            conversation_id,
-        } => *conversation_id,
-        Destination::Saved => create_canonical(connection, actor.user_id, actor.user_id).await?,
-        Destination::Recipient {
-            user_id,
-        } => {
-            if *user_id == actor.user_id {
-                return Err(AccountError::Validation("use Saved for personal messages").into());
-            }
-            create_canonical(connection, actor.user_id, *user_id).await?
-        }
-    };
-    let query = sqlx::query_as::<_, LockedConversation>(
-        "SELECT * FROM conversations WHERE id = $1
-         AND deleted_at IS NULL AND NOT is_quarantined
-         AND ($2 = participant_low OR $2 = participant_high OR EXISTS (
-             SELECT 1 FROM conversation_members member WHERE member.conversation_id = conversations.id
-             AND member.user_id = $2 AND member.directory_active AND NOT member.is_banned))
-         FOR UPDATE",
-    )
-    .bind(conversation_id)
-    .bind(actor.user_id);
+    let conversation_id = resolve_destination(connection, actor, destination).await?;
+    let locked = lock_conversations(connection, actor, &[conversation_id]).await?;
 
-    query.fetch_optional(connection).await?.ok_or(AccountError::NotFound.into())
+    locked.into_iter().next().ok_or(AccountError::NotFound.into())
 }
 
-async fn create_canonical(
+/// Resolve the destination without locking an existing row ahead of the source conversations.
+pub(crate) async fn resolve_destination(
     connection: &mut PgConnection,
-    sender: Uuid,
-    recipient: Uuid,
-) -> Result<Uuid, sqlx::Error> {
-    let kind = if sender == recipient {
+    actor: &Actor,
+    destination: &Destination,
+) -> Result<Uuid, AcceptanceError> {
+    let recipient = match destination {
+        Destination::Conversation {
+            conversation_id,
+        } => return Ok(*conversation_id),
+        Destination::Saved => actor.user_id,
+        Destination::Recipient {
+            user_id,
+        } if *user_id != actor.user_id => *user_id,
+        Destination::Recipient {
+            ..
+        } => {
+            return Err(AccountError::Validation("use Saved for personal messages").into());
+        }
+    };
+    let kind = if recipient == actor.user_id {
         "saved"
     } else {
         "direct"
     };
+    let low = actor.user_id.min(recipient);
+    let high = actor.user_id.max(recipient);
     let insert = sqlx::query_scalar(
         "INSERT INTO conversations (id, kind, participant_low, participant_high)
          VALUES ($1, $2, $3, $4)
-         ON CONFLICT (kind, participant_low, participant_high)
-         DO UPDATE SET kind = EXCLUDED.kind RETURNING id",
-    )
-    .bind(Uuid::new_v4())
-    .bind(kind);
-    let insert = insert.bind(sender.min(recipient)).bind(sender.max(recipient));
+         ON CONFLICT (kind, participant_low, participant_high) DO NOTHING RETURNING id",
+    );
+    let insert = insert.bind(Uuid::new_v4()).bind(kind);
+    let insert = insert.bind(low).bind(high);
+    if let Some(id) = insert.fetch_optional(&mut *connection).await? {
+        return Ok(id);
+    }
 
-    insert.fetch_one(connection).await
+    let query = sqlx::query_scalar(
+        "SELECT id FROM conversations WHERE kind = $1 AND participant_low = $2
+         AND participant_high = $3",
+    );
+    let query = query.bind(kind).bind(low).bind(high);
+    Ok(query.fetch_one(connection).await?)
+}
+
+/// Lock accessible source and destination conversations in the same order on every forward.
+pub(crate) async fn lock_conversations(
+    connection: &mut PgConnection,
+    actor: &Actor,
+    conversation_ids: &[Uuid],
+) -> Result<Vec<LockedConversation>, sqlx::Error> {
+    let query = sqlx::query_as(
+        "SELECT * FROM conversations WHERE id = ANY($1)
+         AND deleted_at IS NULL AND NOT is_quarantined
+         AND ($2 = participant_low OR $2 = participant_high OR EXISTS (
+             SELECT 1 FROM conversation_members member WHERE member.conversation_id = conversations.id
+             AND member.user_id = $2 AND member.directory_active AND NOT member.is_banned))
+         ORDER BY id FOR UPDATE",
+    );
+    let query = query.bind(conversation_ids).bind(actor.user_id);
+    query.fetch_all(connection).await
+}
+
+/// Take the union of participant account locks before touching a cross-chat batch.
+pub(crate) async fn lock_multiple_participants(
+    connection: &mut PgConnection,
+    conversations: &[LockedConversation],
+) -> Result<(), AcceptanceError> {
+    let mut user_ids = Vec::new();
+    for conversation in conversations {
+        user_ids.extend(participants(connection, conversation).await?);
+    }
+    user_ids.sort_unstable();
+    user_ids.dedup();
+
+    let query = sqlx::query_scalar::<_, Uuid>(
+        "SELECT id FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE",
+    );
+    let locked = query.bind(&user_ids).fetch_all(connection).await?;
+    if locked.len() != user_ids.len() {
+        return Err(AccountError::ConversationUnavailable.into());
+    }
+
+    Ok(())
 }
 
 /// Serialize participant policy and capacity with contact, privacy, and suspension changes.
@@ -129,17 +171,7 @@ pub(crate) async fn lock_participants(
     connection: &mut PgConnection,
     conversation: &LockedConversation,
 ) -> Result<(), AcceptanceError> {
-    let participants = participants(connection, conversation).await?;
-    let locked: Vec<Uuid> =
-        sqlx::query_scalar("SELECT id FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE")
-            .bind(&participants)
-            .fetch_all(connection)
-            .await?;
-    if locked.len() != participants.len() {
-        return Err(AccountError::ConversationUnavailable.into());
-    }
-
-    Ok(())
+    lock_multiple_participants(connection, std::slice::from_ref(conversation)).await
 }
 
 /// Check recipient-owned policy before admitting new messages, including existing chats.

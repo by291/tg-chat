@@ -188,8 +188,31 @@ export function renderMessage(message: CanonicalMessage): Message {
   let media: Message['media'];
   if (body?.kind === 'poll') {
     media = renderPoll(body);
+  } else if (body?.kind === 'poll_snapshot') {
+    media = {
+      kind: 'poll',
+      question: body.question,
+      options: body.options.map((option) => ({ ...option, votes: 0 })),
+      canVote: false,
+      hasVisibleResults: false,
+      isSnapshot: true,
+    };
   } else if (body?.kind === 'checklist') {
     media = renderChecklist(body);
+  } else if (body?.kind === 'checklist_snapshot') {
+    media = {
+      kind: 'checklist',
+      title: body.title,
+      canOthersComplete: false,
+      canOthersAppend: false,
+      canComplete: false,
+      canAppend: false,
+      items: body.tasks.map((task) => ({
+        id: task.id,
+        text: task.text,
+        isCompleted: task.is_complete,
+      })),
+    };
   } else if (body?.kind === 'contact') {
     media = {
       kind: 'contact',
@@ -206,6 +229,7 @@ export function renderMessage(message: CanonicalMessage): Message {
     authorId: message.author_id,
     authorName: message.author_name,
     text: message.content.text,
+    forwardedFrom: message.forwarded_from ?? undefined,
     sticker: body?.kind === 'sticker' ? body.sticker_id : undefined,
     media,
     richText: message.content.rich_text ?? undefined,

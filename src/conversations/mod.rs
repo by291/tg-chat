@@ -42,6 +42,12 @@ pub(crate) const VIEW_SELECT: &str =
                 (member.posting_muted_until IS NULL OR member.posting_muted_until <= now())
                 AND (conversation.kind = 'group' OR member.role IN ('owner', 'admin')))) AS can_post,
             (conversation.kind IN ('direct', 'saved') OR member.role IN ('owner', 'admin')) AS can_manage,
+            conversation.forwarding_enabled AS is_forwarding_enabled,
+            (conversation.kind IN ('direct', 'saved') OR member.role = 'owner')
+                AS can_set_forwarding_policy,
+            (conversation.kind = 'direct' AND CASE
+                WHEN member.user_id = conversation.participant_low THEN conversation.forwarding_low_consent
+                ELSE conversation.forwarding_high_consent END) AS has_forwarding_consent,
             conversation.last_sequence::text, conversation.version::text,
             COALESCE(summary.text, '') AS summary_text, summary.expires_at AS summary_expires_at,
             conversation.updated_at,
@@ -104,6 +110,9 @@ pub struct ConversationView {
     pub can_post: bool,
     pub posting_muted_until: Option<DateTime<Utc>>,
     pub can_manage: bool,
+    pub is_forwarding_enabled: bool,
+    pub can_set_forwarding_policy: bool,
+    pub has_forwarding_consent: bool,
     pub last_sequence: String,
     pub version: String,
     pub summary_text: String,

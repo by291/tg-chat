@@ -17,6 +17,8 @@ pub(crate) const MESSAGE_SELECT: &str =
                  ELSE author.display_name END AS author_name, message.sequence::text,
             message.version::text, message.created_at, message.edited_at, message.expires_at,
             message.interaction_version::text, message.is_pinned, message.service_kind,
+            CASE WHEN message.deleted_at IS NOT NULL OR message.expires_at <= now()
+                THEN NULL ELSE message.forwarded_from END AS forwarded_from,
             message.reply_id, message.reply_quote,
             EXISTS (SELECT 1 FROM media_message_references reference
                     WHERE reference.message_id = message.id) AS has_attachments,
@@ -41,6 +43,12 @@ pub(crate) struct NewMessage<'a> {
     pub payload_hash: &'a [u8],
     pub conversation: &'a LockedConversation,
     pub body: Option<&'a StoredMessageBody>,
+    pub forward: Option<ForwardSource<'a>>,
+}
+
+pub(crate) struct ForwardSource<'a> {
+    pub message_id: Uuid,
+    pub attribution: &'a str,
 }
 
 #[derive(FromRow)]
@@ -116,9 +124,11 @@ pub(crate) async fn insert(
     let sequence: i64 = sequence.fetch_one(&mut *connection).await?;
 
     let body = message.body.map(sqlx::types::Json);
+    let attribution = message.forward.as_ref().map(|source| source.attribution);
     let insert = sqlx::query(
-        "INSERT INTO messages (id, conversation_id, author_id, sequence, content, body)
-         VALUES ($1, $2, $3, $4, $5, $6)",
+        "INSERT INTO messages
+         (id, conversation_id, author_id, sequence, content, body, forwarded_from)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
     )
     .bind(message.input.message_id)
     .bind(message.conversation.id);
@@ -126,7 +136,8 @@ pub(crate) async fn insert(
         .bind(message.actor.user_id)
         .bind(sequence)
         .bind(sqlx::types::Json(&message.input.content));
-    insert.bind(body).execute(&mut *connection).await?;
+    let insert = insert.bind(body).bind(attribution);
+    insert.execute(&mut *connection).await?;
     if let Some(super::bodies::MessageBodyInput::Poll(poll)) = &message.input.body {
         // Store quiz secrets before the accepted message becomes visible on the feed.
         let input = super::polls::NewPoll {
@@ -139,15 +150,22 @@ pub(crate) async fn insert(
     if let Some(super::bodies::MessageBodyInput::Checklist(checklist)) = &message.input.body {
         super::checklists::insert(connection, message.input.message_id, checklist).await?;
     }
-    references::attach_message(
-        connection,
-        MessageReferences {
+    // Only the internally authorized forward path can reference another uploader's files.
+    if let Some(source) = message.forward {
+        references::copy_forward_references(
+            connection,
+            source.message_id,
+            message.input.message_id,
+        )
+        .await?;
+    } else {
+        let reference = MessageReferences {
             owner_id: message.actor.user_id,
             message_id: message.input.message_id,
             attachments: &message.input.attachments,
-        },
-    )
-    .await?;
+        };
+        references::attach_message(connection, reference).await?;
+    }
     sqlx::query(
         "UPDATE conversation_members SET unread_count = unread_count + 1, is_hidden = false,
          is_archived = CASE WHEN keep_archived OR muted_until > now() THEN is_archived ELSE false END
@@ -239,6 +257,7 @@ pub(crate) async fn receipt(
     let is_visible: bool = visible.build_query_scalar().fetch_one(&mut *connection).await?;
     if !is_visible {
         message.is_deleted = true;
+        message.forwarded_from = None;
         message.content = super::content::MessageContent {
             schema_version: 1,
             text: String::new(),

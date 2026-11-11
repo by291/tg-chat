@@ -143,7 +143,13 @@ impl MessageService {
         let is_command_identity: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM command_receipts WHERE actor_id = $1 AND operation_id = $2)",
         ).bind(actor.user_id).bind(input.operation_id).fetch_one(&mut *transaction).await?;
-        if is_command_identity {
+        let is_forward_identity = super::forwarding::operation_exists(
+            &mut transaction,
+            actor.user_id,
+            input.operation_id,
+        )
+        .await?;
+        if is_command_identity || is_forward_identity {
             return Err(AccountError::MessageConflict.into());
         }
         access::authorize_send(&mut transaction, actor, &conversation).await?;
@@ -163,6 +169,7 @@ impl MessageService {
                 payload_hash,
                 conversation: &conversation,
                 body: body.as_ref(),
+                forward: None,
             },
         )
         .await?;

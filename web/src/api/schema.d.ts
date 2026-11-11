@@ -640,6 +640,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/messages/forward': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['forward'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/messages/{message_id}': {
     parameters: {
       query?: never;
@@ -786,6 +802,7 @@ export interface components {
       edited_at?: string | null;
       /** Format: date-time */
       expires_at?: string | null;
+      forwarded_from?: string | null;
       /** Format: uuid */
       id: string;
       interaction_version: string;
@@ -814,6 +831,12 @@ export interface components {
       can_others_complete?: boolean;
       tasks: components['schemas']['ChecklistTaskInput'][];
       title: string;
+    };
+    ChecklistSnapshotTask: {
+      /** Format: uuid */
+      id: string;
+      is_complete: boolean;
+      text: string;
     };
     ChecklistTaskInput: {
       /** Format: uuid */
@@ -933,6 +956,21 @@ export interface components {
           kind: 'close_poll';
           /** Format: uuid */
           message_id: string;
+        }
+      | {
+          is_enabled: boolean;
+          /** @enum {string} */
+          kind: 'set_forwarding_policy';
+        }
+      | {
+          /** @enum {string} */
+          kind: 'batch_hide';
+          message_ids: string[];
+        }
+      | {
+          /** @enum {string} */
+          kind: 'batch_delete';
+          message_ids: string[];
         }
       | {
           expected_task_version: string;
@@ -1121,15 +1159,18 @@ export interface components {
       avatar_file_id?: string | null;
       can_manage: boolean;
       can_post: boolean;
+      can_set_forwarding_policy: boolean;
       clear_through: string;
       description: string;
       draft: components['schemas']['DraftView'];
       /** Format: int32 */
       expiry_days: number;
       generation: string;
+      has_forwarding_consent: boolean;
       /** Format: uuid */
       id: string;
       is_archived: boolean;
+      is_forwarding_enabled: boolean;
       is_hidden: boolean;
       is_manually_unread: boolean;
       is_public: boolean;
@@ -1223,6 +1264,24 @@ export interface components {
     };
     ErrorResponse: {
       error: components['schemas']['ErrorDetails'];
+    };
+    ForwardBatch: {
+      destination: components['schemas']['Destination'];
+      items: components['schemas']['ForwardItem'][];
+      /** Format: uuid */
+      operation_id: string;
+    };
+    ForwardItem: {
+      /** Format: uuid */
+      message_id: string;
+      /** Format: uuid */
+      source_message_id: string;
+    };
+    ForwardReceipt: {
+      conversation?: null | components['schemas']['ConversationView'];
+      message_ids: string[];
+      messages: components['schemas']['CanonicalMessage'][];
+      observation_cursor: string;
     };
     HealthResponse: {
       service: components['schemas']['ServiceKind'];
@@ -1336,6 +1395,18 @@ export interface components {
           /** @enum {string} */
           kind: 'checklist';
         })
+      | {
+          /** @enum {string} */
+          kind: 'poll_snapshot';
+          options: components['schemas']['PollOptionInput'][];
+          question: string;
+        }
+      | {
+          /** @enum {string} */
+          kind: 'checklist_snapshot';
+          tasks: components['schemas']['ChecklistSnapshotTask'][];
+          title: string;
+        }
       | {
           /** @enum {string} */
           kind: 'sticker';
@@ -2692,6 +2763,29 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['SendReceipt'];
+        };
+      };
+    };
+  };
+  forward: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ForwardBatch'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ForwardReceipt'];
         };
       };
     };

@@ -57,6 +57,8 @@ pub struct CanonicalMessage {
     pub interaction_version: String,
     pub is_pinned: bool,
     pub service_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forwarded_from: Option<String>,
     #[serde(skip)]
     pub(crate) reply_id: Option<Uuid>,
     #[serde(skip)]

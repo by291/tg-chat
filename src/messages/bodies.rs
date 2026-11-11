@@ -60,6 +60,14 @@ pub enum MessageBodyInput {
 pub(crate) enum StoredMessageBody {
     Poll,
     Checklist,
+    PollSnapshot {
+        question: String,
+        options: Vec<polls::PollOptionInput>,
+    },
+    ChecklistSnapshot {
+        title: String,
+        tasks: Vec<super::forwarding::ChecklistSnapshotTask>,
+    },
     Sticker {
         sticker_id: String,
     },
@@ -77,6 +85,14 @@ pub(crate) enum StoredMessageBody {
 pub enum MessageBodyView {
     Poll(polls::PollView),
     Checklist(checklists::ChecklistView),
+    PollSnapshot {
+        question: String,
+        options: Vec<polls::PollOptionInput>,
+    },
+    ChecklistSnapshot {
+        title: String,
+        tasks: Vec<super::forwarding::ChecklistSnapshotTask>,
+    },
     Sticker {
         sticker_id: String,
     },
@@ -193,6 +209,20 @@ pub(crate) async fn project(
             };
             MessageBodyView::Checklist(checklists::view(connection, reader).await?)
         }
+        StoredMessageBody::PollSnapshot {
+            question,
+            options,
+        } => MessageBodyView::PollSnapshot {
+            question,
+            options,
+        },
+        StoredMessageBody::ChecklistSnapshot {
+            title,
+            tasks,
+        } => MessageBodyView::ChecklistSnapshot {
+            title,
+            tasks,
+        },
         StoredMessageBody::Sticker {
             sticker_id,
         } => MessageBodyView::Sticker {

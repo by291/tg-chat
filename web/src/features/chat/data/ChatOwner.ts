@@ -32,6 +32,8 @@ import {
   type Draft,
   type PendingMessage,
   type PendingCommand,
+  type PendingForward,
+  type ForwardRequest,
 } from './pendingMessages';
 
 const RETRY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
@@ -63,6 +65,7 @@ export interface ChatSnapshot {
   precedingMessage?: CanonicalMessage;
   pending: PendingMessage[];
   pendingCommands: PendingCommand[];
+  pendingForwards: PendingForward[];
   selection?: Selection;
   draft: Draft;
   draftConflict?: Draft;
@@ -86,6 +89,7 @@ function initialSnapshot(): ChatSnapshot {
     messages: [],
     pending: [],
     pendingCommands: [],
+    pendingForwards: [],
     draft: emptyDraft(),
     hasOlder: false,
     hasNewer: false,
@@ -137,6 +141,7 @@ export class ChatOwner {
   private isDisposed = false;
   private syncPromise?: Promise<void>;
   private sendPromise?: Promise<void>;
+  private forwardPromise?: Promise<void>;
   private mediaQueue?: ChatMediaQueue;
   private readonly mediaTransport: UploadTransport;
   private draftPromise?: Promise<void>;
@@ -215,6 +220,7 @@ export class ChatOwner {
     this.publish({
       conversations: cached.conversations,
       pendingCommands: persisted.commands ?? [],
+      pendingForwards: persisted.forwards ?? [],
       pending: persisted.pending.map((message) => ({
         ...message,
         status: message.status === 'sending' ? 'queued' : message.status,
@@ -223,6 +229,7 @@ export class ChatOwner {
       error: '',
     });
     this.kickMedia();
+    void this.flushForwards().catch((error) => this.report(error));
   }
 
   /** Poll serially while visible and catch up immediately after focus or network recovery. */
@@ -253,6 +260,7 @@ export class ChatOwner {
         await this.pruneMediaSources();
         await this.catchUp();
         await this.flush();
+        await this.flushForwards();
         await this.flushDraft();
         backoff = POLL_INTERVAL_MS;
       } catch (error) {
@@ -290,6 +298,83 @@ export class ChatOwner {
       window.removeEventListener('online', wake);
       document.removeEventListener('visibilitychange', wake);
     };
+  }
+
+  /** Save one independent forwarding operation per destination before issuing any requests. */
+  async queueForwards(input: { destinations: Destination[]; messageIds: string[] }): Promise<void> {
+    this.ensureCurrent();
+    const requests = input.destinations.map((destination): ForwardRequest => ({
+      operation_id: crypto.randomUUID(),
+      destination,
+      items: input.messageIds.map((source_message_id) => ({
+        source_message_id,
+        message_id: crypto.randomUUID(),
+      })),
+    }));
+    const store = this.requireStore();
+    await store.rememberForwards(requests);
+    const persisted = await store.read();
+    this.ensureCurrent();
+    this.publish({ pendingForwards: persisted.forwards ?? [] });
+    void this.flushForwards().catch((error) => this.report(error));
+  }
+
+  /** Dismiss one definitively failed forwarding destination from the local outbox. */
+  async dismissForward(operationId: string): Promise<void> {
+    const store = this.requireStore();
+    await store.removeForward(operationId);
+    const persisted = await store.read();
+    this.ensureCurrent();
+    this.publish({ pendingForwards: persisted.forwards ?? [] });
+  }
+
+  private flushForwards(): Promise<void> {
+    this.forwardPromise ??= this.sendForwards().finally(() => {
+      this.forwardPromise = undefined;
+    });
+    return this.forwardPromise;
+  }
+
+  private async sendForwards(): Promise<void> {
+    const store = this.requireStore();
+    const persisted = await store.read();
+    let didAccept = false;
+    for (const entry of persisted.forwards ?? []) {
+      if (!entry.error) {
+        const didSend = await this.sendForward(entry.request);
+        didAccept ||= didSend;
+      }
+    }
+    const current = await store.read();
+    this.ensureCurrent();
+    this.publish({ pendingForwards: current.forwards ?? [] });
+    if (didAccept) {
+      await this.catchUp();
+    }
+  }
+
+  private async sendForward(request: ForwardRequest): Promise<boolean> {
+    this.ensureCurrent();
+    const store = this.requireStore();
+    try {
+      const response = await this.session.client.POST('/api/v1/messages/forward', {
+        body: request,
+      });
+      requirePayload(response);
+      this.ensureCurrent();
+      await store.removeForward(request.operation_id);
+      return true;
+    } catch (error) {
+      this.ensureCurrent();
+      // A transport failure can occur after commit. Keep the original request for reconciliation.
+      if (error instanceof ApiError && !TRANSIENT_ERROR_CODES.has(error.code)) {
+        await store.failForward({
+          operationId: request.operation_id,
+          error: failureMessage(error),
+        });
+      }
+      return false;
+    }
   }
 
   /** Switch private history ownership before starting any remote page request. */
