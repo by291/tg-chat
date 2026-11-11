@@ -318,6 +318,8 @@ behavior without claiming throughput until M10's measurements.
 
 ## M6: Private media and recorded voice messages
 
+[Detailed M6 design](../specs/2026-11-11-m6-private-media-design.md)
+
 **Outcome:** Users send and view real photos, albums, documents, videos, and recorded voice
 messages; avatars use the same validated media lifecycle.
 
@@ -343,9 +345,10 @@ authorized downloads, media-processing jobs, recording/playback integration, and
       interrupted multipart uploads, quota races, unauthorized reference access, signed URL expiry,
       missing objects, and GC racing a new reference. Verify real browser recording/playback.
 
-**Exit gate:** Reload-safe finalized media sends do not depend on temporary Data URLs. Only
-validated immutable objects become attachable. An inaccessible or expired message cannot mint fresh
-download URLs, and media failure leaves text messaging usable.
+**Exit gate:** Reopening the same browser session restores an in-progress media send and resumes
+from confirmed multipart uploads. The pending bubble becomes one accepted message. Only validated
+immutable objects become attachable. An inaccessible or expired message cannot mint fresh download
+URLs, and media failure leaves text messaging usable.
 
 **Verification ownership:** `tests/media.rs`, `tests/media_jobs.rs`,
 `web/e2e/media-messaging.spec.ts`, and existing attachment/viewer tests. Real SeaweedFS/S3
