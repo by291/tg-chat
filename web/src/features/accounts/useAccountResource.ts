@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, isCancelled } from '../auth/SessionOwner';
 
 /** Discard page-owned results after unmount and expose explicit reload after committed writes. */
-export function useAccountResource<T>(load: () => Promise<T>) {
+export function useAccountResource<T>(load: () => Promise<T>, observedVersion?: string) {
   const [value, setValue] = useState<T>();
   const [resolvedLoader, setResolvedLoader] = useState(() => load);
   const [error, setError] = useState('');
@@ -13,7 +13,7 @@ export function useAccountResource<T>(load: () => Promise<T>) {
     let isCurrent = true;
     setIsLoading(true);
     setError('');
-    // Preserve mounted forms on a same-page reload; a new directory scope must start empty.
+    // Preserve forms on reload and sync refresh, but hide results when their scope changes.
     if (resolvedLoader !== load) {
       setValue(undefined);
       setResolvedLoader(() => load);
@@ -40,7 +40,7 @@ export function useAccountResource<T>(load: () => Promise<T>) {
     return () => {
       isCurrent = false;
     };
-  }, [load, revision]);
+  }, [load, observedVersion, revision]);
 
   return {
     value: resolvedLoader === load ? value : undefined,
