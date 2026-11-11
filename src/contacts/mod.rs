@@ -1,6 +1,6 @@
 //! Directional relationships and account-owned visibility preferences.
 
-mod directory;
+pub(crate) mod directory;
 pub(crate) mod http;
 mod relationships;
 

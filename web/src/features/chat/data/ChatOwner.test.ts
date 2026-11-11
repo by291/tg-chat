@@ -1627,3 +1627,27 @@ it('sends text while a restored media transfer is waiting', async () => {
   expect(owner.getSnapshot().pending.map((entry) => entry.request.message_id)).toEqual([mediaId]);
   owner.dispose();
 });
+
+it('durably queues a sticker without consuming the unrelated draft and reply', async () => {
+  let sent: components['schemas']['SendMessage'] | undefined;
+  const { owner } = fixture({
+    transport: async (request) => {
+      sent = await request.json();
+      return Response.json(receipt(sent!));
+    },
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+  await owner.setReply({ message_id: 'reply-target' });
+  await owner.setDraft({ text: 'Unrelated draft' });
+
+  await owner.queueBody({ kind: 'sticker', sticker_id: 'UtyaDuck-AgAD8gADVp29Cg' });
+  await owner.flush();
+
+  expect(sent?.body).toEqual({ kind: 'sticker', sticker_id: 'UtyaDuck-AgAD8gADVp29Cg' });
+  expect(sent?.reply).toBeUndefined();
+  expect(sent?.draft_version).toBeUndefined();
+  expect(owner.getSnapshot().draft.value.text).toBe('Unrelated draft');
+  expect(owner.getSnapshot().draft.reply?.message_id).toBe('reply-target');
+  owner.dispose();
+});

@@ -1002,6 +1002,28 @@
         }
       }
     },
+    "/api/v1/users/{user_id}": {
+      "get": {
+        "tags": [],
+        "operationId": "directory_profile",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PublicProfile" } }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "tags": [],
@@ -1118,6 +1140,9 @@
           },
           "author_id": { "type": "string", "format": "uuid" },
           "author_name": { "type": "string" },
+          "body": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/MessageBodyView" }]
+          },
           "content": { "$ref": "#/components/schemas/MessageContent" },
           "conversation_id": { "type": "string", "format": "uuid" },
           "created_at": { "type": "string", "format": "date-time" },
@@ -1757,6 +1782,50 @@
         }
       },
       "MediaVariant": { "type": "string", "enum": ["original", "thumbnail", "poster", "playback"] },
+      "MessageBodyInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["sticker_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["sticker"] },
+              "sticker_id": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["display_name", "kind"],
+            "properties": {
+              "account_id": { "type": ["string", "null"], "format": "uuid" },
+              "display_name": { "type": "string" },
+              "kind": { "type": "string", "enum": ["contact"] },
+              "phone": { "type": ["string", "null"] }
+            }
+          }
+        ]
+      },
+      "MessageBodyView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["sticker_id", "kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["sticker"] },
+              "sticker_id": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["display_name", "kind"],
+            "properties": {
+              "account_id": { "type": ["string", "null"], "format": "uuid" },
+              "display_name": { "type": "string" },
+              "kind": { "type": "string", "enum": ["contact"] },
+              "phone": { "type": ["string", "null"] }
+            }
+          }
+        ]
+      },
       "MessageCommand": {
         "type": "object",
         "required": ["operation_id", "conversation_id", "action"],
@@ -1965,6 +2034,9 @@
           "attachments": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/AttachmentInput" }
+          },
+          "body": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/MessageBodyInput" }]
           },
           "content": { "$ref": "#/components/schemas/MessageContent" },
           "destination": { "$ref": "#/components/schemas/Destination" },

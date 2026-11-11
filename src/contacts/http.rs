@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     routing::{get, patch},
 };
@@ -8,7 +8,7 @@ use serde::Deserialize;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
-use super::{DirectoryPage, DirectoryQuery, PrivacySettings, RelationshipChange};
+use super::{DirectoryPage, DirectoryQuery, PrivacySettings, PublicProfile, RelationshipChange};
 use crate::accounts::{
     PrivateProfile,
     extractors::{ActorContext, ApiFailure, SafeJson, SafeQuery},
@@ -28,6 +28,7 @@ struct RelationshipTarget {
     privacy,
     update_privacy,
     discover,
+    directory_profile,
     contacts,
     blocks,
     add_contact,
@@ -118,6 +119,26 @@ async fn discover(
         .map_err(|error| context.request.failure(error))?;
 
     Ok(Json(page))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/{user_id}",
+    params(("user_id" = Uuid, Path)),
+    responses((status = 200, body = PublicProfile))
+)]
+async fn directory_profile(
+    State(state): State<AccountHttpState>,
+    context: ActorContext,
+    Path(user_id): Path<Uuid>,
+) -> Result<Json<PublicProfile>, ApiFailure> {
+    let profile = state
+        .accounts
+        .directory_profile(&context.actor, user_id)
+        .await
+        .map_err(|error| context.request.failure(error))?;
+
+    Ok(Json(profile))
 }
 
 #[utoipa::path(
@@ -257,7 +278,8 @@ pub(crate) fn router() -> Router<AccountHttpState> {
     let routes = Router::new()
         .route("/account/profile", patch(update_profile))
         .route("/account/privacy", get(privacy).patch(update_privacy));
-    let routes = routes.route("/users", get(discover));
+    let routes =
+        routes.route("/users", get(discover)).route("/users/{user_id}", get(directory_profile));
     let routes = routes.route("/contacts", get(contacts).put(add_contact).delete(remove_contact));
 
     routes.route("/blocks", get(blocks).put(add_block).delete(remove_block))

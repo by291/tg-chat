@@ -1,0 +1,46 @@
+.dialog {
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+
+.form,
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.form {
+  margin-top: 16px;
+}
+
+.field input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-color);
+  background: var(--panel-color);
+  font: inherit;
+}
+
+.matches {
+  display: grid;
+  max-height: 160px;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.matches button {
+  width: 100%;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.linked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

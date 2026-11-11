@@ -287,7 +287,7 @@ async fn apply(
             sqlx::query(
                 "UPDATE messages SET deleted_at = now(), version = version + 1,
                  content = '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb,
-                 reply_quote = NULL, is_pinned = false WHERE id = $1",
+                 body = NULL, reply_quote = NULL, is_pinned = false WHERE id = $1",
             )
             .bind(message.id)
             .execute(&mut *connection)

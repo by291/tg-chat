@@ -21,6 +21,7 @@ async fn register(accounts: &AccountService, username: &str) -> Actor {
 
 fn message(destination: Destination) -> SendMessage {
     SendMessage {
+        body: None,
         reply: None,
         draft_version: None,
         attachments: Vec::new(),
@@ -265,4 +266,138 @@ async fn rejected_policy_or_failed_feed_rolls_back_the_entire_send(pool: PgPool)
     assert_eq!(effects, (0, 0, 0, 0, 0, 0));
     sqlx::query("DROP TRIGGER reject_test_feed ON personal_changes").execute(&pool).await.unwrap();
     service.send(alice, outgoing).await.unwrap();
+}
+
+fn typed_message(destination: Destination, body: serde_json::Value) -> SendMessage {
+    let mut request = serde_json::to_value(message(destination)).unwrap();
+    request["content"]["text"] = serde_json::json!("");
+    request["body"] = body;
+    serde_json::from_value(request).expect("the typed request should be accepted by the API model")
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn legacy_text_replay_keeps_its_identity_with_typed_bodies(pool: PgPool) {
+    use sha2::{Digest, Sha256};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let alice = register(&accounts, "alice").await;
+    let service = MessageService::new(accounts);
+    let request = message(Destination::Saved);
+    let legacy_payload = format!(
+        concat!(
+            r#"{{"operation_id":"{}","message_id":"{}","destination":{{"kind":"saved"}},"#,
+            r#""content":{{"schema_version":1,"text":"Hello there","rich_text":null,"#,
+            r#""custom_emoji":[]}}}}"#
+        ),
+        request.operation_id, request.message_id,
+    );
+    let legacy_hash = Sha256::digest(legacy_payload.as_bytes());
+    let original = service.send(alice.clone(), request.clone()).await.unwrap();
+    let update = sqlx::query("UPDATE message_identities SET payload_hash = $1 WHERE id = $2")
+        .bind(legacy_hash.as_slice())
+        .bind(original.message.id);
+    update.execute(&pool).await.unwrap();
+
+    let replay = service.send(alice, request).await.unwrap();
+    assert_eq!(replay.message.id, original.message.id);
+    assert_eq!(replay.message.created_at, original.message.created_at);
+    assert!(serde_json::to_value(replay.message).unwrap().get("body").is_none());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn sticker_and_contact_bodies_round_trip_through_history_and_sync(pool: PgPool) {
+    use serde_json::json;
+    use tg_chat::{messages::HistoryQuery, sync::SyncQuery};
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let alice = register(&accounts, "alice").await;
+    let bobby = register(&accounts, "bobby").await;
+    let private_fields = sqlx::query(
+        "UPDATE users SET phone = '+1 555 0199', verified_email = 'private@example.test'
+         WHERE id = $1",
+    )
+    .bind(bobby.user_id);
+    private_fields.execute(&pool).await.unwrap();
+    let service = MessageService::new(accounts);
+    let initial = service.bootstrap(bobby.clone()).await.unwrap();
+    let destination = Destination::Recipient {
+        user_id: bobby.user_id,
+    };
+    let sticker_body = json!({
+        "kind": "sticker",
+        "sticker_id": "UtyaDuck-AgAD8gADVp29Cg",
+    });
+    let contact_body = json!({
+        "kind": "contact",
+        "display_name": "Emergency contact",
+        "account_id": bobby.user_id,
+        "phone": "+1 555 0100",
+    });
+    let sticker_request = typed_message(destination.clone(), sticker_body.clone());
+    let contact_request = typed_message(destination, contact_body.clone());
+
+    let sticker = service.send(alice.clone(), sticker_request).await.unwrap();
+    assert_eq!(sticker.conversation.summary_text, "Sticker");
+    let contact = service.send(alice.clone(), contact_request.clone()).await.unwrap();
+    assert_eq!(contact.conversation.summary_text, "Contact: Emergency contact");
+    assert_eq!(serde_json::to_value(&sticker.message).unwrap()["body"], sticker_body);
+    assert_eq!(serde_json::to_value(&contact.message).unwrap()["body"], contact_body);
+    let mut changed = serde_json::to_value(contact_request).unwrap();
+    changed["body"]["phone"] = json!("+1 555 0101");
+    let changed = serde_json::from_value(changed).unwrap();
+    assert!(matches!(service.send(alice, changed).await, Err(AccountError::MessageConflict)));
+
+    let history = service
+        .history(
+            bobby.clone(),
+            HistoryQuery {
+                conversation_id: sticker.conversation.id,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(serde_json::to_value(&history.messages[0]).unwrap()["body"], sticker_body);
+    assert_eq!(serde_json::to_value(&history.messages[1]).unwrap()["body"], contact_body);
+
+    let sync = service
+        .sync(
+            bobby,
+            SyncQuery {
+                cursor: initial.cursor,
+                limit: None,
+            },
+        )
+        .await
+        .unwrap();
+    let changes: Vec<_> = sync.groups.iter().filter_map(|group| group.message.as_ref()).collect();
+    assert_eq!(serde_json::to_value(changes[0]).unwrap()["body"], sticker_body);
+    assert_eq!(serde_json::to_value(changes[1]).unwrap()["body"], contact_body);
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn unknown_stickers_and_inaccessible_contact_accounts_are_rejected(pool: PgPool) {
+    use serde_json::json;
+
+    let accounts = AccountService::new(pool.clone(), AccountSettings::default());
+    let alice = register(&accounts, "alice").await;
+    let bobby = register(&accounts, "bobby").await;
+    let suspend =
+        sqlx::query("UPDATE users SET is_suspended = true WHERE id = $1").bind(bobby.user_id);
+    suspend.execute(&pool).await.unwrap();
+    let service = MessageService::new(accounts);
+
+    let sticker = typed_message(
+        Destination::Saved,
+        json!({ "kind": "sticker", "sticker_id": "not-in-the-catalogue" }),
+    );
+    assert!(matches!(service.send(alice.clone(), sticker).await, Err(AccountError::Validation(_))));
+    let contact = typed_message(
+        Destination::Saved,
+        json!({ "kind": "contact", "display_name": "Bobby", "account_id": bobby.user_id }),
+    );
+    assert!(matches!(service.send(alice, contact).await, Err(AccountError::NotFound)));
 }

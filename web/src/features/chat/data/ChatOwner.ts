@@ -23,6 +23,7 @@ import {
   type CanonicalMessage,
   type Conversation,
   type Destination,
+  type MessageBodyInput,
 } from './messageModels';
 import {
   redactDraftReply,
@@ -452,7 +453,16 @@ export class ChatOwner {
     await this.queueMessage(input);
   }
 
-  private async queueMessage(input: { value: EmojiText; files?: MediaSelection[] }): Promise<void> {
+  /** Queue an independent body without consuming the text draft or its reply. */
+  async queueBody(body: MessageBodyInput): Promise<void> {
+    await this.queueMessage({ value: { text: '' }, body });
+  }
+
+  private async queueMessage(input: {
+    value: EmojiText;
+    files?: MediaSelection[];
+    body?: MessageBodyInput;
+  }): Promise<void> {
     this.ensureCurrent();
     const selection = this.snapshot.selection;
     if (!selection) {
@@ -461,35 +471,46 @@ export class ChatOwner {
     if (this.selectedConversation()?.can_post === false) {
       throw new Error('You do not have permission to post in this conversation.');
     }
+    const isIndependent = input.body !== undefined;
     const capturedDraft = this.snapshot.draft;
     const draftId = capturedDraft.id;
     const generation = this.viewGeneration;
-    if (capturedDraft.isReplyUnavailable) {
+    if (!isIndependent && capturedDraft.isReplyUnavailable) {
       throw new Error('Remove the unavailable reply context before sending.');
     }
     // Draft delivery can help conditional clearing, but must never gate durable send admission.
-    void this.flushDraft().catch((error) => this.report(error));
-    const content = canonicalMessageContent(input.value, { isCaption: Boolean(input.files) });
+    if (!isIndependent) {
+      void this.flushDraft().catch((error) => this.report(error));
+    }
+    const content = canonicalMessageContent(input.value, {
+      isCaption: isIndependent || Boolean(input.files),
+    });
+    const draft = isIndependent
+      ? undefined
+      : { destination: destinationKey(selection.destination), id: draftId };
     const pending: PendingMessage = {
       media: input.files?.map(pendingMedia),
       createdAt: Date.now(),
       title: selection.title,
       status: 'queued',
-      isPrepared: false,
+      // Independent bodies never participate in conditional server-side draft clearing.
+      isPrepared: isIndependent,
       request: {
         operation_id: crypto.randomUUID(),
         message_id: crypto.randomUUID(),
         destination: selection.destination,
         content,
-        reply: capturedDraft.reply,
+        reply: isIndependent ? undefined : capturedDraft.reply,
+        body: input.body,
       },
     };
     await this.requireStore().enqueue({
       message: pending,
-      draft: { destination: destinationKey(selection.destination), id: draftId },
+      draft,
     });
     this.ensureCurrent();
-    const canClearDraft = this.isCurrentView(generation) && this.snapshot.draft.id === draftId;
+    const canClearDraft =
+      !isIndependent && this.isCurrentView(generation) && this.snapshot.draft.id === draftId;
     this.publish({
       pending: [...this.snapshot.pending, pending],
       draft: canClearDraft

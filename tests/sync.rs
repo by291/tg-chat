@@ -22,6 +22,7 @@ async fn register(accounts: &AccountService, username: &str) -> Actor {
 
 fn outgoing(destination: Destination) -> SendMessage {
     SendMessage {
+        body: None,
         reply: None,
         draft_version: None,
         attachments: Vec::new(),

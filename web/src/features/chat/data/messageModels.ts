@@ -5,6 +5,7 @@ import type { PendingMessage } from './pendingMessages';
 export type CanonicalMessage = components['schemas']['CanonicalMessage'];
 export type Conversation = components['schemas']['ConversationView'];
 export type Destination = components['schemas']['Destination'];
+export type MessageBodyInput = components['schemas']['MessageBodyInput'];
 
 export const MAX_VISIBLE_MESSAGES = 200;
 
@@ -85,12 +86,23 @@ export function destinationKey(destination: Destination): string {
 
 /** Adapt accepted transport content to the existing renderer without demo state. */
 export function renderMessage(message: CanonicalMessage): Message {
+  const body = message.is_deleted ? undefined : message.body;
+  const contact = body?.kind === 'contact' ? body : undefined;
+
   return {
     id: message.id,
     chatId: message.conversation_id,
     authorId: message.author_id,
     authorName: message.author_name,
     text: message.content.text,
+    sticker: body?.kind === 'sticker' ? body.sticker_id : undefined,
+    media: contact && {
+      kind: 'contact',
+      name: contact.display_name,
+      userId: contact.account_id ?? undefined,
+      phone: contact.phone ?? '',
+      initials: '',
+    },
     richText: message.content.rich_text ?? undefined,
     customEmoji: message.content.custom_emoji.map((entity) => ({
       documentId: entity.document_id,
@@ -132,6 +144,7 @@ export function renderPending(options: {
     author_id: user.id,
     author_name: user.display_name,
     content: pending.request.content,
+    body: pending.request.body,
     created_at: new Date(pending.createdAt).toISOString(),
     sequence: '0',
     version: '0',

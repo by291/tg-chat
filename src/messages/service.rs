@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 use sqlx::{PgConnection, Postgres, Transaction};
 
-use super::{Destination, SendMessage, SendReceipt, acceptance, content};
+use super::{Destination, SendMessage, SendReceipt, acceptance, bodies, content};
 use crate::{
     accounts::{AccountError, AccountService, Actor, sessions::lock_actor},
     conversations::{self, ConversationView, access},
@@ -66,12 +66,20 @@ impl MessageService {
         actor: Actor,
         mut input: SendMessage,
     ) -> Result<SendReceipt, AccountError> {
+        if input.body.is_some() && !input.attachments.is_empty() {
+            return Err(AccountError::Validation("typed bodies cannot include media files"));
+        }
         references::validate_attachments(&input.attachments)?;
-        input.content = if input.attachments.is_empty() {
+        input.body = input.body.map(bodies::normalize).transpose()?;
+
+        let is_text_only = input.attachments.is_empty() && input.body.is_none();
+        input.content = if is_text_only {
             content::validate_content(input.content)?
         } else {
             content::validate_caption(input.content)?
         };
+
+        // Omitting an absent body preserves the exact fingerprint of pre-existing requests.
         let serialized = serde_json::to_vec(&input).map_err(|_| AccountError::Unavailable)?;
         let payload_hash = Sha256::digest(serialized).to_vec();
 
@@ -139,6 +147,13 @@ impl MessageService {
             return Err(AccountError::MessageConflict.into());
         }
         access::authorize_send(&mut transaction, actor, &conversation).await?;
+        // Check the directory only for new sends so a later suspension cannot break replay.
+        let body = if let Some(body) = &input.body {
+            Some(bodies::store(&mut transaction, actor.user_id, body).await?)
+        } else {
+            None
+        };
+
         access::admit_members(&mut transaction, &conversation).await?;
         acceptance::insert(
             &mut transaction,
@@ -147,6 +162,7 @@ impl MessageService {
                 input,
                 payload_hash,
                 conversation: &conversation,
+                body: body.as_ref(),
             },
         )
         .await?;

@@ -41,6 +41,11 @@ interface ContactActionsProviderProps {
   children: ReactNode;
 }
 
+/** Provide authorized account-link opening for connected contact cards. */
+export const ContactLinkContext = createContext<((accountId: string) => void) | undefined>(
+  undefined,
+);
+
 const ContactActionsContext = createContext<ContactActions | undefined>(undefined);
 
 /** Choose a stable avatar palette entry for a peer or a name-only contact. */

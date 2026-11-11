@@ -6,6 +6,7 @@ import {
   Image,
   Paperclip,
   TextCursorInput,
+  UserRound,
 } from 'lucide-react';
 import { useState } from 'react';
 import { IconButton } from '@/components/IconButton';
@@ -40,17 +41,24 @@ const ACTIONS = [
     label: 'Checklist',
     icon: CircleCheck,
   },
+  {
+    value: 'contact',
+    label: 'Contact',
+    icon: UserRound,
+  },
 ] satisfies {
   value: AttachmentAction;
   label: string;
   icon: typeof Image;
 }[];
 
-export type AttachmentAction = 'media' | 'document' | 'article' | 'poll' | 'checklist';
+export type AttachmentAction = 'media' | 'document' | 'article' | 'poll' | 'checklist' | 'contact';
 
 interface AttachmentMenuProps {
   isDisabled: boolean;
   isConnected?: boolean;
+  isMediaAvailable?: boolean;
+  canShareContact?: boolean;
   isExpanded: boolean;
   onSelect: (action: AttachmentAction) => void;
 }
@@ -59,13 +67,18 @@ interface AttachmentMenuProps {
 export function AttachmentMenu({
   isDisabled,
   isConnected = false,
+  isMediaAvailable = false,
+  canShareContact = false,
   isExpanded,
   onSelect,
 }: AttachmentMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const actions = ACTIONS.filter((action) => {
+    if (action.value === 'contact') {
+      return canShareContact;
+    }
     if (isConnected) {
-      return action.value === 'media' || action.value === 'document';
+      return isMediaAvailable && (action.value === 'media' || action.value === 'document');
     }
     return !isExpanded || action.value !== 'article';
   });

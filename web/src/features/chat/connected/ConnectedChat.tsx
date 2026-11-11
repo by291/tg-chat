@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
-import { isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
+import { isCancelled, requirePayload, type SessionOwner } from '@/features/auth/SessionOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { Message } from '@/domain/messages/message';
@@ -17,12 +17,15 @@ import {
   compareCounter,
   destinationKey,
   type CanonicalMessage,
+  type MessageBodyInput,
   renderMessage,
   renderPending,
   type Conversation,
 } from '../data/messageModels';
 import { MessageComposer, type ComposedMessage } from '../composer/MessageComposer';
 import { MessageTimeline } from '../history/MessageTimeline';
+import { ShareContactDialog } from '../composer/ShareContactDialog';
+import { ContactLinkContext } from '../messages/content/contact/ContactActions';
 import styles from './ConnectedChat.module.css';
 
 // prettier-ignore
@@ -85,6 +88,7 @@ export function ConnectedChat({
   const [editVersion, setEditVersion] = useState('');
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [isPinsOpen, setIsPinsOpen] = useState(false);
+  const [contactDestination, setContactDestination] = useState<string>();
   // Keep the editor's captured object stable while canonical updates arrive underneath it.
   const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
@@ -141,6 +145,7 @@ export function ConnectedChat({
     setEditing(undefined);
     setIsPinsOpen(false);
     setConfirmation(undefined);
+    setContactDestination(undefined);
   }, [selectedKey]);
   useEffect(() => {
     if (!canPost) {
@@ -200,6 +205,8 @@ export function ConnectedChat({
           }),
         });
         setEditing(undefined);
+      } else if (message.sticker) {
+        await owner.queueBody({ kind: 'sticker', sticker_id: message.sticker });
       } else if (message.files?.length) {
         await owner.enqueueMedia({ value: message, files: message.files });
       } else {
@@ -212,6 +219,36 @@ export function ConnectedChat({
     } finally {
       setIsPersisting(false);
     }
+  }
+
+  async function queueContact(body: MessageBodyInput): Promise<boolean> {
+    try {
+      await owner.queueBody(body);
+      return true;
+    } catch (failure) {
+      report(failure);
+      return false;
+    }
+  }
+
+  async function openContactLink(accountId: string) {
+    if (!session) {
+      return;
+    }
+
+    const response = await session.client.GET('/api/v1/users/{user_id}', {
+      params: { path: { user_id: accountId } },
+    });
+    const profile = requirePayload(response);
+    if (profile.id === user.id) {
+      await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    } else {
+      await owner.select({
+        destination: { kind: 'recipient', user_id: profile.id },
+        title: profile.display_name,
+      });
+    }
+    setIsDirectoryVisible(false);
   }
 
   function messageCommand(command: MessageCommand) {
@@ -509,34 +546,40 @@ export function ConnectedChat({
                 {snapshot.hasNewer && <span>Viewing older history</span>}
               </div>
               <ConnectedMediaContext.Provider value={mediaActions}>
-                <MessageTimeline
-                  key={selectedKey}
-                  messages={messages}
-                  precedingMessage={
-                    snapshot.precedingMessage ? renderMessage(snapshot.precedingMessage) : undefined
-                  }
-                  shouldShowSender={conversation?.kind === 'group'}
-                  allowedActions={allowedActions}
-                  reactionChoices={REACTIONS}
-                  navigation={snapshot.navigation}
-                  onReachLatest={() => {
-                    const reached = snapshot.messages.at(-1);
-                    if (reached && !isDirectoryVisible && !editing) {
-                      void owner.markReached(reached.id).catch(report);
+                <ContactLinkContext.Provider
+                  value={session ? (id) => void openContactLink(id).catch(report) : undefined}
+                >
+                  <MessageTimeline
+                    key={selectedKey}
+                    messages={messages}
+                    precedingMessage={
+                      snapshot.precedingMessage
+                        ? renderMessage(snapshot.precedingMessage)
+                        : undefined
                     }
-                  }}
-                  remoteHistory={{
-                    hasOlder: snapshot.hasOlder,
-                    isLoading: snapshot.isLoading,
-                    loadOlder: () => void owner.loadHistory('older'),
-                  }}
-                  searchQuery=""
-                  onCommand={messageCommand}
-                  onReact={react}
-                  onInteract={() => undefined}
-                  onOpenMedia={() => undefined}
-                  onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-                />
+                    shouldShowSender={conversation?.kind === 'group'}
+                    allowedActions={allowedActions}
+                    reactionChoices={REACTIONS}
+                    navigation={snapshot.navigation}
+                    onReachLatest={() => {
+                      const reached = snapshot.messages.at(-1);
+                      if (reached && !isDirectoryVisible && !editing) {
+                        void owner.markReached(reached.id).catch(report);
+                      }
+                    }}
+                    remoteHistory={{
+                      hasOlder: snapshot.hasOlder,
+                      isLoading: snapshot.isLoading,
+                      loadOlder: () => void owner.loadHistory('older'),
+                    }}
+                    searchQuery=""
+                    onCommand={messageCommand}
+                    onReact={react}
+                    onInteract={() => undefined}
+                    onOpenMedia={() => undefined}
+                    onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+                  />
+                </ContactLinkContext.Provider>
               </ConnectedMediaContext.Provider>
               <footer className={styles.composer}>
                 {snapshot.draftConflict && (
@@ -589,6 +632,8 @@ export function ConnectedChat({
                   <MessageComposer
                     key={selectedKey}
                     isTextOnly
+                    canSendSticker
+                    onShareContact={session ? () => setContactDestination(selectedKey) : undefined}
                     isMediaAvailable={isMediaAvailable}
                     onMediaSubmit={submit}
                     editingMessage={editingMessage}
@@ -613,6 +658,14 @@ export function ConnectedChat({
             <div className={styles.empty}>Choose a conversation or find someone to message.</div>
           )}
         </section>
+        {session && contactDestination === selectedKey && (
+          <ShareContactDialog
+            key={contactDestination}
+            session={session}
+            onClose={() => setContactDestination(undefined)}
+            onSubmit={queueContact}
+          />
+        )}
         <ActionConfirmation
           confirmation={confirmation}
           isBusy={isPersisting}

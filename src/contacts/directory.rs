@@ -1,4 +1,5 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use sqlx::PgConnection;
 use uuid::Uuid;
 
 use super::{DirectoryPage, DirectoryQuery, PublicProfile};
@@ -54,7 +55,42 @@ fn validate_window(query: DirectoryQuery) -> Result<PageWindow, AccountError> {
     })
 }
 
+/// Resolve only the public fields of an active account permitted to interact with the reader.
+pub(crate) async fn visible_profile(
+    connection: &mut PgConnection,
+    reader_id: Uuid,
+    target_id: Uuid,
+) -> Result<Option<PublicProfile>, sqlx::Error> {
+    let query = sqlx::query_as(
+        "SELECT id, username, display_name, biography, avatar_file_id
+         FROM users WHERE id = $2 AND NOT is_suspended AND NOT EXISTS (
+            SELECT 1 FROM blocks
+            WHERE (owner_id = $1 AND target_id = $2) OR (owner_id = $2 AND target_id = $1)
+         )",
+    )
+    .bind(reader_id)
+    .bind(target_id);
+    query.fetch_optional(connection).await
+}
+
 impl AccountService {
+    /// Open a directory entry by identity, applying current account and relationship visibility.
+    pub async fn directory_profile(
+        &self,
+        actor: &Actor,
+        target_id: Uuid,
+    ) -> Result<PublicProfile, AccountError> {
+        let mut transaction = self.pool.begin().await?;
+        lock_actor(&mut transaction, actor, &self.settings).await?;
+
+        let profile = visible_profile(&mut transaction, actor.user_id, target_id)
+            .await?
+            .ok_or(AccountError::NotFound)?;
+        transaction.commit().await?;
+
+        Ok(profile)
+    }
+
     /// Search active users by public username or display name without exposing private fields.
     pub async fn discover(
         &self,

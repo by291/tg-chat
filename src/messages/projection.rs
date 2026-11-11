@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
 
-use super::{CanonicalMessage, ReactionView, ReplyView};
+use super::{CanonicalMessage, ReactionView, ReplyView, bodies};
 use crate::{accounts::AccountError, media::references};
 
 #[derive(sqlx::FromRow)]
@@ -58,10 +58,13 @@ pub(crate) async fn personalize(
 ) -> Result<(), AccountError> {
     if message.is_deleted {
         message.reply = None;
+        message.body = None;
+        message.stored_body = None;
         message.attachments.clear();
         message.is_pinned = false;
         return Ok(());
     }
+    message.body = message.stored_body.take().map(bodies::project);
     if message.has_attachments {
         message.attachments = references::attachment_views(connection, message.id).await?;
     }

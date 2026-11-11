@@ -117,3 +117,28 @@ it('renders unavailable replies without exposing their former quote and keeps ag
   expect(rendered.isPinned).toBe(true);
   expect(rendered.isEdited).toBe(true);
 });
+
+it('renders sticker assets and only the fields explicitly shared on a contact card', () => {
+  const sticker = {
+    ...message(1),
+    body: { kind: 'sticker' as const, sticker_id: 'UtyaDuck-AgAD8gADVp29Cg' },
+  };
+  const contact = {
+    ...message(2),
+    body: {
+      kind: 'contact' as const,
+      display_name: 'Emergency contact',
+      account_id: 'account',
+      phone: '+1 555 0100',
+    },
+  };
+
+  expect(renderMessage(sticker).sticker).toBe('UtyaDuck-AgAD8gADVp29Cg');
+  expect(renderMessage(contact).media).toEqual({
+    kind: 'contact',
+    name: 'Emergency contact',
+    userId: 'account',
+    phone: '+1 555 0100',
+    initials: '',
+  });
+});

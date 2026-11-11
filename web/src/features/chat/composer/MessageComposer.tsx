@@ -40,6 +40,7 @@ export interface ComposedMessage extends EmojiText {
 interface MessageComposerProps {
   draft: string;
   isTextOnly?: boolean;
+  canSendSticker?: boolean;
   isMediaAvailable?: boolean;
   isDisabled?: boolean;
   draftCustomEmoji?: CustomEmojiEntity[];
@@ -50,6 +51,7 @@ interface MessageComposerProps {
   onDraftChange: (value: EmojiText) => void;
   onSubmit: (message: ComposedMessage) => void;
   onMediaSubmit?: (message: ComposedMessage) => Promise<boolean>;
+  onShareContact?: () => void;
   onCancelContext: () => void;
   onJumpToMessage: (messageId: string) => void;
   onNotify: (message: string) => void;
@@ -59,6 +61,7 @@ interface MessageComposerProps {
 export function MessageComposer({
   draft,
   isTextOnly = false,
+  canSendSticker = false,
   isMediaAvailable = false,
   isDisabled = false,
   draftCustomEmoji,
@@ -69,6 +72,7 @@ export function MessageComposer({
   onDraftChange,
   onSubmit,
   onMediaSubmit,
+  onShareContact,
   onCancelContext,
   onJumpToMessage,
   onNotify,
@@ -235,6 +239,10 @@ export function MessageComposer({
   }
 
   function selectAttachment(action: AttachmentAction) {
+    if (action === 'contact') {
+      onShareContact?.();
+      return;
+    }
     if (isMediaAvailable && (action === 'media' || action === 'document')) {
       const input = connectedInput.current;
       if (input) {
@@ -258,6 +266,8 @@ export function MessageComposer({
 
     attachments.selectFile(action);
   }
+
+  const canSelectSticker = !editingMessage && !isDisabled && (!isTextOnly || canSendSticker);
 
   return (
     <div
@@ -321,10 +331,12 @@ export function MessageComposer({
       )}
       {isMediaAvailable && recorder.error && <p role="alert">{recorder.error}</p>}
       <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
-        {(!isTextOnly || isMediaAvailable) && (
+        {(!isTextOnly || isMediaAvailable || onShareContact) && (
           <>
             <AttachmentMenu
-              isConnected={isMediaAvailable}
+              isConnected={isTextOnly}
+              isMediaAvailable={isMediaAvailable}
+              canShareContact={Boolean(onShareContact)}
               isDisabled={Boolean(editingMessage) || isLoadingAttachment || isDisabled}
               isExpanded={isExpanded}
               onSelect={selectAttachment}
@@ -386,7 +398,7 @@ export function MessageComposer({
           onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
           onDeleteCharacter={() => editorRef.current?.deleteCharacter()}
           onSelectSticker={
-            editingMessage || isTextOnly ? undefined : (sticker) => onSubmit({ text: '', sticker })
+            canSelectSticker ? (sticker) => onSubmit({ text: '', sticker }) : undefined
           }
         />
         <ComposerSendButton

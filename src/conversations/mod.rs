@@ -67,7 +67,8 @@ pub(crate) const VIEW_SELECT: &str =
      LEFT JOIN users peer ON peer.id = CASE WHEN conversation.participant_low = member.user_id
          THEN conversation.participant_high ELSE conversation.participant_low END
      LEFT JOIN LATERAL (
-         SELECT CASE WHEN btrim(message.content->>'text') <> '' THEN message.content->>'text'
+         SELECT CASE WHEN message.body IS NOT NULL THEN message_body_preview(message.body)
+                     WHEN btrim(message.content->>'text') <> '' THEN message.content->>'text'
                      WHEN EXISTS (SELECT 1 FROM media_message_references reference
                                   WHERE reference.message_id = message.id) THEN 'Media message'
                      ELSE '' END AS text,

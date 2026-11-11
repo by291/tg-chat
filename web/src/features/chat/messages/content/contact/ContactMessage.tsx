@@ -10,7 +10,7 @@ import {
   StickyNote,
   UserRound,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { copyTextWithToast } from '@/components/copyTextWithToast';
 import { Ripple } from '@/components/Ripple';
@@ -18,7 +18,7 @@ import type { ContactDetail, ContactMedia } from '@/domain/messages/media';
 import { CURRENT_USER_ID } from '@/domain/identity';
 import overlays from '@/components/overlays/overlays.module.css';
 import { AddContactDialog } from './AddContactDialog';
-import { getContactColor, useContactActions } from './ContactActions';
+import { ContactLinkContext, getContactColor, useContactActions } from './ContactActions';
 import styles from './ContactMessage.module.css';
 
 const MAX_PREVIEW_LINES = 5;
@@ -135,9 +135,12 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const actions = useContactActions();
   const conversation = media.userId ? actions?.getConversation(media.userId) : undefined;
-  const canMessage = Boolean(media.userId && actions);
+  const openAccountLink = useContext(ContactLinkContext);
+  const canMessage = Boolean(media.userId && (actions || openAccountLink));
   const isSavedContact = Boolean(conversation && conversation.isContact !== false);
-  const canAdd = canMessage && media.userId !== CURRENT_USER_ID && !isSavedContact;
+  const canAdd = Boolean(
+    actions && canMessage && media.userId !== CURRENT_USER_ID && !isSavedContact,
+  );
   const avatarColor = conversation?.color || getContactColor(media.userId || media.name);
   const { details, displayName, lines } = getContactPreview({
     ...media,
@@ -155,6 +158,14 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
     actionLabel = `Contact details for ${displayName}`;
   }
 
+  function openLinkedConversation() {
+    if (media.userId && openAccountLink) {
+      openAccountLink(media.userId);
+      return;
+    }
+    actions?.openConversation(media);
+  }
+
   function activateContact() {
     // Details take precedence over copying, matching the shared vCard's primary action.
     if (hasDetails) {
@@ -162,7 +173,7 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
       return;
     }
     if (canMessage) {
-      actions?.openConversation(media);
+      openLinkedConversation();
       return;
     }
     if (canCopyPhone) {
@@ -195,11 +206,7 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
         </MainElement>
         {canMessage && (
           <div className={`${styles.footer} ${styles.splitFooter}`}>
-            <button
-              type="button"
-              className={styles.footerButton}
-              onClick={() => actions?.openConversation(media)}
-            >
+            <button type="button" className={styles.footerButton} onClick={openLinkedConversation}>
               Message
               <Ripple />
             </button>

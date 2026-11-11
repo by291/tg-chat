@@ -4,7 +4,10 @@ use sqlx::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::content::MessageContent;
+use super::{
+    bodies::{MessageBodyInput, MessageBodyView, StoredMessageBody},
+    content::MessageContent,
+};
 use crate::{
     conversations::ConversationView,
     media::{AttachmentInput, AttachmentView},
@@ -35,6 +38,8 @@ pub struct SendMessage {
     pub reply: Option<ReplyInput>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draft_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<MessageBodyInput>,
 }
 
 #[derive(Clone, FromRow, Serialize, ToSchema)]
@@ -67,6 +72,12 @@ pub struct CanonicalMessage {
     pub attachments: Vec<AttachmentView>,
     #[sqlx(json)]
     pub content: MessageContent,
+    #[sqlx(json(nullable))]
+    #[serde(skip)]
+    pub(crate) stored_body: Option<StoredMessageBody>,
+    #[sqlx(skip)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<MessageBodyView>,
 }
 
 #[derive(Serialize, ToSchema)]

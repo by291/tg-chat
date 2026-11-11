@@ -11,6 +11,7 @@ COPY migrations ./migrations
 COPY tests ./tests
 COPY contracts ./contracts
 COPY web/src/features/emoji/publicEmojiPacks.json ./web/src/features/emoji/publicEmojiPacks.json
+COPY web/src/features/stickers/publicStickerPacks.json ./web/src/features/stickers/
 RUN cargo build --locked --release --bins
 
 FROM build AS verification

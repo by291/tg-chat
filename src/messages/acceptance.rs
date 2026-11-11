@@ -1,7 +1,9 @@
 use sqlx::{FromRow, PgConnection};
 use uuid::Uuid;
 
-use super::{CanonicalMessage, SendMessage, SendReceipt, service::AcceptanceError};
+use super::{
+    CanonicalMessage, SendMessage, SendReceipt, bodies::StoredMessageBody, service::AcceptanceError,
+};
 use crate::{
     accounts::{AccountError, Actor},
     conversations::{self, access::LockedConversation},
@@ -21,7 +23,9 @@ pub(crate) const MESSAGE_SELECT: &str =
             (message.deleted_at IS NOT NULL OR message.expires_at <= now()) IS TRUE AS is_deleted,
             CASE WHEN message.deleted_at IS NOT NULL OR message.expires_at <= now()
                 THEN '{\"schema_version\":1,\"text\":\"\",\"custom_emoji\":[]}'::jsonb
-                ELSE message.content END AS content
+                ELSE message.content END AS content,
+            CASE WHEN message.deleted_at IS NOT NULL OR message.expires_at <= now()
+                THEN NULL ELSE message.body END AS stored_body
      FROM messages message JOIN users author ON author.id = message.author_id
      JOIN conversations conversation ON conversation.id = message.conversation_id";
 
@@ -36,6 +40,7 @@ pub(crate) struct NewMessage<'a> {
     pub input: &'a SendMessage,
     pub payload_hash: &'a [u8],
     pub conversation: &'a LockedConversation,
+    pub body: Option<&'a StoredMessageBody>,
 }
 
 #[derive(FromRow)]
@@ -93,22 +98,27 @@ pub(crate) async fn insert(
         .bind(message.payload_hash);
     identity.execute(&mut *connection).await?;
 
-    let summary = if message.input.content.text.trim().is_empty() {
+    let text = &message.input.content.text;
+    // Derive typed previews at read time so deleting the message also removes its contact fields.
+    let summary = if message.body.is_some() {
+        ""
+    } else if text.trim().is_empty() {
         "Media message"
     } else {
-        &message.input.content.text
+        text
     };
-    let sequence: i64 = sqlx::query_scalar(
+    let sequence = sqlx::query_scalar(
         "UPDATE conversations SET last_sequence = last_sequence + 1, version = version + 1,
          summary_text = $2, updated_at = now() WHERE id = $1 RETURNING last_sequence",
     )
     .bind(message.conversation.id)
-    .bind(summary)
-    .fetch_one(&mut *connection)
-    .await?;
+    .bind(summary);
+    let sequence: i64 = sequence.fetch_one(&mut *connection).await?;
+
+    let body = message.body.map(sqlx::types::Json);
     let insert = sqlx::query(
-        "INSERT INTO messages (id, conversation_id, author_id, sequence, content)
-         VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO messages (id, conversation_id, author_id, sequence, content, body)
+         VALUES ($1, $2, $3, $4, $5, $6)",
     )
     .bind(message.input.message_id)
     .bind(message.conversation.id);
@@ -116,7 +126,7 @@ pub(crate) async fn insert(
         .bind(message.actor.user_id)
         .bind(sequence)
         .bind(sqlx::types::Json(&message.input.content));
-    insert.execute(&mut *connection).await?;
+    insert.bind(body).execute(&mut *connection).await?;
     references::attach_message(
         connection,
         MessageReferences {

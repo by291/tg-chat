@@ -672,6 +672,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/users/{user_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['directory_profile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/health/live': {
     parameters: {
       query?: never;
@@ -744,6 +760,7 @@ export interface components {
       /** Format: uuid */
       author_id: string;
       author_name: string;
+      body?: null | components['schemas']['MessageBodyView'];
       content: components['schemas']['MessageContent'];
       /** Format: uuid */
       conversation_id: string;
@@ -1183,6 +1200,34 @@ export interface components {
     };
     /** @enum {string} */
     MediaVariant: 'original' | 'thumbnail' | 'poster' | 'playback';
+    MessageBodyInput:
+      | {
+          /** @enum {string} */
+          kind: 'sticker';
+          sticker_id: string;
+        }
+      | {
+          /** Format: uuid */
+          account_id?: string | null;
+          display_name: string;
+          /** @enum {string} */
+          kind: 'contact';
+          phone?: string | null;
+        };
+    MessageBodyView:
+      | {
+          /** @enum {string} */
+          kind: 'sticker';
+          sticker_id: string;
+        }
+      | {
+          /** Format: uuid */
+          account_id?: string | null;
+          display_name: string;
+          /** @enum {string} */
+          kind: 'contact';
+          phone?: string | null;
+        };
     MessageCommand: {
       action: components['schemas']['CommandAction'];
       /** Format: uuid */
@@ -1313,6 +1358,7 @@ export interface components {
     };
     SendMessage: {
       attachments?: components['schemas']['AttachmentInput'][];
+      body?: null | components['schemas']['MessageBodyInput'];
       content: components['schemas']['MessageContent'];
       destination: components['schemas']['Destination'];
       draft_version?: string | null;
@@ -2507,6 +2553,27 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['DirectoryPage'];
+        };
+      };
+    };
+  };
+  directory_profile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PublicProfile'];
         };
       };
     };
