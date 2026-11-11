@@ -45,9 +45,13 @@ async fn invitation(
         return Ok(None);
     };
     let query = sqlx::query_as::<_, AdmissionInvitation>(
-        "SELECT id, target_id FROM community_invitations WHERE id = $1 AND conversation_id = $2
-         AND (target_id IS NULL OR target_id = $3) AND revoked_at IS NULL AND expires_at > now()
-         AND (max_uses IS NULL OR uses < max_uses)",
+        "SELECT invitation.id, invitation.target_id FROM community_invitations invitation
+         JOIN users creator ON creator.id = invitation.created_by
+         WHERE invitation.id = $1 AND invitation.conversation_id = $2
+           AND (invitation.target_id IS NULL OR invitation.target_id = $3)
+           AND invitation.revoked_at IS NULL AND invitation.expires_at > now()
+           AND (invitation.max_uses IS NULL OR invitation.uses < invitation.max_uses)
+           AND creator.deleted_at IS NULL",
     )
     .bind(invitation_id)
     .bind(admission.community.id)
@@ -140,7 +144,10 @@ async fn join(
         return admit(connection, &admission).await;
     }
     let count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM community_join_requests WHERE conversation_id = $1 AND user_id <> $2",
+        "SELECT count(*) FROM community_join_requests request
+         JOIN users account ON account.id = request.user_id
+         WHERE request.conversation_id = $1 AND request.user_id <> $2
+           AND account.deleted_at IS NULL",
     )
     .bind(context.community.id)
     .bind(context.actor.user_id)
@@ -200,8 +207,13 @@ async fn create(
         }
     }
     let count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM community_invitations WHERE conversation_id = $1
-         AND revoked_at IS NULL AND expires_at > now() AND (max_uses IS NULL OR uses < max_uses)",
+        "SELECT count(*) FROM community_invitations invitation
+         JOIN users creator ON creator.id = invitation.created_by
+         LEFT JOIN users target ON target.id = invitation.target_id
+         WHERE invitation.conversation_id = $1 AND invitation.revoked_at IS NULL
+           AND invitation.expires_at > now()
+           AND (invitation.max_uses IS NULL OR invitation.uses < invitation.max_uses)
+           AND creator.deleted_at IS NULL AND target.deleted_at IS NULL",
     )
     .bind(context.community.id)
     .fetch_one(&mut *connection)

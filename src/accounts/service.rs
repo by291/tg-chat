@@ -86,9 +86,10 @@ impl AccountService {
     pub async fn login(&self, input: Login) -> Result<SessionGrant, AccountError> {
         let username = normalize_username(&input.username).unwrap_or_default();
         let device_name = validate_text(&input.device_name, DEVICE_NAME_LIMIT)?;
-        let snapshot_query =
-            sqlx::query_as::<_, UserRecord>("SELECT * FROM users WHERE username = $1")
-                .bind(username);
+        let snapshot_query = sqlx::query_as::<_, UserRecord>(
+            "SELECT * FROM users WHERE username = $1 AND deleted_at IS NULL",
+        );
+        let snapshot_query = snapshot_query.bind(username);
         let snapshot = snapshot_query.fetch_optional(&self.pool).await?;
         let encoded = snapshot.as_ref().map(|user| user.password_hash.clone());
         let is_password_valid = self.passwords.verify(input.password, encoded).await?;

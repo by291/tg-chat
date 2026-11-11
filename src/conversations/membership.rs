@@ -17,8 +17,10 @@ pub(crate) async fn role(
     user_id: Uuid,
 ) -> Result<String, AcceptanceError> {
     let query = sqlx::query_scalar(
-        "SELECT role FROM conversation_members WHERE conversation_id = $1 AND user_id = $2
-         AND directory_active AND NOT is_banned",
+        "SELECT member.role FROM conversation_members member
+         JOIN users account ON account.id = member.user_id
+         WHERE member.conversation_id = $1 AND member.user_id = $2
+           AND member.directory_active AND NOT member.is_banned AND account.deleted_at IS NULL",
     )
     .bind(conversation_id)
     .bind(user_id);
@@ -62,8 +64,10 @@ pub(crate) async fn admit(
         Err(error) => return Err(error),
     }
     let count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM conversation_members WHERE conversation_id = $1
-         AND directory_active AND NOT is_banned",
+        "SELECT count(*) FROM conversation_members member
+         JOIN users account ON account.id = member.user_id
+         WHERE member.conversation_id = $1 AND member.directory_active
+           AND NOT member.is_banned AND account.deleted_at IS NULL",
     )
     .bind(community.id)
     .fetch_one(&mut *connection)

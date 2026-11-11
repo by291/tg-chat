@@ -60,10 +60,12 @@ async fn relationships(
     kind: &str,
 ) -> Result<Vec<PublicProfile>, AccountError> {
     let query = sqlx::query_as(
-        "SELECT id, username, display_name, biography FROM users WHERE
+        "SELECT id, username, display_name, biography,
+                CASE WHEN NOT is_suspended THEN avatar_file_id END AS avatar_file_id
+         FROM users WHERE deleted_at IS NULL AND (
          ($2 = 'contacts' AND EXISTS (SELECT 1 FROM contacts WHERE owner_id = $1 AND target_id = id))
          OR ($2 = 'blocks' AND EXISTS (SELECT 1 FROM blocks WHERE owner_id = $1 AND target_id = id))
-         ORDER BY id",
+         ) ORDER BY id",
     )
     .bind(user_id)
     .bind(kind);

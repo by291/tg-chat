@@ -18,8 +18,9 @@ const SUMMARY_SELECT: &str =
         conversation.public_handle, conversation.is_public, conversation.requires_approval,
         conversation.avatar_file_id,
         (SELECT count(*)::text FROM conversation_members member
+         JOIN users account ON account.id = member.user_id
          WHERE member.conversation_id = conversation.id AND member.directory_active
-         AND NOT member.is_banned) AS member_count
+           AND NOT member.is_banned AND account.deleted_at IS NULL) AS member_count
      FROM conversations conversation";
 
 #[derive(Clone, Default, Deserialize, IntoParams)]
@@ -216,9 +217,22 @@ impl MessageService {
             "SELECT conversation.id, conversation.kind, conversation.title, conversation.requires_approval
              FROM conversations conversation",
         );
-        statement.push(" JOIN community_invitations invitation ON invitation.conversation_id = conversation.id\n            WHERE conversation.deleted_at IS NULL AND NOT conversation.is_quarantined\n            AND invitation.revoked_at IS NULL AND invitation.expires_at > now()\n            AND (invitation.max_uses IS NULL OR invitation.uses < invitation.max_uses)\n            AND invitation.token_hash = ").push_bind(invitations::token_hash(&token)?);
-        statement.push(" AND NOT EXISTS (SELECT 1 FROM conversation_members banned\n            WHERE banned.conversation_id = conversation.id AND banned.is_banned AND banned.user_id = ")
-            .push_bind(actor.user_id).push(")");
+        statement.push(
+            " JOIN community_invitations invitation ON invitation.conversation_id = conversation.id
+              JOIN users creator ON creator.id = invitation.created_by
+              WHERE conversation.deleted_at IS NULL AND NOT conversation.is_quarantined
+                AND creator.deleted_at IS NULL AND invitation.revoked_at IS NULL
+                AND invitation.expires_at > now()
+                AND (invitation.max_uses IS NULL OR invitation.uses < invitation.max_uses)
+                AND invitation.token_hash = ",
+        );
+        statement.push_bind(invitations::token_hash(&token)?);
+        statement.push(
+            " AND NOT EXISTS (
+                SELECT 1 FROM conversation_members banned WHERE banned.conversation_id = conversation.id
+                  AND banned.is_banned AND banned.user_id = ",
+        );
+        statement.push_bind(actor.user_id).push(")");
         let summary = statement
             .build_query_as()
             .fetch_optional(&mut *transaction)
@@ -243,7 +257,8 @@ impl MessageService {
             "SELECT account.id, account.username, account.display_name, member.role, member.is_banned,
                 member.directory_active AS is_active, member.posting_muted_until
              FROM conversation_members member JOIN users account ON account.id = member.user_id
-             WHERE member.conversation_id = $1 AND (member.directory_active OR ($2 AND member.is_banned))
+             WHERE member.conversation_id = $1 AND account.deleted_at IS NULL
+               AND (member.directory_active OR ($2 AND member.is_banned))
                AND (NOT $3 OR member.user_id = $4) AND ($5::uuid IS NULL OR member.user_id > $5)
              ORDER BY member.user_id LIMIT $6",
         )
@@ -271,7 +286,8 @@ impl MessageService {
         let requests = sqlx::query_as(
             "SELECT account.id, account.username, account.display_name, request.created_at
              FROM community_join_requests request JOIN users account ON account.id = request.user_id
-             WHERE request.conversation_id = $1 AND ($2::uuid IS NULL OR request.user_id > $2)
+             WHERE request.conversation_id = $1 AND account.deleted_at IS NULL
+               AND ($2::uuid IS NULL OR request.user_id > $2)
              ORDER BY request.user_id LIMIT $3",
         )
         .bind(query.conversation_id)
@@ -303,7 +319,10 @@ impl MessageService {
                 invitation.expires_at, invitation.max_uses, invitation.uses, invitation.revoked_at
              FROM community_invitations invitation
              JOIN conversations conversation ON conversation.id = invitation.conversation_id
+             JOIN users creator ON creator.id = invitation.created_by
+             LEFT JOIN users target ON target.id = invitation.target_id
              WHERE conversation.deleted_at IS NULL AND NOT conversation.is_quarantined
+               AND creator.deleted_at IS NULL AND target.deleted_at IS NULL
                AND (($1::uuid IS NOT NULL AND conversation.id = $1)
                  OR ($1 IS NULL AND invitation.target_id = $2 AND invitation.revoked_at IS NULL
                     AND invitation.expires_at > now() AND invitation.uses = 0))

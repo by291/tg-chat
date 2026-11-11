@@ -38,7 +38,9 @@ pub(crate) const VIEW_SELECT: &str =
             conversation.title, conversation.description, conversation.public_handle,
             conversation.is_public, conversation.requires_approval, member.role, member.posting_muted_until,
             conversation.settings_version::text,
-            (conversation.kind IN ('direct', 'saved') OR (
+            (conversation.kind = 'saved'
+             OR (conversation.kind = 'direct' AND peer.deleted_at IS NULL)
+             OR (conversation.kind IN ('group', 'channel') AND
                 (member.posting_muted_until IS NULL OR member.posting_muted_until <= now())
                 AND (conversation.kind = 'group' OR member.role IN ('owner', 'admin')))) AS can_post,
             (conversation.kind IN ('direct', 'saved') OR member.role IN ('owner', 'admin')) AS can_manage,

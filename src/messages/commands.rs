@@ -373,7 +373,8 @@ async fn require_delete_permission(
     access::require_manager(connection, context.actor, context.conversation).await
 }
 
-async fn delete_messages(
+/// Scrub a locked batch and drop its ordinary media references.
+pub(crate) async fn delete_messages(
     connection: &mut PgConnection,
     message_ids: &[Uuid],
 ) -> Result<(), AcceptanceError> {

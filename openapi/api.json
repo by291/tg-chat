@@ -7,6 +7,34 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/account/deletion": {
+      "post": {
+        "tags": [],
+        "operationId": "delete_account",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/DeleteAccount" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountDeletionReceipt" }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OwnershipConflict" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/devices": {
       "get": {
         "tags": [],
@@ -1443,6 +1471,14 @@
   },
   "components": {
     "schemas": {
+      "AccountDeletionReceipt": {
+        "type": "object",
+        "required": ["operation_id", "deleted_at"],
+        "properties": {
+          "deleted_at": { "type": "string", "format": "date-time" },
+          "operation_id": { "type": "string", "format": "uuid" }
+        }
+      },
       "AttachmentInput": {
         "type": "object",
         "required": ["occurrence_id", "file_id"],
@@ -2228,6 +2264,15 @@
         },
         "additionalProperties": false
       },
+      "DeleteAccount": {
+        "type": "object",
+        "required": ["operation_id", "confirm_shared_messages"],
+        "properties": {
+          "confirm_shared_messages": { "type": "boolean" },
+          "operation_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
       "Destination": {
         "oneOf": [
           {
@@ -2718,6 +2763,32 @@
         }
       },
       "OperatorJobKind": { "type": "string", "enum": ["mail", "sync_wakeup", "media"] },
+      "OwnedCommunities": {
+        "type": "object",
+        "required": ["communities"],
+        "properties": {
+          "communities": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OwnedCommunity" }
+          }
+        }
+      },
+      "OwnedCommunity": {
+        "type": "object",
+        "required": ["conversation_id", "title"],
+        "properties": {
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" }
+        }
+      },
+      "OwnershipConflict": {
+        "type": "object",
+        "required": ["error", "current"],
+        "properties": {
+          "current": { "$ref": "#/components/schemas/OwnedCommunities" },
+          "error": { "$ref": "#/components/schemas/ErrorDetails" }
+        }
+      },
       "PasswordProof": {
         "type": "object",
         "required": ["password"],

@@ -187,7 +187,7 @@ pub(crate) async fn apply_suspension(
     let update = sqlx::query(
         "UPDATE users SET is_suspended = $1,
              credential_version = credential_version + CASE WHEN $1 THEN 1 ELSE 0 END
-         WHERE id = $2",
+         WHERE id = $2 AND deleted_at IS NULL",
     )
     .bind(is_suspended)
     .bind(suspension.user_id);

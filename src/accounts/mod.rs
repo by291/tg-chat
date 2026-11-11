@@ -5,6 +5,8 @@ pub mod email;
 pub(crate) mod email_http;
 pub(crate) mod extractors;
 pub mod http;
+mod lifecycle;
+pub(crate) mod lifecycle_http;
 pub(crate) mod model;
 pub mod operator;
 pub mod profile;
@@ -14,6 +16,9 @@ pub(crate) mod sessions;
 mod settings;
 pub mod transport;
 
+pub use lifecycle::{
+    AccountDeletionOutcome, AccountDeletionReceipt, DeleteAccount, OwnedCommunity,
+};
 pub use model::{
     AccountError, Actor, Login, PasswordChange, PrivateProfile, Registration, RevokeSession,
     SessionGrant, SessionView,

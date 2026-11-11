@@ -26,5 +26,6 @@ pub use model::{
 pub use settings::{MediaLimits, MediaStorageSettings};
 pub use transfer::UploadService;
 pub use uploads::UploadReservations;
+pub(crate) use uploads::retire_account_uploads;
 
 pub use references::{AttachmentInput, AttachmentView};

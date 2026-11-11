@@ -173,7 +173,7 @@ impl AccountService {
             "SELECT id, username, display_name, biography,
                     CASE WHEN NOT is_suspended THEN avatar_file_id END AS avatar_file_id
              FROM users
-             WHERE id > $2
+             WHERE id > $2 AND deleted_at IS NULL
              AND (strpos(username, lower($3)) > 0 OR strpos(lower(display_name), lower($3)) > 0)
              AND (
                 ($5 = 'discovery' AND id <> $1 AND NOT is_suspended)

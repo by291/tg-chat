@@ -181,6 +181,45 @@ pub(super) async fn find_owned(
     query.fetch_optional(connection).await
 }
 
+/// Retire a bounded batch of a deleted account's private uploads and ready holds.
+pub(crate) async fn retire_account_uploads(
+    connection: &mut PgConnection,
+    owner_id: Uuid,
+    limit: i64,
+) -> Result<bool, sqlx::Error> {
+    // Fence publication first; a worker that already published will be seen as ready below.
+    let cancel = sqlx::query(
+        "UPDATE media_uploads upload
+         SET state = 'cancelled', claim_id = NULL, claim_until = NULL,
+             cleanup_after = now() + ($3::bigint * interval '1 second')
+         WHERE upload.id IN (
+             SELECT id FROM media_uploads
+             WHERE owner_id = $1 AND released_at IS NULL
+               AND state IN ('reserved', 'uploaded', 'processing')
+             ORDER BY id LIMIT $2 FOR UPDATE
+         )",
+    );
+    let cancel = cancel.bind(owner_id).bind(limit).bind(CLEANUP_GRACE_SECONDS);
+    if cancel.execute(&mut *connection).await?.rows_affected() > 0 {
+        return Ok(true);
+    }
+
+    // Shared message and evidence references remain independent of this private ready hold.
+    let expire = sqlx::query(
+        "UPDATE media_files SET ready_until = now()
+         WHERE id IN (
+             SELECT file.id FROM media_files file
+             JOIN media_uploads upload ON upload.id = file.upload_id
+             WHERE upload.owner_id = $1 AND upload.released_at IS NULL AND file.ready_until > now()
+             ORDER BY file.id LIMIT $2 FOR UPDATE OF file
+         )",
+    );
+    let expire = expire.bind(owner_id).bind(limit);
+    let ended = expire.execute(connection).await?.rows_affected();
+
+    Ok(ended > 0)
+}
+
 async fn insert_reservation(
     connection: &mut PgConnection,
     actor: &Actor,

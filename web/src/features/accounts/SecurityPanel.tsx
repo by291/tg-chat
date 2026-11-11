@@ -1,6 +1,7 @@
 import type { components } from '@/api/schema';
 import { ApiError, SessionOwner, requirePayload } from '../auth/SessionOwner';
 import { AccountForm, Field, textField } from './AccountForm';
+import { DeleteAccountPanel } from './DeleteAccountPanel';
 import styles from './Accounts.module.css';
 
 type Profile = components['schemas']['PrivateProfile'];
@@ -151,6 +152,7 @@ export function SecurityPanel({
           </AccountForm>
         )}
       </section>
+      <DeleteAccountPanel owner={owner} />
     </div>
   );
 }
