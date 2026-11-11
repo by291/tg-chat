@@ -100,3 +100,16 @@ history, bans and access removal, private links, direct invitations, and read-on
 The suite records desktop and narrow-screen screenshots in its own artifact directory. The root
 `node scripts/check-runtime.mjs` includes it after the account and synchronization suites, resetting
 only that disposable project's admission fixtures between suites.
+
+## Connected media capability checks
+
+Run `pnpm --dir web test:media` with `TG_CHAT_ACCOUNT_TEST_URL` pointing to an isolated connected
+deployment with media enabled. The suite checks Chromium with a persistent profile across a full
+browser close, a lost S3 part acknowledgement, and a lost send response. It verifies that a
+captionless attachment remains reachable in the outbox, resumes from the confirmed part, and
+appears once at the recipient. It also checks voice recording with Chromium's fake microphone,
+playback, and a profile avatar upload.
+
+Run microphone permission, recording, cancellation, and playback on physical iOS Safari and
+Android Chrome when validating a deployment for mobile users. The Chromium fixture does not
+establish microphone behavior on physical devices.

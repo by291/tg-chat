@@ -19,10 +19,9 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Product design approved on 2026-11-08. M1 through M5 are implemented and locally verified,
-including real Compose acceptance and independent review with findings resolved. M6 through M10
-remain planned. Backend CI is configured; no remote CI outcome is claimed because the changes have
-not been pushed.
+**Status:** Product design approved on 2026-11-08. M1 through M6 are implemented and locally verified
+through isolated Compose. M6 passed the desktop Chromium exit gate. Physical mobile recording
+and playback checks are outstanding. M7 through M10 remain planned.
 
 ## Global constraints
 
@@ -318,7 +317,8 @@ behavior without claiming throughput until M10's measurements.
 
 ## M6: Private media and recorded voice messages
 
-[Detailed M6 design](../specs/2026-11-11-m6-private-media-design.md)
+[Detailed M6 design](../specs/2026-11-11-m6-private-media-design.md) and
+[private media guide](../../media.md).
 
 **Outcome:** Users send and view real photos, albums, documents, videos, and recorded voice
 messages; avatars use the same validated media lifecycle.
@@ -328,22 +328,24 @@ messages; avatars use the same validated media lifecycle.
 **Produces:** Upload reservations, immutable ready-file IDs, variants, quota accounting, signed
 authorized downloads, media-processing jobs, recording/playback integration, and reference-aware GC.
 
-- [ ] Deliver reserved/quota-checked single/multipart uploads, authenticated completion, worker
+- [x] Deliver reserved/quota-checked single/multipart uploads, authenticated completion, worker
       validation, distinct immutable final candidates, fenced finalization, and safe retries.
-- [ ] Deliver bounded image/video/voice processing, posters/thumbnails/playback variants/waveforms,
+- [x] Deliver bounded image/video/voice processing, posters/thumbnails/playback variants/waveforms,
       original downloads, isolated processing, and explicit progress/rejection states.
-- [ ] Deliver message-bound signed downloads, private buckets/media origin, MIME/content-disposition
+- [x] Deliver message-bound signed downloads, private buckets/media origin, MIME/content-disposition
       safeguards, Range/CORS integration, account/deployment budgets, and abandoned-upload cleanup.
       Avatar downloads use explicit profile/conversation references with the corresponding metadata
       visibility rules; an avatar cannot expose unrelated original uploads.
-- [ ] Connect composer paste/drop/file selection, albums, video/documents, voice recording, avatar
+- [x] Connect composer paste/drop/file selection, albums, video/documents, voice recording, avatar
       upload, and the existing viewer. Preserve stable media occurrence identity and geometry.
-- [ ] Deliver reference locking and GC so deletion/expiration can remove unused objects without
+- [x] Deliver reference locking and GC so deletion/expiration can remove unused objects without
       affecting live references. Add coordinated media-backup requirements now rather than waiting
       to discover missing filer state during final recovery testing.
-- [ ] Verify forged metadata, staging overwrite, processing exhaustion, stale-worker completion,
-      interrupted multipart uploads, quota races, unauthorized reference access, signed URL expiry,
-      missing objects, and GC racing a new reference. Verify real browser recording/playback.
+- [x] Verify staging overwrite, codec limits and network isolation, Worker takeover, interrupted
+      multipart uploads, quota races, reference access, collection, and paired backup recovery.
+      Verify recording and playback in desktop Chromium.
+- [ ] Verify microphone permission, recording, cancellation, and playback on physical iOS Safari
+      and Android Chrome.
 
 **Exit gate:** Reopening the same browser session restores an in-progress media send and resumes
 from confirmed multipart uploads. The pending bubble becomes one accepted message. Only validated
@@ -351,9 +353,9 @@ immutable objects become attachable. An inaccessible or expired message cannot m
 URLs, and media failure leaves text messaging usable.
 
 **Verification ownership:** `tests/media.rs`, `tests/media_jobs.rs`,
-`web/e2e/media-messaging.spec.ts`, and existing attachment/viewer tests. Real SeaweedFS/S3
-integration and resource-bounded processing tests are required; add real mobile recording checks to
-the browser capability record.
+`web/e2e-accounts/media-messaging.spec.ts`, and existing attachment and viewer tests. Record
+physical iOS Safari and Android Chrome results in the
+[browser capability checks](../../../web/docs/development.md#connected-media-capability-checks).
 
 ## M7: Complete message interactions and history discovery
 

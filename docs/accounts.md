@@ -105,7 +105,6 @@ survive with it; [operations](./operations.md#mail-delivery-and-protected-payloa
 
 ## Remaining product boundaries
 
-M3 owns real conversations and messages. M6 owns avatar/media uploads. M8 owns the administration
-UI, account deletion, and broader lifecycle operations. LiveKit one-to-one calls remain a separate
-later milestone. Connected screens expose these unavailable capabilities honestly; sample messages
-stay behind `/demo`.
+[Private media](media.md) owns validated avatar uploads. M8 owns the administration UI, account
+deletion, and broader lifecycle operations. LiveKit one-to-one calls remain a separate milestone.
+The `/demo` route keeps its own sample accounts and messages.

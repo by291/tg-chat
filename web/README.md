@@ -45,7 +45,9 @@ and cross-tab invalidation. The explicit `/demo` route does not import that acco
 
 Demo conversations use sample content and changes stay on this device. There is no Telegram login or remote push service. Delivery
 marks, poll participation, checklist permissions, and profile edits represent local state.
-Calls, microphone recording, and remote media discovery are not connected.
+When enabled, connected media supports resumable attachments, recorded voice messages, private
+playback, and avatar uploads. Calls and remote media discovery remain later milestones.
+See [private media](../docs/media.md) for setup and behavior.
 
 Rich text uses sanitized semantic HTML rather than a Telegram server entity format. Bundled emoji
 and sticker packs work without an account. Asset provenance and licenses are recorded in

@@ -1,9 +1,8 @@
 # Runtime operations
 
-The single-host runtime supports accounts, sessions, contacts, and optional email recovery.
-PostgreSQL owns durable account and mail-job state; the Worker delivers leased email jobs.
-Messaging, media, and calls remain later parts of the
-[approved product](./superpowers/specs/2026-11-08-complete-product-design.md).
+The single-host runtime supports accounts, conversations, synchronization, and optional private
+media and email recovery. PostgreSQL owns durable messages, accounts, and jobs. The Worker prepares
+media and delivers leased email jobs. LiveKit calls are a later milestone.
 
 ## Startup and migration ordering
 
@@ -43,16 +42,15 @@ HTTP 503 with a sanitized JSON error and generated `x-request-id`.
 Compose uses readiness for API and Worker health. A database outage makes them unhealthy without
 terminating them, and readiness recovers when the database returns. Valkey loss rejects sensitive
 admission and discovery while existing authenticated reads remain available; it does not globally
-fail API readiness. S3 is not an account dependency. Centrifugo and
-SeaweedFS have their own process probes; the SeaweedFS probe checks its master, while acceptance
-separately verifies signed S3 requests. Health probes are not a substitute for end-to-end
-monitoring.
+fail API readiness. S3 is independent of account operations. SeaweedFS checks master leadership
+and volume-server registration. The runtime acceptance checks signed S3 requests.
 
 SIGTERM and Ctrl+C stop new HTTP acceptance, drain active requests with a deadline, and close the
 connection pool with another deadline. Compose allows time for these deadlines before force-killing
 containers. API and Worker log startup, draining, and stop events. Worker shutdown stops new claims
 and allows bounded completion of its current SMTP attempt. A crashed claim becomes eligible for
-recovery after its lease expires; a stale worker cannot finish a newer claim.
+recovery after its lease expires. Media retries also wait for cleanup of the previous candidate
+so one reservation covers the bytes on disk. Only the current lease can publish a result.
 
 ## Secrets, network boundaries, and logs
 
@@ -67,10 +65,10 @@ URL. SeaweedFS resolves S3 credentials from the static identity file's environme
 avoiding the AWS fallback's access-key startup log. The checked-in identity file contains no usable
 credentials.
 
-Only the frontend gateway and authenticated S3 endpoint publish loopback host ports. Database,
-Valkey, internal health listeners, Centrifugo administration/API, SeaweedFS filer, volume, and
-master ports remain inside the Compose network. The S3 credential has broad local storage access;
-future application upload URLs must use scoped, expiring signatures rather than revealing this key.
+Only the frontend gateway and the media origin publish loopback host ports by default. Database,
+Valkey, internal health listeners, Centrifugo administration/API, and raw SeaweedFS endpoints stay
+inside the Compose network. The S3 credential has broad local storage access. Browsers receive
+scoped, expiring signatures and use the media origin.
 Centrifugo verifies the normal session cookie through private API connect/refresh callbacks. The
 browser receives a server-owned personal subscription; it cannot publish or choose arbitrary channels.
 Caddy does not expose `/internal/realtime/*`. Callback authentication requires

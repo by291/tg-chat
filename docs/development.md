@@ -1,11 +1,10 @@
 # Backend development
 
 The repository root owns the Rust API and Worker. The React application remains in `web/`.
-Connected mode uses real account APIs and durable mail jobs; `/demo` keeps local sample conversations
-separate. Durable messaging, authenticated realtime catch-up, and groups/channels are connected. Media and
-calls arrive in later [milestones](./superpowers/plans/2026-11-08-product-milestones.md). See
-[accounts and recovery](./accounts.md), [messaging](./messaging.md), and
-[communities](./communities.md) for the implemented boundaries.
+Connected mode uses real account APIs, durable messaging, authenticated realtime catch-up, and
+groups and channels. `/demo` keeps local sample conversations separate. See
+[accounts and recovery](./accounts.md), [messaging](./messaging.md),
+[communities](./communities.md), and [private media](media.md) for the implemented boundaries.
 
 ## Start the integrated environment
 
@@ -38,10 +37,10 @@ generate a value with `openssl rand -base64 32` and copy it into `TG_CHAT_MAIL_K
 editor. Do not include the generated value in issue reports or shared command logs.
 Set `TG_CHAT_PUBLIC_ORIGIN` to the exact browser origin when changing the gateway address.
 
-PostgreSQL, Valkey, API, Worker, and Centrifugo have no published host ports. S3 is separately
-exposed on `http://localhost:8333`, bound to loopback and requiring signed requests. Do not use its
-internal Compose hostname in future browser upload URLs. The two S3 endpoint settings reserve these
-distinct addresses for the media milestone; the account service does not yet connect to S3.
+PostgreSQL, Valkey, API, Worker, Centrifugo, and raw SeaweedFS have no published host ports.
+The media origin is separately exposed on `http://127.0.0.1:8333` and requires signed S3 requests.
+Use the internal endpoint for API and Worker object operations and the public endpoint for browser
+signatures. See [private media](media.md#operating-the-feature) for enabling the feature.
 
 Use `docker compose logs api worker` to inspect structured application logs. Stop services with
 `docker compose down`; their named volumes remain intact. See [operations](./operations.md) before
@@ -83,7 +82,7 @@ plus `TG_CHAT_CENTRIFUGO_URL`; configure Centrifugo's private connect/refresh ca
 Unset `VITE_APP_MODE` for the standalone demo. Docker builds connected mode automatically.
 
 Migration is explicit and serialized by PostgreSQL advisory locking. API and Worker never migrate on
-startup. The catalogue owns account, relationship, audit, challenge, mail-job, conversation, message, and personal-sync tables.
+startup. The catalogue includes account, recovery, messaging, synchronization, and media tables.
 Never edit applied SQL.
 
 ## Repeatable verification
@@ -98,7 +97,11 @@ The default tests run without PostgreSQL and report the real database tests as i
 migration serialization, account/message races, snapshot sync, and durable jobs, set `DATABASE_URL` to an
 **isolated test PostgreSQL instance** whose user can create databases. Set
 `TG_CHAT_TEST_VALKEY_URL`, `TG_CHAT_TEST_SMTP_HOST`, and `TG_CHAT_TEST_SMTP_PORT` to isolated
-Valkey and local SMTP capture services, then run:
+Valkey and local SMTP capture services. Set `TG_CHAT_TEST_S3_ENDPOINT`,
+`TG_CHAT_TEST_S3_ACCESS_KEY`, and `TG_CHAT_TEST_S3_SECRET_KEY` for an isolated SeaweedFS
+deployment. When the public media proxy uses a separate address, set
+`TG_CHAT_TEST_S3_PUBLIC_ENDPOINT` too. Linux codec tests require FFmpeg, util-linux, and
+libseccomp development headers. Then run:
 
 ```sh
 cargo test --locked --all-targets -- --include-ignored
@@ -115,10 +118,13 @@ This runner builds images, generates ephemeral credentials and a unique Compose 
 real Rust tests inside a Linux container, and runs account/messaging browsers against the built
 frontend and Mailpit. It drops a real committed message response, restarts API, and verifies replay
 and recipient visibility. It interrupts Worker/Centrifugo, clears Valkey, checks retention-floor
-rebootstrap, and runs the four-session synchronization browser suite. Independent fixture phases reset only the isolated project’s Valkey cache
-to avoid sharing registration rate limits through one loopback address. It checks routing, private ports, S3 authentication, PG/Valkey outage behavior, graceful
-API/Worker termination, and persistence through service restarts. It
-removes only its own containers and volumes. It requires Docker, Node.js, and curl with AWS SigV4
+rebootstrap, and runs the four-session synchronization browser suite. It runs the private media
+browser suite and restores a PostgreSQL dump and SeaweedFS volume to verify an existing attachment.
+Independent fixture phases reset only the isolated project's Valkey cache to avoid sharing
+registration rate limits through one loopback address. The runner checks routing, private ports,
+S3 authentication, PostgreSQL and Valkey outages, graceful API and Worker termination, and
+persistence through service restarts. It removes its own containers and volumes.
+The runner requires Docker, Node.js, and curl with AWS SigV4
 support, installed frontend dependencies, and Chromium (`pnpm --dir web exec playwright install
 chromium`). A forcibly killed runner may leave its uniquely named `tg-chat-check-` project behind;
 inspect the exact project before removing it.

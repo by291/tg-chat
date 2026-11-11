@@ -98,4 +98,7 @@ Reply jumps can request an authorized bounded neighborhood outside the loaded wi
 separate paginated directory. Hidden, deleted, cleared, or expired targets remove obsolete excerpts;
 late pages and command receipts must pass the cache's observation/generation fences before merging.
 The server enforces expiry independently of cleanup, and a local deadline removes visible expired
-rows even during a network outage. Attachments remain a later milestone.
+rows even during a network outage. Connected attachments retain their occurrence IDs and validated
+geometry across pending, accepted, and viewer states. Signed URLs are requested through the current
+message or avatar reference and stay outside the durable cache. See
+[private media](../../docs/media.md) for upload and download ownership.

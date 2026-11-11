@@ -28,6 +28,7 @@ conversations without using connected account state. SMTP is optional; see
   contracts.
 - [Runtime operations](./docs/operations.md): migrations, health, secrets, storage, and shutdown.
 - [Durable messaging](./docs/messaging.md): acceptance, snapshots, rich content, and pending recovery.
+- [Private media](docs/media.md) covers uploads, playback, and retention.
 - [Communities and membership](./docs/communities.md): discovery, admission, roles, and access removal.
 - [Accounts and recovery](./docs/accounts.md): identity, session, privacy, and durable mail boundaries.
 - [Frontend overview](./web/README.md): setup, capabilities, and current scope.

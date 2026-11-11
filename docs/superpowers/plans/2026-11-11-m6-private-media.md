@@ -17,7 +17,12 @@ processor's network restriction. The browser uses XHR upload progress and MediaR
 **Spec:** [Approved M6 design](../specs/2026-11-11-m6-private-media-design.md) and
 [milestone acceptance][roadmap].
 
+**Delivery status:** The implementation passed the isolated Compose and desktop Chromium exit gate.
+Physical mobile recording and playback checks are outstanding. See the [private media guide]
+for the implemented behavior and operational entry points.
+
 [roadmap]: 2026-11-08-product-milestones.md#m6-private-media-and-recorded-voice-messages
+[private media guide]: ../../media.md
 
 ## Global constraints
 
@@ -277,24 +282,21 @@ current session and visibility generation. Neither signed URLs nor local object 
 `docs/media.md`. Modify `web/package.json`, `scripts/check-runtime.mjs`, `docs/development.md`,
 `web/docs/development.md`, `README.md`, and the [roadmap](2026-11-08-product-milestones.md).
 
-- [ ] Add `resumes_after_last_tab_closes_without_duplicate_send` to the connected media suite.
-      Start with a persistent browser profile, pause after one real S3 part commits, drop its
-      response, close the final tab and browser, then reopen the same profile and chat. Count PUTs
-      and require zero repeats of confirmed parts. Drop the acceptance response after commit and
-      require one canonical recipient message, stable occurrence order, and the same sender bubble.
-      Add a real voice record/playback and avatar round trip, plus playback and signing after access
-      removal. Confirm live references survive an isolated restore of PostgreSQL and SeaweedFS.
-- [ ] Enable media in the isolated Compose project and wire `pnpm --dir web test:media` into
-      `node scripts/check-runtime.mjs`. Run full isolated
-      Compose acceptance including existing browser suites, the real SQLx media suites, and Worker
-      recovery. Record real mobile recording/playback in `web/docs/development.md`.
-      Keep physical mobile results separate from Playwright emulation and report any gap.
-- [ ] Run `cargo fmt --all --check`, `cargo clippy --locked --all-targets -- -D warnings`,
+- [x] In a persistent Chromium profile, lose a committed S3 part response and close the last tab
+      and browser. Reopen the same profile, assert only the missing part uploads, and lose the
+      committed send response. Verify that the sender's bubble keeps its ID and the recipient
+      receives one message. Verify voice recording and playback and a profile avatar round trip.
+      The SQLx integration tests cover ordered album references and download authorization.
+- [x] Run `pnpm --dir web test:media` through `node scripts/check-runtime.mjs` alongside the existing
+      browser and SQLx suites. Verify that the recipient can download the original attachment after
+      restoring PostgreSQL and SeaweedFS together.
+- [x] Run `cargo fmt --all --check`, `cargo clippy --locked --all-targets -- -D warnings`,
       `cargo test --locked --all-targets`, `pnpm --dir web test`, `pnpm --dir web format:check`,
       `pnpm --dir web api:check`, `pnpm --dir web build`, and `pnpm --dir web test:browser`.
-- [ ] Document the supported media flow and repeatable checks. Review the whole milestone diff
-      against the approved spec, resolve material findings, and rerun affected checks. Mark the
-      roadmap complete only after the exit gate passes. Commit acceptance and docs separately.
+- [x] Document the supported media flow and repeatable checks. Review the milestone against the
+      approved design, fix the findings, and rerun the affected checks. Commit the acceptance suite
+      and its documentation separately.
+- [ ] Record physical iOS Safari and Android Chrome results in `web/docs/development.md`.
 
 ## Technical references
 
