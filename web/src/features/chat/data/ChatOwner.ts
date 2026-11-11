@@ -1418,10 +1418,11 @@ export class ChatOwner {
     const conversation = this.snapshot.conversations.find(
       (entry) => entry.id === latest.conversationId,
     );
-    const group = groups.find((entry) => entry.message?.id === latest.messageId);
+    // A later sync page may contain an edit to the same accepted message.
+    const group = [...groups].reverse().find((entry) => entry.message?.id === latest.messageId);
     const canPreview = conversation && category(conversation.kind)?.should_show_preview;
     const preview = canPreview ? group?.message?.content.text.trim() : undefined;
-    const text = preview?.slice(0, MAX_ALERT_PREVIEW);
+    const text = preview ? Array.from(preview).slice(0, MAX_ALERT_PREVIEW).join('') : undefined;
     showToast(text ? `New message: ${text}` : 'New message');
     if (defaults?.should_play_sound) {
       void playNotificationSound({ volume: defaults.volume });

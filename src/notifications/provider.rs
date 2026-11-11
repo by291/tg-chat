@@ -24,6 +24,7 @@ use super::{
 
 const ENDPOINT_LENGTH: usize = 2048;
 const PUBLIC_KEY_BYTES: usize = 65;
+const PRIVATE_KEY_BYTES: usize = 32;
 const DNS_TIMEOUT: Duration = Duration::from_secs(3);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(7);
 const PROVIDER_ADDRESS_LIMIT: usize = 16;
@@ -156,6 +157,8 @@ impl ProviderTransport {
         let private_key = values.get("TG_CHAT_PUSH_VAPID_PRIVATE_KEY")?;
         let subject = values.get("TG_CHAT_PUSH_VAPID_SUBJECT")?;
         let private_key = URL_SAFE_NO_PAD.decode(private_key).ok()?;
+        // Compose passes empty values for disabled Push, and the signer expects a fixed size.
+        let private_key: [u8; PRIVATE_KEY_BYTES] = private_key.try_into().ok()?;
         let key_pair = ES256KeyPair::from_bytes(&private_key).ok()?;
         let derived_public = key_pair.public_key().to_bytes();
         let derived_public = PublicKey::from_sec1_bytes(&derived_public).ok()?;
@@ -211,5 +214,21 @@ impl PushTransport for ProviderTransport {
         attempt: PushAttempt<'a>,
     ) -> std::pin::Pin<Box<dyn Future<Output = PushOutcome> + Send + 'a>> {
         Box::pin(async move { self.send_request(attempt).await.unwrap_or_else(|outcome| outcome) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn disabled_push_accepts_empty_compose_settings() {
+        let values = HashMap::from([
+            ("TG_CHAT_PUSH_VAPID_PUBLIC_KEY".to_owned(), String::new()),
+            ("TG_CHAT_PUSH_VAPID_PRIVATE_KEY".to_owned(), String::new()),
+            ("TG_CHAT_PUSH_VAPID_SUBJECT".to_owned(), String::new()),
+        ]);
+
+        assert!(ProviderTransport::from_values(&values).is_none());
     }
 }
