@@ -76,6 +76,7 @@ impl utoipa::Modify for AccountApi {
         document.merge(crate::accounts::lifecycle_http::LifecycleDocument::openapi());
         document.merge(crate::accounts::preferences_http::PreferencesDocument::openapi());
         document.merge(crate::realtime::activity_http::ActivityDocument::openapi());
+        document.merge(crate::notifications::http::NotificationDocument::openapi());
     }
 }
 

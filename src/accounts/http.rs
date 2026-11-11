@@ -28,6 +28,7 @@ pub struct AccountHttpState {
     pub(crate) email: EmailService,
     pub(crate) media: Option<crate::media::UploadService>,
     pub(crate) activity: crate::realtime::Activity,
+    pub(crate) notifications: Option<crate::notifications::NotificationService>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -99,6 +100,7 @@ impl AccountHttpState {
             email,
             media: None,
             activity,
+            notifications: None,
         }
     }
 
@@ -116,6 +118,16 @@ impl AccountHttpState {
     ) -> Self {
         self.activity =
             crate::realtime::Activity::new(self.accounts.clone(), &self.settings, client);
+
+        self
+    }
+
+    /// Attach the public browser Push configuration without loading a private signing key.
+    pub(crate) fn with_notifications(
+        mut self,
+        notifications: crate::notifications::NotificationService,
+    ) -> Self {
+        self.notifications = Some(notifications);
 
         self
     }
@@ -432,6 +444,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(crate::moderation::http::router());
     let routes = routes.merge(crate::moderation::report_http::router());
     let routes = routes.merge(crate::realtime::activity_http::router());
+    let routes = routes.merge(crate::notifications::http::routes());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
     let routes = routes.merge(crate::conversations::http::router());

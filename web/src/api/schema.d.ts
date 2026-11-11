@@ -800,6 +800,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/notifications/capability': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['capability'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/notifications/subscription': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations['subscribe'];
+    post?: never;
+    delete: operations['unsubscribe'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/operator/accounts': {
     parameters: {
       query?: never;
@@ -1799,6 +1831,14 @@ export interface components {
       /** Format: int32 */
       volume: number;
     };
+    NotificationIdentity: {
+      /** Format: uuid */
+      deployment_id: string;
+      /** Format: uuid */
+      message_id: string;
+      /** Format: uuid */
+      subscription_id: string;
+    };
     OperatorAccount: {
       display_name: string;
       /** Format: uuid */
@@ -1878,7 +1918,7 @@ export interface components {
       status: string;
     };
     /** @enum {string} */
-    OperatorJobKind: 'mail' | 'sync_wakeup' | 'media';
+    OperatorJobKind: 'mail' | 'sync_wakeup' | 'media' | 'push';
     OwnedCommunities: {
       communities: components['schemas']['OwnedCommunity'][];
     };
@@ -2026,6 +2066,26 @@ export interface components {
       id: string;
       username: string;
     };
+    PushCapability: {
+      available: boolean;
+      vapid_public_key?: string | null;
+    };
+    PushPayload: {
+      /** Format: uuid */
+      conversation_id: string;
+      identity: components['schemas']['NotificationIdentity'];
+    };
+    PushSubscriptionInput: {
+      auth: string;
+      endpoint: string;
+      /** Format: int64 */
+      expiration_time?: number | null;
+      p256dh: string;
+    };
+    PushSubscriptionReceipt: {
+      /** Format: uuid */
+      subscription_id: string;
+    };
     QuarantineTarget:
       | {
           /** Format: uuid */
@@ -2170,6 +2230,7 @@ export interface components {
       conversation?: null | components['schemas']['ConversationView'];
       /** Format: uuid */
       conversation_id: string;
+      is_new_message?: boolean;
       message?: null | components['schemas']['CanonicalMessage'];
       position: string;
       /** Format: uuid */
@@ -3604,6 +3665,66 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ReportReceipt'];
         };
+      };
+    };
+  };
+  capability: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PushCapability'];
+        };
+      };
+    };
+  };
+  subscribe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PushSubscriptionInput'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PushSubscriptionReceipt'];
+        };
+      };
+    };
+  };
+  unsubscribe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The session subscription was removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

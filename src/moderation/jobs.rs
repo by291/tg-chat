@@ -13,6 +13,7 @@ pub enum OperatorJobKind {
     Mail,
     SyncWakeup,
     Media,
+    Push,
 }
 
 #[derive(FromRow, Serialize, ToSchema)]
@@ -56,6 +57,15 @@ pub(crate) async fn list(
              FROM media_uploads WHERE state = 'rejected'
              ORDER BY recorded_at DESC, id LIMIT $1"
         }
+        OperatorJobKind::Push => {
+            "SELECT id, status, attempts, finished_at AS recorded_at,
+                'delivery_attempts_exhausted'::text AS failure_code,
+                expires_at > clock_timestamp() AND EXISTS (
+                    SELECT 1 FROM push_subscriptions WHERE id = push_deliveries.subscription_id
+                ) AS can_retry
+             FROM push_deliveries WHERE status = 'exhausted'
+             ORDER BY recorded_at DESC, id LIMIT $1"
+        }
     };
     let query = sqlx::query_as::<_, OperatorJob>(statement);
 
@@ -74,6 +84,9 @@ pub(crate) async fn retry(
         }
         OperatorJobKind::Mail => retry_mail(connection, job_id).await?,
         OperatorJobKind::Media => retry_media(connection, job_id).await?,
+        OperatorJobKind::Push => {
+            crate::notifications::delivery::retry_exhausted(connection, job_id).await?
+        }
     };
     if !changed {
         return Err(AccountError::MessageConflict);

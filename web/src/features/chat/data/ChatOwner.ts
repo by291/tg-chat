@@ -1,4 +1,7 @@
 import { Centrifuge } from 'centrifuge';
+import { showToast } from '@/components/toastStore';
+import { ConnectedAlerts } from '@/features/settings/notifications/connectedAlerts';
+import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
 import { CommunityOperations } from '@/features/communities/CommunityOperations';
 import type { components } from '@/api/schema';
 import { restoreServerDraft } from './draftModels';
@@ -43,6 +46,8 @@ const POLL_INTERVAL_MS = 3000;
 const MAX_BACKOFF_MS = 30_000;
 const DRAFT_DEBOUNCE_MS = 500;
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
+const MAX_ALERT_GROUPS = 200;
+const MAX_ALERT_PREVIEW = 100;
 // prettier-ignore
 const TRANSIENT_ERROR_CODES = new Set([
   'dependency_unavailable',
@@ -142,6 +147,8 @@ export class ChatOwner {
   private cursor = '';
   private viewGeneration = 0;
   private contactOpenGeneration = 0;
+  private readonly alerts = new ConnectedAlerts();
+  private activeAlertConversation?: string;
   private historyLoad?: HistoryLoad;
   private isDisposed = false;
   private syncPromise?: Promise<void>;
@@ -287,7 +294,11 @@ export class ChatOwner {
     const endpoint = new URL('/connection/websocket', window.location.href);
     endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
     const realtime = new Centrifuge(endpoint.toString());
-    realtime.on('connected', wake);
+    realtime.on('connected', () => {
+      this.alerts.resetBaseline();
+      wake();
+    });
+    realtime.on('disconnected', () => this.alerts.resetBaseline());
     realtime.on('publication', (context) => {
       if (context.data?.kind === 'activity') {
         onActivityHint?.();
@@ -300,7 +311,13 @@ export class ChatOwner {
     watchCache();
     window.addEventListener('focus', wake);
     window.addEventListener('online', wake);
-    document.addEventListener('visibilitychange', wake);
+    const visibilityChanged = () => {
+      if (document.visibilityState === 'hidden') {
+        this.alerts.resetBaseline();
+      }
+      wake();
+    };
+    document.addEventListener('visibilitychange', visibilityChanged);
 
     return () => {
       isStopped = true;
@@ -309,8 +326,39 @@ export class ChatOwner {
       clearTimeout(timer);
       window.removeEventListener('focus', wake);
       window.removeEventListener('online', wake);
-      document.removeEventListener('visibilitychange', wake);
+      document.removeEventListener('visibilitychange', visibilityChanged);
     };
+  }
+
+  /** Suppress in-app alerts for the conversation currently visible in the workspace. */
+  setAlertConversation(conversationId?: string): () => void {
+    this.activeAlertConversation = conversationId;
+    return () => {
+      if (this.activeAlertConversation === conversationId) {
+        this.activeAlertConversation = undefined;
+      }
+    };
+  }
+
+  /** Return to the conversation list and fence private reads from the previous selection. */
+  showInbox(): void {
+    this.ensureCurrent();
+    void this.flushDraft().catch((error) => this.report(error));
+    this.viewGeneration += 1;
+    this.historyLoad = undefined;
+    this.publish({
+      selection: undefined,
+      messages: [],
+      precedingMessage: undefined,
+      draft: emptyDraft(),
+      draftConflict: undefined,
+      draftAlternatives: [],
+      editConflict: undefined,
+      isLoading: false,
+      hasOlder: false,
+      hasNewer: false,
+      navigation: undefined,
+    });
   }
 
   /** Save one independent forwarding operation per destination before issuing any requests. */
@@ -1293,6 +1341,7 @@ export class ChatOwner {
   private async readChanges(): Promise<void> {
     this.ensureCurrent();
     let hasMore = true;
+    const alertGroups: components['schemas']['SyncGroup'][] = [];
     while (hasMore) {
       const reply = await this.session.client.GET('/api/v1/chat/sync', {
         params: { query: { cursor: this.cursor } },
@@ -1327,9 +1376,56 @@ export class ChatOwner {
       }
       this.cacheSnapshot = committed;
       await this.applyViewChanges(page);
+      alertGroups.push(...page.groups);
+      const excess = alertGroups.length - MAX_ALERT_GROUPS;
+      if (excess > 0) {
+        alertGroups.splice(0, excess);
+      }
       hasMore = page.has_more;
     }
+    this.presentAlerts(alertGroups);
     this.publish({ error: '' });
+  }
+
+  private presentAlerts(groups: components['schemas']['SyncGroup'][]): void {
+    const defaults = this.session.getSnapshot().preferences?.notification_defaults;
+    const category = (kind: string) => {
+      switch (kind) {
+        case 'direct':
+          return defaults?.private;
+        case 'group':
+          return defaults?.group;
+        case 'channel':
+          return defaults?.channel;
+      }
+    };
+    const alerts = this.alerts.completeSync({
+      groups,
+      context: {
+        userId: this.userId,
+        isForeground: document.visibilityState === 'visible' && document.hasFocus(),
+        conversations: this.snapshot.conversations,
+        activeConversationId: this.activeAlertConversation,
+        canNotify: (kind) =>
+          Boolean(defaults?.should_show_notifications && category(kind)?.should_notify),
+      },
+    });
+    const latest = alerts.at(-1);
+    if (!latest) {
+      return;
+    }
+
+    const conversation = this.snapshot.conversations.find(
+      (entry) => entry.id === latest.conversationId,
+    );
+    const group = groups.find((entry) => entry.message?.id === latest.messageId);
+    const canPreview = conversation && category(conversation.kind)?.should_show_preview;
+    const preview = canPreview ? group?.message?.content.text.trim() : undefined;
+    const text = preview?.slice(0, MAX_ALERT_PREVIEW);
+    showToast(text ? `New message: ${text}` : 'New message');
+    if (defaults?.should_play_sound) {
+      void playNotificationSound({ volume: defaults.volume });
+    }
   }
 
   private async applyViewChanges(page: components['schemas']['SyncPage']): Promise<void> {
@@ -1760,6 +1856,7 @@ export class ChatOwner {
   }
 
   private async resetCache(): Promise<void> {
+    this.alerts.resetBaseline();
     this.viewGeneration += 1;
     this.historyLoad = undefined;
     this.publish({

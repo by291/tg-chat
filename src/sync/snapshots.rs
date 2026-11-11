@@ -40,6 +40,8 @@ pub struct SyncGroup {
     pub conversation_id: Uuid,
     pub removed_message_id: Option<Uuid>,
     pub message: Option<CanonicalMessage>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub is_new_message: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -56,6 +58,7 @@ struct ChangeReference {
     position: i64,
     conversation_id: Uuid,
     message_id: Option<Uuid>,
+    is_new_message: bool,
 }
 
 async fn relationships(
@@ -130,8 +133,15 @@ impl MessageService {
         let scope = CursorScope::read(&mut transaction, actor.user_id).await?;
         let after = scope.decode(&query.cursor)?;
         let references = sqlx::query_as::<_, ChangeReference>(
-            "SELECT position, conversation_id, message_id FROM personal_changes
-             WHERE user_id = $1 AND position > $2 ORDER BY position LIMIT $3",
+            "SELECT change.position, change.conversation_id, change.message_id,
+                 change.is_new_message AND NOT EXISTS (
+                     SELECT 1 FROM messages message JOIN blocks relationship
+                     ON ((relationship.owner_id = $1 AND relationship.target_id = message.author_id)
+                      OR (relationship.target_id = $1 AND relationship.owner_id = message.author_id))
+                     WHERE message.id = change.message_id
+                 ) AS is_new_message
+             FROM personal_changes change WHERE change.user_id = $1 AND change.position > $2
+             ORDER BY change.position LIMIT $3",
         )
         .bind(actor.user_id)
         .bind(after)
@@ -178,6 +188,7 @@ impl MessageService {
                 conversation_id: reference.conversation_id,
                 removed_message_id,
                 message,
+                is_new_message: reference.is_new_message,
             });
         }
         let has_more = position < scope.position;

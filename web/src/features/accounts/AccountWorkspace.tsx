@@ -19,6 +19,12 @@ import { DevicesSettingsPage } from '@/features/settings/devices/DevicesSettings
 import { OperatorWorkspace } from '@/features/operator/OperatorWorkspace';
 import { AccountPreferencesPanel } from '@/features/settings/connected/AccountPreferencesPanel';
 import { ConnectedStickerPackScope } from '@/features/settings/connected/StickerPackScope';
+import { BrowserPushOwner } from '@/features/settings/notifications/BrowserPushOwner';
+import { BrowserPushSettings } from '@/features/settings/notifications/BrowserPushSettings';
+import {
+  resolveNotificationTarget,
+  takeNotificationTarget,
+} from '@/features/settings/notifications/notificationNavigation';
 import { SessionOwner, isCancelled } from '../auth/SessionOwner';
 import { CommunityWorkspace } from '../communities/CommunityWorkspace';
 import { conversationDestination, type Conversation } from '../communities/communityModels';
@@ -117,8 +123,53 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const [chatError, setChatError] = useState('');
   const { preferences, revision } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const [activity] = useState(() => new ActivityOwner({ session: owner }));
+  const [push] = useState(() => new BrowserPushOwner({ session: owner }));
 
   useEffect(() => activity.connect(), [activity, revision]);
+  useEffect(() => push.connect(), [push, revision]);
+
+  useEffect(() => {
+    if (!chat) {
+      return;
+    }
+    let navigation = 0;
+
+    async function openNotification() {
+      const target = takeNotificationTarget();
+      if (!target || !chat) {
+        return;
+      }
+
+      const request = ++navigation;
+      chat.showInbox();
+      setPage('messages');
+      const conversation = await resolveNotificationTarget({ target, session: owner, chat });
+      const isCurrent = navigation === request && owner.getSnapshot().revision === revision;
+      if (!isCurrent || !conversation || chat.getSnapshot().selection) {
+        return;
+      }
+
+      await chat.select({
+        destination: conversationDestination(conversation),
+        title: conversation.title || conversation.peer_name,
+      });
+    }
+
+    function navigate() {
+      void openNotification().catch((error: unknown) => {
+        if (!isCancelled(error)) {
+          setChatError(error instanceof Error ? error.message : 'The conversation is unavailable.');
+        }
+      });
+    }
+
+    navigate();
+    window.addEventListener('hashchange', navigate);
+    return () => {
+      navigation += 1;
+      window.removeEventListener('hashchange', navigate);
+    };
+  }, [chat, owner, revision]);
 
   useEffect(() => {
     if (page === 'preferences' && !preferences) {
@@ -215,6 +266,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
           onCommunities={() => showCommunities()}
           onCommunityDetails={showCommunities}
         />
+        <ToastViewport />
       </ConnectedStickerPackScope>
     );
   }
@@ -224,10 +276,13 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   switch (page) {
     case 'preferences':
       content = (
-        <AccountPreferencesPanel
-          preferences={preferences ?? null}
-          onUpdate={(input) => owner.updateAccountPreferences(input)}
-        />
+        <>
+          <AccountPreferencesPanel
+            preferences={preferences ?? null}
+            onUpdate={(input) => owner.updateAccountPreferences(input)}
+          />
+          <BrowserPushSettings owner={push} />
+        </>
       );
       break;
     case 'operator':

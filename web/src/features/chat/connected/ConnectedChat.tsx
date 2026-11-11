@@ -6,6 +6,7 @@ import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
+import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import type { PollMedia } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
@@ -194,6 +195,8 @@ export function ConnectedChat({
   const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
   const selection = snapshot.selection;
+  const activeAlertId = !isDirectoryVisible ? conversation?.id : undefined;
+  useEffect(() => owner.setAlertConversation(activeAlertId), [owner, activeAlertId]);
   const isViewingDirect = conversation?.kind === 'direct' && !isDirectoryVisible;
   const directId = isViewingDirect ? conversation.id : undefined;
   const peerId = isViewingDirect ? conversation.peer_id : undefined;
@@ -280,6 +283,9 @@ export function ConnectedChat({
   const acceptedIds = new Set(messages.map((message) => message.id));
   const selectedKey = selection ? destinationKey(selection.destination) : '';
   useEffect(() => {
+    if (!selectedKey) {
+      setIsDirectoryVisible(true);
+    }
     setEditing(undefined);
     setIsPinsOpen(false);
     setSearchConversationId(undefined);
@@ -375,6 +381,10 @@ export function ConnectedChat({
         });
       } else {
         await owner.queueSend(message);
+      }
+      const defaults = session?.getSnapshot().preferences?.notification_defaults;
+      if (!editing && defaults?.should_play_sent_sound) {
+        void playNotificationSound({ volume: defaults.volume, isSent: true });
       }
       return true;
     } catch (failure) {

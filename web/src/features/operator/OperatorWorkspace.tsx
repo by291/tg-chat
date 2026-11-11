@@ -354,6 +354,7 @@ function JobOperations({ owner }: { owner: SessionOwner }) {
           <option value="mail">Mail</option>
           <option value="sync_wakeup">Sync wakeup</option>
           <option value="media">Media</option>
+          <option value="push">Web Push</option>
         </select>
       </label>
       <button type="button" disabled={operation.isPending} onClick={loadJobs}>

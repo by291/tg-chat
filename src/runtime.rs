@@ -20,6 +20,10 @@ use crate::{
         MediaCleanup, MediaLimits, MediaStorageSettings, MediaWorker, MediaWorkerSettings,
         UploadService,
     },
+    notifications::{
+        NotificationService,
+        delivery::{PushRuntime, PushWorker},
+    },
     realtime::{self, RealtimeClient, RealtimeSettings, WorkerServices},
 };
 
@@ -117,6 +121,16 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
                 }
             }
         });
+        let transport =
+            HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
+        let activity_accounts = AccountService::new(pool.clone(), account_settings.clone());
+        let activity = realtime::Activity::new(activity_accounts, &transport, None);
+        let push = PushWorker::from_values(PushRuntime {
+            pool: pool.clone(),
+            activity: Some(activity),
+            idle_days: account_settings.idle_days,
+            values: &values,
+        });
         let media = if let Some(storage) = media_storage.clone() {
             let settings =
                 MediaWorkerSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
@@ -142,6 +156,7 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
                 realtime::run(services, stop.clone()),
                 prepare_media,
                 prepare_previews,
+                push.run(stop.clone()),
             );
         }))
     } else {
@@ -151,8 +166,10 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
+        let notifications = NotificationService::from_values(accounts.clone(), &values);
         let state = AccountHttpState::new(accounts.clone(), transport, mail);
         let mut state = state.with_activity_realtime(realtime_client);
+        state = state.with_notifications(notifications);
         if let Some(media) = media_storage {
             let limits = MediaLimits::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
             state = state.with_media(UploadService::new(accounts.clone(), limits, media));

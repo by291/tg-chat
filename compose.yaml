@@ -131,6 +131,8 @@ services:
     environment:
       <<: *application-environment
       TG_CHAT_BIND_ADDRESS: 0.0.0.0:8080
+      TG_CHAT_PUSH_VAPID_PUBLIC_KEY: ${TG_CHAT_PUSH_VAPID_PUBLIC_KEY:-}
+      TG_CHAT_PUSH_PROVIDER_HOSTS: ${TG_CHAT_PUSH_PROVIDER_HOSTS:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -155,6 +157,10 @@ services:
     environment:
       <<: *application-environment
       TG_CHAT_BIND_ADDRESS: 0.0.0.0:8081
+      TG_CHAT_PUSH_VAPID_PUBLIC_KEY: ${TG_CHAT_PUSH_VAPID_PUBLIC_KEY:-}
+      TG_CHAT_PUSH_VAPID_PRIVATE_KEY: ${TG_CHAT_PUSH_VAPID_PRIVATE_KEY:-}
+      TG_CHAT_PUSH_VAPID_SUBJECT: ${TG_CHAT_PUSH_VAPID_SUBJECT:-}
+      TG_CHAT_PUSH_PROVIDER_HOSTS: ${TG_CHAT_PUSH_PROVIDER_HOSTS:-}
       TG_CHAT_LINK_PREVIEW_ENDPOINT: http://link-preview-fetcher:8091/preview
     networks:
       default:

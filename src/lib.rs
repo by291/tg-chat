@@ -10,12 +10,13 @@ pub mod telemetry;
 pub mod contacts;
 
 pub mod jobs;
-mod sticker_catalog;
 mod link_preview_address;
+mod sticker_catalog;
 
 pub mod media;
 pub mod messages;
 pub mod moderation;
+pub mod notifications;
 
 pub mod conversations;
 pub mod sync;

@@ -1308,6 +1308,49 @@
         }
       }
     },
+    "/api/v1/notifications/capability": {
+      "get": {
+        "tags": [],
+        "operationId": "capability",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PushCapability" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/subscription": {
+      "put": {
+        "tags": [],
+        "operationId": "subscribe",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PushSubscriptionInput" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PushSubscriptionReceipt" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [],
+        "operationId": "unsubscribe",
+        "responses": { "204": { "description": "The session subscription was removed" } }
+      }
+    },
     "/api/v1/operator/accounts": {
       "get": {
         "tags": [],
@@ -2882,6 +2925,15 @@
         },
         "additionalProperties": false
       },
+      "NotificationIdentity": {
+        "type": "object",
+        "required": ["deployment_id", "message_id", "subscription_id"],
+        "properties": {
+          "deployment_id": { "type": "string", "format": "uuid" },
+          "message_id": { "type": "string", "format": "uuid" },
+          "subscription_id": { "type": "string", "format": "uuid" }
+        }
+      },
       "OperatorAccount": {
         "type": "object",
         "required": ["id", "username", "display_name", "is_suspended"],
@@ -2989,7 +3041,7 @@
           "status": { "type": "string" }
         }
       },
-      "OperatorJobKind": { "type": "string", "enum": ["mail", "sync_wakeup", "media"] },
+      "OperatorJobKind": { "type": "string", "enum": ["mail", "sync_wakeup", "media", "push"] },
       "OwnedCommunities": {
         "type": "object",
         "required": ["communities"],
@@ -3239,6 +3291,38 @@
           "username": { "type": "string" }
         }
       },
+      "PushCapability": {
+        "type": "object",
+        "required": ["available"],
+        "properties": {
+          "available": { "type": "boolean" },
+          "vapid_public_key": { "type": ["string", "null"] }
+        }
+      },
+      "PushPayload": {
+        "type": "object",
+        "required": ["identity", "conversation_id"],
+        "properties": {
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "identity": { "$ref": "#/components/schemas/NotificationIdentity" }
+        }
+      },
+      "PushSubscriptionInput": {
+        "type": "object",
+        "required": ["endpoint", "p256dh", "auth"],
+        "properties": {
+          "auth": { "type": "string" },
+          "endpoint": { "type": "string" },
+          "expiration_time": { "type": ["integer", "null"], "format": "int64" },
+          "p256dh": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "PushSubscriptionReceipt": {
+        "type": "object",
+        "required": ["subscription_id"],
+        "properties": { "subscription_id": { "type": "string", "format": "uuid" } }
+      },
       "QuarantineTarget": {
         "oneOf": [
           {
@@ -3464,6 +3548,7 @@
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ConversationView" }]
           },
           "conversation_id": { "type": "string", "format": "uuid" },
+          "is_new_message": { "type": "boolean" },
           "message": {
             "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CanonicalMessage" }]
           },

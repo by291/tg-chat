@@ -248,7 +248,8 @@ pub(crate) async fn insert(
     }
     let participants =
         crate::conversations::access::participants(connection, message.conversation).await?;
-    changes::append(
+    crate::notifications::enqueue(connection, message.input.message_id).await?;
+    changes::append_new_message(
         connection,
         ChangeGroup {
             participants: &participants,
