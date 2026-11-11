@@ -399,7 +399,8 @@ behavior.
 
 ## M8: Notifications, moderation, and account lifecycle
 
-[Detailed M8 design](../specs/2026-11-12-m8-notifications-moderation-lifecycle-design.md).
+[Detailed M8 design](../specs/2026-11-12-m8-notifications-moderation-lifecycle-design.md) and
+[implementation plan](./2026-11-12-m8-notifications-moderation-lifecycle.md).
 
 **Outcome:** Messaging is feature-complete for controlled acceptance, with optional offline
 notifications and the administrative tools needed before public release.
