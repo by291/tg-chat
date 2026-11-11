@@ -220,3 +220,64 @@ describe('pending media ownership', () => {
     expect((await second.read()).pending).toEqual([]);
   });
 });
+
+it('does not write expired source bytes back from a late checkpoint', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  const message = pending();
+  const source = {
+    occurrenceId: crypto.randomUUID(),
+    uploadId: crypto.randomUUID(),
+    filename: 'expired.txt',
+    kind: 'document' as const,
+    sizeBytes: 4,
+    blob: new Blob(['data']),
+    sourceSavedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+  };
+  const messageId = message.request.message_id;
+  await store.enqueue({ message: { ...message, media: [source] } });
+  const claim = await store.claimMedia({ messageId });
+  expect(claim).toBeDefined();
+  await store.pruneMedia();
+
+  await store.checkpointMedia({
+    messageId,
+    token: claim!.token,
+    item: source,
+  });
+  const restored = await store.read();
+  expect(restored.pending[0].media?.[0].blob).toBeUndefined();
+  expect(restored.pending[0].media?.[0].uploadId).toBe(source.uploadId);
+});
+
+it('restarts a confirmed rejection without losing the caption or upload identity', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  const message = pending();
+  const media = {
+    occurrenceId: crypto.randomUUID(),
+    uploadId: crypto.randomUUID(),
+    filename: 'expired.txt',
+    kind: 'document' as const,
+    sizeBytes: 4,
+    fileId: crypto.randomUUID(),
+    blob: new Blob(['data']),
+  };
+  await store.enqueue({
+    message: {
+      ...message,
+      status: 'failed',
+      isPrepared: true,
+      canRestartMedia: true,
+      media: [media],
+    },
+  });
+
+  const restarted = await store.restartMedia(message.request.message_id);
+  expect(restarted?.request.message_id).not.toBe(message.request.message_id);
+  expect(restarted?.request.operation_id).not.toBe(message.request.operation_id);
+  expect(restarted?.request.content.text).toBe(message.request.content.text);
+  expect(restarted?.media?.[0].uploadId).toBe(media.uploadId);
+  expect(restarted?.media?.[0].fileId).toBeUndefined();
+  expect((await store.read()).pending).toHaveLength(1);
+});

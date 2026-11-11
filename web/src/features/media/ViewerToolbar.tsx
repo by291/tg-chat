@@ -1,5 +1,5 @@
 import { useAppPreferences } from '@/features/settings/appPreferences';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Menu } from '@ark-ui/react/menu';
 import { Portal } from '@ark-ui/react/portal';
@@ -21,6 +21,7 @@ import { CURRENT_USER_ID } from '@/domain/identity';
 import { type Message } from '@/domain/messages/message';
 import { formatMessageDate, formatMessageTime } from '@/features/chat/messageFormatting';
 import { copyViewerImage, canCopyViewerImage } from './copyViewerImage';
+import { downloadMedia } from './mediaAccess';
 import type { MediaViewerCommand } from './mediaViewerCommands';
 import type { ViewerTransformController } from './useViewerTransform';
 import styles from './MediaViewer.module.css';
@@ -69,7 +70,31 @@ export function ViewerToolbar({
 
   const video = message.media?.kind === 'video' ? message.media : undefined;
   const mediaLabel = video ? 'video' : 'image';
-  const isOwnMedia = message.authorId === CURRENT_USER_ID;
+  const isConnected = Boolean(message.downloadOriginalUrl);
+  const isOwnMedia = !isConnected && message.authorId === CURRENT_USER_ID;
+  const downloadRequest = useRef<AbortController>(undefined);
+  useEffect(() => () => downloadRequest.current?.abort(), [message.id]);
+
+  function downloadOriginal(): void {
+    if (!message.downloadOriginalUrl) {
+      return;
+    }
+    downloadRequest.current?.abort();
+    const controller = new AbortController();
+    downloadRequest.current = controller;
+    void message.downloadOriginalUrl(controller.signal).then(
+      (url) => {
+        if (!controller.signal.aborted) {
+          downloadMedia(url);
+        }
+      },
+      (error: unknown) => {
+        if (!controller.signal.aborted) {
+          onNotify(error instanceof Error ? error.message : 'Download unavailable.');
+        }
+      },
+    );
+  }
 
   function command(action: MediaViewerCommand['action']) {
     onCommand({ action, message });
@@ -97,20 +122,24 @@ export function ViewerToolbar({
             <Pencil />
           </IconButton>
         )}
-        <IconButton
-          label="Delete message"
-          className={styles.desktopAction}
-          onClick={() => command('delete')}
-        >
-          <Trash2 />
-        </IconButton>
-        <IconButton
-          label="Forward"
-          className={styles.desktopAction}
-          onClick={() => command('forward')}
-        >
-          <Forward />
-        </IconButton>
+        {!isConnected && (
+          <>
+            <IconButton
+              label="Delete message"
+              className={styles.desktopAction}
+              onClick={() => command('delete')}
+            >
+              <Trash2 />
+            </IconButton>
+            <IconButton
+              label="Forward"
+              className={styles.desktopAction}
+              onClick={() => command('forward')}
+            >
+              <Forward />
+            </IconButton>
+          </>
+        )}
         {!video && canCopyViewerImage() && (
           <IconButton
             label="Copy image"
@@ -120,13 +149,19 @@ export function ViewerToolbar({
             <Copy />
           </IconButton>
         )}
-        <a
-          href={video?.url ?? message.attachment?.url}
-          download={video ? 'video.mp4' : message.attachment?.name}
-          aria-label={`Download ${mediaLabel}`}
-        >
-          <Download />
-        </a>
+        {isConnected ? (
+          <IconButton label={`Download ${mediaLabel}`} onClick={downloadOriginal}>
+            <Download />
+          </IconButton>
+        ) : (
+          <a
+            href={video?.url ?? message.attachment?.url}
+            download={video ? 'video.mp4' : message.attachment?.name}
+            aria-label={`Download ${mediaLabel}`}
+          >
+            <Download />
+          </a>
+        )}
         {!video && (
           <>
             <IconButton
@@ -160,9 +195,11 @@ export function ViewerToolbar({
                 <Menu.Item value="message" onClick={() => command('go-to-message')}>
                   Go to message
                 </Menu.Item>
-                <Menu.Item value="forward" onClick={() => command('forward')}>
-                  Forward
-                </Menu.Item>
+                {!isConnected && (
+                  <Menu.Item value="forward" onClick={() => command('forward')}>
+                    Forward
+                  </Menu.Item>
+                )}
                 {isOwnMedia && (
                   <Menu.Item value="edit" onClick={() => command('edit-caption')}>
                     Edit caption
@@ -176,9 +213,11 @@ export function ViewerToolbar({
                     Copy image
                   </Menu.Item>
                 )}
-                <Menu.Item value="delete" onClick={() => command('delete')}>
-                  Delete message
-                </Menu.Item>
+                {!isConnected && (
+                  <Menu.Item value="delete" onClick={() => command('delete')}>
+                    Delete message
+                  </Menu.Item>
+                )}
               </Menu.Content>
             </Menu.Positioner>
           </Portal>

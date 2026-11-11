@@ -71,7 +71,10 @@ export async function copyViewerImage({ message, onNotify }: CopyViewerImageOpti
     return;
   }
 
-  const imagePromise = loadClipboardImage(message.attachment.url);
+  const imageUrl = message.renewPreviewUrl
+    ? message.renewPreviewUrl(new AbortController().signal)
+    : Promise.resolve(message.attachment.url);
+  const imagePromise = imageUrl.then(loadClipboardImage);
 
   try {
     // Start the clipboard write within the click gesture; encoding resolves asynchronously.

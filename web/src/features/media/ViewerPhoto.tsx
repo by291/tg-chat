@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { Message } from '@/domain/messages/message';
 import { useViewerMediaTransition, type ViewerTransitionProps } from './useViewerMediaTransition';
+import { useAuthorizedMediaUrl } from './useAuthorizedMediaUrl';
 import styles from './MediaViewer.module.css';
 
 interface ViewerPhotoProps extends ViewerTransitionProps {
@@ -20,6 +21,12 @@ export function ViewerPhoto({
 }: ViewerPhotoProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const photo = message.attachment!;
+  const [failedUrl, setFailedUrl] = useState<string>();
+  const shouldRenew = isOpen && failedUrl === photo.url;
+  const refreshed = useAuthorizedMediaUrl({
+    key: shouldRenew ? message.id : undefined,
+    authorize: message.renewPreviewUrl,
+  });
   useViewerMediaTransition({
     elementRef: imageRef,
     messageId: message.id,
@@ -43,7 +50,9 @@ export function ViewerPhoto({
       <img
         ref={imageRef}
         className={styles.image}
-        src={photo.url}
+        src={refreshed.url ?? photo.url}
+        crossOrigin={message.renewPreviewUrl ? 'anonymous' : undefined}
+        onError={() => setFailedUrl(photo.url)}
         alt={photo.name}
         width={photo.width}
         height={photo.height}

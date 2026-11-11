@@ -20,6 +20,7 @@ export interface PendingMessage {
   media?: PendingMedia[];
   mediaClaim?: { token: string; expiresAt: number };
   mediaProgress?: UploadProgress;
+  canRestartMedia?: boolean;
 }
 
 export interface PendingCommand {
@@ -84,10 +85,13 @@ interface MediaCheckpoint extends MediaClaim {
 function dropExpiredBlobs(snapshot: PendingSnapshot): void {
   const cutoff = Date.now() - MEDIA_RETENTION_MS;
   for (const pending of snapshot.pending) {
-    if (pending.createdAt > cutoff || !pending.media) {
+    if (!pending.media) {
       continue;
     }
-    pending.media = pending.media.map((item) => ({ ...item, blob: undefined }));
+    pending.media = pending.media.map((item) => {
+      const savedAt = item.sourceSavedAt ?? pending.createdAt;
+      return savedAt <= cutoff && item.blob ? { ...item, blob: undefined } : item;
+    });
   }
 }
 
@@ -264,6 +268,49 @@ export class PendingMessages {
     return updated;
   }
 
+  /** Drop expired source bytes while retaining enough state to reconcile a send. */
+  async pruneMedia(): Promise<PendingSnapshot> {
+    await this.mutate(dropExpiredBlobs);
+    return this.read();
+  }
+
+  /** Allocate a new operation only after the previous send definitively failed at acceptance. */
+  async restartMedia(messageId: string): Promise<PendingMessage | undefined> {
+    let restarted: PendingMessage | undefined;
+    await this.mutate((snapshot) => {
+      dropExpiredBlobs(snapshot);
+      const index = pendingIndex(snapshot, messageId);
+      const current = snapshot.pending[index];
+      if (!current?.media || !current.canRestartMedia || current.status !== 'failed') {
+        return;
+      }
+      restarted = {
+        ...current,
+        status: 'queued',
+        error: undefined,
+        isPrepared: false,
+        canRestartMedia: false,
+        mediaClaim: undefined,
+        mediaProgress: undefined,
+        createdAt: Date.now(),
+        media: current.media.map((item) => ({
+          ...item,
+          sourceSavedAt: item.sourceSavedAt ?? current.createdAt,
+          fileId: undefined,
+        })),
+        request: {
+          ...current.request,
+          attachments: undefined,
+          draft_version: undefined,
+          message_id: crypto.randomUUID(),
+          operation_id: crypto.randomUUID(),
+        },
+      };
+      snapshot.pending[index] = restarted;
+    });
+    return restarted;
+  }
+
   /** Claim a pending upload across tabs before reading or transferring its source bytes. */
   async claimMedia(input: {
     messageId: string;
@@ -297,8 +344,10 @@ export class PendingMessages {
       if (!current?.media || current.mediaClaim?.token !== input.token) {
         return;
       }
+      dropExpiredBlobs(snapshot);
+      // A tab may hold old bytes in memory after the current IndexedDB source expired.
       const media = current.media.map((item) =>
-        item.occurrenceId === input.item.occurrenceId ? input.item : item,
+        item.occurrenceId === input.item.occurrenceId ? { ...input.item, blob: item.blob } : item,
       );
       const attachments = media.flatMap((item) =>
         item.fileId ? [{ occurrence_id: item.occurrenceId, file_id: item.fileId }] : [],
@@ -343,6 +392,7 @@ export class PendingMessages {
         ...item,
         filename: isOriginal ? item.filename : input.file.name,
         sizeBytes: input.file.size,
+        sourceSavedAt: Date.now(),
         uploadId: !item.blob && isOriginal ? item.uploadId : crypto.randomUUID(),
         sha256: input.sha256,
         blob: input.file,

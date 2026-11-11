@@ -56,6 +56,7 @@ export const messageSchema = z.object({
 
 interface PendingMediaDisplay {
   status: string;
+  canRestart?: boolean;
   error?: string;
   items: Array<{ occurrenceId: string; filename: string; isReady: boolean }>;
 }
@@ -63,5 +64,7 @@ interface PendingMediaDisplay {
 export type Message = z.infer<typeof messageSchema> & {
   remoteAttachments?: components['schemas']['AttachmentView'][];
   pendingMedia?: PendingMediaDisplay;
+  downloadOriginalUrl?: (signal: AbortSignal) => Promise<string>;
+  renewPreviewUrl?: (signal: AbortSignal) => Promise<string>;
   renewPlaybackUrl?: (signal: AbortSignal) => Promise<string>;
 };

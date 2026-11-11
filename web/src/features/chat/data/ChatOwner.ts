@@ -187,6 +187,7 @@ export class ChatOwner {
     });
     const persisted = await this.store.open();
     this.mediaQueue = new ChatMediaQueue({
+      sessionId: this.sessionId,
       store: this.store,
       transport: this.mediaTransport,
       onPending: (message) => this.replacePending(message),
@@ -248,6 +249,7 @@ export class ChatOwner {
       isRunning = true;
       watchCache();
       try {
+        await this.pruneMediaSources();
         await this.catchUp();
         await this.flush();
         await this.flushDraft();
@@ -522,6 +524,25 @@ export class ChatOwner {
     return this.sendPromise;
   }
 
+  private async pruneMediaSources(): Promise<void> {
+    const cutoff = Date.now() - RETRY_LIFETIME_MS;
+    const hasExpiredBytes = this.snapshot.pending.some((message) => {
+      return message.media?.some((item) => {
+        const savedAt = item.sourceSavedAt ?? message.createdAt;
+        return savedAt <= cutoff && item.blob;
+      });
+    });
+    if (!hasExpiredBytes) {
+      return;
+    }
+    const persisted = await this.requireStore().pruneMedia();
+    for (const message of persisted.pending) {
+      if (message.media) {
+        this.replacePending(message);
+      }
+    }
+  }
+
   /** Retry a visible failed operation after an explicit user decision. */
   async retry(messageId: string): Promise<void> {
     await this.sendPromise;
@@ -529,6 +550,17 @@ export class ChatOwner {
       (message) => message.request.message_id === messageId,
     );
     if (!pending) {
+      return;
+    }
+    if (pending.canRestartMedia) {
+      const restarted = await this.requireStore().restartMedia(messageId);
+      if (restarted) {
+        const remaining = this.snapshot.pending.filter(
+          (item) => item.request.message_id !== messageId,
+        );
+        this.publish({ pending: [...remaining, restarted] });
+        this.kickMedia();
+      }
       return;
     }
     const queued: PendingMessage = {
@@ -1067,7 +1099,8 @@ export class ChatOwner {
         }
         const isPermanent = error instanceof ApiError && !TRANSIENT_ERROR_CODES.has(error.code);
         if (isPermanent) {
-          await this.failPending(pending, failureMessage(error));
+          const canRestartMedia = error.code === 'media_file_unavailable' && Boolean(pending.media);
+          await this.failPending({ ...pending, canRestartMedia }, failureMessage(error));
         } else {
           this.replacePending({
             ...pending,

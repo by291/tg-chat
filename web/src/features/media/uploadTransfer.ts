@@ -23,6 +23,7 @@ export interface PendingMedia {
   filename: string;
   kind: UploadPurpose;
   sizeBytes: number;
+  sourceSavedAt?: number;
   sha256?: string;
   blob?: Blob;
   fileId?: string;

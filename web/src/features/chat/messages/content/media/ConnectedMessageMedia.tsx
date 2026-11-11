@@ -67,9 +67,14 @@ async function galleryItem(reference: MediaReference, signal: AbortSignal): Prom
     ...message,
     id: attachment.occurrence_id,
     remoteAttachments: undefined,
+    downloadOriginalUrl: (signal) => urlFor({ reference, variant: 'original', signal }),
   };
   if (file.kind === 'image') {
-    return { ...base, attachment: { name: attachment.file_name, url: preview, width, height } };
+    return {
+      ...base,
+      attachment: { name: attachment.file_name, url: preview, width, height },
+      renewPreviewUrl: (signal) => urlFor({ reference, variant: 'thumbnail', signal }),
+    };
   }
 
   const renew = (nextSignal: AbortSignal) =>
@@ -187,7 +192,7 @@ export function ConnectedMessageMedia({ message }: { message: Message }) {
         <div className={styles.pendingActions}>
           {message.deliveryStatus === 'failed' && (
             <button type="button" onClick={() => actions.retry(message.id)}>
-              Retry upload
+              {pending.canRestart ? 'Send again' : 'Retry upload'}
             </button>
           )}
           <button type="button" onClick={() => actions.cancel(message.id)}>

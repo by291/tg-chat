@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '@/features/chat/demo/fixtures';
 import { ViewerPhoto } from './ViewerPhoto';
@@ -70,6 +70,19 @@ afterEach(() => {
 });
 
 describe('photo viewer transitions', () => {
+  it('renews an expired private preview in the open viewer', async () => {
+    const renewedUrl = '/renewed-photo.png';
+    const authorize = vi.fn(async () => renewedUrl);
+    const message = { ...photoMessage, renewPreviewUrl: authorize };
+    render(<ViewerPhoto message={message} isOpen activeIndex={0} />);
+
+    const image = screen.getByAltText('Landscape');
+    expect(image.getAttribute('src')).toBe('/photo.png');
+    fireEvent.error(image);
+
+    await waitFor(() => expect(image.getAttribute('src')).toBe(renewedUrl));
+  });
+
   it('returns to the clicked copy when the same photo is also visible in history', () => {
     const historySource = document.createElement('button');
     const sharedSource = document.createElement('button');

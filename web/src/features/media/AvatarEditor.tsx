@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { isCancelled } from '@/features/auth/SessionOwner';
 import { pendingMedia, resumeUpload } from './uploadTransfer';
 import { uploadClient } from './uploadClient';
+import { withMediaSession } from './mediaSessionLock';
 import { RemoteAvatar, type RemoteAvatarProps } from './RemoteAvatar';
 
 const MAX_AVATAR_BYTES = 25 * 1024 * 1024;
@@ -31,17 +32,28 @@ export function AvatarEditor({ onAssign, ...avatar }: AvatarEditorProps) {
     active.current = controller;
     const item = pendingMedia({ blob: file, filename: file.name, kind: 'avatar' });
     try {
-      const ready = await resumeUpload({
-        item,
-        transport: uploadClient(avatar.session),
-        signal: controller.signal,
-        checkpoint: async () => controller.signal.throwIfAborted(),
-        onProgress: ({ phase }) => {
-          if (phase === 'processing') {
-            setStatus('Preparing photo…');
-          }
-        },
+      const sessionId = avatar.session.getSnapshot().auth?.session.id;
+      if (!sessionId) {
+        throw new Error('Sign in before changing the photo.');
+      }
+      const ready = await withMediaSession({
+        sessionId,
+        run: () =>
+          resumeUpload({
+            item,
+            transport: uploadClient(avatar.session),
+            signal: controller.signal,
+            checkpoint: async () => controller.signal.throwIfAborted(),
+            onProgress: ({ phase }) => {
+              if (phase === 'processing') {
+                setStatus('Preparing photo…');
+              }
+            },
+          }),
       });
+      if (!ready) {
+        throw new Error('Another upload is active. Try again after it finishes.');
+      }
       controller.signal.throwIfAborted();
       if (!ready.file_id) {
         throw new Error('The photo could not be prepared.');

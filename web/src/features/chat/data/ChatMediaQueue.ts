@@ -1,4 +1,5 @@
 import { ApiError, isCancelled } from '@/features/auth/SessionOwner';
+import { withMediaSession } from '@/features/media/mediaSessionLock';
 import {
   resumeUpload,
   type PendingMedia,
@@ -15,6 +16,7 @@ const TRANSIENT_FAILURES = new Set([
 ]);
 
 interface QueueOptions {
+  sessionId: string;
   store: PendingMessages;
   transport: UploadTransport;
   onPending: (message: PendingMessage) => void;
@@ -49,7 +51,7 @@ export class ChatMediaQueue {
     if (this.isClosed || !pending.some(isWaiting)) {
       return Promise.resolve();
     }
-    this.running ??= this.preparePending(pending).finally(() => {
+    this.running ??= this.runSession(pending).finally(() => {
       this.running = undefined;
     });
     return this.running;
@@ -68,23 +70,17 @@ export class ChatMediaQueue {
     this.active?.controller.abort();
   }
 
-  private async preparePending(pending: PendingMessage[]): Promise<void> {
-    for (const message of pending) {
-      if (this.isClosed || !isWaiting(message)) {
-        continue;
-      }
-      const messageId = message.request.message_id;
-      if (navigator.locks) {
-        const key = `tg-chat:media:${messageId}`;
-        await navigator.locks.request(key, { ifAvailable: true }, async (lock) => {
-          if (lock) {
-            await this.prepare(messageId, { hasBrowserLock: true });
+  private async runSession(pending: PendingMessage[]): Promise<void> {
+    await withMediaSession({
+      sessionId: this.options.sessionId,
+      run: async (options) => {
+        for (const message of pending) {
+          if (!this.isClosed && isWaiting(message)) {
+            await this.prepare(message.request.message_id, options);
           }
-        });
-      } else {
-        await this.prepare(messageId, { hasBrowserLock: false });
-      }
-    }
+        }
+      },
+    });
   }
 
   private async prepare(messageId: string, options: { hasBrowserLock: boolean }): Promise<void> {
@@ -94,6 +90,13 @@ export class ChatMediaQueue {
     const store = this.options.store;
     const claim = await store.claimMedia({ messageId, ...options });
     if (!claim) {
+      // Another tab may have checkpointed the final file before closing or losing its response.
+      const snapshot = await store.read();
+      const current = snapshot.pending.find((entry) => entry.request.message_id === messageId);
+      if (!this.isClosed && current?.request.attachments?.length) {
+        this.options.onPending(current);
+        this.options.onReady();
+      }
       return;
     }
     const active = { messageId, token: claim.token, controller: new AbortController() };
@@ -126,10 +129,6 @@ export class ChatMediaQueue {
     let completedBytes = 0;
     let current = message;
     for (const original of message.media ?? []) {
-      if (original.fileId) {
-        completedBytes += original.sizeBytes;
-        continue;
-      }
       let item = original;
       const save = async (next: PendingMedia) => {
         const checkpoint = await this.options.store.checkpointMedia({
@@ -140,7 +139,19 @@ export class ChatMediaQueue {
         if (!checkpoint || this.isClosed) {
           throw new DOMException('Upload ownership ended.', 'AbortError');
         }
-        item = next;
+        const persisted = checkpoint.media?.find(
+          (entry) => entry.occurrenceId === next.occurrenceId,
+        );
+        if (!persisted) {
+          throw new DOMException('Upload ownership ended.', 'AbortError');
+        }
+        if (next.blob && !persisted.blob && !next.fileId) {
+          throw new ApiError({
+            code: 'media_source_missing',
+            message: 'Select the original file to continue this upload.',
+          });
+        }
+        item = persisted;
         current = checkpoint;
         this.options.onPending(checkpoint);
       };

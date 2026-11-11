@@ -415,7 +415,9 @@ export function ConnectedChat({
                       setIsDirectoryVisible(false);
                     }}
                   >
-                    {entry.request.content.text}
+                    {entry.request.content.text ||
+                      entry.media?.map((item) => item.filename).join(', ') ||
+                      'Pending message'}
                   </button>
                   <p>{entry.error || 'Waiting for server confirmation'}</p>
                   <div className={styles.actions}>

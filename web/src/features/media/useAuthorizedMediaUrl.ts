@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 interface Authorization {
   key?: string;
-  authorize: (signal: AbortSignal) => Promise<string>;
+  authorize?: (signal: AbortSignal) => Promise<string>;
 }
 
 /** Keep signed URLs in mounted view state and discard responses after access changes. */
@@ -10,7 +10,7 @@ export function useAuthorizedMediaUrl({ key, authorize }: Authorization) {
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{ key: string; url?: string; error?: string }>();
   useEffect(() => {
-    if (!key) {
+    if (!key || !authorize) {
       return;
     }
     const controller = new AbortController();

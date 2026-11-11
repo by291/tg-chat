@@ -158,6 +158,7 @@ export function renderPending(options: {
   const pendingMedia = pending.media
     ? {
         status,
+        canRestart: pending.canRestartMedia,
         error: pending.error,
         items: pending.media.map((item) => ({
           occurrenceId: item.occurrenceId,
