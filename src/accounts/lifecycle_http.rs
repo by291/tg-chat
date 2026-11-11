@@ -15,7 +15,8 @@ use super::{
 };
 use crate::http::ErrorDetails;
 
-const OWNERSHIP_MESSAGE: &str = "Transfer or delete owned communities before deleting your account.";
+const OWNERSHIP_MESSAGE: &str =
+    "Transfer or delete owned communities before deleting your account.";
 
 #[derive(Serialize, ToSchema)]
 struct OwnershipConflict {

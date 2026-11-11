@@ -30,7 +30,10 @@ pub(crate) async fn set_limit(
     limit_bytes: Option<String>,
 ) -> Result<(), AccountError> {
     let limits = MediaLimits::from_env()?;
-    let exists = sqlx::query_scalar::<_, bool>("SELECT EXISTS (SELECT 1 FROM users WHERE id = $1)");
+    // A deleted identity cannot receive a new override after its cleanup completes.
+    let exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM users WHERE id = $1 AND deleted_at IS NULL)",
+    );
     if !exists.bind(user_id).fetch_one(&mut *connection).await? {
         return Err(AccountError::NotFound);
     }

@@ -250,6 +250,9 @@ async fn clean_one_unit(
     let clear_preferences =
         sqlx::query("DELETE FROM account_preferences WHERE user_id = $1").bind(job.user_id);
     clear_preferences.execute(&mut *connection).await?;
+    let clear_quota =
+        sqlx::query("DELETE FROM account_storage_limits WHERE user_id = $1").bind(job.user_id);
+    clear_quota.execute(&mut *connection).await?;
 
     let complete =
         sqlx::query("UPDATE account_cleanup_jobs SET completed_at = now() WHERE user_id = $1");
