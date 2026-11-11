@@ -127,3 +127,29 @@ it('retains removal fences even when the affected history page has been evicted'
   const current = await cache.read();
   expect(current.removedMessages['message-1']).toBe('conversation');
 });
+
+it('leaves sibling tabs asleep when an empty sync page keeps the same checkpoint', async () => {
+  const cache = new CanonicalCache({ key: crypto.randomUUID() });
+  const initial = await cache.open(bootstrap());
+  const unsubscribe = cache.subscribe(() => undefined);
+  const broadcast = vi.spyOn(BroadcastChannel.prototype, 'postMessage');
+  const emptyPage = {
+    account_settings_version: '1',
+    groups: [],
+    cursor: initial.cursor,
+    observation_cursor: initial.cursor,
+    has_more: false,
+  };
+
+  try {
+    expect(await cache.applySync({ expected: initial, page: emptyPage })).toBe(true);
+    expect(broadcast).not.toHaveBeenCalled();
+
+    expect(await cache.applySync({ expected: initial, page: deletion() })).toBe(true);
+    expect(broadcast).toHaveBeenCalledOnce();
+    expect(await cache.applySync({ expected: initial, page: emptyPage })).toBe(false);
+    expect(broadcast).toHaveBeenCalledOnce();
+  } finally {
+    unsubscribe();
+  }
+});

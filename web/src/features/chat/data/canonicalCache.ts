@@ -215,7 +215,13 @@ export class CanonicalCache {
 
   /** Commit all sync projections and their cursor in one compare-and-set transaction. */
   async applySync(options: { expected: CacheCheckpoint; page: SyncPage }): Promise<boolean> {
-    return this.mutate(options.expected, (snapshot) => {
+    const { expected, page } = options;
+    if (page.groups.length === 0 && page.cursor === expected.cursor) {
+      // Unchanged polls must not wake sibling tabs into another poll.
+      return matches(await this.read(), expected);
+    }
+
+    return this.mutate(expected, (snapshot) => {
       if (!observedAtLeast(options.page.cursor, snapshot.cursor)) {
         return false;
       }
