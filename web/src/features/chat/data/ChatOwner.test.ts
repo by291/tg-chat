@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { SessionOwner } from '@/features/auth/SessionOwner';
+import type { UploadTransport } from '@/features/media/uploadTransfer';
 import { ChatOwner } from './ChatOwner';
 import { PendingMessages } from './pendingMessages';
 import { CanonicalCache } from './canonicalCache';
@@ -62,6 +63,7 @@ function fixture(options: {
   conversation?: components['schemas']['ConversationView'];
   transport?: (request: Request) => Promise<Response>;
   store?: PendingMessages;
+  mediaTransport?: UploadTransport;
   sessionId?: string;
   history?: (request: Request) => Promise<Response>;
   commands?: (request: Request) => Promise<Response>;
@@ -135,7 +137,11 @@ function fixture(options: {
     },
     { shouldBroadcast: false },
   );
-  const owner = new ChatOwner({ session, store: options.store });
+  const owner = new ChatOwner({
+    session,
+    store: options.store,
+    mediaTransport: options.mediaTransport,
+  });
   return { owner, session };
 }
 
@@ -1558,4 +1564,66 @@ it('keeps newly authorized reply quotes when adopting a remote draft after readm
   } finally {
     owner.dispose();
   }
+});
+
+it('sends text while a restored media transfer is waiting', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  const mediaId = crypto.randomUUID();
+  await store.enqueue({
+    message: {
+      createdAt: Date.now(),
+      status: 'queued',
+      isPrepared: false,
+      request: {
+        message_id: mediaId,
+        operation_id: crypto.randomUUID(),
+        destination: { kind: 'saved' },
+        content: { schema_version: 1, text: 'Photo caption', custom_emoji: [] },
+      },
+      media: [
+        {
+          occurrenceId: crypto.randomUUID(),
+          uploadId: crypto.randomUUID(),
+          filename: 'photo.png',
+          kind: 'image',
+          sizeBytes: 4,
+          sha256: 'a'.repeat(64),
+          blob: new Blob(['file']),
+        },
+      ],
+    },
+  });
+  const unreachable = async () => {
+    throw new Error('No write can start before the status response.');
+  };
+  const mediaTransport: UploadTransport = {
+    status(_uploadId, signal) {
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    },
+    reserve: unreachable,
+    plan: unreachable,
+    put: unreachable,
+    complete: unreachable,
+  };
+  const sent: string[] = [];
+  const { owner } = fixture({
+    store,
+    mediaTransport,
+    transport: async (request) => {
+      const input = await request.json();
+      sent.push(input.content.text);
+      return Response.json(receipt(input));
+    },
+  });
+  await owner.start();
+  await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+  await owner.queueSend({ text: 'Text while uploading' });
+  await owner.flush();
+
+  expect(sent).toEqual(['Text while uploading']);
+  expect(owner.getSnapshot().pending.map((entry) => entry.request.message_id)).toEqual([mediaId]);
+  owner.dispose();
 });

@@ -186,3 +186,37 @@ it('recovers an ambiguous community action with its original identity across rel
   await first.invalidate();
   await expect(restored.rememberCommunity(operation)).rejects.toThrow();
 });
+
+describe('pending media ownership', () => {
+  it('fences a competing tab and discards late attachment checkpoints after cancellation', async () => {
+    const key = crypto.randomUUID();
+    const first = new PendingMessages({ key });
+    const second = new PendingMessages({ key });
+    await first.open();
+    await second.open();
+    const message = pending();
+    const source = {
+      occurrenceId: crypto.randomUUID(),
+      uploadId: crypto.randomUUID(),
+      filename: 'note.txt',
+      kind: 'document' as const,
+      sizeBytes: 4,
+      blob: new Blob(['note']),
+    };
+    const messageId = message.request.message_id;
+    await first.enqueue({ message: { ...message, media: [source] } });
+
+    const claim = await first.claimMedia({ messageId });
+    expect(claim).toBeDefined();
+    expect(await second.claimMedia({ messageId })).toBeUndefined();
+    await second.remove(messageId);
+
+    const late = await first.checkpointMedia({
+      messageId,
+      token: claim!.token,
+      item: { ...source, fileId: crypto.randomUUID() },
+    });
+    expect(late).toBeUndefined();
+    expect((await second.read()).pending).toEqual([]);
+  });
+});

@@ -1,10 +1,14 @@
 import { get, update } from 'idb-keyval';
 import type { components } from '@/api/schema';
 import type { EmojiText } from '@/domain/messages/customEmoji';
+import type { PendingMedia, UploadProgress } from '@/features/media/uploadTransfer';
 
 const MAX_PENDING_MESSAGES = 100;
 const MAX_DRAFTS = 201;
 const MAX_DRAFT_ALTERNATIVES = 5;
+const MAX_PENDING_MEDIA_BYTES = 512 * 1024 * 1024;
+const MEDIA_CLAIM_MS = 90_000;
+const MEDIA_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface PendingMessage {
   request: components['schemas']['SendMessage'];
@@ -13,6 +17,9 @@ export interface PendingMessage {
   title?: string;
   status: 'queued' | 'sending' | 'failed';
   error?: string;
+  media?: PendingMedia[];
+  mediaClaim?: { token: string; expiresAt: number };
+  mediaProgress?: UploadProgress;
 }
 
 export interface PendingCommand {
@@ -56,6 +63,33 @@ export interface PendingSnapshot {
 interface EnqueueOptions {
   message: PendingMessage;
   draft?: { destination: string; id: string };
+}
+
+interface MediaClaim {
+  messageId: string;
+  token: string;
+}
+
+interface MediaCheckpoint extends MediaClaim {
+  item: PendingMedia;
+}
+
+function dropExpiredBlobs(snapshot: PendingSnapshot): void {
+  const cutoff = Date.now() - MEDIA_RETENTION_MS;
+  for (const pending of snapshot.pending) {
+    if (pending.createdAt > cutoff || !pending.media) {
+      continue;
+    }
+    pending.media = pending.media.map((item) => ({ ...item, blob: undefined }));
+  }
+}
+
+function queuedBytes(message: PendingMessage): number {
+  return message.media?.reduce((bytes, item) => bytes + (item.blob?.size ?? 0), 0) ?? 0;
+}
+
+function pendingIndex(snapshot: PendingSnapshot, messageId: string): number {
+  return snapshot.pending.findIndex((message) => message.request.message_id === messageId);
 }
 
 function communityIntent(operation: PendingCommunityOperation): string {
@@ -144,7 +178,9 @@ export class PendingMessages {
     this.ensureOpen();
     await update<PendingSnapshot>(this.key, (existing) => {
       this.ensureOpen();
-      return existing ? requireActive(existing) : emptySnapshot();
+      const snapshot = existing ? requireActive(existing) : emptySnapshot();
+      dropExpiredBlobs(snapshot);
+      return snapshot;
     });
 
     return this.read();
@@ -162,11 +198,19 @@ export class PendingMessages {
   /** Commit the stable operation before transport and clear only the exact draft it captured. */
   async enqueue(options: EnqueueOptions): Promise<void> {
     await this.mutate((snapshot) => {
-      const exists = snapshot.pending.some(
-        (message) => message.request.message_id === options.message.request.message_id,
-      );
+      dropExpiredBlobs(snapshot);
+      const index = pendingIndex(snapshot, options.message.request.message_id);
+      const exists = index >= 0;
       if (!exists && snapshot.pending.length >= MAX_PENDING_MESSAGES) {
         throw new Error('There are already 100 pending messages. Retry or discard one first.');
+      }
+      if (options.message.media) {
+        const existingBytes = exists ? queuedBytes(snapshot.pending[index]) : 0;
+        const used = snapshot.pending.reduce((bytes, message) => bytes + queuedBytes(message), 0);
+        const total = used - existingBytes + queuedBytes(options.message);
+        if (total > MAX_PENDING_MEDIA_BYTES) {
+          throw new Error('Pending media storage is full. Retry or discard an upload first.');
+        }
       }
       snapshot.pending = snapshot.pending.filter(
         (message) => message.request.message_id !== options.message.request.message_id,
@@ -179,7 +223,10 @@ export class PendingMessages {
   }
 
   /** Change an existing operation without reviving one removed by another task or tab. */
-  async updatePending(message: PendingMessage): Promise<PendingMessage | undefined> {
+  async updatePending(
+    message: PendingMessage,
+    options: { mediaToken?: string } = {},
+  ): Promise<PendingMessage | undefined> {
     let updated: PendingMessage | undefined;
     await this.mutate((snapshot) => {
       const index = snapshot.pending.findIndex((current) => {
@@ -189,17 +236,89 @@ export class PendingMessages {
         return;
       }
       const current = snapshot.pending[index];
+      if (options.mediaToken && current.mediaClaim?.token !== options.mediaToken) {
+        return;
+      }
       // The first prepared payload wins across tabs; later status changes cannot change its hash.
       const hasFrozenRequest = current.isPrepared !== false;
       updated = {
         ...message,
-        request: hasFrozenRequest ? current.request : message.request,
+        request: hasFrozenRequest
+          ? current.request
+          : { ...message.request, attachments: current.request.attachments },
         isPrepared: hasFrozenRequest ? current.isPrepared : message.isPrepared,
+        media: current.media,
+        mediaClaim: current.mediaClaim,
+        mediaProgress: undefined,
       };
       snapshot.pending[index] = updated;
     });
 
     return updated;
+  }
+
+  /** Claim a pending upload across tabs before reading or transferring its source bytes. */
+  async claimMedia(input: {
+    messageId: string;
+    hasBrowserLock?: boolean;
+  }): Promise<PendingMessage['mediaClaim']> {
+    let claim: PendingMessage['mediaClaim'];
+    await this.mutate((snapshot) => {
+      const index = pendingIndex(snapshot, input.messageId);
+      const current = snapshot.pending[index];
+      if (!current?.media || current.status === 'failed' || current.request.attachments?.length) {
+        return;
+      }
+      const now = Date.now();
+      const hasLiveClaim = current.mediaClaim && current.mediaClaim.expiresAt > now;
+      if (hasLiveClaim && !input.hasBrowserLock) {
+        return;
+      }
+      // The browser lock survives only while its owning document is alive.
+      claim = { token: crypto.randomUUID(), expiresAt: now + MEDIA_CLAIM_MS };
+      snapshot.pending[index] = { ...current, mediaClaim: claim };
+    });
+    return claim;
+  }
+
+  /** Save one attachment and atomically publish the send payload when every item is ready. */
+  async checkpointMedia(input: MediaCheckpoint): Promise<PendingMessage | undefined> {
+    let checkpoint: PendingMessage | undefined;
+    await this.mutate((snapshot) => {
+      const index = pendingIndex(snapshot, input.messageId);
+      const current = snapshot.pending[index];
+      if (!current?.media || current.mediaClaim?.token !== input.token) {
+        return;
+      }
+      const media = current.media.map((item) =>
+        item.occurrenceId === input.item.occurrenceId ? input.item : item,
+      );
+      const attachments = media.flatMap((item) =>
+        item.fileId ? [{ occurrence_id: item.occurrenceId, file_id: item.fileId }] : [],
+      );
+      checkpoint = {
+        ...current,
+        media,
+        mediaClaim: { token: input.token, expiresAt: Date.now() + MEDIA_CLAIM_MS },
+        request: {
+          ...current.request,
+          attachments: attachments.length === media.length ? attachments : undefined,
+        },
+      };
+      snapshot.pending[index] = checkpoint;
+    });
+    return checkpoint;
+  }
+
+  /** Release the claim without changing work that another tab already recovered. */
+  async releaseMedia(input: MediaClaim): Promise<void> {
+    await this.mutate((snapshot) => {
+      const index = pendingIndex(snapshot, input.messageId);
+      const current = snapshot.pending[index];
+      if (current?.mediaClaim?.token === input.token) {
+        snapshot.pending[index] = { ...current, mediaClaim: undefined };
+      }
+    });
   }
 
   /** Remove reconciled or explicitly discarded work while retaining the ownership tombstone. */

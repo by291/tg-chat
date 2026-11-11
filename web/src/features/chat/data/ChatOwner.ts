@@ -6,6 +6,13 @@ import { CanonicalCache, observedAtLeast, type CanonicalSnapshot } from './canon
 import type { EmojiText } from '@/domain/messages/customEmoji';
 import { ApiError, isCancelled, requirePayload, SessionOwner } from '@/features/auth/SessionOwner';
 import { canonicalMessageContent } from './messageContent';
+import { ChatMediaQueue } from './ChatMediaQueue';
+import { uploadClient } from '@/features/media/uploadClient';
+import {
+  pendingMedia,
+  type MediaSelection,
+  type UploadTransport,
+} from '@/features/media/uploadTransfer';
 import {
   compareCounter,
   destinationKey,
@@ -128,6 +135,8 @@ export class ChatOwner {
   private isDisposed = false;
   private syncPromise?: Promise<void>;
   private sendPromise?: Promise<void>;
+  private mediaQueue?: ChatMediaQueue;
+  private readonly mediaTransport: UploadTransport;
   private draftPromise?: Promise<void>;
   private draftTimer?: ReturnType<typeof setTimeout>;
   private expiryTimer?: ReturnType<typeof setTimeout>;
@@ -135,9 +144,14 @@ export class ChatOwner {
   private readonly explicitRetries = new Set<string>();
 
   /** Own connected projections and pending work within one authenticated session generation. */
-  constructor(options: { session: SessionOwner; store?: PendingMessages }) {
+  constructor(options: {
+    session: SessionOwner;
+    store?: PendingMessages;
+    mediaTransport?: UploadTransport;
+  }) {
     this.session = options.session;
     this.store = options.store;
+    this.mediaTransport = options.mediaTransport ?? uploadClient(this.session);
     const session = this.session.getSnapshot();
     if (!session.auth) {
       throw new Error('An authenticated session is required.');
@@ -171,6 +185,14 @@ export class ChatOwner {
       key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
     });
     const persisted = await this.store.open();
+    this.mediaQueue = new ChatMediaQueue({
+      store: this.store,
+      transport: this.mediaTransport,
+      onPending: (message) => this.replacePending(message),
+      onReady: () => {
+        void this.sendPreparedMedia().catch((error) => this.report(error));
+      },
+    });
     this.ensureCurrent();
     this.cache ??= new CanonicalCache({
       key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
@@ -197,6 +219,7 @@ export class ChatOwner {
       isReady: true,
       error: '',
     });
+    this.kickMedia();
   }
 
   /** Poll serially while visible and catch up immediately after focus or network recovery. */
@@ -415,6 +438,18 @@ export class ChatOwner {
 
   /** Persist before transport and preserve edits made while that write is pending. */
   async queueSend(value: EmojiText): Promise<void> {
+    await this.queueMessage({ value });
+  }
+
+  /** Persist selected media and its caption together before the first upload request. */
+  async enqueueMedia(input: { value: EmojiText; files: MediaSelection[] }): Promise<void> {
+    if (input.files.length === 0) {
+      throw new Error('Choose an attachment before sending.');
+    }
+    await this.queueMessage(input);
+  }
+
+  private async queueMessage(input: { value: EmojiText; files?: MediaSelection[] }): Promise<void> {
     this.ensureCurrent();
     const selection = this.snapshot.selection;
     if (!selection) {
@@ -431,8 +466,9 @@ export class ChatOwner {
     }
     // Draft delivery can help conditional clearing, but must never gate durable send admission.
     void this.flushDraft().catch((error) => this.report(error));
-    const content = canonicalMessageContent(value);
+    const content = canonicalMessageContent(input.value, { isCaption: Boolean(input.files) });
     const pending: PendingMessage = {
+      media: input.files?.map(pendingMedia),
       createdAt: Date.now(),
       title: selection.title,
       status: 'queued',
@@ -463,6 +499,22 @@ export class ChatOwner {
 
   /** Retry queued operations serially; an ambiguous response always reuses the original request. */
   flush(): Promise<void> {
+    this.kickMedia();
+    return this.flushText();
+  }
+
+  private kickMedia(): void {
+    void this.mediaQueue?.kick(this.snapshot.pending).catch((error) => this.report(error));
+  }
+
+  private async sendPreparedMedia(): Promise<void> {
+    await this.sendPromise;
+    if (!this.isDisposed) {
+      await this.flushText();
+    }
+  }
+
+  private flushText(): Promise<void> {
     this.sendPromise ??= this.sendQueued().finally(() => {
       this.sendPromise = undefined;
     });
@@ -495,8 +547,21 @@ export class ChatOwner {
   /** Remove a pending item without claiming that an ambiguous server send was cancelled. */
   async discard(messageId: string): Promise<void> {
     this.explicitRetries.delete(messageId);
-    await this.requireStore().remove(messageId);
+    const store = this.requireStore();
+    const persisted = await store.read();
+    const pending = persisted.pending.find((message) => message.request.message_id === messageId);
+    await store.remove(messageId);
+    this.mediaQueue?.cancel(messageId);
     this.ensureCurrent();
+    if (pending?.media && pending.isPrepared === false) {
+      for (const item of pending.media) {
+        const cancel = this.session.client.DELETE('/api/v1/media/uploads/{upload_id}', {
+          params: { path: { upload_id: item.uploadId } },
+        });
+        // The server's expiration path also covers a lost cancellation response.
+        void cancel.catch(() => undefined);
+      }
+    }
     this.publish({
       pending: this.snapshot.pending.filter((message) => message.request.message_id !== messageId),
     });
@@ -829,6 +894,7 @@ export class ChatOwner {
     clearTimeout(this.expiryTimer);
     clearTimeout(this.draftTimer);
     this.isDisposed = true;
+    this.mediaQueue?.close();
     this.unsubscribe();
     this.listeners.clear();
   }
@@ -930,7 +996,8 @@ export class ChatOwner {
 
   private async sendQueued(): Promise<void> {
     for (const entry of this.snapshot.pending) {
-      if (this.isDisposed || entry.status === 'failed') {
+      const isWaitingForMedia = entry.media?.length && !entry.request.attachments?.length;
+      if (this.isDisposed || entry.status === 'failed' || isWaitingForMedia) {
         continue;
       }
       const pending = await this.prepareSend(entry);

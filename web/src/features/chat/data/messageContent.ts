@@ -81,7 +81,10 @@ function validateEntities(content: MessageContent) {
 }
 
 /** Derive the shared wire representation without relying on Lexical's internal block separators. */
-export function canonicalMessageContent(value: EmojiText): MessageContent {
+export function canonicalMessageContent(
+  value: EmojiText,
+  options: { isCaption?: boolean } = {},
+): MessageContent {
   const richText = value.richText ? sanitizeRichText(value.richText) : null;
   const content: MessageContent = {
     schema_version: policy.schema_version,
@@ -100,7 +103,8 @@ export function canonicalMessageContent(value: EmojiText): MessageContent {
       length: entity.length,
     }));
   }
-  if (!content.text.trim() || content.text.length > policy.max_text_units) {
+  const isMissingText = !options.isCaption && !content.text.trim();
+  if (isMissingText || content.text.length > policy.max_text_units) {
     throw new Error('Messages require text and support at most 4,096 UTF-16 characters.');
   }
   validateEntities(content);
