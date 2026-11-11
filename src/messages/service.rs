@@ -210,6 +210,7 @@ impl MessageService {
 
         Ok(view)
     }
+
     /// Open a consistent authorized read snapshot without taking write locks on the account.
     pub(crate) async fn snapshot(
         &self,

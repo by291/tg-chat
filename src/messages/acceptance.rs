@@ -161,6 +161,7 @@ pub(crate) async fn insert(
             link_previews::enqueue(connection, intent).await?;
         }
     }
+
     if let Some(super::bodies::MessageBodyInput::Poll(poll)) = &message.input.body {
         // Store quiz secrets before the accepted message becomes visible on the feed.
         let input = super::polls::NewPoll {
@@ -173,6 +174,7 @@ pub(crate) async fn insert(
     if let Some(super::bodies::MessageBodyInput::Checklist(checklist)) = &message.input.body {
         super::checklists::insert(connection, message.input.message_id, checklist).await?;
     }
+
     // Only the internally authorized forward path can reference another uploader's files.
     if let Some(source) = message.forward {
         references::copy_forward_references(
@@ -189,6 +191,7 @@ pub(crate) async fn insert(
         };
         references::attach_message(connection, reference).await?;
     }
+
     sqlx::query(
         "UPDATE conversation_members SET unread_count = unread_count + 1, is_hidden = false,
          is_archived = CASE WHEN keep_archived OR muted_until > now() THEN is_archived ELSE false END

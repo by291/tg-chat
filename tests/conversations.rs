@@ -621,7 +621,8 @@ async fn demoting_channel_admin_invalidates_history_with_completion_attribution(
     };
     let before = service.history(admin.clone(), history_query()).await.unwrap();
     let before_message = serde_json::to_value(&before.messages[0]).unwrap();
-    assert_eq!(before_message["body"]["tasks"][0]["completed_by"]["user_id"], json!(owner.user_id),);
+    let completer = &before_message["body"]["tasks"][0]["completed_by"]["user_id"];
+    assert_eq!(completer, &json!(owner.user_id));
 
     let demote = community_command(
         channel_id,

@@ -92,7 +92,7 @@ describe('structured message composition', () => {
     );
   });
 
-  it('requires a new answer when the author explicitly chooses to replace the quiz answer', async () => {
+  it('requires a new answer when the author chooses to replace it', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     render(

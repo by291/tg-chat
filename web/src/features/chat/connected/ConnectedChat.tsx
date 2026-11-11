@@ -477,7 +477,12 @@ export function ConnectedChat({
         case 'edit-poll': {
           const poll = renderMessage(message).media;
           if (poll?.kind === 'poll' && body.can_edit) {
-            setPollEditor({ messageId, version: body.version, initialPoll: poll });
+            // prettier-ignore
+            setPollEditor({
+              messageId,
+              version: body.version,
+              initialPoll: poll,
+            });
           }
           break;
         }
