@@ -269,6 +269,20 @@ function syncTransport(page: ReturnType<typeof changePage>) {
 }
 
 describe('connected chat ownership', () => {
+  it('keeps the later conversation when a contact card lookup finishes late', async () => {
+    const profile = deferredResponse();
+    const { owner } = fixture({ transport: () => profile.promise });
+    await owner.start();
+
+    const opening = owner.openContact('00000000-0000-4000-8000-000000000005');
+    await owner.select(SELECTION);
+    profile.release(Response.json(USER));
+
+    await expect(opening).resolves.toBe(false);
+    expect(owner.getSnapshot().selection).toEqual(SELECTION);
+    owner.dispose();
+  });
+
   it('retries an ambiguous send with stable identity after reload and reconciles one row', async () => {
     const storeKey = crypto.randomUUID();
     const accepted: components['schemas']['SendMessage'][] = [];

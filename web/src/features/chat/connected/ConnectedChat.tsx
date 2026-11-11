@@ -3,12 +3,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
-import {
-  ApiError,
-  isCancelled,
-  requirePayload,
-  type SessionOwner,
-} from '@/features/auth/SessionOwner';
+import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { MessageInteraction } from '@/domain/messages/interaction';
@@ -493,23 +488,9 @@ export function ConnectedChat({
   }
 
   async function openContactLink(accountId: string) {
-    if (!session) {
-      return;
+    if (await owner.openContact(accountId)) {
+      setIsDirectoryVisible(false);
     }
-
-    const response = await session.client.GET('/api/v1/users/{user_id}', {
-      params: { path: { user_id: accountId } },
-    });
-    const profile = requirePayload(response);
-    if (profile.id === user.id) {
-      await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
-    } else {
-      await owner.select({
-        destination: { kind: 'recipient', user_id: profile.id },
-        title: profile.display_name,
-      });
-    }
-    setIsDirectoryVisible(false);
   }
 
   function messageCommand(command: MessageCommand) {
@@ -881,7 +862,10 @@ export function ConnectedChat({
             <button
               type="button"
               aria-label="Back to conversations"
-              onClick={() => setIsDirectoryVisible(true)}
+              onClick={() => {
+                owner.cancelContactOpen();
+                setIsDirectoryVisible(true);
+              }}
             >
               <ArrowLeft />
             </button>

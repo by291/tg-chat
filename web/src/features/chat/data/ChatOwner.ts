@@ -140,6 +140,7 @@ export class ChatOwner {
   private readonly unsubscribe: () => void;
   private cursor = '';
   private viewGeneration = 0;
+  private contactOpenGeneration = 0;
   private historyLoad?: HistoryLoad;
   private isDisposed = false;
   private syncPromise?: Promise<void>;
@@ -378,6 +379,45 @@ export class ChatOwner {
       }
       return false;
     }
+  }
+
+  /** Invalidate a contact lookup when the user returns to the conversation list. */
+  cancelContactOpen(): void {
+    this.contactOpenGeneration += 1;
+  }
+
+  /** Resolve a shared account link while the initiating conversation still owns navigation. */
+  async openContact(accountId: string): Promise<boolean> {
+    this.ensureCurrent();
+    const contactGeneration = ++this.contactOpenGeneration;
+    const viewGeneration = this.viewGeneration;
+    const isCurrentContact = () => contactGeneration === this.contactOpenGeneration;
+
+    // Profile lookup is asynchronous, so a newer navigation must take precedence.
+    const response = await this.session.client
+      .GET('/api/v1/users/{user_id}', { params: { path: { user_id: accountId } } })
+      .catch((error: unknown) => {
+        if (isCurrentContact() && this.isCurrentView(viewGeneration)) {
+          throw error;
+        }
+      });
+    if (!response || !isCurrentContact() || !this.isCurrentView(viewGeneration)) {
+      return false;
+    }
+
+    const profile = requirePayload(response);
+    const selection: Selection =
+      profile.id === this.userId
+        ? { destination: { kind: 'saved' }, title: 'Saved Messages' }
+        : {
+            destination: { kind: 'recipient', user_id: profile.id },
+            title: profile.display_name,
+          };
+    const selecting = this.select(selection);
+    const selectedGeneration = this.viewGeneration;
+    await selecting;
+
+    return isCurrentContact() && this.isCurrentView(selectedGeneration);
   }
 
   /** Switch private history ownership before starting any remote page request. */
