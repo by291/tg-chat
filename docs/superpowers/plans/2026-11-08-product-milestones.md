@@ -19,9 +19,10 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Spec:** [Approved complete product design](../specs/2026-11-08-complete-product-design.md).
 
-**Status:** Product design approved on 2026-11-08. M1 through M7 are implemented and locally
+**Status:** Product design approved on 2026-11-08. M1 through M8 are implemented and locally
 verified through isolated Compose. M6 passed the desktop Chromium exit gate. Physical mobile
-recording and playback checks are outstanding. M8 through M10 remain planned.
+recording and playback and provider-backed Web Push checks are outstanding. M9 and M10 remain
+planned.
 
 ## Global constraints
 
@@ -410,17 +411,17 @@ notifications and the administrative tools needed before public release.
 **Produces:** Session-owned push subscriptions, notification eligibility/dedup, report evidence,
 audited admin operations, quarantine/suspension/restoration flows, and complete account deletion.
 
-- [ ] Deliver optional Web Push, the service worker, subscription lifecycle, foreground suppression,
+- [x] Deliver optional Web Push, the service worker, subscription lifecycle, foreground suppression,
       generic default payloads, mute/block/read rechecks, retry/dedup, and capability-aware UI.
-- [ ] Deliver administrator screens for registration policy, suspensions, reports, conversation
+- [x] Deliver administrator screens for registration policy, suspensions, reports, conversation
       quarantine/restoration, quotas, and failed-job inspection/retry. Reuse the existing policy
       checks, require recent authentication, and audit every privileged operation.
-- [ ] Deliver bounded report evidence with restricted access and retention cleanup. Complete account
+- [x] Deliver bounded report evidence with restricted access and retention cleanup. Complete account
       deletion, ownership-transfer prerequisites, deleted-author presentation, private-state
       cleanup, push detachment, and email/settings consistency across devices.
-- [ ] Deliver privacy-respecting presence/typing using expiring state and limited observation;
+- [x] Deliver privacy-respecting presence/typing using expiring state and limited observation;
       synchronize account-wide settings while preserving device-local appearance/input preferences.
-- [ ] Verify push duplicates/late delivery, revoked subscriptions, read/mute suppression, evidence
+- [x] Verify push duplicates/late delivery, revoked subscriptions, read/mute suppression, evidence
       after source deletion, unauthenticated admin access, quarantine restoration, suspended-account
       login/read attempts, and deletion of an account that still owns a community.
 
@@ -429,9 +430,10 @@ restoration, and account lifecycle. No public release is implied; M10 still owns
 and cross-browser/recovery acceptance. Calls remain visibly unavailable until M9.
 
 **Verification ownership:** `tests/notifications.rs`, `tests/moderation.rs`,
-`tests/account_lifecycle.rs`, `web/e2e/administration.spec.ts`, and service-worker/browser
-notification checks. Provider-backed push delivery requires an explicitly configured environment;
-deterministic tests alone cannot claim all browser/OS background behavior.
+`tests/report_evidence.rs`, `tests/account_lifecycle.rs`, and
+`web/e2e-accounts/{administration,notifications}.spec.ts`. The integrated check uses a deterministic
+Push transport and synthetic Chromium service-worker events. Provider delivery and browser/OS
+background behavior require a configured provider and target device.
 
 ## M9: Independent one-to-one LiveKit calls
 

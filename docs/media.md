@@ -43,6 +43,19 @@ deleting before touching storage. Failed physical deletions retry, and quota rem
 until cleanup finishes. Abandoned multipart uploads, staging objects, and stale attempts are
 collected after their write and processing windows.
 
+## Report evidence
+
+A report captures the currently authorized message and references only the original attachments
+on that message. Case references preserve the immutable originals after source removal. The
+collector can release derivatives once ordinary references and ready holds end.
+
+Originals are available through the case download route to operators with current authority
+and recent password proof. The route streams bytes as an attachment and audits access.
+Evidence expires after 90 days by default. An operator can extend an open case before expiry
+through an audited command. Closing a case keeps its current deadline. At the deadline, reads
+stop and the Worker releases case references in bounded transactions. Remaining ordinary
+references and holds determine when the object becomes eligible for physical deletion.
+
 ## Operating the feature
 
 For an existing local environment, set `TG_CHAT_MEDIA_ENABLED=true` and apply the current

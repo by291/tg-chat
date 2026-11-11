@@ -104,9 +104,10 @@ Create an operator by piping a password from your secret manager into stdin:
 docker compose exec -T api api operator create --username operator_one --display-name Operator
 ```
 
-The command reads stdin until EOF; supply one password line from a pipe or redirected private file.
-Do not place passwords in argv or shell history. A privileged identity is reserved for the later
-administration UI; current administration remains trusted CLI work.
+The command reads stdin until EOF. Supply one password line from a pipe or redirected private file.
+Keep passwords out of argv and shell history. Sign in as the created identity and open
+Administration in account settings. The browser checks current operator authority and recent
+password proof for privileged operations.
 
 ```sh
 docker compose exec -T api api operator close-registration --reason 'Maintenance window'
@@ -115,10 +116,15 @@ docker compose exec -T api api operator suspend --username member_one --reason '
 docker compose exec -T api api operator restore --username member_one --reason 'Review completed'
 ```
 
-Suspension revokes every session and invalidates outstanding credential challenges. Restoration
-requires a fresh login and never revives old cookies. Registration policy changes serialize with
-new admissions. Audit rows identify the trusted CLI actor and reason; the database rejects audit
-updates, deletion, and truncation. This is not tamper-proof against a database administrator.
+The Operator area covers registration, account suspension and restoration, reports, conversation
+quarantine and restoration, account storage limits, and eligible exhausted jobs. To moderate a
+private direct chat, open its accepted report case. A storage override affects new reservations.
+
+Suspension revokes every session and Push subscription and invalidates outstanding credential
+challenges. Restoration requires a fresh login. Registration policy changes serialize with new
+admissions. Audit rows identify the CLI or browser actor, target, reason, and outcome. Evidence
+extensions record the previous and new deadlines. PostgreSQL rejects normal audit updates,
+deletion, and truncation. Database administrators control the database boundary.
 
 ## Mail delivery and protected payloads
 
@@ -131,16 +137,32 @@ Retain the Base64-encoded 32-byte key alongside database backups using your secr
 Pending email payloads are AES-GCM encrypted and bound to their job identity. Replacing the key
 does not rotate existing ciphertext: use a coordinated drain before changing it, and retain the
 old key for any backup containing its pending jobs. A wrong key prevents those jobs from delivering.
-There is no automatic multi-key rotation or exhausted-job replay command in M2.
+Key rotation requires an operational drain and coordinated replacement.
 
 The Worker logs job IDs and safe outcomes. Inspect job status, attempts, scheduled retry time, and
 lease expiry through trusted database access when troubleshooting; avoid dumping encrypted payloads,
 challenges, or recipient data into shared logs. Exhausted jobs are retained but do not count against
-the pending/running queue budget. Diagnose SMTP/key failures, then let users request fresh links
-after the cause is fixed. Terminal-row retention and cleanup require operator policy until a later
-maintenance milestone provides automated retention.
+the pending/running queue budget. Diagnose SMTP/key failures before retrying eligible jobs
+through the Operator area. An expired or invalidated challenge requires a new user request.
+Terminal-row retention and cleanup require operator policy.
 Successful and discarded jobs erase payload bytes. See [accounts](./accounts.md) for transaction,
 single-use, and at-least-once delivery constraints.
+
+## Web Push delivery
+
+Set `TG_CHAT_PUSH_VAPID_PUBLIC_KEY` on API and Worker. Set
+`TG_CHAT_PUSH_VAPID_PRIVATE_KEY` and `TG_CHAT_PUSH_VAPID_SUBJECT` on Worker only. Use
+unpadded Base64url for the uncompressed P-256 public key and its matching 32-byte private
+scalar. The subject is a contact `mailto:` URI or an HTTPS URL. Use HTTPS for deployed
+browsers and keep the matching private key in secret storage. An empty public key disables
+new subscriptions.
+
+The Worker sends HTTPS requests only to recognized browser Push providers. Set
+`TG_CHAT_PUSH_PROVIDER_HOSTS` to an explicit comma-separated provider host list on both
+services if the deployment needs a different list. Delivery uses validated public addresses
+and a bounded lease. When replacing the VAPID key pair, browsers must subscribe with the new
+public key. Exercise a configured provider and the target browser/OS before enabling delivery
+in a deployment.
 
 ## Persistence and recovery
 

@@ -123,8 +123,13 @@ and recipient visibility. It interrupts Worker/Centrifugo, clears Valkey, checks
 rebootstrap, and runs the four-session synchronization browser suite. The private media suite
 checks that reopening the browser resends only missing RustFS parts and keeps one message.
 `pnpm --dir web test:interactions` covers connected polls, checklists, forwarding, history search,
-and preview opt-out. The restore drill checks an existing attachment after restoring PostgreSQL
-and RustFS together.
+and preview opt-out. `pnpm --dir web test:lifecycle` covers report originals after source deletion,
+operator reauthentication, quarantine and restoration, account deletion, synchronized settings,
+and live activity. That phase runs with SMTP and Push credentials absent. Chromium injects
+events into the registered service worker and checks deduplication and authorized click routing.
+A real provider and target browser/OS are needed to verify encrypted delivery and system
+notifications. The restore drill checks an existing attachment after restoring PostgreSQL and
+RustFS together.
 
 Independent fixture phases reset only the isolated project's Valkey cache to avoid sharing
 registration rate limits through one loopback address. The runner checks routing, private ports,

@@ -181,6 +181,25 @@ rolls back the entire business transaction if no new row can be admitted. Public
 expiry, disconnection, and email work have independent bounded loops. See
 [operations](./operations.md) for retry commands and configuration.
 
+## Live activity and notifications
+
+Direct chat activity uses short-lived, per-tab Valkey leases. The server checks current session
+and conversation access, blocks, and the peer's online audience before projecting activity.
+Typing stays scoped to the active direct chat. Expiry or a Valkey outage clears the hint
+without blocking ordinary messages.
+
+Connected foreground alerts follow the account's notification defaults. They consume accepted
+message markers in the personal feed and skip rebootstrap history, read messages, and the
+active chat. A focused tab marks its own session as foreground so other subscribed sessions
+can still receive Push.
+
+Optional browser Push requires an explicit opt-in per authenticated session. The Worker
+rechecks subscription ownership, read and mute state, blocks, quarantine, and current visibility
+immediately before bounded delivery attempts. A stable notification identity lets the service
+worker deduplicate retries. Push carries a generic notification. Clicking opens the message
+only after the connected app authorizes current history, with the inbox as the fallback.
+See [operations](./operations.md#web-push-delivery) for deployment configuration.
+
 ## Verification
 
 Real PostgreSQL tests exercise concurrent acceptance and edits, policy/capacity rollback, permanent

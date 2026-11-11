@@ -46,7 +46,11 @@ administrators can inspect the subscriber directory. Group members can inspect t
 
 Shared permission checks cover sends, edits, deletion, pins, expiry, snapshots, and history. Personal
 archive, hide, unread, mute, clear, and draft operations retain their existing per-account ownership.
-Quarantine already denies ordinary access; administrative quarantine workflows arrive in M8.
+Platform operators can quarantine and restore a community through the audited operator area.
+Quarantine hides discovery and denies ordinary admission, reads, writes, media, and notifications
+for all members. Restoration preserves membership and shared history. Both transitions change
+the visibility generation so connected clients invalidate stale views before using current
+authorized history. [Operations](./operations.md#trusted-account-administration) covers authority.
 
 ## Transactions and synchronization
 
@@ -84,5 +88,4 @@ It checks that a removed reader loses visible history and receives a denial on a
 Run `pnpm --dir web test:communities` against a disposable runtime configured through
 `TG_CHAT_ACCOUNT_TEST_URL`. The [integrated runtime check](./development.md#repeatable-verification) runs this
 suite alongside account, message, synchronization, and service-recovery checks. Functional capacity
-tests do not establish production throughput. Media, avatars, message search, administrative tools,
-and LiveKit calls remain assigned to later milestones.
+tests do not establish production throughput. LiveKit calls remain a separate milestone.

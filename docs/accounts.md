@@ -26,8 +26,8 @@ Registration locks the policy row so closing registration and admitting accounts
 
 Password changes rotate the current cookie and revoke every old session. Recovery revokes all
 sessions and requires a fresh login. Suspension also invalidates sessions and challenges; restoring
-an account never revives them. Privileged CLI actions commit append-only audit entries with their
-changes. The future M8 UI must preserve these transaction boundaries.
+an account requires a fresh login. Trusted CLI and browser operator actions commit append-only
+audit entries with their changes. See [operations](./operations.md#trusted-account-administration).
 
 ## Session and request ownership
 
@@ -70,9 +70,32 @@ still remove them and reclaim capacity.
 Contacts and blocks are directional. Adding a contact does not add the actor to the other person's
 list. A block preserves existing saved contacts but prevents new contact admission across either
 direction. Both participants are locked in UUID order before checking blocks, limits, or
-foreign keys, avoiding reciprocal lock inversion and block/contact races. Future direct messaging,
-calls, and presence must consult these relationships and independent audience settings; M2 stores
-the policy but does not pretend that those later services already exist.
+foreign keys, avoiding reciprocal lock inversion and block/contact races. Direct messaging and
+live activity consult current account relationships and their respective policies.
+
+## Connected settings
+
+The connected account owns versioned privacy, notification defaults, and sticker order. Each
+write supplies the expected version, and a durable personal change tells peer sessions to
+refresh. Verified email changes follow the credential flow below and refresh the same account
+boundary. Theme, wallpaper, composer preferences, and browser Push permission are device-local.
+
+## Account deletion
+
+Deletion requires explicit confirmation and recent password proof. If the account still owns a
+group or channel, the response identifies the communities to transfer or delete first. The
+ownership check shares the transaction with the terminal account change.
+
+The transaction revokes sessions and Push subscriptions, invalidates credential challenges,
+and frees the username. An idempotent Worker job removes private relationships, invitations,
+settings, Saved Messages, and unused uploads in bounded transactions. Session invalidation
+removes connected browser caches and pending work.
+
+Authorized participants can still read shared history. Live author and participant lookups
+show a stable deleted-account identity with no account link. A later registration of the same
+username has a different account ID. Accepted forwarded attribution and shared attachments
+follow their original message lifetimes. [Case evidence](./media.md#report-evidence) has an
+independent retention window.
 
 ## Email challenges and durable mail
 
@@ -105,6 +128,6 @@ survive with it; [operations](./operations.md#mail-delivery-and-protected-payloa
 
 ## Remaining product boundaries
 
-[Private media](media.md) owns validated avatar uploads. M8 owns the administration UI, account
-deletion, and broader lifecycle operations. LiveKit one-to-one calls remain a separate milestone.
+[Private media](media.md) owns validated avatar uploads. LiveKit one-to-one calls remain a
+separate milestone.
 The `/demo` route keeps its own sample accounts and messages.
