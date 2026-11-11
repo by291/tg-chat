@@ -413,6 +413,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(crate::contacts::http::router());
     let routes = routes.merge(super::email_http::router());
     let routes = routes.merge(crate::media::http::router());
+    let routes = routes.merge(crate::moderation::http::router());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
     let routes = routes.merge(crate::conversations::http::router());

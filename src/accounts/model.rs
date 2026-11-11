@@ -25,6 +25,8 @@ pub enum AccountError {
     Conflict,
     #[error("the message or operation identity is already bound to another request")]
     MessageConflict,
+    #[error("the operation identity is already bound to another request")]
+    OperationConflict,
     #[error("one or more attached files are no longer available")]
     MediaFileUnavailable,
     #[error("the conversation cannot accept this message")]

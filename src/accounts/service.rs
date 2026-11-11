@@ -252,12 +252,7 @@ impl AccountService {
         .bind(user.id)
         .execute(&mut *transaction)
         .await?;
-        sqlx::query(
-            "UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
-        )
-        .bind(user.id)
-        .execute(&mut *transaction)
-        .await?;
+        sessions::revoke_all(&mut transaction, user.id).await?;
         let grant = sessions::create(
             &mut transaction,
             SessionCreation {

@@ -704,6 +704,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/operator/commands': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['operator_command'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/users': {
     parameters: {
       query?: never;
@@ -1476,6 +1492,25 @@ export interface components {
       | 'poll'
       | 'checklist'
       | 'service';
+    OperatorAction:
+      | {
+          is_open: boolean;
+          /** @enum {string} */
+          kind: 'set_registration';
+        }
+      | {
+          is_suspended: boolean;
+          /** @enum {string} */
+          kind: 'set_suspension';
+          /** Format: uuid */
+          user_id: string;
+        };
+    OperatorCommand: {
+      action: components['schemas']['OperatorAction'];
+      /** Format: uuid */
+      operation_id: string;
+      reason: string;
+    };
     PasswordProof: {
       password: string;
     };
@@ -2916,6 +2951,68 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['PollVoterPage'];
+        };
+      };
+    };
+  };
+  operator_command: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OperatorCommand'];
+      };
+    };
+    responses: {
+      /** @description Operator command committed or already applied */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
         };
       };
     };

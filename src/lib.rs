@@ -14,6 +14,7 @@ mod link_preview_address;
 
 pub mod media;
 pub mod messages;
+pub mod moderation;
 
 pub mod conversations;
 pub mod sync;

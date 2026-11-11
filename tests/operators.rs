@@ -77,5 +77,28 @@ async fn trusted_operator_policy_and_suspension_are_audited_without_reviving_ses
     let audit_count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM operator_audit").fetch_one(&pool).await.unwrap();
     assert_eq!(audit_count, 4);
+    let suspension_audit = sqlx::query_as::<_, (String, String, String, String)>(
+        "SELECT actor, action, reason, outcome FROM operator_audit
+         WHERE target_kind = 'account' AND target_id = $1 ORDER BY created_at",
+    )
+    .bind(grant.user.id);
+    let suspension_audit = suspension_audit.fetch_all(&pool).await.unwrap();
+    assert_eq!(
+        suspension_audit,
+        vec![
+            (
+                "trusted_cli".to_owned(),
+                "user_suspended".to_owned(),
+                "abuse report".to_owned(),
+                "succeeded".to_owned(),
+            ),
+            (
+                "trusted_cli".to_owned(),
+                "user_restored".to_owned(),
+                "appeal accepted".to_owned(),
+                "succeeded".to_owned(),
+            ),
+        ]
+    );
     assert!(sqlx::query("DELETE FROM operator_audit").execute(&pool).await.is_err());
 }

@@ -212,12 +212,7 @@ impl EmailService {
         .bind(user.id)
         .execute(&mut *transaction)
         .await?;
-        sqlx::query(
-            "UPDATE sessions SET revoked_at = coalesce(revoked_at, now()) WHERE user_id = $1",
-        )
-        .bind(user.id)
-        .execute(&mut *transaction)
-        .await?;
+        super::sessions::revoke_all(&mut transaction, user.id).await?;
         Self::consume_challenges(&mut transaction, user.id).await?;
         transaction.commit().await?;
 
@@ -259,7 +254,8 @@ impl EmailService {
             .ok_or(AccountError::InvalidChallenge)
     }
 
-    async fn consume_challenges(
+    /// Invalidate all credential links while the caller owns the account lock.
+    pub(crate) async fn consume_challenges(
         connection: &mut PgConnection,
         user_id: Uuid,
     ) -> Result<(), AccountError> {

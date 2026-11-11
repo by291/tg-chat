@@ -1110,6 +1110,51 @@
         }
       }
     },
+    "/api/v1/operator/commands": {
+      "post": {
+        "tags": [],
+        "operationId": "operator_command",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/OperatorCommand" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "Operator command committed or already applied" },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "get": {
         "tags": [],
@@ -2301,6 +2346,37 @@
           "checklist",
           "service"
         ]
+      },
+      "OperatorAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["is_open", "kind"],
+            "properties": {
+              "is_open": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["set_registration"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["user_id", "is_suspended", "kind"],
+            "properties": {
+              "is_suspended": { "type": "boolean" },
+              "kind": { "type": "string", "enum": ["set_suspension"] },
+              "user_id": { "type": "string", "format": "uuid" }
+            }
+          }
+        ]
+      },
+      "OperatorCommand": {
+        "type": "object",
+        "required": ["operation_id", "reason", "action"],
+        "properties": {
+          "action": { "$ref": "#/components/schemas/OperatorAction" },
+          "operation_id": { "type": "string", "format": "uuid" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
       },
       "PasswordProof": {
         "type": "object",

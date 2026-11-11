@@ -91,10 +91,14 @@ pub(crate) async fn lock_actor(
         return Err(AccountError::Unauthenticated);
     }
 
+    // Evaluate validity after locking so an expired session cannot survive a lock wait.
     let session_query = sqlx::query_as::<_, SessionRecord>(
-        "SELECT * FROM sessions WHERE id = $1 AND user_id = $2
-           AND revoked_at IS NULL AND expires_at > now()
-           AND last_seen_at > now() - ($3::bigint * interval '1 day') FOR UPDATE",
+        "WITH locked_session AS MATERIALIZED (
+             SELECT * FROM sessions WHERE id = $1 AND user_id = $2 FOR UPDATE
+         )
+         SELECT * FROM locked_session WHERE revoked_at IS NULL
+           AND expires_at > clock_timestamp()
+           AND last_seen_at > clock_timestamp() - ($3::bigint * interval '1 day')",
     )
     .bind(actor.session_id)
     .bind(actor.user_id);
@@ -116,6 +120,22 @@ pub(crate) fn ensure_recent(
     if session.authenticated_at < threshold {
         return Err(AccountError::RecentAuthenticationRequired);
     }
+
+    Ok(())
+}
+
+/// Revoke live sessions while the account lock prevents concurrent session admission.
+pub(crate) async fn revoke_all(
+    connection: &mut PgConnection,
+    user_id: Uuid,
+) -> Result<(), AccountError> {
+    sqlx::query(
+        "UPDATE sessions SET revoked_at = clock_timestamp()
+         WHERE user_id = $1 AND revoked_at IS NULL",
+    )
+    .bind(user_id)
+    .execute(connection)
+    .await?;
 
     Ok(())
 }
