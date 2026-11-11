@@ -27,6 +27,7 @@ pub struct AccountHttpState {
     pub(crate) limiter: RateLimiter,
     pub(crate) email: EmailService,
     pub(crate) media: Option<crate::media::UploadService>,
+    pub(crate) activity: crate::realtime::Activity,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -89,6 +90,7 @@ impl AccountHttpState {
     ) -> Self {
         let limiter = RateLimiter::new(&settings);
         let email = EmailService::new(accounts.clone(), mail);
+        let activity = crate::realtime::Activity::new(accounts.clone(), &settings, None);
 
         Self {
             accounts,
@@ -96,12 +98,24 @@ impl AccountHttpState {
             limiter,
             email,
             media: None,
+            activity,
         }
     }
 
     /// Enable the media transfer routes for a configured deployment.
     pub fn with_media(mut self, media: crate::media::UploadService) -> Self {
         self.media = Some(media);
+
+        self
+    }
+
+    /// Add personal realtime activity hints while retaining authorized reads on the API.
+    pub(crate) fn with_activity_realtime(
+        mut self,
+        client: Option<crate::realtime::RealtimeClient>,
+    ) -> Self {
+        self.activity =
+            crate::realtime::Activity::new(self.accounts.clone(), &self.settings, client);
 
         self
     }
@@ -417,6 +431,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(crate::media::http::router());
     let routes = routes.merge(crate::moderation::http::router());
     let routes = routes.merge(crate::moderation::report_http::router());
+    let routes = routes.merge(crate::realtime::activity_http::router());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
     let routes = routes.merge(crate::conversations::http::router());

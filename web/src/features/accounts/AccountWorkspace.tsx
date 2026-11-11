@@ -24,6 +24,7 @@ import { CommunityWorkspace } from '../communities/CommunityWorkspace';
 import { conversationDestination, type Conversation } from '../communities/communityModels';
 import { ChatOwner } from '../chat/data/ChatOwner';
 import { ConnectedChat } from '../chat/connected/ConnectedChat';
+import { ActivityOwner } from '../chat/activity/ActivityOwner';
 import { useOperation } from './AccountForm';
 import { ContactsPanel } from './ContactsPanel';
 import { PrivacyPanel } from './PrivacyPanel';
@@ -114,7 +115,10 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const [communityId, setCommunityId] = useState<string>();
   const [chat, setChat] = useState<ChatOwner>();
   const [chatError, setChatError] = useState('');
-  const { preferences } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
+  const { preferences, revision } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
+  const [activity] = useState(() => new ActivityOwner({ session: owner }));
+
+  useEffect(() => activity.connect(), [activity, revision]);
 
   useEffect(() => {
     if (page === 'preferences' && !preferences) {
@@ -126,11 +130,17 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     if (!capabilities.messaging_available) {
       return;
     }
+
+    let isCurrent = true;
+    setChat(undefined);
     const connected = new ChatOwner({ session: owner });
-    const disconnect = connected.connect();
+    const disconnect = connected.connect({ onActivityHint: activity.refresh });
     void connected
       .start()
       .then(() => {
+        if (!isCurrent) {
+          return;
+        }
         setChat(connected);
         void connected
           .catchUp()
@@ -148,10 +158,11 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       });
 
     return () => {
+      isCurrent = false;
       disconnect?.();
       connected.dispose();
     };
-  }, [owner, capabilities.messaging_available]);
+  }, [activity, owner, revision, capabilities.messaging_available]);
 
   function startChat(person: components['schemas']['PublicProfile']) {
     if (!chat) {
@@ -196,6 +207,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
         <ConnectedChat
           owner={chat}
           session={owner}
+          activity={activity}
           user={auth.user}
           isMediaAvailable={capabilities.media_uploads_available === true}
           onSettings={() => setPage('profile')}

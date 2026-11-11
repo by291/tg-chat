@@ -67,6 +67,18 @@ impl RealtimeClient {
         .await
     }
 
+    /// Wake an authorized peer to refetch activity without disclosing identities or lease state.
+    pub(super) async fn publish_activity_hint(&self, peer_id: Uuid) -> Result<(), AccountError> {
+        self.invoke(
+            "publish",
+            json!({
+                "channel": format!("personal:{peer_id}"),
+                "data": {"schema_version": 1, "kind": "activity"}
+            }),
+        )
+        .await
+    }
+
     /// Disconnect a single registered client after its application session is revoked or expired.
     pub async fn disconnect(&self, user_id: Uuid, client_id: Uuid) -> Result<(), AccountError> {
         self.invoke(

@@ -266,6 +266,55 @@
         }
       }
     },
+    "/api/v1/activity/heartbeat": {
+      "post": {
+        "tags": [],
+        "operationId": "heartbeat",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ActivityHeartbeat" } }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "" }, "503": { "description": "" } }
+      }
+    },
+    "/api/v1/activity/presence/{user_id}": {
+      "get": {
+        "tags": [],
+        "operationId": "presence",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "tab_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ActivityPresence" } }
+            }
+          },
+          "404": { "description": "" },
+          "503": { "description": "" }
+        }
+      }
+    },
     "/api/v1/auth/email/confirm": {
       "post": {
         "tags": [],
@@ -899,6 +948,31 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/HistoryPage" } }
             }
           }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/typing": {
+      "post": {
+        "tags": [],
+        "operationId": "typing",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ActivityTyping" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "" },
+          "404": { "description": "" },
+          "503": { "description": "" }
         }
       }
     },
@@ -1567,6 +1641,35 @@
           "sticker_pack_ids": { "type": "array", "items": { "type": "string" } },
           "version": { "type": "string" }
         }
+      },
+      "ActivityHeartbeat": {
+        "type": "object",
+        "required": ["tab_id", "sequence", "is_foreground"],
+        "properties": {
+          "conversation_id": { "type": ["string", "null"], "format": "uuid" },
+          "is_foreground": { "type": "boolean" },
+          "sequence": { "type": "string" },
+          "tab_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "ActivityPresence": {
+        "type": "object",
+        "required": ["online_for_ms", "typing_for_ms"],
+        "properties": {
+          "online_for_ms": { "type": "integer", "format": "int32", "minimum": 0 },
+          "typing_for_ms": { "type": "integer", "format": "int32", "minimum": 0 }
+        }
+      },
+      "ActivityTyping": {
+        "type": "object",
+        "required": ["tab_id", "sequence", "is_typing"],
+        "properties": {
+          "is_typing": { "type": "boolean" },
+          "sequence": { "type": "string" },
+          "tab_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
       },
       "AttachmentInput": {
         "type": "object",

@@ -239,7 +239,7 @@ export class ChatOwner {
   }
 
   /** Poll serially while visible and catch up immediately after focus or network recovery. */
-  connect(): () => void {
+  connect({ onActivityHint }: { onActivityHint?: () => void } = {}): () => void {
     let isStopped = false;
     let isRunning = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -288,7 +288,14 @@ export class ChatOwner {
     endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
     const realtime = new Centrifuge(endpoint.toString());
     realtime.on('connected', wake);
-    realtime.on('publication', wake);
+    realtime.on('publication', (context) => {
+      if (context.data?.kind === 'activity') {
+        onActivityHint?.();
+        return;
+      }
+
+      wake();
+    });
     realtime.connect();
     watchCache();
     window.addEventListener('focus', wake);

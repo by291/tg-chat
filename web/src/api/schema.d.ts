@@ -176,6 +176,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/activity/heartbeat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['heartbeat'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/activity/presence/{user_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['presence'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/email/confirm': {
     parameters: {
       query?: never;
@@ -554,6 +586,22 @@ export interface paths {
     get: operations['history'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/conversations/{conversation_id}/typing': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['typing'];
     delete?: never;
     options?: never;
     head?: never;
@@ -963,6 +1011,26 @@ export interface components {
       notification_defaults: components['schemas']['NotificationDefaults'];
       sticker_pack_ids: string[];
       version: string;
+    };
+    ActivityHeartbeat: {
+      /** Format: uuid */
+      conversation_id?: string | null;
+      is_foreground: boolean;
+      sequence: string;
+      /** Format: uuid */
+      tab_id: string;
+    };
+    ActivityPresence: {
+      /** Format: int32 */
+      online_for_ms: number;
+      /** Format: int32 */
+      typing_for_ms: number;
+    };
+    ActivityTyping: {
+      is_typing: boolean;
+      sequence: string;
+      /** Format: uuid */
+      tab_id: string;
     };
     AttachmentInput: {
       /** Format: uuid */
@@ -2489,6 +2557,69 @@ export interface operations {
       };
     };
   };
+  heartbeat: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ActivityHeartbeat'];
+      };
+    };
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  presence: {
+    parameters: {
+      query?: {
+        tab_id?: string;
+        conversation_id?: string;
+      };
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ActivityPresence'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   confirm: {
     parameters: {
       query?: never;
@@ -3143,6 +3274,41 @@ export interface operations {
         content: {
           'application/json': components['schemas']['HistoryPage'];
         };
+      };
+    };
+  };
+  typing: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ActivityTyping'];
+      };
+    };
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

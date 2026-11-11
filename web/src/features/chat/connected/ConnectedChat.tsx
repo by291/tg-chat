@@ -39,6 +39,7 @@ import { ShareContactDialog } from '../composer/ShareContactDialog';
 import { ContactLinkContext } from '../messages/content/contact/ContactActions';
 import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
 import { ReportMessageDialog } from './ReportMessageDialog';
+import type { ActivityOwner } from '../activity/ActivityOwner';
 import type { MessageSelectionChange } from '../messages/selection/useMessageSelectionGesture';
 import styles from './ConnectedChat.module.css';
 
@@ -59,6 +60,9 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'clear-selection',
 ];
 const MAX_BATCH_MESSAGES = 20;
+const EMPTY_ACTIVITY = { isOnline: false, isTyping: false, view: undefined };
+const emptyActivity = () => EMPTY_ACTIVITY;
+const subscribeToNoActivity = () => () => undefined;
 const REMOVE_MESSAGE_DESCRIPTION =
   'Choose whose history should change. Deletion cannot be undone. Existing forwarded copies remain available.';
 // prettier-ignore
@@ -78,6 +82,7 @@ const REACTIONS = [
 interface ConnectedChatProps {
   owner: ChatOwner;
   session?: SessionOwner;
+  activity?: ActivityOwner;
   isMediaAvailable?: boolean;
   user: components['schemas']['PrivateProfile'];
   onSettings: () => void;
@@ -132,6 +137,7 @@ function canEditPoll(message: CanonicalMessage | undefined): boolean {
 export function ConnectedChat({
   owner,
   session,
+  activity,
   isMediaAvailable = false,
   user,
   onSettings,
@@ -140,6 +146,10 @@ export function ConnectedChat({
   onCommunityDetails,
 }: ConnectedChatProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
+  const presence = useSyncExternalStore(
+    activity?.subscribe ?? subscribeToNoActivity,
+    activity?.getSnapshot ?? emptyActivity,
+  );
   const [isDirectoryVisible, setIsDirectoryVisible] = useState(!snapshot.selection);
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
@@ -184,7 +194,32 @@ export function ConnectedChat({
   const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
   const selection = snapshot.selection;
+  const isViewingDirect = conversation?.kind === 'direct' && !isDirectoryVisible;
+  const directId = isViewingDirect ? conversation.id : undefined;
+  const peerId = isViewingDirect ? conversation.peer_id : undefined;
+  const generation = isViewingDirect ? conversation.generation : undefined;
+  useEffect(() => {
+    if (!activity || !directId || !peerId || !generation) {
+      return;
+    }
+
+    return activity.setView({
+      conversationId: directId,
+      peerId,
+      generation,
+    });
+  }, [activity, directId, peerId, generation]);
+  const isCurrentActivity =
+    presence.view?.conversationId === directId && presence.view?.generation === generation;
   const isCommunity = conversation?.kind === 'group' || conversation?.kind === 'channel';
+  let conversationStatus = isCommunity
+    ? `${conversation.kind} · ${conversation.role}`
+    : 'Private conversation';
+  if (isCurrentActivity && presence.isTyping) {
+    conversationStatus = 'Typing…';
+  } else if (isCurrentActivity && presence.isOnline) {
+    conversationStatus = 'Online';
+  }
   const canPost = conversation?.can_post ?? selection?.destination.kind !== 'conversation';
   const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
   const allowedActions = CONNECTED_ACTIONS.filter((action) => {
@@ -315,6 +350,7 @@ export function ConnectedChat({
     if (isPersisting) {
       return false;
     }
+    activity?.recordComposerChange({ isTyping: false });
     setIsPersisting(true);
     setError('');
     try {
@@ -921,11 +957,7 @@ export function ConnectedChat({
             </button>
             <div>
               <h2>{conversation ? title(conversation) : (selection?.title ?? 'Your messages')}</h2>
-              <p>
-                {isCommunity
-                  ? `${conversation.kind} · ${conversation.role}`
-                  : 'Private conversation'}
-              </p>
+              <p aria-live="polite">{conversationStatus}</p>
             </div>
             {isCommunity && (
               <button type="button" onClick={() => onCommunityDetails(conversation.id)}>
@@ -1146,7 +1178,10 @@ export function ConnectedChat({
                     draft={snapshot.draft.value.text}
                     draftCustomEmoji={snapshot.draft.value.customEmoji}
                     draftRichText={snapshot.draft.value.richText}
-                    onDraftChange={(value) => void owner.setDraft(value).catch(report)}
+                    onDraftChange={(value) => {
+                      activity?.recordComposerChange({ isTyping: value.text.trim().length > 0 });
+                      void owner.setDraft(value).catch(report);
+                    }}
                     onSubmit={(message) => void submit(message)}
                     onCancelContext={() => {
                       setEditing(undefined);

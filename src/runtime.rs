@@ -99,7 +99,7 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let stop = shutdown.clone();
         let services = WorkerServices {
             pool: pool.clone(),
-            client: realtime_client,
+            client: realtime_client.clone(),
             idle_days: account_settings.idle_days,
         };
         let previews =
@@ -151,7 +151,8 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
-        let mut state = AccountHttpState::new(accounts.clone(), transport, mail);
+        let state = AccountHttpState::new(accounts.clone(), transport, mail);
+        let mut state = state.with_activity_realtime(realtime_client);
         if let Some(media) = media_storage {
             let limits = MediaLimits::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
             state = state.with_media(UploadService::new(accounts.clone(), limits, media));
