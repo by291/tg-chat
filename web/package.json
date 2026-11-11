@@ -14,6 +14,7 @@
     "test:sync": "playwright test --config playwright.synchronization.config.ts",
     "test:media": "playwright test --config playwright.media.config.ts",
     "test:interactions": "playwright test --config playwright.interactions.config.ts",
+    "test:lifecycle": "playwright test --config playwright.lifecycle.config.ts",
     "test:communities": "playwright test --config playwright.communities.config.ts",
     "test:accounts": "playwright test --config playwright.accounts.config.ts",
     "api:generate": "node scripts/generate-api.mjs",

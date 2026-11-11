@@ -27,6 +27,11 @@ environment.TG_CHAT_SMTP_HOST = 'mailpit';
 environment.TG_CHAT_SMTP_PORT = '1025';
 environment.TG_CHAT_SMTP_MODE = 'plain';
 environment.TG_CHAT_MAIL_FROM = 'accounts@example.test';
+environment.TG_CHAT_PUSH_VAPID_PUBLIC_KEY = '';
+environment.TG_CHAT_PUSH_VAPID_PRIVATE_KEY = '';
+environment.TG_CHAT_PUSH_VAPID_SUBJECT = '';
+environment.TG_CHAT_TEST_OPERATOR_USERNAME = 'acceptance_operator';
+environment.TG_CHAT_TEST_OPERATOR_PASSWORD = `acceptance-${randomUUID()}`;
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'tg-chat-runtime-'));
 const environmentPath = join(temporaryDirectory, '.env');
 const project = `tg-chat-check-${randomUUID()}`;
@@ -49,7 +54,7 @@ function redact(message) {
   let sanitized = String(message);
 
   for (const [name, value] of Object.entries(environment)) {
-    if (name.includes('PASSWORD') || name.includes('KEY')) {
+    if (value && (name.includes('PASSWORD') || name.includes('KEY'))) {
       sanitized = sanitized.replaceAll(value, '[redacted]');
     }
   }
@@ -278,9 +283,35 @@ function verifyAccountBrowsers(origin, suite = 'test:accounts') {
       ...process.env,
       TG_CHAT_ACCOUNT_TEST_URL: origin,
       TG_CHAT_MAILPIT_TEST_URL: mailpitOrigin,
+      TG_CHAT_TEST_OPERATOR_USERNAME: environment.TG_CHAT_TEST_OPERATOR_USERNAME,
+      TG_CHAT_TEST_OPERATOR_PASSWORD: environment.TG_CHAT_TEST_OPERATOR_PASSWORD,
     },
   });
   console.log(output);
+}
+
+function verifyLifecycleBrowsers(origin, storageOrigin) {
+  // The fixture is created through the same trusted CLI as a deployment's first operator.
+  // prettier-ignore
+  compose([
+    'exec',
+    '-T',
+    'api',
+    'api',
+    'operator',
+    'create',
+    '--username',
+    environment.TG_CHAT_TEST_OPERATOR_USERNAME,
+    '--display-name',
+    'Acceptance Operator',
+  ], { input: `${environment.TG_CHAT_TEST_OPERATOR_PASSWORD}\n` });
+
+  const mailHost = environment.TG_CHAT_SMTP_HOST;
+  environment.TG_CHAT_SMTP_HOST = '';
+  configurePublicOrigin(origin, storageOrigin);
+  verifyAccountBrowsers(origin, 'test:lifecycle');
+  environment.TG_CHAT_SMTP_HOST = mailHost;
+  configurePublicOrigin(origin, storageOrigin);
 }
 
 async function submitAccountRequest({ origin, path, body }) {
@@ -643,6 +674,9 @@ async function main() {
     resetAdmissionFixtures();
     console.log('Checking connected polls, checklists, forwarding, search, and preview opt-out.');
     verifyAccountBrowsers(origin, 'test:interactions');
+    resetAdmissionFixtures();
+    console.log('Checking report evidence, account deletion, activity, and notifications.');
+    verifyLifecycleBrowsers(origin, storageOrigin);
     console.log('Checking outages, graceful shutdown, and persistent private storage.');
     await verifyPersistence({ origin, storageOrigin });
     console.log('Restoring coordinated PostgreSQL and RustFS backups.');
@@ -664,7 +698,7 @@ async function main() {
     assert.ok(!logs.includes(SECRET_MARKER), 'Request secrets must not appear in logs');
 
     for (const [name, value] of Object.entries(environment)) {
-      if (name.includes('PASSWORD') || name.includes('KEY')) {
+      if (value && (name.includes('PASSWORD') || name.includes('KEY'))) {
         assert.ok(!logs.includes(value), `${name} must not appear in logs`);
       }
     }

@@ -9,6 +9,8 @@ export default defineConfig({
     'communities.spec.ts',
     'media-messaging.spec.ts',
     'message-interactions.spec.ts',
+    'administration.spec.ts',
+    'notifications.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
