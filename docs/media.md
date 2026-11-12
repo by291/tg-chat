@@ -12,15 +12,17 @@ Send commits the source Blobs, ordered occurrences, and message identity to Inde
 starting a transfer. The pending message remains in the conversation with upload or processing
 progress. Reopening the same browser and authenticated session restores the operation. The
 browser asks storage which parts committed and sends only the missing parts. An interrupted
-single PUT retries the file in the same upload. Files persist with the pending operation for
+single PUT reconciles completion before retransmitting. Tabs share the session transfer budget
+through a Web Lock or an expiring IndexedDB lease. Files persist with the pending operation for
 at most seven days. If the queue entry survives without its source, reselecting the original
 requires its matching fingerprint before the app can reuse its uploaded parts.
 
 PostgreSQL reserves account and deployment capacity before issuing exact-size writes to private
 S3 staging. A completed upload queues a Worker job. The Worker copies the staged bytes into a
 unique server-owned namespace, checks the copy against the reservation, and prepares bounded
-variants. Codec subprocesses run with restricted protocols, no network, and process limits.
-Only the current lease can publish the ready file and its metadata.
+variants. A staging signature may still permit an overwrite, so the Worker validates the copied
+candidate before publishing its immutable bytes. Codec subprocesses run with restricted protocols,
+no network, and process limits. Only the current lease can publish the ready file and its metadata.
 
 The send transaction applies current posting permissions and commits all ordered file references
 with the message. A lost response reuses the same message and operation IDs. The recipient
@@ -46,8 +48,11 @@ collected after their write and processing windows.
 ## Report evidence
 
 A report captures the currently authorized message and references only the original attachments
-on that message. Case references preserve the immutable originals after source removal. The
-collector can release derivatives once ordinary references and ready holds end.
+on that message, including a reported forward's own occurrences. Related messages and restricted
+interaction results are excluded from the snapshot. A repeat report by the same account for the
+same message keeps the original case and deadline. Case references preserve the immutable originals
+after source removal. The collector can release derivatives once ordinary references and ready
+holds end.
 
 Originals are available through the case download route to operators with current authority
 and recent password proof. The route streams bytes as an attachment and audits access.

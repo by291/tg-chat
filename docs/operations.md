@@ -193,10 +193,11 @@ the deployment's Compose configuration. Serve the chat and signaling origin with
 Configure the TURN public address and transport, including TLS when needed for restrictive
 networks.
 Keep management traffic and provider secrets out of public endpoints and request logs.
-Confirm relay selection and bidirectional audio and video on different real networks before
-marking the call gate complete. See the [LiveKit deployment guide][livekit-deployment].
+Use the [cross-network acceptance plan][m9-network] to confirm relay selection and bidirectional
+audio and video on different real networks. See the [LiveKit deployment guide][livekit-deployment].
 
 [livekit-deployment]: https://docs.livekit.io/transport/self-hosting/deployment/
+[m9-network]: ./superpowers/plans/2026-11-12-m9-livekit-calls.md
 
 ## Persistence and recovery
 

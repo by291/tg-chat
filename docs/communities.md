@@ -77,7 +77,7 @@ including generated invitation secrets. Retrying after receipt retention is refu
 state and dismiss the old record before deciding on a new action. Dismissing a record does not undo a
 server operation. Account invalidation fences these records with the existing storage tombstone.
 
-## Verification and remaining scope
+## Verification
 
 The real PostgreSQL tests cover capacity boundaries, normalized handle uniqueness, ownership,
 authorization, subscriber privacy, concurrent admission/publication, final invitation use, revoked
@@ -86,6 +86,8 @@ actual discovery, administration, approval, private invitations, leaving, remova
 It checks that a removed reader loses visible history and receives a denial on a fresh history read.
 
 Run `pnpm --dir web test:communities` against a disposable runtime configured through
-`TG_CHAT_ACCOUNT_TEST_URL`. The [integrated runtime check](./development.md#repeatable-verification) runs this
-suite alongside account, message, synchronization, and service-recovery checks. Functional capacity
-tests do not establish production throughput. LiveKit calls remain a separate milestone.
+`TG_CHAT_ACCOUNT_TEST_URL`. The [integrated runtime check](./development.md#repeatable-verification)
+runs this suite alongside account, message, synchronization, and service-recovery checks.
+Measured throughput is tracked under [release acceptance][release-acceptance].
+
+[release-acceptance]: ./superpowers/plans/2026-11-08-product-milestones.md#m10-release-performance-and-recovery-acceptance

@@ -140,12 +140,15 @@ Groups and channels use the [community authorization contract](./communities.md)
 Sticker and contact sends retain a bundled asset ID or the contact fields the sender chose.
 Opening an account link uses current directory permissions. Polls and checklists keep their
 editable state in PostgreSQL. Vote replacement is atomic per account, and results are projected
-for each reader. Checklist list and task versions let people update different tasks independently.
+for each reader. Hidden totals, voter identities, and quiz answers are filtered according to the
+poll rules and the reader's eligibility. Database deadlines close participation even if a Worker
+update is delayed. Checklist list and task versions let people update different tasks independently.
 Channels use anonymous polls and restrict completion attribution to the acting subscriber and
-channel managers.
+channel managers. Interaction revisions advance separately from content revisions.
 
 Forwarding checks current source visibility, forwarding policy, and posting permissions for the
-destination. Each destination has one durable batch identity and preserves its existing draft.
+destination. A direct participant can disable forwarding, and both participants must opt in again
+to restore it. Each destination has one durable batch identity and preserves its existing draft.
 The copy retains source attribution and has independent
 [media references](media.md#reading-and-retention).
 Polls and checklists become read-only copies without private results, answers, or identities.
@@ -163,7 +166,7 @@ An eligible link can receive one asynchronous card with a site name, title, and 
 sender can disable the card, and the link remains usable while the card is pending or unavailable.
 An isolated fetcher validates destinations and redirects before connecting. Job publication
 requires the current message revision, URL, and lease, so edits, deletion, and expiry invalidate
-older work.
+older work. Previews fetch page metadata only. Thumbnails are deferred.
 
 ## Realtime and maintenance
 
@@ -202,20 +205,8 @@ See [operations](./operations.md#web-push-delivery) for deployment configuration
 
 ## One-to-one calls
 
-Voice and video start from an existing direct conversation. The recipient's call audience,
-blocks, account status, and conversation access apply before ringing. Each account has one
-live call slot. Online recipient sessions can ring, and the first accepted session owns the
-call. The other sessions stop ringing and cannot obtain room credentials.
-
-The API owns call state. Centrifugo sends private refresh hints, and the connected workspace
-rechecks state even if a hint is missed. LiveKit handles the audio and video tracks. The same
-session can resume during the server's reconnect grace period. Browser tabs sharing a session
-coordinate which tab owns media and release local devices when that ownership ends.
-
-Ending a call releases both slots and schedules one service record in the conversation.
-The record shows the outcome and the duration of established calls. A missed call appears in
-ordinary history after a closed browser returns. Incoming ringing stays in connected sessions.
-See [operations](./operations.md#livekit-calls) for the provider boundary.
+[One-to-one calls](./calls.md) publish their terminal record through ordinary chat history and
+personal synchronization. The calls service owns ringing, media access, and room cleanup.
 
 ## Verification
 

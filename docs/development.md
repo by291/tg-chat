@@ -2,9 +2,8 @@
 
 The repository root owns the Rust API and Worker. The React application remains in `web/`.
 Connected mode uses real account APIs, durable messaging, authenticated realtime catch-up, and
-groups and channels. `/demo` keeps local sample conversations separate. See
-[accounts and recovery](./accounts.md), [messaging](./messaging.md),
-[communities](./communities.md), and [private media](media.md) for the implemented boundaries.
+groups and channels. `/demo` keeps local sample conversations separate. See the
+[documentation index](../README.md#documentation) for the implemented boundaries.
 
 ## Start the integrated environment
 
@@ -106,7 +105,8 @@ deployment. When the public media proxy uses a separate address, set
 libseccomp development headers. Then run:
 
 ```sh
-cargo test --locked --all-targets -- --include-ignored
+cargo test --locked --all-targets -- --include-ignored \
+  --skip explicitly_created_room_can_be_listed_and_deleted
 ```
 
 SQLx creates isolated databases for these tests. Do not point this command at a production server.
@@ -120,16 +120,9 @@ This runner builds images, generates ephemeral credentials and a unique Compose 
 real Rust tests inside a Linux container, and runs account/messaging browsers against the built
 frontend and Mailpit. It drops a real committed message response, restarts API, and verifies replay
 and recipient visibility. It interrupts Worker/Centrifugo, clears Valkey, checks retention-floor
-rebootstrap, and runs the four-session synchronization browser suite. The private media suite
-checks that reopening the browser resends only missing RustFS parts and keeps one message.
-`pnpm --dir web test:interactions` covers connected polls, checklists, forwarding, history search,
-and preview opt-out. `pnpm --dir web test:lifecycle` covers report originals after source deletion,
-operator reauthentication, quarantine and restoration, account deletion, synchronized settings,
-and live activity. That phase runs with SMTP and Push credentials absent. Chromium injects
-events into the registered service worker and checks deduplication and authorized click routing.
-A real provider and target browser/OS are needed to verify encrypted delivery and system
-notifications. The restore drill checks an existing attachment after restoring PostgreSQL and
-RustFS together.
+rebootstrap, and runs the four-session synchronization browser suite. The paired restore drill
+checks an existing attachment after restoring PostgreSQL and RustFS inside the test project.
+Off-host recovery and recovery objectives belong to [release acceptance][release-acceptance].
 
 Independent fixture phases reset only the isolated project's Valkey cache to avoid sharing
 registration rate limits through one loopback address. The runner checks routing, private ports,
@@ -141,6 +134,38 @@ support, installed frontend dependencies, and Chromium (`pnpm --dir web exec pla
 chromium`). A forcibly killed runner may leave its uniquely named `tg-chat-check-` project behind;
 inspect the exact project before removing it.
 
+## Connected feature checks
+
+The default runtime check orchestrates these suites with disposable fixtures. To run a suite
+individually, point `TG_CHAT_ACCOUNT_TEST_URL` at an isolated connected deployment. Use the
+[frontend development guide](../web/docs/development.md) for browser setup and media prerequisites.
+
+- `pnpm --dir web test:media` closes the last browser tab after a multipart interruption and a
+  lost part acknowledgement. Reopen to verify that only missing parts upload and the original
+  pending identity becomes one accepted message.
+- `pnpm --dir web test:interactions` exercises poll and checklist convergence, forwarded
+  attachment access after source deletion, distant Chinese search, and preview opt-out.
+  Real-service tests cover restricted results, stale revisions, and forwarding and search access.
+- `pnpm --dir web test:lifecycle` checks report original downloads after source deletion,
+  recent operator authentication, quarantine and restoration, and deletion with an ownership
+  conflict. The full runner supplies the operator and media fixtures. Real PostgreSQL tests
+  verify evidence expiry, reference release, and concurrent source removal.
+
+Physical voice-message checks remain tracked under
+[connected media capability checks](../web/docs/development.md#connected-media-capability-checks).
+
+## Web Push verification
+
+The lifecycle suite runs with SMTP and Push credentials absent. It checks foreground alerts and
+uses synthetic Chromium service-worker events to verify deduplication and authorized click routing.
+Service tests exercise dispatch eligibility and retries with a deterministic transport.
+
+For provider-backed acceptance, configure [Web Push delivery](./operations.md#web-push-delivery)
+on an HTTPS deployment. Opt in on a target browser and OS. Send from another account while the
+subscribed session is in the background, check that the OS displays a generic notification, and
+follow it to the authorized conversation. Repeat with read or mute suppression and subscription
+revocation. Record the provider, browser, OS, and observed delivery behavior.
+
 ## Call verification
 
 Run the calls-enabled acceptance separately from the default runtime check.
@@ -149,15 +174,28 @@ Run the calls-enabled acceptance separately from the default runtime check.
 node scripts/check-runtime.mjs --calls
 ```
 
-The runner uses an isolated Compose project and Chromium with controlled media devices.
-It exercises the connected application and the real LiveKit media path. The provider contract
-fixtures run separately with explicit disposable credentials. The default runtime check keeps
-calls disabled and checks the ordinary messaging and media paths.
+The runner uses an isolated Compose project, Chromium with controlled media devices, and the
+real LiveKit media path. It checks competing accepts, voice and video, permission denial,
+refresh and reconnect, one missed record after reopening, and terminal signaling rejection.
+It repeats the call flow after verifying that ordinary messaging works with LiveKit stopped.
+The default runtime check keeps calls disabled.
 
-Use the [call deployment settings](./operations.md#livekit-calls) to verify two physical devices
-on distinct networks. Check voice and video, permission refusal, device switching, reconnect,
-and TURN fallback. Record the selected ICE candidate type and browser/OS for the relay case.
-Automated loopback tests leave this network gate open.
+The provider contract fixtures exercise explicit room creation and deletion and
+two-participant admission. Use a disposable LiveKit instance and set
+`TG_CHAT_LIVEKIT_API_KEY`, `TG_CHAT_LIVEKIT_API_SECRET`, and
+`TG_CHAT_LIVEKIT_INTERNAL_URL` with a loopback HTTP URL. The browser fixture also requires
+a loopback `TG_CHAT_LIVEKIT_PUBLIC_URL` with the `ws` scheme. Run from the repository root:
+
+```sh
+cargo test --locked --test livekit_integration -- --include-ignored
+pnpm --dir web exec playwright test -c playwright.calls.config.ts livekit-contract.spec.ts
+```
+
+The [cross-network acceptance plan][m9-network] tracks physical microphone, camera, and TURN
+verification.
+
+[release-acceptance]: ./superpowers/plans/2026-11-08-product-milestones.md#m10-release-performance-and-recovery-acceptance
+[m9-network]: ./superpowers/plans/2026-11-12-m9-livekit-calls.md
 
 ## API contract ownership
 

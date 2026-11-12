@@ -120,14 +120,15 @@ even a crash during the last attempt eventually becomes exhausted instead of cre
 Delivery is at-least-once across an ambiguous SMTP success/crash. An address may receive a duplicate
 or a link invalidated while SMTP is already in flight; only the single-use database transaction can
 change the account. Sent/discarded jobs erase payload bytes. Exhausted jobs retain encrypted payloads
-for operator diagnosis; automatic terminal-row retention and replay are not part of M2.
+for operator diagnosis. See [operations](./operations.md#mail-delivery-and-protected-payloads)
+for the conditions under which an operator can retry an exhausted job.
 
 When SMTP is absent, capabilities explicitly disable new verification and recovery requests. They
 never report a fake send success. Durable intent survives process restarts, but the mail key must
 survive with it; [operations](./operations.md#mail-delivery-and-protected-payloads) explains retention.
 
-## Remaining product boundaries
+## Related capabilities
 
-[Private media](media.md) owns validated avatar uploads. LiveKit one-to-one calls remain a
-separate milestone.
-The `/demo` route keeps its own sample accounts and messages.
+[Private media](media.md) owns validated avatar uploads. [One-to-one calls](./calls.md) use the
+recipient's call audience, block policy, and current session ownership. The `/demo` route keeps its
+own sample accounts and messages.

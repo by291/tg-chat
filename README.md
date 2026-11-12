@@ -31,6 +31,7 @@ and video from existing direct conversations.
 - [Runtime operations](./docs/operations.md): migrations, health, secrets, storage, and shutdown.
 - [Durable messaging](./docs/messaging.md): acceptance, snapshots, rich content, and pending recovery.
 - [Private media](docs/media.md) covers uploads, playback, and retention.
+- [One-to-one calls](./docs/calls.md) covers ringing, media authorization, and call history.
 - [Communities and membership](./docs/communities.md): discovery, admission, roles, and access removal.
 - [Accounts and recovery](./docs/accounts.md): identity, session, privacy, and durable mail boundaries.
 - [Frontend overview](./web/README.md): setup, capabilities, and current scope.
@@ -45,8 +46,8 @@ and video from existing direct conversations.
 - [Complete product design](./docs/superpowers/specs/2026-11-08-complete-product-design.md):
   approved target for the Rust backend, synchronization, media, administration, calls,
   and deployment.
-- [Implementation milestones](./docs/superpowers/plans/2026-11-08-product-milestones.md): delivery
-  order, dependencies, and acceptance gates for the approved product design.
+- [Product roadmap](./docs/superpowers/plans/2026-11-08-product-milestones.md): implemented
+  milestone topics, outstanding capability checks, and M10 release acceptance.
 
 The project uses GPL-3.0. See [LICENSE](./web/LICENSE) and
 [third-party notices](./web/THIRD_PARTY_NOTICES.md) for asset attribution.
