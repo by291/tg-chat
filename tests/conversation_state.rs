@@ -101,6 +101,57 @@ async fn reads_are_monotonic_and_close_reopens_with_the_personal_clear_cutoff(po
 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]
+async fn read_time_preserves_the_first_visible_read_for_the_author_only(pool: PgPool) {
+    let (service, alice, bobby) = fixture(pool.clone()).await;
+    sqlx::query("UPDATE users SET presence_audience = 'everyone' WHERE id = $1")
+        .bind(bobby.user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let hidden = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    let visible = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    let conversation_id = visible.conversation.id;
+    let visible_id = visible.message.id;
+    assert!(service.read_time(alice.clone(), visible_id).await.unwrap().read_at.is_none());
+    let hide =
+        command(conversation_id, json!({"kind": "hide_message", "message_id": hidden.message.id}));
+    service.command(bobby.clone(), hide).await.unwrap();
+
+    let read = command(conversation_id, json!({"kind": "read", "through": "2"}));
+    service.command(bobby.clone(), read).await.unwrap();
+    let observed = service.read_time(alice.clone(), visible_id).await.unwrap().read_at.unwrap();
+    assert!(observed >= visible.message.created_at);
+    assert!(service.read_time(alice.clone(), hidden.message.id).await.unwrap().read_at.is_none());
+    let repeated = command(conversation_id, json!({"kind": "read", "through": "2"}));
+    service.command(bobby.clone(), repeated).await.unwrap();
+    assert_eq!(service.read_time(alice.clone(), visible_id).await.unwrap().read_at, Some(observed));
+    assert!(matches!(
+        service.read_time(bobby.clone(), visible_id).await,
+        Err(AccountError::NotFound)
+    ));
+
+    sqlx::query("UPDATE users SET presence_audience = 'nobody' WHERE id = $1")
+        .bind(bobby.user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(matches!(
+        service.read_time(alice.clone(), visible_id).await,
+        Err(AccountError::NotFound)
+    ));
+    sqlx::query("UPDATE users SET presence_audience = 'everyone' WHERE id = $1")
+        .bind(bobby.user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let clear = command(conversation_id, json!({"kind": "clear"}));
+    service.command(alice.clone(), clear).await.unwrap();
+    assert!(matches!(service.read_time(alice, visible_id).await, Err(AccountError::NotFound)));
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
 async fn unread_history_starts_at_the_first_visible_incoming_message(pool: PgPool) {
     let (service, alice, bobby) = fixture(pool).await;
     let read_message = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();

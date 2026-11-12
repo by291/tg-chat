@@ -864,6 +864,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/messages/{message_id}/read-time': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['read_time'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/messages/{message_id}/reports': {
     parameters: {
       query?: never;
@@ -1947,6 +1963,10 @@ export interface components {
       | 'poll'
       | 'checklist'
       | 'service';
+    MessageReadTime: {
+      /** Format: date-time */
+      read_at?: string | null;
+    };
     NotificationCategoryDefaults: {
       should_notify: boolean;
       should_show_preview: boolean;
@@ -3898,6 +3918,33 @@ export interface operations {
         content: {
           'application/json': components['schemas']['PollVoterPage'];
         };
+      };
+    };
+  };
+  read_time: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        message_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageReadTime'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

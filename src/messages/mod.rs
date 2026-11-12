@@ -25,5 +25,7 @@ pub(crate) mod http;
 
 pub(crate) mod commands;
 pub(crate) mod projection;
+pub(crate) mod read_time;
 pub use commands::{CommandAction, CommandReceipt, MessageCommand};
 pub use model::{ReactionView, ReplyInput, ReplyView};
+pub use read_time::MessageReadTime;

@@ -8,6 +8,7 @@ use crate::{
         commands::{CommandContext, PreferenceChange},
         content::{MessageContent, validate_content},
         history::parse_sequence,
+        read_time::record_first_reads,
         service::AcceptanceError,
     },
 };
@@ -83,6 +84,8 @@ async fn advance_read(
     if sequence > last_sequence {
         return Err(AccountError::Validation("read cursor exceeds conversation history").into());
     }
+
+    record_first_reads(connection, context, sequence).await?;
     let update = sqlx::query(
         "UPDATE conversation_members SET read_through = greatest(read_through, $3),
          is_manually_unread = false WHERE conversation_id = $1 AND user_id = $2",

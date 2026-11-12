@@ -12,7 +12,8 @@ use uuid::Uuid;
 
 use super::{
     CanonicalMessage, CommandReceipt, ForwardBatch, ForwardReceipt, HistoryPage, HistoryQuery,
-    MessageCommand, MessageKind, MessageService, SearchPage, SearchQuery, SendMessage, SendReceipt,
+    MessageCommand, MessageKind, MessageReadTime, MessageService, SearchPage, SearchQuery,
+    SendMessage, SendReceipt,
     polls::{PollVoterPage, PollVoterQuery},
 };
 use crate::{
@@ -27,7 +28,18 @@ const MAX_MESSAGE_BODY_BYTES: usize = 128 * 1024;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(bootstrap, sync, search, send, forward, message, poll_voters, history, command),
+    paths(
+        bootstrap,
+        sync,
+        search,
+        send,
+        forward,
+        message,
+        read_time,
+        poll_voters,
+        history,
+        command
+    ),
     components(schemas(MessageKind))
 )]
 pub struct MessageDocument;
@@ -141,6 +153,24 @@ async fn message(
         .map_err(|error| context.request.failure(error))?;
 
     Ok(Json(message))
+}
+
+#[utoipa::path(
+    get, path = "/api/v1/messages/{message_id}/read-time",
+    params(("message_id" = Uuid, Path)),
+    responses((status = 200, body = MessageReadTime), (status = 404))
+)]
+async fn read_time(
+    State(state): State<AccountHttpState>,
+    context: ActorContext,
+    Path(message_id): Path<Uuid>,
+) -> Result<Json<MessageReadTime>, ApiFailure> {
+    let read_time = MessageService::new(state.accounts)
+        .read_time(context.actor, message_id)
+        .await
+        .map_err(|error| context.request.failure(error))?;
+
+    Ok(Json(read_time))
 }
 
 #[utoipa::path(
@@ -263,6 +293,7 @@ pub(crate) fn router() -> Router<AccountHttpState> {
         .route("/chat/commands", post(command))
         .route("/chat/search", get(search))
         .route("/messages/forward", post(forward))
+        .route("/messages/{message_id}/read-time", get(read_time))
         .route("/messages/{message_id}/poll/voters", get(poll_voters))
         .route("/conversations/{conversation_id}/history", get(history))
         .layer(DefaultBodyLimit::max(MAX_MESSAGE_BODY_BYTES))

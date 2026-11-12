@@ -31,6 +31,7 @@ import styles from './MessageMenu.module.css';
 import { MAX_CHECKLIST_TASKS } from '@/domain/messages/media';
 import { getSelectedPollOptions } from '../../state/pollVoting';
 import { useStructuredMessageActions } from '../StructuredMessageActions';
+import { MessageReadTimeLine } from './MessageReadTimeScope';
 
 const REACTION_BAR_OFFSET = 48;
 const REACTION_MENU_OFFSET = 56;
@@ -217,6 +218,13 @@ export function MessageMenu({
   const isExpanded = Boolean(pickerBounds);
   const structuredActions = useStructuredMessageActions();
   const isSelecting = selectedMessages !== undefined;
+  const canShowReadTime =
+    isOpen &&
+    !isSelecting &&
+    !isExpanded &&
+    message?.authorId === currentUserId &&
+    message.isRead &&
+    !message.isService;
   let items: MessageMenuItem[] = [];
   if (message) {
     items = selectedMessages
@@ -400,6 +408,7 @@ export function MessageMenu({
                 </div>
               )}
               <div ref={itemsRef} className={styles.items}>
+                {canShowReadTime && <MessageReadTimeLine key={message.id} messageId={message.id} />}
                 {items.map((item) => (
                   <Menu.Item
                     key={item.action}

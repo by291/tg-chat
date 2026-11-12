@@ -28,6 +28,7 @@ import type { ChecklistMedia } from '@/domain/messages/media';
 import { checklistInput } from '../data/checklistInput';
 import { canonicalMessageContent } from '../data/messageContent';
 import { connectionStatusLabel } from '../data/connectionStatus';
+import { MessageReadTimeScope } from '../messages/menu/MessageReadTimeScope';
 import { DraftRecovery } from './DraftRecovery';
 import { PendingConversationActions } from './PendingConversationActions';
 import { ConnectedChatMenu } from './ConnectedChatMenu';
@@ -1252,47 +1253,52 @@ export function ConnectedChat({
                   <ContactLinkContext.Provider
                     value={session ? (id) => void openContactLink(id).catch(report) : undefined}
                   >
-                    <MessageRetryContext.Provider value={retryPendingMessage}>
-                      <MessageTimeline
-                        key={selectedKey}
-                        messages={messages}
-                        precedingMessage={
-                          snapshot.precedingMessage
-                            ? renderMessage(snapshot.precedingMessage)
-                            : undefined
-                        }
-                        shouldShowSender={conversation?.kind === 'group'}
-                        allowedActions={allowedActions}
-                        selectedIds={selectedIds}
-                        onToggleSelection={toggleSelection}
-                        onSetSelection={setMessageSelection}
-                        reactionChoices={REACTIONS}
-                        navigation={snapshot.navigation}
-                        firstUnreadMessageId={snapshot.firstUnreadMessageId}
-                        unreadCount={Number(conversation?.unread_count ?? 0)}
-                        isMuted={isConversationMuted(conversation)}
-                        latestRequest={latestSendRequest}
-                        onReachMessage={(messageId) => {
-                          if (!isDirectoryVisible && !editing && !profilePeerId) {
-                            void owner.markReached(messageId).catch(report);
+                    <MessageReadTimeScope
+                      session={session}
+                      isDirect={conversation?.kind === 'direct'}
+                    >
+                      <MessageRetryContext.Provider value={retryPendingMessage}>
+                        <MessageTimeline
+                          key={selectedKey}
+                          messages={messages}
+                          precedingMessage={
+                            snapshot.precedingMessage
+                              ? renderMessage(snapshot.precedingMessage)
+                              : undefined
                           }
-                        }}
-                        remoteHistory={{
-                          hasOlder: snapshot.hasOlder,
-                          hasNewer: snapshot.hasNewer,
-                          isLoading: snapshot.isLoading,
-                          loadOlder: () => void owner.loadHistory('older'),
-                          loadNewer: () => void owner.loadHistory('newer'),
-                          jumpToLatest,
-                        }}
-                        searchQuery=""
-                        onCommand={messageCommand}
-                        onReact={react}
-                        onInteract={interact}
-                        onOpenMedia={() => undefined}
-                        onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-                      />
-                    </MessageRetryContext.Provider>
+                          shouldShowSender={conversation?.kind === 'group'}
+                          allowedActions={allowedActions}
+                          selectedIds={selectedIds}
+                          onToggleSelection={toggleSelection}
+                          onSetSelection={setMessageSelection}
+                          reactionChoices={REACTIONS}
+                          navigation={snapshot.navigation}
+                          firstUnreadMessageId={snapshot.firstUnreadMessageId}
+                          unreadCount={Number(conversation?.unread_count ?? 0)}
+                          isMuted={isConversationMuted(conversation)}
+                          latestRequest={latestSendRequest}
+                          onReachMessage={(messageId) => {
+                            if (!isDirectoryVisible && !editing && !profilePeerId) {
+                              void owner.markReached(messageId).catch(report);
+                            }
+                          }}
+                          remoteHistory={{
+                            hasOlder: snapshot.hasOlder,
+                            hasNewer: snapshot.hasNewer,
+                            isLoading: snapshot.isLoading,
+                            loadOlder: () => void owner.loadHistory('older'),
+                            loadNewer: () => void owner.loadHistory('newer'),
+                            jumpToLatest,
+                          }}
+                          searchQuery=""
+                          onCommand={messageCommand}
+                          onReact={react}
+                          onInteract={interact}
+                          onOpenMedia={() => undefined}
+                          onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+                        />
+                      </MessageRetryContext.Provider>
+                    </MessageReadTimeScope>
                   </ContactLinkContext.Provider>
                 </ConnectedMediaContext.Provider>
               </div>

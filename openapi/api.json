@@ -1396,6 +1396,29 @@
         }
       }
     },
+    "/api/v1/messages/{message_id}/read-time": {
+      "get": {
+        "tags": [],
+        "operationId": "read_time",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/MessageReadTime" } }
+            }
+          },
+          "404": { "description": "" }
+        }
+      }
+    },
     "/api/v1/messages/{message_id}/reports": {
       "post": {
         "tags": [],
@@ -3087,6 +3110,10 @@
           "checklist",
           "service"
         ]
+      },
+      "MessageReadTime": {
+        "type": "object",
+        "properties": { "read_at": { "type": ["string", "null"], "format": "date-time" } }
       },
       "NotificationCategoryDefaults": {
         "type": "object",

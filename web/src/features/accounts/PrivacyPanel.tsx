@@ -35,7 +35,7 @@ const PRIVACY_SETTINGS = [
   {
     key: 'presence',
     label: 'Last seen & online',
-    question: 'Who can see my online status?',
+    question: 'Who can see my online status and exact read times?',
     icon: Clock,
   },
 ] as const;

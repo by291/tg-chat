@@ -43,6 +43,23 @@
   color: var(--danger-color, #df3f40);
 }
 
+.readTime {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px 4px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--secondary-color);
+  font-size: 13px;
+}
+
+.readTime svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
 :global(:where(:root[data-touch-supported='false'])) .items [data-danger='true'][data-highlighted] {
   background: rgb(223 63 64 / 8%);
 }
