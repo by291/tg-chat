@@ -20,6 +20,11 @@ tables. Formatting-only edits remain meaningful even when plain text is unchange
 rejects unsafe markup and link protocols before content is stored or rendered; interactive content
 is rendered through application components rather than executed from saved HTML.
 
+In connected chats, a link in the draft can show a compact preview above the editor. The composer
+looks up only the candidate URL and discards a response if its link or edit context changes.
+Removing the preview keeps the draft intact and carries the sender's preference with the send or
+edit. Restoring the preview reverses that preference without requiring a text change.
+
 ## Selection and focus follow the user's action
 
 Formatting dialogs temporarily take focus without losing the editor selection. Applying or

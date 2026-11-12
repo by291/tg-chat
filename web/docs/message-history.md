@@ -61,6 +61,9 @@ viewport; normal user scrolling can resume prefetching afterward.
 Search results and pinned-message views reuse message rendering and navigation rather than
 maintaining separate bubble implementations. Their overlays preserve the underlying conversation
 and composer state, so returning to the conversation does not lose the user's work.
+On narrow layouts, users can switch between the result list and the located message while
+retaining their query and filters. The count shows loaded matches and a plus sign when more
+matches may exist.
 
 ## Reserve geometry and coordinate media work
 

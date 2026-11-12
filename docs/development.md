@@ -37,8 +37,8 @@ editor. Do not include the generated value in issue reports or shared command lo
 Set `TG_CHAT_PUBLIC_ORIGIN` to the exact browser origin when changing the gateway address.
 
 PostgreSQL, Valkey, API, Worker, Centrifugo, RustFS, and the link preview fetcher have no
-published host ports. The fetcher accepts requests on its private Worker network and uses a
-separate outbound network. The fetcher's address policy restricts page requests to public addresses.
+published host ports. The fetcher accepts API and Worker requests on its private control network
+and uses a separate outbound network. Its address policy restricts page requests to public addresses.
 The media origin is separately exposed on `http://127.0.0.1:8333` and requires signed S3 requests.
 Use the internal endpoint for API and Worker object operations and the public endpoint for browser
 signatures. See [private media](media.md#operating-the-feature) for enabling the feature.

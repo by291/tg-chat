@@ -149,6 +149,7 @@ channel managers. Interaction revisions advance separately from content revision
 Forwarding checks current source visibility, forwarding policy, and posting permissions for the
 destination. A direct participant can disable forwarding, and both participants must opt in again
 to restore it. Each destination has one durable batch identity and preserves its existing draft.
+An optional comment is accepted in the same batch and appears before the copied messages.
 The copy retains source attribution and has independent
 [media references](media.md#reading-and-retention).
 Polls and checklists become read-only copies without private results, answers, or identities.
@@ -162,8 +163,9 @@ pins, and target-message pages reuse history permissions. Search results and sig
 are resolved for the current reader. A result opens a bounded history neighborhood around its
 target.
 
-An eligible link can receive one asynchronous card with a site name, title, and summary. The
-sender can disable the card, and the link remains usable while the card is pending or unavailable.
+The composer can look up a link before sending and display its site name, title, and summary.
+The sender can dismiss the preview before sending. An eligible link can receive one asynchronous
+card after acceptance, and the link remains usable while the card is pending or unavailable.
 An isolated fetcher validates destinations and redirects before connecting. Job publication
 requires the current message revision, URL, and lease, so edits, deletion, and expiry invalidate
 older work. Previews fetch page metadata only. Thumbnails are deferred.
