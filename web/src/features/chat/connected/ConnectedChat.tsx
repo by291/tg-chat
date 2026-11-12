@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowLeft,
   ContactRound,
   LoaderCircle,
@@ -214,7 +215,7 @@ export function ConnectedChat({
   const [error, setError] = useState('');
   const [profilePeerId, setProfilePeerId] = useState<string>();
   const [latestSendRequest, setLatestSendRequest] = useState(0);
-  const [folder, setFolder] = useState('inbox');
+  const [folder, setFolder] = useState<'inbox' | 'archived' | 'hidden'>('inbox');
   const [directoryQuery, setDirectoryQuery] = useState('');
   const [searchConversationId, setSearchConversationId] = useState<string>();
   const [editing, setEditing] = useState<CanonicalMessage>();
@@ -414,6 +415,11 @@ export function ConnectedChat({
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
     setIsDirectoryVisible(false);
+  }
+
+  function openFolder(nextFolder: typeof folder) {
+    setDirectoryQuery('');
+    setFolder(nextFolder);
   }
 
   function openSavedMessages() {
@@ -879,8 +885,22 @@ export function ConnectedChat({
           hidden={Boolean(accountPage)}
         >
           <header className={styles.directoryHeader}>
-            <ConnectedChatMenu onOpenSaved={openSavedMessages} />
-            <h1>Messages</h1>
+            {folder === 'inbox' ? (
+              <ConnectedChatMenu
+                onOpenSaved={openSavedMessages}
+                onOpenArchived={() => openFolder('archived')}
+                onOpenHidden={() => openFolder('hidden')}
+              />
+            ) : (
+              <button type="button" aria-label="Back to inbox" onClick={() => openFolder('inbox')}>
+                <ArrowLeft />
+              </button>
+            )}
+            <h1>
+              {folder === 'archived' && 'Archived Chats'}
+              {folder === 'hidden' && 'Hidden Chats'}
+              {folder === 'inbox' && 'Messages'}
+            </h1>
             <button type="button" aria-label="Account settings" onClick={onSettings}>
               <Settings />
             </button>
@@ -920,20 +940,17 @@ export function ConnectedChat({
               {connectionLabel}
             </p>
           )}
-          {!normalizedDirectoryQuery && (
-            <label className={styles.folder}>
-              Conversations
-              <select
-                aria-label="Conversation folder"
-                value={folder}
-                onChange={(event) => setFolder(event.target.value)}
+          {!normalizedDirectoryQuery &&
+            folder === 'inbox' &&
+            snapshot.conversations.some((entry) => entry.is_archived && !entry.is_hidden) && (
+              <button
+                type="button"
+                className={styles.archiveEntry}
+                onClick={() => openFolder('archived')}
               >
-                <option value="inbox">Inbox</option>
-                <option value="archived">Archived</option>
-                <option value="hidden">Hidden</option>
-              </select>
-            </label>
-          )}
+                <Archive aria-hidden="true" /> Archived Chats
+              </button>
+            )}
           {directory.map((entry) => (
             <ConnectedConversationRow
               key={entry.id}
@@ -942,6 +959,11 @@ export function ConnectedChat({
               session={session}
               isSelected={conversation?.id === entry.id}
               onOpen={() => openConversation(entry)}
+              onCommand={(action) => {
+                void owner
+                  .commandForConversation({ conversationId: entry.id, action })
+                  .catch(report);
+              }}
             />
           ))}
           {snapshot.isReady && (

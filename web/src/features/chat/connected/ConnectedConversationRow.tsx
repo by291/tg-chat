@@ -1,4 +1,10 @@
-import { BellOff, Pin } from 'lucide-react';
+import { Menu } from '@ark-ui/react/menu';
+import { Portal } from '@ark-ui/react/portal';
+import type { components } from '@/api/schema';
+import { IconButton } from '@/components/IconButton';
+import overlays from '@/components/overlays/overlays.module.css';
+import { ConversationActions } from './ConversationActions';
+import { BellOff, Ellipsis, Pin } from 'lucide-react';
 import { Avatar } from '@/components/Avatar';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import { useAppPreferences } from '@/features/settings/appPreferences';
@@ -22,6 +28,7 @@ interface ConversationRowProps {
   isSelected: boolean;
   session?: SessionOwner;
   onOpen: () => void;
+  onCommand: (action: components['schemas']['CommandAction']) => void;
 }
 
 function formatSummaryTime(value: string, timeFormat: 'h12' | 'h23'): string {
@@ -49,6 +56,7 @@ export function ConnectedConversationRow({
   isSelected,
   session,
   onOpen,
+  onCommand,
 }: ConversationRowProps) {
   const timeFormat = useAppPreferences((preferences) => preferences.timeFormat);
   const isSaved = conversation.kind === 'saved';
@@ -62,7 +70,7 @@ export function ConnectedConversationRow({
   const isPinned = conversation.pin_rank !== null;
   const fileId = conversation.avatar_file_id ?? conversation.peer_avatar_file_id;
 
-  return (
+  const row = (
     <button
       type="button"
       className={styles.conversation}
@@ -113,5 +121,29 @@ export function ConnectedConversationRow({
         </span>
       </span>
     </button>
+  );
+
+  return (
+    <Menu.Root positioning={{ placement: 'bottom-end', gutter: 6 }}>
+      <div className={styles.conversationRow}>
+        <Menu.ContextTrigger asChild>{row}</Menu.ContextTrigger>
+        <Menu.Trigger asChild>
+          <IconButton
+            label="Conversation actions"
+            aria-description={name}
+            className={styles.rowActions}
+          >
+            <Ellipsis />
+          </IconButton>
+        </Menu.Trigger>
+      </div>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content className={overlays.menu}>
+            <ConversationActions conversation={conversation} onCommand={onCommand} />
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
+    </Menu.Root>
   );
 }

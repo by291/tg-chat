@@ -1099,9 +1099,19 @@ export class ChatOwner {
     if (!conversation) {
       throw new Error('Choose an existing conversation first.');
     }
+    await this.commandForConversation({ conversationId: conversation.id, action });
+  }
+
+  /** Apply a directory action without changing the active conversation or draft. */
+  async commandForConversation(options: {
+    conversationId: string;
+    action: components['schemas']['CommandAction'];
+  }): Promise<void> {
+    this.ensureCurrent();
+    const { conversationId, action } = options;
     const request = await this.requireStore().rememberCommand({
       operation_id: crypto.randomUUID(),
-      conversation_id: conversation.id,
+      conversation_id: conversationId,
       action,
     });
     await this.retryCommand(request.operation_id);

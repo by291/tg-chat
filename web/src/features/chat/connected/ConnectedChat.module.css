@@ -55,11 +55,52 @@
   opacity: 0.5;
 }
 
-.directory .conversation {
+.conversationRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 12px;
+}
+
+.conversationRow:has(.conversation[aria-pressed='true']) {
+  background: var(--hover-color);
+}
+
+.directory .rowActions {
+  flex: none;
+  width: 32px;
+  padding: 6px;
+  color: var(--secondary-color);
+}
+
+@media (hover: hover) {
+  .rowActions {
+    opacity: 0;
+  }
+
+  .conversationRow:hover .rowActions,
+  .conversationRow:focus-within .rowActions,
+  .rowActions[data-state='open'] {
+    opacity: 1;
+  }
+}
+
+.directory .archiveEntry {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
+  min-height: 52px;
+  padding-inline: 18px;
+  text-align: start;
+}
+
+.directory .conversation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
   text-align: start;
 }
 
@@ -315,11 +356,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .directoryHeader {
-    gap: 6px;
-    padding-inline: 10px;
-  }
-
   .chatHeader[data-has-call-actions] {
     gap: 6px;
     padding-inline: 10px;
@@ -346,15 +382,9 @@
   }
 }
 
-.folder,
 .preferences {
   padding: 12px 20px;
   background: var(--surface-color);
-}
-
-.folder {
-  display: flex;
-  gap: 12px;
 }
 
 .preferences .actions {
@@ -439,6 +469,28 @@
   padding: 6px 12px;
   color: var(--secondary-color);
   font-size: 13px;
+}
+
+.directoryHeader {
+  gap: 6px;
+  padding-inline: 10px;
+}
+
+.directoryHeader h1 {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directoryHeader > button {
+  flex: none;
+}
+
+.directory .directoryHeader > button {
+  width: 36px;
+  padding-inline: 6px;
 }
 
 .directoryConnection,
