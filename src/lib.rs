@@ -1,6 +1,7 @@
 //! Shared runtime boundaries for the API and Worker processes.
 
 pub mod accounts;
+pub mod calls;
 pub mod config;
 pub mod database;
 pub mod http;

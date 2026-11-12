@@ -352,6 +352,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/calls': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['start_call'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/calls/current': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['current_call'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/calls/{call_id}/commands': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['command_call'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/capabilities': {
     parameters: {
       query?: never;
@@ -1096,6 +1144,45 @@ export interface components {
       privacy: components['schemas']['PrivacySettings'];
       user: components['schemas']['PrivateProfile'];
     };
+    /** @enum {string} */
+    CallAction: 'accept' | 'decline' | 'cancel' | 'hangup' | 'media_permission_denied';
+    CallCommandBody: {
+      action: components['schemas']['CallAction'];
+      /** Format: uuid */
+      operation_id: string;
+    };
+    /** @enum {string} */
+    CallDirection: 'incoming' | 'outgoing';
+    /** @enum {string} */
+    CallEndReason:
+      | 'declined'
+      | 'cancelled'
+      | 'missed'
+      | 'completed'
+      | 'permission_denied'
+      | 'transport_failed'
+      | 'access_revoked';
+    /** @enum {string} */
+    CallMode: 'voice' | 'video';
+    /** @enum {string} */
+    CallPhase: 'ringing' | 'connecting' | 'active' | 'ended';
+    CallView: {
+      allowed_actions: components['schemas']['CallAction'][];
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: date-time */
+      deadline?: string | null;
+      direction: components['schemas']['CallDirection'];
+      end_reason?: null | components['schemas']['CallEndReason'];
+      /** Format: uuid */
+      id: string;
+      mode: components['schemas']['CallMode'];
+      peer_display_name: string;
+      /** Format: uuid */
+      peer_id: string;
+      phase: components['schemas']['CallPhase'];
+      revision: string;
+    };
     CanonicalMessage: {
       attachments?: components['schemas']['AttachmentView'][];
       /** Format: uuid */
@@ -1127,6 +1214,7 @@ export interface components {
     };
     Capabilities: {
       avatars_available: boolean;
+      calls_available: boolean;
       email_recovery_available: boolean;
       media_uploads_available?: boolean | null;
       messaging_available: boolean;
@@ -1565,6 +1653,9 @@ export interface components {
       kind: string;
       /** Format: uuid */
       operation_id: string;
+    };
+    CurrentCall: {
+      call?: null | components['schemas']['CallView'];
     };
     CustomEmoji: {
       document_id: string;
@@ -2217,6 +2308,13 @@ export interface components {
       /** Format: int32 */
       part_number?: number | null;
       url: string;
+    };
+    StartCall: {
+      /** Format: uuid */
+      conversation_id: string;
+      mode: components['schemas']['CallMode'];
+      /** Format: uuid */
+      operation_id: string;
     };
     StorageUsage: {
       account_bytes: string;
@@ -2909,6 +3007,74 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  start_call: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StartCall'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CallView'];
+        };
+      };
+    };
+  };
+  current_call: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CurrentCall'];
+        };
+      };
+    };
+  };
+  command_call: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The call identity */
+        call_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CallCommandBody'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CallView'];
+        };
       };
     };
   };

@@ -468,6 +468,69 @@
         "responses": { "204": { "description": "" } }
       }
     },
+    "/api/v1/calls": {
+      "post": {
+        "tags": [],
+        "operationId": "start_call",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/StartCall" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CallView" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/current": {
+      "get": {
+        "tags": [],
+        "operationId": "current_call",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CurrentCall" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{call_id}/commands": {
+      "post": {
+        "tags": [],
+        "operationId": "command_call",
+        "parameters": [
+          {
+            "name": "call_id",
+            "in": "path",
+            "description": "The call identity",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CallCommandBody" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CallView" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/capabilities": {
       "get": {
         "tags": [],
@@ -1772,6 +1835,66 @@
           "user": { "$ref": "#/components/schemas/PrivateProfile" }
         }
       },
+      "CallAction": {
+        "type": "string",
+        "enum": ["accept", "decline", "cancel", "hangup", "media_permission_denied"]
+      },
+      "CallCommandBody": {
+        "type": "object",
+        "required": ["operation_id", "action"],
+        "properties": {
+          "action": { "$ref": "#/components/schemas/CallAction" },
+          "operation_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "CallDirection": { "type": "string", "enum": ["incoming", "outgoing"] },
+      "CallEndReason": {
+        "type": "string",
+        "enum": [
+          "declined",
+          "cancelled",
+          "missed",
+          "completed",
+          "permission_denied",
+          "transport_failed",
+          "access_revoked"
+        ]
+      },
+      "CallMode": { "type": "string", "enum": ["voice", "video"] },
+      "CallPhase": { "type": "string", "enum": ["ringing", "connecting", "active", "ended"] },
+      "CallView": {
+        "type": "object",
+        "required": [
+          "id",
+          "conversation_id",
+          "peer_id",
+          "peer_display_name",
+          "direction",
+          "mode",
+          "phase",
+          "revision",
+          "allowed_actions"
+        ],
+        "properties": {
+          "allowed_actions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CallAction" }
+          },
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "deadline": { "type": ["string", "null"], "format": "date-time" },
+          "direction": { "$ref": "#/components/schemas/CallDirection" },
+          "end_reason": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CallEndReason" }]
+          },
+          "id": { "type": "string", "format": "uuid" },
+          "mode": { "$ref": "#/components/schemas/CallMode" },
+          "peer_display_name": { "type": "string" },
+          "peer_id": { "type": "string", "format": "uuid" },
+          "phase": { "$ref": "#/components/schemas/CallPhase" },
+          "revision": { "type": "string" }
+        }
+      },
       "CanonicalMessage": {
         "type": "object",
         "required": [
@@ -1828,10 +1951,12 @@
           "registration_open",
           "email_recovery_available",
           "avatars_available",
-          "messaging_available"
+          "messaging_available",
+          "calls_available"
         ],
         "properties": {
           "avatars_available": { "type": "boolean" },
+          "calls_available": { "type": "boolean" },
           "email_recovery_available": { "type": "boolean" },
           "media_uploads_available": { "type": ["boolean", "null"] },
           "messaging_available": { "type": "boolean" },
@@ -2490,6 +2615,12 @@
             }
           }
         ]
+      },
+      "CurrentCall": {
+        "type": "object",
+        "properties": {
+          "call": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CallView" }] }
+        }
       },
       "CustomEmoji": {
         "type": "object",
@@ -3520,6 +3651,16 @@
           "part_number": { "type": ["integer", "null"], "format": "int32" },
           "url": { "type": "string" }
         }
+      },
+      "StartCall": {
+        "type": "object",
+        "required": ["operation_id", "conversation_id", "mode"],
+        "properties": {
+          "conversation_id": { "type": "string", "format": "uuid" },
+          "mode": { "$ref": "#/components/schemas/CallMode" },
+          "operation_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
       },
       "StorageUsage": {
         "type": "object",

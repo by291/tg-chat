@@ -65,6 +65,8 @@ impl IntoResponse for ApiFailure {
             AccountError::Unavailable => {
                 (StatusCode::SERVICE_UNAVAILABLE, "dependency_unavailable")
             }
+            AccountError::CallNotAllowed => (StatusCode::FORBIDDEN, "call_not_allowed"),
+            AccountError::CallBusy => (StatusCode::CONFLICT, "call_busy"),
             AccountError::RegistrationClosed => (StatusCode::FORBIDDEN, "registration_closed"),
             AccountError::RateLimited => (StatusCode::TOO_MANY_REQUESTS, "rate_limited"),
             AccountError::EmailUnavailable => {

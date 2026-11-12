@@ -37,6 +37,10 @@ pub enum AccountError {
     QuotaExceeded,
     #[error("a required account service is temporarily unavailable")]
     Unavailable,
+    #[error("this call is not allowed")]
+    CallNotAllowed,
+    #[error("a call cannot start right now")]
+    CallBusy,
     #[error("registration is currently closed")]
     RegistrationClosed,
     #[error("too many requests; try again later")]

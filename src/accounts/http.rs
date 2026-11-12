@@ -29,6 +29,7 @@ pub struct AccountHttpState {
     pub(crate) media: Option<crate::media::UploadService>,
     pub(crate) activity: crate::realtime::Activity,
     pub(crate) notifications: Option<crate::notifications::NotificationService>,
+    pub(crate) calls: Option<crate::calls::CallService>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -44,6 +45,7 @@ struct Capabilities {
     email_recovery_available: bool,
     avatars_available: bool,
     messaging_available: bool,
+    calls_available: bool,
     media_uploads_available: Option<bool>,
 }
 
@@ -101,7 +103,15 @@ impl AccountHttpState {
             media: None,
             activity,
             notifications: None,
+            calls: None,
         }
+    }
+
+    /// Expose calls when their application and media services are configured.
+    pub fn with_calls(mut self, calls: crate::calls::CallService) -> Self {
+        self.calls = Some(calls);
+
+        self
     }
 
     /// Enable the media transfer routes for a configured deployment.
@@ -178,6 +188,7 @@ async fn capabilities(
         email_recovery_available: state.email.is_enabled(),
         avatars_available: state.media.is_some(),
         messaging_available: true,
+        calls_available: state.calls.is_some(),
         media_uploads_available: Some(state.media.is_some()),
     }))
 }
@@ -445,6 +456,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(crate::moderation::report_http::router());
     let routes = routes.merge(crate::realtime::activity_http::router());
     let routes = routes.merge(crate::notifications::http::routes());
+    let routes = routes.merge(crate::calls::http::router());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
     let routes = routes.merge(crate::conversations::http::router());
