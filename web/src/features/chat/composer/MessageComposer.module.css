@@ -44,6 +44,10 @@
   right: 4px;
 }
 
+.editorRow[data-recording='true'] {
+  display: none;
+}
+
 .editorRow[data-expanded='true'] > button,
 .editorRow[data-expanded='true'] > :last-child {
   z-index: 1;
@@ -112,13 +116,6 @@
 .sendButton[data-mode='send'] .sendGlyph svg {
   fill: currentColor;
   stroke-width: 1;
-}
-
-.connectedSelections {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
 }
 
 .previewPreference {

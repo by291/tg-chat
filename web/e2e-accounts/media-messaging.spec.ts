@@ -159,12 +159,19 @@ test('records and plays a voice message and publishes a profile avatar', async (
   await register(page, account('Media Recorder'));
   await page.getByRole('button', { name: /Saved Messages/ }).click();
   await page.getByRole('button', { name: 'Record voice message', exact: true }).click();
-  const stop = page.getByRole('button', { name: 'Stop recording', exact: true });
-  await expect(stop).toBeVisible();
-  // The fake microphone must produce a nonempty audio sample before stopping.
+  const controls = page.getByRole('group', { name: 'Voice recording controls' });
+  const pause = controls.getByRole('button', { name: 'Pause recording', exact: true });
+  await expect(pause).toBeVisible();
+  // The fake microphone must produce a nonempty sample before pausing.
   await page.waitForTimeout(VOICE_SAMPLE_MS);
-  await stop.click();
-  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  await pause.click();
+  const preview = controls.getByRole('button', { name: 'Play recording preview' });
+  await preview.click();
+  await expect(controls.getByRole('button', { name: 'Pause recording preview' })).toBeVisible();
+  await controls.getByRole('button', { name: 'Resume recording' }).click();
+  await expect(pause).toBeVisible();
+  await controls.getByRole('button', { name: 'Send voice message' }).click();
+  await expect(controls).toHaveCount(0);
   const play = page.getByRole('button', { name: 'Play voice message', exact: true });
   await expect(play).toBeVisible();
   await play.click();

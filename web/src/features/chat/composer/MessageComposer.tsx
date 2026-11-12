@@ -4,12 +4,9 @@ import { IconButton } from '@/components/IconButton';
 import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
 import { AttachmentPreview } from './attachments/AttachmentPreview';
 import { ConnectedAttachmentDialog } from './attachments/ConnectedAttachmentDialog';
-import {
-  ConnectedAttachmentPreview,
-  selectConnectedFiles,
-  type AttachmentMode,
-} from './attachments/ConnectedAttachments';
+import { selectConnectedFiles, type AttachmentMode } from './attachments/ConnectedAttachments';
 import { useVoiceRecorder } from '@/features/media/useVoiceRecorder';
+import { VoiceRecordingBar } from '@/features/media/VoiceRecordingBar';
 import type { MediaSelection } from '@/features/media/uploadTransfer';
 import { useComposerAttachments } from './attachments/useComposerAttachments';
 import { ComposerSendButton } from './ComposerSendButton';
@@ -99,8 +96,7 @@ export function MessageComposer({
   const connectedInput = useRef<HTMLInputElement>(null);
   const connectedMode = useRef<AttachmentMode>('media');
   const [attachmentPreview, setAttachmentPreview] = useState<AttachmentPreviewState>();
-  const [connectedFiles, setConnectedFiles] = useState<MediaSelection[]>([]);
-  const recorder = useVoiceRecorder((selection) => setConnectedFiles([selection]));
+  const recordingDraftIdentity = useRef<string>(undefined);
   const editorRef = useRef<EmojiEditorControls>(null);
   const editorRowRef = useRef<HTMLDivElement>(null);
   const attachments = useComposerAttachments({
@@ -126,6 +122,17 @@ export function MessageComposer({
   };
   const value = editingMessage ? editValue : draftValue;
   const currentDraftIdentity = draftIdentity ?? JSON.stringify(draftValue);
+  const recorder = useVoiceRecorder((selection) => {
+    if (!onMediaSubmit || isDisabled || editingMessage) {
+      return false;
+    }
+
+    return onMediaSubmit({
+      text: '',
+      files: [selection],
+      shouldPreserveDraft: recordingDraftIdentity.current !== currentDraftIdentity,
+    });
+  });
   const text = value.text;
   const hasLink = /https?:\/\//i.test(text) || /href=["']https?:\/\//i.test(value.richText ?? '');
   const canShowPreviewControl = isTextOnly && hasLink;
@@ -134,11 +141,10 @@ export function MessageComposer({
     Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
     Boolean(value.richText) ||
-    connectedFiles.length > 0 ||
     Boolean(attachment || mediaAttachment || editingMessage?.attachment || editingMessage?.media);
   const contextMessage = editingMessage || replyMessage;
   const previousContextRef = useRef(contextMessage);
-  const canSubmit = !isDisabled && !recorder.isRecording && (Boolean(editingMessage) || hasContent);
+  const canSubmit = !isDisabled && !recorder.isActive && (Boolean(editingMessage) || hasContent);
   const isPreparingAttachment = !editingMessage && isLoadingAttachment;
 
   useEffect(() => {
@@ -197,13 +203,7 @@ export function MessageComposer({
 
     const editor = editorRef.current?.getElement();
     const field = editorRowRef.current;
-    const canAnimateText =
-      !editingMessage &&
-      !attachment &&
-      !mediaAttachment &&
-      !connectedFiles.length &&
-      editor &&
-      field;
+    const canAnimateText = !editingMessage && !attachment && !mediaAttachment && editor && field;
     const sendOrigin = canAnimateText ? captureOutgoingMessage({ field, editor }) : undefined;
     const submitted: ComposedMessage = {
       ...value,
@@ -212,16 +212,7 @@ export function MessageComposer({
       media: editingMessage ? undefined : mediaAttachment,
       disableLinkPreview: canShowPreviewControl && didPreviewChange ? isPreviewDisabled : undefined,
     };
-    if (!editingMessage && connectedFiles.length && onMediaSubmit) {
-      const selected = connectedFiles;
-      void onMediaSubmit({ ...submitted, files: selected }).then((isPersisted) => {
-        if (isPersisted) {
-          setConnectedFiles((current) => (current === selected ? [] : current));
-        }
-      });
-    } else {
-      onSubmit(submitted);
-    }
+    onSubmit(submitted);
     setIsExpanded(false);
     if (!editingMessage) {
       attachments.removeAttachment();
@@ -242,7 +233,7 @@ export function MessageComposer({
   }
 
   function cancelComposition() {
-    if (recorder.isRecording || recorder.isRequesting) {
+    if (recorder.isActive) {
       recorder.cancel();
       return;
     }
@@ -256,13 +247,11 @@ export function MessageComposer({
     }
 
     attachments.removeAttachment();
-    setConnectedFiles([]);
   }
 
   function previewFiles(files: File[], mode: AttachmentMode) {
     const isUnavailable = !isMediaAvailable || !onMediaSubmit || editingMessage || isDisabled;
-    const isRecording = recorder.isRecording || recorder.isRequesting;
-    if (isUnavailable || isRecording || attachmentPreview || !files.length) {
+    if (isUnavailable || recorder.isActive || attachmentPreview || !files.length) {
       return;
     }
 
@@ -276,6 +265,15 @@ export function MessageComposer({
     } catch (error) {
       onNotify(error instanceof Error ? error.message : 'Could not select these attachments.');
     }
+  }
+
+  function startRecording() {
+    if (isDisabled || attachmentPreview || !onMediaSubmit) {
+      return;
+    }
+
+    recordingDraftIdentity.current = currentDraftIdentity;
+    void recorder.start();
   }
 
   function selectAttachment(action: AttachmentAction) {
@@ -315,9 +313,7 @@ export function MessageComposer({
       data-message-composer
       data-dragging={attachments.isDragging}
       data-has-context={Boolean(contextMessage || forwardMessages?.length)}
-      data-has-attachment={Boolean(
-        (attachment || mediaAttachment || connectedFiles.length) && !editingMessage,
-      )}
+      data-has-attachment={Boolean((attachment || mediaAttachment) && !editingMessage)}
       onDragOver={isTextOnly ? (event) => event.preventDefault() : attachments.dragOver}
       onDragLeave={isTextOnly ? undefined : attachments.dragLeave}
       onDrop={(event) => {
@@ -343,35 +339,14 @@ export function MessageComposer({
           onRemove={attachments.removeAttachment}
         />
       )}
-      {!editingMessage && connectedFiles.length > 0 && (
-        <ul className={styles.connectedSelections} aria-label="Selected attachments">
-          {connectedFiles.map((selection, index) => (
-            <ConnectedAttachmentPreview
-              key={`${selection.filename}:${index}`}
-              selection={selection}
-              isDisabled={isDisabled}
-              onRemove={() =>
-                setConnectedFiles((current) => current.filter((_, item) => item !== index))
-              }
-            />
-          ))}
-        </ul>
-      )}
-      {isMediaAvailable && (recorder.isRequesting || recorder.isRecording) && (
-        <div className={styles.connectedSelections}>
-          <span role="status">{recorder.isRequesting ? 'Starting microphone…' : 'Recording…'}</span>
-          {recorder.isRecording && (
-            <button type="button" onClick={recorder.stop}>
-              Stop recording
-            </button>
-          )}
-          <button type="button" onClick={recorder.cancel}>
-            Cancel recording
-          </button>
-        </div>
-      )}
+      {isMediaAvailable && recorder.isActive && <VoiceRecordingBar recorder={recorder} />}
       {isMediaAvailable && recorder.error && <p role="alert">{recorder.error}</p>}
-      <div ref={editorRowRef} className={styles.editorRow} data-expanded={isExpanded}>
+      <div
+        ref={editorRowRef}
+        className={styles.editorRow}
+        data-expanded={isExpanded}
+        data-recording={recorder.isActive}
+      >
         {(!isTextOnly ||
           isMediaAvailable ||
           onShareContact ||
@@ -454,16 +429,12 @@ export function MessageComposer({
         <ComposerSendButton
           isEditing={Boolean(editingMessage)}
           hasContent={hasContent}
-          isPreparingAttachment={isPreparingAttachment || isDisabled || recorder.isRecording}
-          onRecord={
-            isMediaAvailable && recorder.isSupported && !recorder.isRequesting
-              ? () => void recorder.start()
-              : undefined
-          }
+          isPreparingAttachment={isPreparingAttachment || isDisabled || recorder.isActive}
+          onRecord={isMediaAvailable && recorder.isSupported ? startRecording : undefined}
           onSend={sendMessage}
         />
       </div>
-      {canShowPreviewControl && (
+      {canShowPreviewControl && !recorder.isActive && (
         <label className={styles.previewPreference}>
           <input
             type="checkbox"
