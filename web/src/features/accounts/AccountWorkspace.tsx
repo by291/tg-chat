@@ -106,7 +106,6 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const [page, setPage] = useState<Page>(() => initialPage(capabilities));
   const [conversationRequest, setConversationRequest] = useState(0);
   const [communityView, setCommunityView] = useState<CommunityView>('discover');
-  const [communityId, setCommunityId] = useState<string>();
   const [chatConnection, setChatConnection] = useState<ChatConnection>();
   const [chatError, setChatError] = useState('');
   const getStartupSnapshot = useCallback((): ChatStartup | undefined => {
@@ -238,13 +237,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       });
   }
 
-  function showCommunityDetails(id: string) {
-    setCommunityId(id);
-    setPage('communities');
-  }
-
   function showCommunities(view: CommunityView = 'discover') {
-    setCommunityId(undefined);
     setCommunityView(view);
     setPage('communities');
   }
@@ -307,10 +300,8 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
           session={owner}
           chat={chat}
           view={communityView}
-          initialId={communityId}
-          isAvatarAvailable={capabilities.avatars_available}
-          onShowInvitations={() => showCommunities('invitations')}
-          onShowDiscovery={() => showCommunities('discover')}
+          onShowInvitations={() => setCommunityView('invitations')}
+          onShowDiscovery={() => setCommunityView('discover')}
           onOpen={openCommunity}
         />
       ) : (
@@ -431,12 +422,12 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
             areCallsAvailable={areCallsAvailable}
             user={profile}
             isMediaAvailable={capabilities.media_uploads_available === true}
+            isAvatarAvailable={capabilities.avatars_available}
             accountPage={page === 'messages' ? undefined : accountPage}
             conversationRequest={conversationRequest}
             onSettings={() => setPage('settings')}
             onContacts={() => setPage('contacts')}
             onCommunities={() => showCommunities()}
-            onCommunityDetails={showCommunityDetails}
             onOpenCommunity={openCommunity}
           />
           <ToastViewport />

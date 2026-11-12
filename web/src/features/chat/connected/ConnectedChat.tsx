@@ -12,8 +12,12 @@ import {
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Avatar } from '@/components/Avatar';
 import type { components } from '@/api/schema';
-import { conversationDestination } from '@/features/communities/communityModels';
+import {
+  communityAudienceLabel,
+  conversationDestination,
+} from '@/features/communities/communityModels';
 import { CommunityDiscovery } from '@/features/communities/CommunityDiscovery';
+import { CommunityProfile } from '@/features/communities/CommunityProfile';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { CallOwner } from '@/features/calls/CallOwner';
@@ -110,13 +114,13 @@ interface ConnectedChatProps {
   calls?: CallOwner;
   areCallsAvailable?: boolean;
   isMediaAvailable?: boolean;
+  isAvatarAvailable?: boolean;
   user: components['schemas']['PrivateProfile'];
   onSettings: () => void;
   onContacts: () => void;
   accountPage?: ReactNode;
   conversationRequest: number;
   onCommunities: () => void;
-  onCommunityDetails: (id: string) => void;
   onOpenCommunity: (conversation: Conversation) => void;
 }
 
@@ -197,13 +201,13 @@ export function ConnectedChat({
   calls,
   areCallsAvailable = false,
   isMediaAvailable = false,
+  isAvatarAvailable,
   user,
   accountPage,
   conversationRequest,
   onSettings,
   onContacts,
   onCommunities,
-  onCommunityDetails,
   onOpenCommunity,
 }: ConnectedChatProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
@@ -220,6 +224,7 @@ export function ConnectedChat({
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
   const [profilePeerId, setProfilePeerId] = useState<string>();
+  const [profileCommunityId, setProfileCommunityId] = useState<string>();
   const [latestSendRequest, setLatestSendRequest] = useState(0);
   const [folder, setFolder] = useState<'inbox' | 'archived' | 'hidden'>('inbox');
   const [directoryQuery, setDirectoryQuery] = useState('');
@@ -299,7 +304,10 @@ export function ConnectedChat({
     presence.view?.conversationId === directId && presence.view?.generation === generation;
   const isCommunity = conversation?.kind === 'group' || conversation?.kind === 'channel';
   let conversationStatus = isCommunity
-    ? `${conversation.kind} · ${conversation.role}`
+    ? communityAudienceLabel({
+        kind: conversation.kind === 'channel' ? 'channel' : 'group',
+        memberCount: conversation.member_count,
+      })
     : 'Private conversation';
   if (isCurrentActivity && presence.isTyping) {
     conversationStatus = 'Typing…';
@@ -380,6 +388,7 @@ export function ConnectedChat({
     setConfirmation(undefined);
     setContactDestination(undefined);
     setProfilePeerId(undefined);
+    setProfileCommunityId(undefined);
     setVoterMessageId(undefined);
     setPollEditor(undefined);
     setChecklistEditor(undefined);
@@ -445,6 +454,14 @@ export function ConnectedChat({
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
     setIsDirectoryVisible(false);
+  }
+
+  function openConversationProfile() {
+    if (isCommunity) {
+      setProfileCommunityId(conversation.id);
+      return;
+    }
+    setProfilePeerId(peerIdForProfile);
   }
 
   function openDiscoveryResult(entry: Conversation) {
@@ -1119,21 +1136,16 @@ export function ConnectedChat({
                 <h2>{conversationName}</h2>
                 <p aria-live="polite">{conversationStatus}</p>
               </div>
-              {session && peerIdForProfile && (
+              {session && (peerIdForProfile || isCommunity) && (
                 <button
                   type="button"
                   className={styles.peerProfile}
                   aria-label={`View ${conversationName} profile`}
                   aria-haspopup="dialog"
-                  onClick={() => setProfilePeerId(peerIdForProfile)}
+                  onClick={openConversationProfile}
                 />
               )}
             </div>
-            {isCommunity && (
-              <button type="button" onClick={() => onCommunityDetails(conversation.id)}>
-                Community details
-              </button>
-            )}
             {hasCallActions && (
               <>
                 <button
@@ -1299,7 +1311,12 @@ export function ConnectedChat({
                           isMuted={isConversationMuted(conversation)}
                           latestRequest={latestSendRequest}
                           onReachMessage={(messageId) => {
-                            if (!isDirectoryVisible && !editing && !profilePeerId) {
+                            if (
+                              !isDirectoryVisible &&
+                              !editing &&
+                              !profilePeerId &&
+                              !profileCommunityId
+                            ) {
                               void owner.markReached(messageId).catch(report);
                             }
                           }}
@@ -1399,6 +1416,16 @@ export function ConnectedChat({
             <div className={styles.empty}>Choose a conversation or find someone to message.</div>
           )}
         </section>
+        {session && isCommunity && profileCommunityId === conversation.id && (
+          <CommunityProfile
+            key={`${conversation.id}:${conversation.generation}`}
+            session={session}
+            chat={owner}
+            id={conversation.id}
+            isAvatarAvailable={isAvatarAvailable}
+            onClose={() => setProfileCommunityId(undefined)}
+          />
+        )}
         {session && profilePeerId && profilePeerId === peerIdForProfile && (
           <ConnectedPeerProfile
             key={profilePeerId}

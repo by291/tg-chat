@@ -3,7 +3,6 @@ import type { ChatOwner } from '@/features/chat/data/ChatOwner';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 import { textField, useOperation } from '@/features/accounts/AccountForm';
 import { CommunitySettingsForm, readCommunitySettings } from './CommunityForms';
-import { CommunityDetails } from './CommunityDetails';
 import { CommunityDiscovery } from './CommunityDiscovery';
 import { CommunityAdmission } from './CommunityAdmission';
 import type { CommunityOperations } from './CommunityOperations';
@@ -69,8 +68,6 @@ interface CommunityWorkspaceProps {
   session: SessionOwner;
   chat: ChatOwner;
   view: 'discover' | 'invitations';
-  initialId?: string;
-  isAvatarAvailable?: boolean;
   onShowInvitations: () => void;
   onShowDiscovery: () => void;
   onOpen: (conversation: Conversation) => void;
@@ -81,22 +78,6 @@ export function CommunityWorkspace(props: CommunityWorkspaceProps) {
   const { chat, session, view } = props;
   const operations = chat.communities;
   const admission = { session, chat, onAdmitted: props.onOpen };
-
-  if (props.initialId) {
-    return (
-      <div className={`${styles.panel} ${communityStyles.workspace}`}>
-        <CommunityDetails
-          key={props.initialId}
-          session={session}
-          chat={chat}
-          id={props.initialId}
-          isAvatarAvailable={props.isAvatarAvailable}
-          onBack={props.onShowDiscovery}
-          onOpen={props.onOpen}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className={`${styles.panel} ${communityStyles.workspace}`}>
