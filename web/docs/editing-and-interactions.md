@@ -59,6 +59,11 @@ Selection is stored as message identities, independent of the mounted virtual ro
 and forwarding become batch domain actions. The composer stays mounted while the selection toolbar
 is shown, preserving unfinished input.
 
+Reporting starts from a message, a selection of eligible messages, or the community menu. The
+community entry opens a dedicated selection in the current history. The dialog collects a reason
+and an optional note, then submits each selected message as its own case. A partial retry
+keeps each failed request's identity and leaves accepted reports out of the retry.
+
 Pending forwarding lives above the conversation pane so changing destinations does not discard it.
 Forwarding creates new message identities and applies destination rules without consuming the
 recipient's existing text draft. It does not blindly copy source reactions, pins, or expiration.

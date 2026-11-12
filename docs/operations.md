@@ -120,6 +120,9 @@ docker compose exec -T api api operator restore --username member_one --reason '
 The Operator area covers registration, account suspension and restoration, reports, conversation
 quarantine and restoration, account storage limits, and eligible exhausted jobs. To moderate a
 private direct chat, open its accepted report case. A storage override affects new reservations.
+The Reports queue opens case details with retained evidence, original downloads, and case actions.
+The queue reflects case resolution after the action is accepted. If password proof is required
+while reviewing reports, confirm it in the Reports view.
 
 Suspension revokes every session and Push subscription and invalidates outstanding credential
 challenges. Restoration requires a fresh login. Registration policy changes serialize with new
