@@ -9,6 +9,7 @@ async function register(origin) {
   const response = await fetch(`${origin}/api/v1/auth/register`, {
     method: 'POST',
     headers: {
+      connection: 'close',
       origin,
       'content-type': 'application/json',
       'x-tg-chat-request': '1',
@@ -31,7 +32,7 @@ async function register(origin) {
 
 async function read({ origin, account, path }) {
   const response = await fetch(`${origin}/api/v1/${path}`, {
-    headers: { cookie: account.cookie },
+    headers: { connection: 'close', cookie: account.cookie },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   assert.equal(response.status, 200);
@@ -43,6 +44,8 @@ function sendOptions({ origin, account, message }) {
   return {
     method: 'POST',
     headers: {
+      // Each fault probe must establish a fresh connection across deliberate API restarts.
+      connection: 'close',
       origin,
       cookie: account.cookie,
       'content-type': 'application/json',
