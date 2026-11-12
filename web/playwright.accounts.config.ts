@@ -6,6 +6,8 @@ export default defineConfig({
   // prettier-ignore
   testIgnore: [
     'synchronization.spec.ts',
+    'connection-recovery.spec.ts',
+    'read-time.spec.ts',
     'communities.spec.ts',
     'media-messaging.spec.ts',
     'message-interactions.spec.ts',

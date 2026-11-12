@@ -142,6 +142,16 @@ test('four sessions and a shared-cache tab converge after edits, replies, reset,
     await pages[1].getByRole('button', { name: 'Send message', exact: true }).click();
     await visibleEverywhere(pages, 'A synchronized reply');
 
+    const pinPreview = pages[0].getByRole('button', {
+      name: 'Pinned message: Edited across devices',
+      exact: true,
+    });
+    await expect(pinPreview).toBeVisible();
+    await pinPreview.click();
+    await expect(
+      pages[0].getByRole('group', { name: 'Message: Edited across devices', exact: true }),
+    ).toBeInViewport();
+
     await pages[0].bringToFront();
     await pages[0]
       .getByRole('group', { name: 'Message: A synchronized reply', exact: true })
@@ -220,6 +230,26 @@ test('four sessions and a shared-cache tab converge after edits, replies, reset,
     expect(projected.messages.map((message) => message.content.text)).toEqual([
       'A synchronized reply',
     ]);
+
+    const directory = pages[0].getByRole('complementary', { name: 'Conversations' });
+    await directory.getByRole('button', { name: /^Saved Messages/ }).click();
+    const activeDraft = pages[0].getByRole('textbox', { name: 'Message', exact: true });
+    await activeDraft.fill('Keep my draft when archiving another chat');
+
+    const peerRow = directory.getByRole('button', { name: /^Bobby Sync/ });
+    await peerRow.click({ button: 'right' });
+    await pages[0].getByRole('menuitem', { name: 'Archive', exact: true }).click();
+    await expect(peerRow).toHaveCount(0);
+    await expect(activeDraft).toHaveText('Keep my draft when archiving another chat');
+
+    await directory.getByRole('button', { name: 'Archived Chats', exact: true }).click();
+    await expect(peerRow).toBeVisible();
+    await peerRow.click({ button: 'right' });
+    await pages[0].getByRole('menuitem', { name: 'Unarchive', exact: true }).click();
+    await expect(peerRow).toHaveCount(0);
+    await directory.getByRole('button', { name: 'Back to inbox', exact: true }).click();
+    await expect(peerRow).toBeVisible();
+    await expect(activeDraft).toHaveText('Keep my draft when archiving another chat');
   } finally {
     for (const context of contexts) {
       await context.close();

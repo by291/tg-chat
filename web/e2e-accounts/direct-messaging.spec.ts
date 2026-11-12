@@ -164,6 +164,11 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     await page.getByRole('button', { name: 'Back to chats' }).click();
     await page.getByRole('button', { name: 'Main menu' }).click();
     await page.getByRole('menuitem', { name: 'Saved Messages' }).click();
+    const savedHeading = page.getByRole('heading', { name: 'Saved Messages', exact: true });
+    await expect(savedHeading).toBeVisible();
+    expect(await savedHeading.evaluate((heading) => heading.scrollWidth)).toBeLessThanOrEqual(
+      await savedHeading.evaluate((heading) => heading.clientWidth),
+    );
     await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Private saved note');
     await page.getByRole('button', { name: 'Send message', exact: true }).click();
     await expect(page.getByRole('img', { name: 'Stored on server' })).toBeVisible();
