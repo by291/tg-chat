@@ -119,7 +119,6 @@ async function openDirectHistory(page: Page, title: string) {
 
 async function openMessages(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Messages', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
 }
 
@@ -233,6 +232,7 @@ test('retained report originals and quarantine work across connected browsers', 
     const credentials = operatorCredentials();
     const operator = await admitAccount({ context: operatorContext, origin, credentials });
     await operator.page.goto('/');
+    await operator.page.getByRole('button', { name: 'Account settings' }).click();
     await operator.page.getByRole('button', { name: 'Administration', exact: true }).click();
     await confirmPassword(operator.page, credentials.password);
     await downloadOriginal(operator.page, note);
@@ -272,6 +272,7 @@ async function createOwnedCommunity(page: Page, title: string) {
   await page.getByLabel('Community title', { exact: true }).fill(title);
   await page.getByRole('button', { name: 'Create community', exact: true }).click();
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to chats', exact: true }).click();
 }
 
 async function deleteOwnedCommunity(page: Page, title: string) {
@@ -282,9 +283,12 @@ async function deleteOwnedCommunity(page: Page, title: string) {
   const committed = waitForPost(page, '/api/v1/communities/commands');
   await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
   expect((await committed).status()).toBe(200);
+  await page.getByRole('button', { name: 'Back to chats', exact: true }).click();
 }
 
 async function requestDeletion(page: Page, expectedStatus: number) {
+  await page.getByRole('button', { name: 'Account settings' }).click();
+  await page.getByRole('button', { name: 'Privacy and Security' }).click();
   await page.getByRole('button', { name: 'Password & recovery', exact: true }).click();
   await page.getByRole('button', { name: 'Continue to deletion', exact: true }).click();
   await page.getByLabel('I understand that shared messages will remain.').check();
@@ -312,12 +316,14 @@ test('account deletion presents owned communities before revoking both browser s
     await createOwnedCommunity(account.page, title);
 
     await requestDeletion(account.page, 409);
-    await expect(
-      account.page.getByText('Transfer or delete these communities first.'),
-    ).toBeVisible();
-    await expect(account.page.getByText(title, { exact: true })).toBeVisible();
+    const settings = account.page.getByRole('complementary', { name: 'Account pages' });
+    await expect(settings.getByText('Transfer or delete these communities first.')).toBeVisible();
+    await expect(settings.getByText(title, { exact: true })).toBeVisible();
     expect((await oldContext.request.get('/api/v1/auth/session')).status()).toBe(200);
 
+    await account.page.getByRole('button', { name: 'Back to privacy and security' }).click();
+    await account.page.getByRole('button', { name: 'Back to settings' }).click();
+    await account.page.getByRole('button', { name: 'Back to chats', exact: true }).click();
     await deleteOwnedCommunity(account.page, title);
     await requestDeletion(account.page, 200);
     await expect(account.page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();

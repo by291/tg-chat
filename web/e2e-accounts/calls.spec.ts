@@ -50,16 +50,15 @@ async function signIn(input: {
   const session: { csrf_token: string } = await response.json();
   const page = await context.newPage();
   await page.goto('/');
-  await expect(button(page, 'Messages')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
 
   return { context, origin, page, csrfToken: session.csrf_token };
 }
 
 async function findPeer(page: Page, peer: Identity) {
-  await button(page, 'Contacts & blocks').click();
-  await button(page, 'Find people').click();
+  await button(page, 'Contacts').click();
+  await button(page, 'Add contact').click();
   await page.getByLabel('Username or display name').fill(peer.username);
-  await button(page, 'Search').click();
 }
 
 async function addContact(page: Page, peer: Identity) {
@@ -312,7 +311,6 @@ async function verifyMissed(input: { caller: Device; recipient: Device; callerNa
 
   const reopened = await recipient.context.newPage();
   await reopened.goto('/');
-  await button(reopened, 'Messages').click();
   await reopened.getByRole('button', { name: new RegExp(`^${callerName}`) }).click();
   const chat = reopened.getByRole('region', { name: 'Chat', exact: true });
   await expect(chat.getByText('Voice call · missed', { exact: true })).toHaveCount(1);

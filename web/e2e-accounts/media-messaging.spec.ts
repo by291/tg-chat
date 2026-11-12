@@ -25,14 +25,13 @@ async function register(page: Page, user: Account): Promise<void> {
   await page.getByLabel('Display name', { exact: true }).fill(user.displayName);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Messages', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
 }
 
 async function openRecipient(page: Page, user: Account): Promise<void> {
-  await page.getByRole('button', { name: 'Contacts & blocks', exact: true }).click();
-  await page.getByRole('button', { name: 'Find people', exact: true }).click();
+  await page.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await page.getByRole('button', { name: 'Add contact', exact: true }).click();
   await page.getByLabel('Username or display name').fill(user.username);
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: 'Message', exact: true }).click();
   await expect(page.getByRole('heading', { name: user.displayName, exact: true })).toBeVisible();
 }
@@ -120,7 +119,6 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
       await route.continue();
     });
     await reopened.goto('/');
-    await reopened.getByRole('button', { name: 'Messages', exact: true }).click();
     const pending = reopened.getByRole('region', { name: 'Pending messages' });
     await pending.getByRole('button', { name: DOCUMENT_NAME, exact: true }).click();
     mayResume.release();
@@ -133,7 +131,6 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
     await expect(recovered.getByRole('img', { name: 'Stored on server' })).toBeVisible();
     expect(resumedParts).toEqual(['2']);
 
-    await recipientPage.getByRole('button', { name: 'Messages', exact: true }).click();
     await recipientPage.getByRole('button', { name: /Media Sender/ }).click();
     const received = recipientPage
       .locator('article[data-own="false"]')
@@ -153,7 +150,6 @@ test('records and plays a voice message and publishes a profile avatar', async (
 }) => {
   await context.grantPermissions(['microphone']);
   await register(page, account('Media Recorder'));
-  await page.getByRole('button', { name: 'Messages', exact: true }).click();
   await page.getByRole('button', { name: /Saved Messages/ }).click();
   await page.getByRole('button', { name: 'Record voice message', exact: true }).click();
   const stop = page.getByRole('button', { name: 'Stop recording', exact: true });
@@ -174,10 +170,9 @@ test('records and plays a voice message and publishes a profile avatar', async (
     .toBeGreaterThan(0);
 
   await page.getByRole('button', { name: 'Account settings' }).click();
+  await page.getByRole('button', { name: 'Edit Profile', exact: true }).click();
   await page.getByLabel('Choose avatar photo').setInputFiles('public/assets/settings-avatar.jpg');
-  const profile = page.locator('section').filter({
-    has: page.getByRole('heading', { name: 'Profile', exact: true }),
-  });
+  const profile = page.getByRole('complementary', { name: 'Account pages' });
   await expect(profile.getByRole('button', { name: 'Remove photo', exact: true })).toBeVisible();
   await expect
     .poll(async () => {

@@ -111,6 +111,7 @@ async function sendMessage(input: {
 
 async function openPreferences(page: Page) {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Account settings' }).click();
   await page.getByRole('button', { name: 'Preferences', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Notification defaults' })).toBeVisible();
 }
@@ -446,7 +447,8 @@ test('connected settings converge and foreground alerts follow the active conver
 
     const resumed = nextSync(page);
     await page.bringToFront();
-    await page.getByRole('button', { name: 'Messages', exact: true }).click();
+    await page.getByRole('button', { name: 'Back to settings' }).click();
+    await page.getByRole('button', { name: 'Back to chats' }).click();
     const directory = page.getByRole('complementary', { name: 'Conversations' });
     const conversation = directory.getByRole('button', { name: new RegExp(`^${SENDER}`) });
     await expect(conversation).toContainText(BACKFILL_MESSAGE);

@@ -35,7 +35,6 @@ async function authenticate(options: {
 
 async function openChat(page: Page, peer: Account) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Messages', exact: true }).click();
   await page.getByRole('button', { name: new RegExp(peer.displayName) }).click();
   await expect(page.getByRole('heading', { name: peer.displayName, exact: true })).toBeVisible();
 }
@@ -210,7 +209,6 @@ test('four sessions and a shared-cache tab converge after edits, replies, reset,
       await expect(reply.getByRole('button', { name: /Message unavailable/ })).toBeDisabled();
     }
     await pages[3].reload();
-    await pages[3].getByRole('button', { name: 'Messages', exact: true }).click();
     await pages[3].getByRole('button', { name: /Alice Sync/ }).click();
     await expect(
       pages[3].getByRole('group', { name: 'Message: Edited across devices', exact: true }),

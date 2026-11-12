@@ -99,7 +99,6 @@ async function commandCommunity(options: {
 
 async function openMessages(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Messages', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
 }
 
