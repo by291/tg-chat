@@ -359,9 +359,12 @@ test('replays the destination receipt and keeps the attachment after source dele
     const dialog = sender.page.getByRole('dialog', { name: 'Share with' });
     const recipientLabel = new RegExp(`^${recipient.grant.user.display_name}`);
     await dialog.getByRole('button', { name: recipientLabel }).click();
+    const comment = 'Please review these messages';
+    await dialog.getByRole('textbox', { name: 'Forward caption' }).fill(comment);
     await dialog.getByRole('button', { name: 'Send forwarded messages', exact: true }).click();
 
     const committed = await firstCommit.ready;
+    expect(committed.comment?.content.text).toBe(comment);
     expect(committed.items.map((item) => item.source_message_id)).toEqual([
       saved.message.id,
       sourceMessageId,
@@ -379,8 +382,14 @@ test('replays the destination receipt and keeps the attachment after source dele
 
     const receipt = await replay.ready;
     const forwardedId = committed.items[1].message_id;
-    expect(receipt.message_ids).toEqual(committed.items.map((item) => item.message_id));
+    const commentId = committed.comment!.message_id;
+    expect(receipt.message_ids).toEqual([
+      commentId,
+      ...committed.items.map((item) => item.message_id),
+    ]);
     await expect(pending).toHaveCount(0);
+    const receivedComment = recipient.page.locator(`[data-message-id="${commentId}"]`);
+    await expect(receivedComment.getByText(comment)).toBeVisible();
 
     const forwarded = recipient.page.locator(`[data-message-id="${forwardedId}"]`);
     await expect(forwarded).toBeVisible({ timeout: CONVERGENCE_TIMEOUT_MS });
@@ -400,6 +409,8 @@ test('replays the destination receipt and keeps the attachment after source dele
     const response = await recipient.context.request.get(historyPath);
     expect(response.status()).toBe(200);
     const history: components['schemas']['HistoryPage'] = await response.json();
+    const comments = history.messages.filter((message) => message.content.text === comment);
+    expect(comments.map((message) => message.id)).toEqual([commentId]);
     const copies = history.messages.filter((message) =>
       message.attachments?.some((attachment) => attachment.file_name === FORWARDED_DOCUMENT),
     );

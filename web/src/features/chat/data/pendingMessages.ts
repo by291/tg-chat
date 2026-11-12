@@ -35,11 +35,7 @@ export interface PendingCommand {
   createdAt: number;
 }
 
-export interface ForwardRequest {
-  operation_id: string;
-  destination: components['schemas']['Destination'];
-  items: { source_message_id: string; message_id: string }[];
-}
+export type ForwardRequest = components['schemas']['ForwardBatch'];
 
 export interface PendingForward {
   request: ForwardRequest;

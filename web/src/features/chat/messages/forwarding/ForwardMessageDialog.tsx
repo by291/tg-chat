@@ -29,7 +29,7 @@ type RecipientDirectory =
 type ForwardMessageDialogProps = RecipientDirectory & {
   onClose: () => void;
   onChooseRecipient: (conversation: Conversation) => void;
-  onSend: (options: ForwardRecipients) => void;
+  onSend: (options: ForwardRecipients) => boolean | void | Promise<boolean | void>;
 };
 
 /** Pick one or several destinations from the active chat directory. */
@@ -42,6 +42,8 @@ export function ForwardMessageDialog({
 }: ForwardMessageDialogProps) {
   const [isOpen, setIsOpen] = useState(true);
   const closingActionRef = useRef<(() => void) | undefined>(undefined);
+  const isSendingRef = useRef(false);
+  const [isSending, setIsSending] = useState(false);
   const [query, setQuery] = useState('');
   const [caption, setCaption] = useState<EmojiText>({ text: '' });
   const [editorError, setEditorError] = useState('');
@@ -80,7 +82,9 @@ export function ForwardMessageDialog({
   }
 
   function cancelForwarding() {
-    closeWithAction(onClose);
+    if (!isSendingRef.current) {
+      closeWithAction(onClose);
+    }
   }
 
   function chooseRecipient(conversation: Conversation) {
@@ -98,15 +102,37 @@ export function ForwardMessageDialog({
     setQuery('');
   }
 
-  function sendToRecipients() {
-    if (hasRecipients) {
-      const selection = {
-        recipients,
-        caption: caption.text,
-        customEmoji: caption.customEmoji,
-        richText: caption.richText,
-      };
-      closeWithAction(() => onSend(selection));
+  async function sendToRecipients() {
+    if (!hasRecipients || isSendingRef.current || !isOpen) {
+      return;
+    }
+
+    const selection = {
+      recipients,
+      caption: caption.text,
+      customEmoji: caption.customEmoji,
+      richText: caption.richText,
+    };
+    if (state) {
+      closeWithAction(() => void onSend(selection));
+      return;
+    }
+
+    // Keep the comment and selection available until the outbox accepts the batch.
+    isSendingRef.current = true;
+    setIsSending(true);
+    setEditorError('');
+    try {
+      if ((await onSend(selection)) !== false) {
+        closeWithAction(onClose);
+      } else {
+        setEditorError('Could not queue the forward. Try again.');
+      }
+    } catch (failure) {
+      setEditorError(failure instanceof Error ? failure.message : 'Could not queue the forward.');
+    } finally {
+      isSendingRef.current = false;
+      setIsSending(false);
     }
   }
 
@@ -124,7 +150,12 @@ export function ForwardMessageDialog({
       <Portal>
         <Dialog.Backdrop className={styles.backdrop} />
         <Dialog.Positioner className={`${overlays.dialogPositioner} ${styles.positioner}`}>
-          <Dialog.Content className={styles.dialog} data-selecting={isSelecting} inert={!isOpen}>
+          <Dialog.Content
+            className={styles.dialog}
+            data-selecting={isSelecting}
+            inert={!isOpen || isSending}
+            aria-busy={isSending}
+          >
             <header className={styles.header}>
               <IconButton label="Close forwarding" onClick={cancelForwarding}>
                 <X />
@@ -189,30 +220,28 @@ export function ForwardMessageDialog({
             </div>
             {editorError && <p role="alert">{editorError}</p>}
             <footer className={styles.footer} inert={!isSelecting} aria-hidden={!isSelecting}>
-              {state && (
-                <div className={styles.caption}>
-                  <EmojiPicker
-                    onSelectEmoji={(emoji) => editorRef.current?.insertEmoji(emoji)}
-                    onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
-                  />
-                  <EmojiEditor
-                    controlsRef={editorRef}
-                    label="Forward caption"
-                    placeholder="Add a caption..."
-                    value={caption}
-                    onChange={setCaption}
-                    onSubmit={sendToRecipients}
-                    onCancel={cancelForwarding}
-                    onPasteImage={() => setEditorError('Add photos in the conversation composer.')}
-                    onError={setEditorError}
-                  />
-                </div>
-              )}
+              <div className={styles.caption}>
+                <EmojiPicker
+                  onSelectEmoji={(emoji) => editorRef.current?.insertEmoji(emoji)}
+                  onSelectCustomEmoji={(emoji) => editorRef.current?.insertCustomEmoji(emoji)}
+                />
+                <EmojiEditor
+                  controlsRef={editorRef}
+                  label="Forward caption"
+                  placeholder="Add a caption..."
+                  value={caption}
+                  onChange={setCaption}
+                  onSubmit={() => void sendToRecipients()}
+                  onCancel={cancelForwarding}
+                  onPasteImage={() => setEditorError('Add photos in the conversation composer.')}
+                  onError={setEditorError}
+                />
+              </div>
               <IconButton
                 label="Send forwarded messages"
                 className={styles.send}
-                disabled={!hasRecipients}
-                onClick={sendToRecipients}
+                disabled={!hasRecipients || isSending}
+                onClick={() => void sendToRecipients()}
               >
                 <Send />
               </IconButton>

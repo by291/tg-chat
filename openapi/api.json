@@ -2821,9 +2821,21 @@
         "type": "object",
         "required": ["operation_id", "destination", "items"],
         "properties": {
+          "comment": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/ForwardComment" }]
+          },
           "destination": { "$ref": "#/components/schemas/Destination" },
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/ForwardItem" } },
           "operation_id": { "type": "string", "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "ForwardComment": {
+        "type": "object",
+        "required": ["message_id", "content"],
+        "properties": {
+          "content": { "$ref": "#/components/schemas/MessageContent" },
+          "message_id": { "type": "string", "format": "uuid" }
         },
         "additionalProperties": false
       },

@@ -1777,10 +1777,16 @@ export interface components {
       error: components['schemas']['ErrorDetails'];
     };
     ForwardBatch: {
+      comment?: null | components['schemas']['ForwardComment'];
       destination: components['schemas']['Destination'];
       items: components['schemas']['ForwardItem'][];
       /** Format: uuid */
       operation_id: string;
+    };
+    ForwardComment: {
+      content: components['schemas']['MessageContent'];
+      /** Format: uuid */
+      message_id: string;
     };
     ForwardItem: {
       /** Format: uuid */

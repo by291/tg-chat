@@ -68,7 +68,10 @@ import { ChatSearch } from '../search/ChatSearch';
 import { GlobalMessageSearch } from '../search/GlobalMessageSearch';
 import { ShareContactDialog } from '../composer/ShareContactDialog';
 import { ContactLinkContext } from '../messages/content/contact/ContactActions';
-import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
+import {
+  ForwardMessageDialog,
+  type ForwardRecipients,
+} from '../messages/forwarding/ForwardMessageDialog';
 import { ReportMessageDialog } from './ReportMessageDialog';
 import type { ActivityOwner } from '../activity/ActivityOwner';
 import type { MessageSelectionChange } from '../messages/selection/useMessageSelectionGesture';
@@ -870,34 +873,31 @@ export function ConnectedChat({
     setSelectedIds(undefined);
   }
 
-  async function forwardTo(recipients: PickerConversation[]) {
+  async function forwardTo({ recipients, caption, customEmoji, richText }: ForwardRecipients) {
     if (!forwardIds?.length) {
-      return;
+      return false;
     }
-    // The picker closes before its callback. A changed conversation must not submit stale picks.
+    // A changed conversation must not submit picks from the previous history.
     const current = owner.getSnapshot().selection;
     if (!current || destinationKey(current.destination) !== selectedKey) {
-      return;
+      return false;
     }
     const ids = new Set(forwardIds);
     const ordered = snapshot.messages.filter((message) => ids.has(message.id));
     if (ordered.length !== ids.size) {
-      setForwardIds(undefined);
-      setError('Some selected messages are no longer available.');
-      return;
+      throw new Error('Some selected messages are no longer available.');
     }
     const destinations = recipients.map((recipient) => ({
       kind: 'conversation' as const,
       conversation_id: recipient.id,
     }));
-    try {
-      await owner.queueForwards({ destinations, messageIds: ordered.map((message) => message.id) });
-      setSelectedIds(undefined);
-    } catch (failure) {
-      report(failure);
-    } finally {
-      setForwardIds(undefined);
-    }
+    await owner.queueForwards({
+      destinations,
+      messageIds: ordered.map((message) => message.id),
+      comment: { text: caption, customEmoji, richText },
+    });
+    setSelectedIds(undefined);
+    return true;
   }
 
   function react(messageId: string, emoji: string) {
@@ -1484,8 +1484,10 @@ export function ConnectedChat({
               .filter((entry) => entry.can_post)
               .map(pickerConversation)}
             onClose={() => setForwardIds(undefined)}
-            onChooseRecipient={(recipient) => void forwardTo([recipient])}
-            onSend={({ recipients }) => void forwardTo(recipients)}
+            onChooseRecipient={(recipient) => {
+              void forwardTo({ recipients: [recipient], caption: '' }).catch(report);
+            }}
+            onSend={forwardTo}
           />
         )}
         {pollEditor && canShowPollEditor && canPost && (

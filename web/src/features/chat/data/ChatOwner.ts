@@ -538,8 +538,15 @@ export class ChatOwner {
   }
 
   /** Save one independent forwarding operation per destination before issuing any requests. */
-  async queueForwards(input: { destinations: Destination[]; messageIds: string[] }): Promise<void> {
+  async queueForwards(input: {
+    destinations: Destination[];
+    messageIds: string[];
+    comment?: EmojiText;
+  }): Promise<void> {
     this.ensureCurrent();
+    const content = input.comment
+      ? canonicalMessageContent(input.comment, { isCaption: true })
+      : undefined;
     const requests = input.destinations.map((destination): ForwardRequest => ({
       operation_id: crypto.randomUUID(),
       destination,
@@ -547,6 +554,7 @@ export class ChatOwner {
         source_message_id,
         message_id: crypto.randomUUID(),
       })),
+      comment: content?.text.trim() ? { message_id: crypto.randomUUID(), content } : undefined,
     }));
     const store = this.requireStore();
     await store.rememberForwards(requests);

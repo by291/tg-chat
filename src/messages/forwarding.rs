@@ -10,6 +10,7 @@ use super::{
     CanonicalMessage, Destination, MessageService, SendMessage, acceptance,
     bodies::{MessageBodyView, StoredMessageBody},
     commands::CommandContext,
+    content::{MessageContent, validate_content},
     projection,
     service::AcceptanceError,
 };
@@ -32,10 +33,20 @@ pub struct ForwardItem {
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct ForwardComment {
+    pub message_id: Uuid,
+    pub content: MessageContent,
+}
+
+#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ForwardBatch {
     pub operation_id: Uuid,
     pub destination: Destination,
     pub items: Vec<ForwardItem>,
+    // Preserve the hash of existing requests that had no comment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<ForwardComment>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -275,7 +286,11 @@ async fn store_batch(
     request: &BatchIdentity<'_>,
     conversation_id: Uuid,
 ) -> Result<BatchRecord, sqlx::Error> {
-    let message_ids: Vec<_> = request.input.items.iter().map(|item| item.message_id).collect();
+    let mut message_ids = Vec::with_capacity(request.input.items.len() + 1);
+    if let Some(comment) = &request.input.comment {
+        message_ids.push(comment.message_id);
+    }
+    message_ids.extend(request.input.items.iter().map(|item| item.message_id));
     let insert = sqlx::query(
         "INSERT INTO message_forward_batches
          (actor_id, operation_id, payload_hash, conversation_id, message_ids)
@@ -328,12 +343,18 @@ impl MessageService {
     pub async fn forward(
         &self,
         actor: Actor,
-        input: ForwardBatch,
+        mut input: ForwardBatch,
     ) -> Result<ForwardReceipt, AccountError> {
         let sources: Vec<_> = input.items.iter().map(|item| item.source_message_id).collect();
         let outputs: Vec<_> = input.items.iter().map(|item| item.message_id).collect();
         validate_message_ids(&sources)?;
         validate_message_ids(&outputs)?;
+        if let Some(comment) = &mut input.comment {
+            if outputs.contains(&comment.message_id) {
+                return Err(AccountError::Validation("duplicate message in batch"));
+            }
+            comment.content = validate_content(comment.content.clone())?;
+        }
         let encoded = serde_json::to_vec(&input).map_err(|_| AccountError::Unavailable)?;
         let hash = Sha256::digest(encoded);
         let request = BatchIdentity {
@@ -442,6 +463,10 @@ async fn copy_sources(
         return Err(AccountError::NotFound.into());
     }
 
+    // Store the comment before the copies so every retry returns the same ordered batch.
+    if let Some(comment) = &request.input.comment {
+        insert_comment(connection, &batch, comment).await?;
+    }
     for (item, source) in request.input.items.iter().zip(sources) {
         let copy = CopyContext {
             request,
@@ -453,6 +478,36 @@ async fn copy_sources(
     }
 
     Ok(store_batch(connection, request, batch.destination.id).await?)
+}
+
+async fn insert_comment(
+    connection: &mut PgConnection,
+    batch: &CopyBatch<'_>,
+    comment: &ForwardComment,
+) -> Result<(), AcceptanceError> {
+    let input = SendMessage {
+        operation_id: Uuid::new_v4(),
+        message_id: comment.message_id,
+        destination: Destination::Conversation {
+            conversation_id: batch.destination.id,
+        },
+        content: comment.content.clone(),
+        attachments: Vec::new(),
+        reply: None,
+        draft_version: None,
+        body: None,
+        disable_link_preview: None,
+    };
+    let message = acceptance::NewMessage {
+        actor: batch.request.actor,
+        input: &input,
+        payload_hash: batch.request.hash,
+        conversation: batch.destination,
+        body: None,
+        forward: None,
+    };
+
+    acceptance::insert(connection, message).await
 }
 
 /// Update forwarding policy under the locked conversation's ownership and consent rules.
@@ -500,4 +555,35 @@ pub(crate) async fn set_policy(
     update.bind(context.conversation.id).bind(is_enabled).execute(connection).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ForwardBatch;
+    use serde_json::json;
+    use uuid::Uuid;
+
+    #[test]
+    fn accepts_a_forward_with_a_separate_comment() {
+        let input = json!({
+            "operation_id": Uuid::new_v4(),
+            "destination": {"kind": "saved"},
+            "items": [{
+                "source_message_id": Uuid::new_v4(),
+                "message_id": Uuid::new_v4(),
+            }],
+            "comment": {
+                "message_id": Uuid::new_v4(),
+                "content": {
+                    "schema_version": 1,
+                    "text": "Please review this",
+                    "custom_emoji": [],
+                },
+            },
+        });
+
+        let parsed = serde_json::from_value::<ForwardBatch>(input.clone()).unwrap();
+        let serialized = serde_json::to_value(parsed).unwrap();
+        assert_eq!(serialized["comment"]["content"]["text"], input["comment"]["content"]["text"]);
+    }
 }
