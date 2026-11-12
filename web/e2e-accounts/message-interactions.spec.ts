@@ -129,10 +129,15 @@ async function createPoll(page: Page) {
 
 async function createChecklist(page: Page) {
   const dialog = await openListComposer(page, 'Checklist');
+  const firstTask = dialog.getByRole('textbox', { name: 'Task 1', exact: true });
+  // The opening dialog focuses the first task after the title field becomes editable.
+  await expect(firstTask).toBeFocused();
   await dialog.getByRole('textbox', { name: 'Title', exact: true }).fill(CHECKLIST_TITLE);
-  await dialog.getByRole('textbox', { name: 'Task 1', exact: true }).fill('Book the room');
+  await firstTask.fill('Book the room');
   await dialog.getByRole('button', { name: 'Add Task', exact: true }).click();
-  await dialog.getByRole('textbox', { name: 'Task 2', exact: true }).fill('Print the agenda');
+  const secondTask = dialog.getByRole('textbox', { name: 'Task 2', exact: true });
+  await expect(secondTask).toBeFocused();
+  await secondTask.fill('Print the agenda');
   await dialog.getByText('Allow Others to Mark as Done', { exact: true }).click();
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(dialog).toHaveCount(0);
