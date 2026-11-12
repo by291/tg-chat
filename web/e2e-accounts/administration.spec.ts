@@ -141,11 +141,12 @@ async function reportOriginal(page: Page, note: string) {
   await originalMessage(page).click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Report', exact: true }).click();
   const report = page.getByRole('dialog', { name: 'Report message', exact: true });
-  await report.getByLabel('Report reason', { exact: true }).selectOption('other');
+  await report.getByRole('button', { name: 'Other', exact: true }).click();
+  await expect(report.getByText(/90 days/)).toBeVisible();
   await report.getByLabel('Note (optional)', { exact: true }).fill(note);
   await report.getByRole('button', { name: 'Submit report', exact: true }).click();
-  const submitted = page.getByRole('dialog', { name: 'Report submitted', exact: true });
-  await submitted.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(report).toHaveCount(0);
+  await expect(page.getByText('Report submitted', { exact: true })).toBeVisible();
 }
 
 async function deleteOriginal(page: Page) {

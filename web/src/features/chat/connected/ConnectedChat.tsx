@@ -1475,7 +1475,7 @@ export function ConnectedChat({
           <ReportMessageDialog
             key={reportedMessageId}
             session={session}
-            messageId={reportedMessageId}
+            messageIds={[reportedMessageId]}
             onClose={() => setReportedMessageId(undefined)}
           />
         )}
