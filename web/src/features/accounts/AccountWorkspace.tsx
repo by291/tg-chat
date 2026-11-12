@@ -16,7 +16,11 @@ import {
 import { SessionOwner, isCancelled } from '../auth/SessionOwner';
 import { CommunityInviteLink } from '../communities/CommunityAdmission';
 import { CommunityWorkspace } from '../communities/CommunityWorkspace';
-import { conversationDestination, type Conversation } from '../communities/communityModels';
+import {
+  conversationDestination,
+  type CommunityKind,
+  type Conversation,
+} from '../communities/communityModels';
 import { ChatOwner, type ChatSnapshot } from '../chat/data/ChatOwner';
 import { connectionStatusLabel } from '../chat/data/connectionStatus';
 import { ConnectedChat } from '../chat/connected/ConnectedChat';
@@ -52,12 +56,14 @@ interface ChatConnection {
   retry: () => void;
 }
 
-type CommunityView = 'discover' | 'invitations';
+type CommunityView = 'discover' | 'invitations' | CommunityKind;
 type ChatStartup = Pick<ChatSnapshot, 'isReady' | 'connectionStatus' | 'startupError'>;
 
 const COMMUNITY_PAGE_TITLES: Record<CommunityView, string> = {
   discover: 'Communities',
   invitations: 'Communities',
+  group: 'New Group',
+  channel: 'New Channel',
 };
 
 const READY_CHAT: ChatStartup = { isReady: true, connectionStatus: 'ready' };
@@ -428,6 +434,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
             onSettings={() => setPage('settings')}
             onContacts={() => setPage('contacts')}
             onCommunities={() => showCommunities()}
+            onCreateCommunity={showCommunities}
             onOpenCommunity={openCommunity}
           />
           <ToastViewport />

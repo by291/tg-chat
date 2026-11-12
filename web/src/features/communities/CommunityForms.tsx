@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { components } from '@/api/schema';
 import { AccountForm, Field, textField } from '@/features/accounts/AccountForm';
+import type { CommunityKind } from './communityModels';
 import styles from '@/features/accounts/Accounts.module.css';
 
 type Settings = components['schemas']['CommunitySettings'];
@@ -19,24 +20,17 @@ export function readCommunitySettings(fields: FormData): Settings {
 /** Share metadata controls while keeping create and expected-version saves independently owned. */
 export function CommunitySettingsForm(props: {
   initial?: Settings;
-  isCreating?: boolean;
+  creationKind?: CommunityKind;
   onSubmit: (fields: FormData) => Promise<void>;
 }) {
   const [isPublic, setIsPublic] = useState(props.initial?.is_public ?? false);
+  let submitLabel = 'Save community settings';
+  if (props.creationKind) {
+    submitLabel = props.creationKind === 'channel' ? 'Create channel' : 'Create group';
+  }
+
   return (
-    <AccountForm
-      submitLabel={props.isCreating ? 'Create community' : 'Save community settings'}
-      onSubmit={props.onSubmit}
-    >
-      {props.isCreating && (
-        <label className={styles.field}>
-          <span>Community type</span>
-          <select name="kind" defaultValue="group">
-            <option value="group">Group</option>
-            <option value="channel">Channel</option>
-          </select>
-        </label>
-      )}
+    <AccountForm submitLabel={submitLabel} onSubmit={props.onSubmit}>
       <Field
         label="Community title"
         name="title"
@@ -57,15 +51,24 @@ export function CommunitySettingsForm(props: {
         />
         Public discovery
       </label>
-      <Field
-        label="Public handle"
+      <input
+        type="hidden"
         name="public_handle"
-        required={isPublic}
-        minLength={3}
-        maxLength={32}
-        pattern="[A-Za-z0-9_]+"
-        defaultValue={props.initial?.public_handle ?? ''}
+        value={props.initial?.public_handle ?? ''}
+        disabled={isPublic}
       />
+      <div hidden={!isPublic}>
+        <Field
+          label="Public handle"
+          name="public_handle"
+          required={isPublic}
+          disabled={!isPublic}
+          minLength={3}
+          maxLength={32}
+          pattern="[A-Za-z0-9_]+"
+          defaultValue={props.initial?.public_handle ?? ''}
+        />
+      </div>
       <label>
         <input
           type="checkbox"

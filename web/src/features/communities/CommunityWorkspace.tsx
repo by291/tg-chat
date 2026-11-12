@@ -1,12 +1,12 @@
 import { useSyncExternalStore } from 'react';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
-import { textField, useOperation } from '@/features/accounts/AccountForm';
+import { useOperation } from '@/features/accounts/AccountForm';
 import { CommunitySettingsForm, readCommunitySettings } from './CommunityForms';
 import { CommunityDiscovery } from './CommunityDiscovery';
 import { CommunityAdmission } from './CommunityAdmission';
 import type { CommunityOperations } from './CommunityOperations';
-import type { Conversation } from './communityModels';
+import type { CommunityKind, Conversation } from './communityModels';
 import styles from '@/features/accounts/Accounts.module.css';
 import communityStyles from './Communities.module.css';
 
@@ -67,7 +67,7 @@ function CommunityRecovery({ operations }: { operations: CommunityOperations }) 
 interface CommunityWorkspaceProps {
   session: SessionOwner;
   chat: ChatOwner;
-  view: 'discover' | 'invitations';
+  view: 'discover' | 'invitations' | CommunityKind;
   onShowInvitations: () => void;
   onShowDiscovery: () => void;
   onOpen: (conversation: Conversation) => void;
@@ -77,41 +77,48 @@ interface CommunityWorkspaceProps {
 export function CommunityWorkspace(props: CommunityWorkspaceProps) {
   const { chat, session, view } = props;
   const operations = chat.communities;
+  const isCreating = view === 'group' || view === 'channel';
   const admission = { session, chat, onAdmitted: props.onOpen };
 
   return (
     <div className={`${styles.panel} ${communityStyles.workspace}`}>
       {operations && <CommunityRecovery operations={operations} />}
-      <nav className={communityStyles.navigation} aria-label="Community pages">
-        <button type="button" aria-pressed={view === 'discover'} onClick={props.onShowDiscovery}>
-          Discover
-        </button>
-        <button
-          type="button"
-          aria-pressed={view === 'invitations'}
-          onClick={props.onShowInvitations}
-        >
-          Invitations
-        </button>
-      </nav>
-      {view === 'discover' && <CommunityDiscovery {...admission} />}
-      {view === 'invitations' && <CommunityAdmission {...admission} />}
-      {view === 'discover' && operations && (
-        <section className={styles.card}>
-          <h2>Create a group or channel</h2>
-          <CommunitySettingsForm
-            isCreating
-            onSubmit={async (fields) => {
-              const receipt = await props.chat.communities!.create({
-                ...readCommunitySettings(fields),
-                kind: textField(fields, 'kind'),
-              });
-              if (receipt.conversation) {
-                props.onOpen(receipt.conversation);
-              }
-            }}
-          />
-        </section>
+      {isCreating && operations && (
+        <CommunitySettingsForm
+          key={view}
+          creationKind={view}
+          onSubmit={async (fields) => {
+            const receipt = await operations.create({
+              ...readCommunitySettings(fields),
+              kind: view,
+            });
+            if (receipt.conversation) {
+              props.onOpen(receipt.conversation);
+            }
+          }}
+        />
+      )}
+      {!isCreating && (
+        <>
+          <nav className={communityStyles.navigation} aria-label="Community pages">
+            <button
+              type="button"
+              aria-pressed={view === 'discover'}
+              onClick={props.onShowDiscovery}
+            >
+              Discover
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === 'invitations'}
+              onClick={props.onShowInvitations}
+            >
+              Invitations
+            </button>
+          </nav>
+          {view === 'discover' && <CommunityDiscovery {...admission} />}
+          {view === 'invitations' && <CommunityAdmission {...admission} />}
+        </>
       )}
     </div>
   );

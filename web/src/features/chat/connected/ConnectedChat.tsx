@@ -15,6 +15,7 @@ import type { components } from '@/api/schema';
 import {
   communityAudienceLabel,
   conversationDestination,
+  type CommunityKind,
 } from '@/features/communities/communityModels';
 import { CommunityDiscovery } from '@/features/communities/CommunityDiscovery';
 import { CommunityProfile } from '@/features/communities/CommunityProfile';
@@ -121,6 +122,7 @@ interface ConnectedChatProps {
   accountPage?: ReactNode;
   conversationRequest: number;
   onCommunities: () => void;
+  onCreateCommunity: (kind: CommunityKind) => void;
   onOpenCommunity: (conversation: Conversation) => void;
 }
 
@@ -208,6 +210,7 @@ export function ConnectedChat({
   onSettings,
   onContacts,
   onCommunities,
+  onCreateCommunity,
   onOpenCommunity,
 }: ConnectedChatProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
@@ -942,6 +945,7 @@ export function ConnectedChat({
                 onOpenSaved={openSavedMessages}
                 onOpenArchived={() => openFolder('archived')}
                 onOpenHidden={() => openFolder('hidden')}
+                onCreate={onCreateCommunity}
               />
             ) : (
               <button type="button" aria-label="Back to inbox" onClick={() => openFolder('inbox')}>
