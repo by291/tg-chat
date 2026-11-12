@@ -1,11 +1,13 @@
 import { ArrowLeft, ContactRound, Phone, Search, Settings, Users, Video } from 'lucide-react';
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Avatar } from '@/components/Avatar';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { CallOwner } from '@/features/calls/CallOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
+import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import type { PollMedia } from '@/domain/messages/media';
@@ -17,6 +19,7 @@ import { checklistInput } from '../data/checklistInput';
 import { canonicalMessageContent } from '../data/messageContent';
 import { ConnectedChatMenu } from './ConnectedChatMenu';
 import { ConnectedConversationRow } from './ConnectedConversationRow';
+import { ConnectedPeerProfile } from './ConnectedPeerProfile';
 import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
@@ -108,6 +111,33 @@ function title(conversation: Conversation): string {
   return conversation.title || conversation.peer_name;
 }
 
+function ChatIdentityAvatar({
+  name,
+  conversation,
+  session,
+}: {
+  name: string;
+  conversation?: Conversation;
+  session?: SessionOwner;
+}) {
+  const initials = conversation?.kind === 'saved' ? 'saved' : name.slice(0, 2).toUpperCase();
+  const fileId = conversation?.avatar_file_id ?? conversation?.peer_avatar_file_id;
+  if (!session || !conversation || !fileId || conversation.kind === 'saved') {
+    return <Avatar initials={initials} size="small" />;
+  }
+
+  return (
+    <RemoteAvatar
+      session={session}
+      owner={conversation.avatar_file_id ? 'conversation' : 'user'}
+      id={conversation.avatar_file_id ? conversation.id : conversation.peer_id}
+      fileId={fileId}
+      initials={initials}
+      size="small"
+    />
+  );
+}
+
 function forwardDestinationTitle(destination: Destination, conversations: Conversation[]): string {
   if (destination.kind === 'saved') {
     return 'Saved Messages';
@@ -171,6 +201,7 @@ export function ConnectedChat({
   const [isDirectoryVisible, setIsDirectoryVisible] = useState(!snapshot.selection);
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
+  const [profilePeerId, setProfilePeerId] = useState<string>();
   const [latestSendRequest, setLatestSendRequest] = useState(0);
   const [folder, setFolder] = useState('inbox');
   const [directoryQuery, setDirectoryQuery] = useState('');
@@ -214,6 +245,15 @@ export function ConnectedChat({
   const conversation = owner.selectedConversation();
   const hasCallActions = conversation?.kind === 'direct' && areCallsAvailable;
   const selection = snapshot.selection;
+  const peerIdForProfile =
+    conversation?.kind === 'direct'
+      ? conversation.peer_id
+      : selection?.destination.kind === 'recipient'
+        ? selection.destination.user_id
+        : undefined;
+  const conversationName = conversation
+    ? title(conversation)
+    : (selection?.title ?? 'Your messages');
   const activeAlertId = !isDirectoryVisible ? conversation?.id : undefined;
   useEffect(() => owner.setAlertConversation(activeAlertId), [owner, activeAlertId]);
   const isViewingDirect = conversation?.kind === 'direct' && !isDirectoryVisible;
@@ -310,6 +350,7 @@ export function ConnectedChat({
     setSearchConversationId(undefined);
     setConfirmation(undefined);
     setContactDestination(undefined);
+    setProfilePeerId(undefined);
     setVoterMessageId(undefined);
     setPollEditor(undefined);
     setChecklistEditor(undefined);
@@ -998,9 +1039,27 @@ export function ConnectedChat({
             >
               <ArrowLeft />
             </button>
-            <div>
-              <h2>{conversation ? title(conversation) : (selection?.title ?? 'Your messages')}</h2>
-              <p aria-live="polite">{conversationStatus}</p>
+            <div className={styles.chatIdentity}>
+              {selection && (
+                <ChatIdentityAvatar
+                  name={conversationName}
+                  conversation={conversation}
+                  session={session}
+                />
+              )}
+              <div className={styles.chatIdentityText}>
+                <h2>{conversationName}</h2>
+                <p aria-live="polite">{conversationStatus}</p>
+              </div>
+              {session && peerIdForProfile && (
+                <button
+                  type="button"
+                  className={styles.peerProfile}
+                  aria-label={`View ${conversationName} profile`}
+                  aria-haspopup="dialog"
+                  onClick={() => setProfilePeerId(peerIdForProfile)}
+                />
+              )}
             </div>
             {isCommunity && (
               <button type="button" onClick={() => onCommunityDetails(conversation.id)}>
@@ -1160,7 +1219,7 @@ export function ConnectedChat({
                         isMuted={isConversationMuted(conversation)}
                         latestRequest={latestSendRequest}
                         onReachMessage={(messageId) => {
-                          if (!isDirectoryVisible && !editing) {
+                          if (!isDirectoryVisible && !editing && !profilePeerId) {
                             void owner.markReached(messageId).catch(report);
                           }
                         }}
@@ -1266,6 +1325,15 @@ export function ConnectedChat({
             <div className={styles.empty}>Choose a conversation or find someone to message.</div>
           )}
         </section>
+        {session && profilePeerId && profilePeerId === peerIdForProfile && (
+          <ConnectedPeerProfile
+            key={profilePeerId}
+            session={session}
+            peerId={profilePeerId}
+            title={conversationName}
+            onClose={() => setProfilePeerId(undefined)}
+          />
+        )}
         {session && contactDestination === selectedKey && (
           <ShareContactDialog
             key={contactDestination}

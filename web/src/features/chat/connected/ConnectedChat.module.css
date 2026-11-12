@@ -30,10 +30,6 @@
   font-size: 20px;
 }
 
-.chatHeader div {
-  flex: 1;
-}
-
 .chatHeader p {
   margin: 4px 0 0;
   color: var(--secondary-color);
@@ -141,6 +137,89 @@
   min-width: 10px;
   min-height: 10px;
   padding: 0;
+}
+
+.chatIdentity {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.chatHeader .peerProfile {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+}
+
+.chatHeader .peerProfile:hover {
+  background: color-mix(in srgb, var(--hover-color) 40%, transparent);
+}
+
+.chatIdentityText {
+  flex: 1;
+  min-width: 0;
+}
+
+.chatIdentityText h2,
+.chatIdentityText p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profilePositioner {
+  justify-items: end;
+  padding: 0;
+}
+
+.profileBackdrop {
+  background: rgb(16 18 26 / 20%);
+  backdrop-filter: none;
+}
+
+.profileDialog {
+  width: min(390px, 100%);
+  height: 100dvh;
+  overflow: auto;
+  padding: 16px 20px;
+  border-radius: 0;
+}
+
+.profileDialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profileDialog > header h2 {
+  margin: 0;
+}
+
+.profileIdentity {
+  display: grid;
+  justify-items: center;
+  padding-block: 24px 12px;
+  text-align: center;
+}
+
+.profileField {
+  display: grid;
+  gap: 3px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  overflow-wrap: anywhere;
+}
+
+.profileField dt {
+  color: var(--secondary-color);
+  font-size: 13px;
+}
+
+.profileField dd {
+  margin: 0;
 }
 
 .chat {
