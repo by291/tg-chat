@@ -39,6 +39,8 @@
 			uri /internal/calls/signaling
 		}
 		reverse_proxy livekit:7880 {
+			# LiveKit must receive the same query credential the application authorized.
+			header_up -Authorization
 			header_up -Cookie
 			transport http {
 				dial_timeout 2s
