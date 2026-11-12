@@ -21,6 +21,8 @@ docker compose up --build -d --wait
 Open `http://localhost:8080` to register an account. The explicit `/demo` entry opens sample
 conversations without using connected account state. SMTP is optional; see
 [backend development](./docs/development.md) to enable local email capture.
+The optional [LiveKit calls profile](./docs/operations.md#livekit-calls) enables one-to-one voice
+and video from existing direct conversations.
 
 ## Documentation
 
@@ -41,8 +43,8 @@ conversations without using connected account state. SMTP is optional; see
   gestures, and forms.
 - [Development](./web/docs/development.md): local commands and verification strategy.
 - [Complete product design](./docs/superpowers/specs/2026-11-08-complete-product-design.md):
-  approved target for the Rust backend, synchronization, media, calls, and deployment; later
-  milestones extend media, administration, and calls.
+  approved target for the Rust backend, synchronization, media, administration, calls,
+  and deployment.
 - [Implementation milestones](./docs/superpowers/plans/2026-11-08-product-milestones.md): delivery
   order, dependencies, and acceptance gates for the approved product design.
 

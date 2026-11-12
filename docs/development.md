@@ -141,6 +141,24 @@ support, installed frontend dependencies, and Chromium (`pnpm --dir web exec pla
 chromium`). A forcibly killed runner may leave its uniquely named `tg-chat-check-` project behind;
 inspect the exact project before removing it.
 
+## Call verification
+
+Run the calls-enabled acceptance separately from the default runtime check.
+
+```sh
+node scripts/check-runtime.mjs --calls
+```
+
+The runner uses an isolated Compose project and Chromium with controlled media devices.
+It exercises the connected application and the real LiveKit media path. The provider contract
+fixtures run separately with explicit disposable credentials. The default runtime check keeps
+calls disabled and checks the ordinary messaging and media paths.
+
+Use the [call deployment settings](./operations.md#livekit-calls) to verify two physical devices
+on distinct networks. Check voice and video, permission refusal, device switching, reconnect,
+and TURN fallback. Record the selected ICE candidate type and browser/OS for the relay case.
+Automated loopback tests leave this network gate open.
+
 ## API contract ownership
 
 Rust response types and Utoipa annotations own `openapi/api.json`. The frontend consumes generated

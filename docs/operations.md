@@ -2,7 +2,8 @@
 
 The single-host runtime supports accounts, conversations, synchronization, and optional private
 media and email recovery. PostgreSQL owns durable messages, accounts, and jobs. The Worker prepares
-media and delivers leased email jobs. LiveKit calls are a later milestone.
+media and delivers leased email jobs. With the calls profile enabled, the Worker also
+provisions and reconciles LiveKit rooms.
 
 ## Startup and migration ordering
 
@@ -10,9 +11,9 @@ Create `.env` with `node scripts/create-local-env.mjs`, then run
 `docker compose up --build -d --wait`. PostgreSQL becomes healthy first, the one-shot `migrate`
 service initializes or upgrades its schema, and API/Worker start after migration succeeds.
 Centrifugo depends on healthy Valkey. Caddy waits for API and Centrifugo before serving the
-frontend. SMTP is optional and LiveKit is a future service; neither is required to start this
-environment. Without SMTP, account capabilities explicitly disable new verification/recovery
-requests. Existing verified addresses remain private account data.
+frontend. The default runtime starts with SMTP and LiveKit disabled. Without SMTP, account
+capabilities explicitly disable new verification and recovery requests. Existing verified
+addresses remain private account data.
 
 For an explicit migration after rebuilding the application image:
 
@@ -163,6 +164,39 @@ services if the deployment needs a different list. Delivery uses validated publi
 and a bounded lease. When replacing the VAPID key pair, browsers must subscribe with the new
 public key. Exercise a configured provider and the target browser/OS before enabling delivery
 in a deployment.
+
+## LiveKit calls
+
+The `calls` Compose profile is optional. Set `TG_CHAT_CALLS_ENABLED=true`,
+`TG_CHAT_LIVEKIT_API_KEY`, and `TG_CHAT_LIVEKIT_API_SECRET` in the deployment environment.
+Compose supplies the shared credentials to the API, Worker, and LiveKit. The
+configured `TG_CHAT_CALL_CAPACITY` limits concurrent calls across API instances. Use
+`TG_CHAT_LIVEKIT_INTERNAL_URL` for the private provider API. The public signaling URL is
+derived from the configured chat origin. An explicit `TG_CHAT_LIVEKIT_PUBLIC_URL` must
+match that origin with the WebSocket scheme.
+
+```sh
+docker compose --profile calls up -d
+```
+
+Keep the provider's HTTP port and room administration private. Caddy authorizes new
+signaling requests through the application before forwarding to LiveKit. LiveKit calls back
+to the API over the private network with signed webhooks. The API grants media access only
+while the designated session remains eligible. Initial and provider-refreshed tokens can
+remain valid at the provider, so termination closes application admission independently
+of token expiration. Already admitted connections can persist while Worker cleanup runs.
+
+The checked-in LiveKit configuration advertises loopback for local acceptance. For real
+devices, supply the reachable media address in a deployment-specific LiveKit configuration.
+Replace the loopback host bindings for RTC TCP and UDP and the selected TURN transports in
+the deployment's Compose configuration. Serve the chat and signaling origin with trusted TLS.
+Configure the TURN public address and transport, including TLS when needed for restrictive
+networks.
+Keep management traffic and provider secrets out of public endpoints and request logs.
+Confirm relay selection and bidirectional audio and video on different real networks before
+marking the call gate complete. See the [LiveKit deployment guide][livekit-deployment].
+
+[livekit-deployment]: https://docs.livekit.io/transport/self-hosting/deployment/
 
 ## Persistence and recovery
 

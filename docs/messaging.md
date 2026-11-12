@@ -200,6 +200,23 @@ worker deduplicate retries. Push carries a generic notification. Clicking opens 
 only after the connected app authorizes current history, with the inbox as the fallback.
 See [operations](./operations.md#web-push-delivery) for deployment configuration.
 
+## One-to-one calls
+
+Voice and video start from an existing direct conversation. The recipient's call audience,
+blocks, account status, and conversation access apply before ringing. Each account has one
+live call slot. Online recipient sessions can ring, and the first accepted session owns the
+call. The other sessions stop ringing and cannot obtain room credentials.
+
+The API owns call state. Centrifugo sends private refresh hints, and the connected workspace
+rechecks state even if a hint is missed. LiveKit handles the audio and video tracks. The same
+session can resume during the server's reconnect grace period. Browser tabs sharing a session
+coordinate which tab owns media and release local devices when that ownership ends.
+
+Ending a call releases both slots and schedules one service record in the conversation.
+The record shows the outcome and the duration of established calls. A missed call appears in
+ordinary history after a closed browser returns. Incoming ringing stays in connected sessions.
+See [operations](./operations.md#livekit-calls) for the provider boundary.
+
 ## Verification
 
 Real PostgreSQL tests exercise concurrent acceptance and edits, policy/capacity rollback, permanent

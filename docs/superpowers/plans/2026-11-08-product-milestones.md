@@ -21,8 +21,9 @@ Prettier/Vitest/Playwright toolchain. Pin compatible versions when each integrat
 
 **Status:** Product design approved on 2026-11-08. M1 through M8 are implemented and locally
 verified through isolated Compose. M6 passed the desktop Chromium exit gate. Physical mobile
-recording and playback and provider-backed Web Push checks are outstanding. M9 and M10 remain
-planned.
+recording and playback and provider-backed Web Push checks are outstanding. M9 is implemented
+behind the optional calls profile and verified with isolated Chromium. Its physical-device
+and cross-network TURN gate remains open. M10 remains planned.
 
 ## Global constraints
 
@@ -449,27 +450,29 @@ notifications/moderation hooks. Ordinary messaging must work with the calls prof
 **Produces:** Authoritative call state and active slots, designated sessions, scoped room tokens,
 verified webhook receipts, timeout/reconciliation jobs, and one terminal chat service event.
 
-- [ ] Deliver ringing/connecting/active/ended transitions, end reasons, stable account-slot locking,
+- [x] Deliver ringing/connecting/active/ended transitions, end reasons, stable account-slot locking,
       call quotas, first-device acceptance, and cancel/accept/cross-call race handling.
-- [ ] Deliver room creation/cleanup through the LiveKit adapter, scoped designated-session tokens,
+- [x] Deliver room creation/cleanup through the LiveKit adapter, scoped designated-session tokens,
       two-participant limits, verified/deduplicated webhooks, reconnect grace, and reconciliation.
-- [ ] Deliver call UI, ringing on eligible devices, explicit microphone/camera access, device
+- [x] Deliver call UI, ringing on eligible devices, explicit microphone/camera access, device
       selection, mute, video enablement, and readable transport/permission failures.
-- [ ] Wire session revocation, blocking, suspension, and call timeout to terminal state/cleanup.
-      Never reuse room names; validate the pinned server's refreshed-token behavior and document
-      obsolete-room residual access rather than claiming instantaneous token revocation.
-- [ ] Deliver the optional LiveKit/TURN Compose profile, public address/TLS/port documentation, and
-      tests using real distinct networks, including TURN fallback and media-service interruption.
-- [ ] Verify two-device acceptance, simultaneous calls, delayed/duplicate webhooks, hangup followed
-      by stale tokens, permission refusal, reconnect expiry, and exactly one terminal service event.
+- [x] Wire session revocation, blocking, suspension, and call timeout to terminal state and
+      cleanup. Recheck current authorization at the application gateway for every new
+      signaling connection, including those carrying a refreshed provider token.
+- [x] Deliver the optional LiveKit/TURN Compose profile and public address, TLS, and port
+      documentation. Verify chat during media-service interruption.
+- [x] Verify two-session acceptance, simultaneous calls, delayed and duplicate webhooks,
+      terminal signaling rejection, permission refusal, reconnect expiry, and one history event.
+- [ ] Verify physical microphone and camera operation on distinct real networks, including
+      observed TURN fallback. Record the provider's cleanup and token behavior in that setup.
 
 **Exit gate:** Calls work across real networks and fail independently of chat. Terminal calls never
 revive, and a credential for an old room cannot authorize a future call. No guaranteed wakeup of a
 closed/suspended browser is advertised.
 
-**Verification ownership:** `tests/calls.rs`, `tests/livekit_integration.rs`, and
-`web/e2e-accounts/calls.spec.ts`, plus real microphone/camera/TURN checks. Two browser tabs on one laptop do
-not complete this milestone's network acceptance.
+**Verification ownership:** `tests/calls.rs`, `tests/call_termination.rs`,
+`tests/livekit_integration.rs`, and `web/e2e-accounts/calls.spec.ts`. Physical microphone,
+camera, and TURN checks are tracked through the deployment gate.
 
 ## M10: Release, performance, and recovery acceptance
 
