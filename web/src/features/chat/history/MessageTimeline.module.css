@@ -89,6 +89,45 @@
   margin: 0 auto;
 }
 
+/* Claim horizontal movement only on text; scrolling and pinch zoom stay native. */
+.virtualRow[data-can-swipe-reply] [data-message-text]:not(:has(pre)) {
+  touch-action: pan-y pinch-zoom;
+}
+
+.virtualRow[data-can-swipe-reply] .rowContent {
+  translate: var(--reply-swipe-offset, none);
+  transition: translate 200ms ease-out;
+}
+
+.swipeReplyIcon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 12px;
+  width: 20px;
+  height: 20px;
+  color: var(--accent-color);
+  opacity: var(--reply-swipe-opacity, 0);
+  translate: 0 -50%;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+.virtualRow[data-reply-swiping] .rowContent,
+.virtualRow[data-reply-swiping] .swipeReplyIcon {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .virtualRow[data-can-swipe-reply] .rowContent {
+    translate: none;
+  }
+
+  .virtualRow[data-can-swipe-reply] .rowContent,
+  .swipeReplyIcon {
+    transition: none;
+  }
+}
+
 /* The highlight and pointer target share the same bounds; neither extends the scrollable width. */
 .virtualRow[data-message-id]::before {
   position: absolute;

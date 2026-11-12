@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type MouseEvent,
 } from 'react';
+import { Reply } from 'lucide-react';
 import { IconButton } from '@/components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
@@ -26,6 +27,7 @@ import type { MessageInteraction } from '@/domain/messages/interaction';
 import { useHistoryWindow, type RemoteHistory } from './useHistoryWindow';
 import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { useVirtualHistory } from './useVirtualHistory';
+import { canReplyFromTarget, useReplySwipe } from './useReplySwipe';
 import { StickyDateHeaders } from './StickyDateHeaders';
 import { createHistoryDateGroups } from './historyDates';
 import { createHistorySenderGroups } from './historySenderGroups';
@@ -183,6 +185,13 @@ function VirtualMessageHistory({
     onToggleSelection,
     onSetSelection,
   });
+  const canReply =
+    !isPreview &&
+    canUseMessageActions &&
+    !menu.isOpen &&
+    selectedIds === undefined &&
+    (allowedActions?.includes('reply') ?? true);
+  const replySwipe = useReplySwipe({ isDisabled: !canReply, onReply: replyToMessage });
   const virtualItems = scroll.virtualizer.getVirtualItems();
   const totalHeight = scroll.virtualizer.getTotalSize();
   const viewportHeight = scroll.virtualizer.scrollRect?.height || 0;
@@ -235,23 +244,29 @@ function VirtualMessageHistory({
     setIsCalendarOpen(true);
   }
 
-  function replyToRow(event: MouseEvent<HTMLDivElement>) {
-    const isDisabled = isPreview || !canUseMessageActions || selectedIds !== undefined;
-    if (isDisabled || !(event.target instanceof Element)) {
-      return;
-    }
-
-    const isInteractiveContent = event.target.closest(
-      'button, a, input, video, audio, [data-message-media], [data-message-metadata]',
+  function canReplyToMessage(message?: Message): message is Message {
+    return Boolean(
+      canReply &&
+      message &&
+      !message.isService &&
+      (!message.deliveryStatus || message.deliveryStatus === 'accepted') &&
+      (message.expiresAt === undefined || message.expiresAt > Date.now()),
     );
-    if (isInteractiveContent || window.getSelection()?.toString().trim()) {
-      return;
-    }
+  }
 
-    const messageId = findMessageRow(event.target)?.dataset.messageId;
-    const message = messageId ? messageById.get(messageId) : undefined;
-    if (message) {
+  function replyToMessage(messageId: string) {
+    const message = messageById.get(messageId);
+    if (canReplyToMessage(message)) {
       onCommand({ action: 'reply', message });
+    }
+  }
+
+  function replyToRow(event: MouseEvent<HTMLDivElement>) {
+    if (canReply && canReplyFromTarget(event.target)) {
+      const messageId = findMessageRow(event.target)?.dataset.messageId;
+      if (messageId) {
+        replyToMessage(messageId);
+      }
     }
   }
 
@@ -260,7 +275,10 @@ function VirtualMessageHistory({
       <div
         ref={scroll.viewportRef}
         className={styles.viewport}
-        onScroll={scroll.updateScrollPosition}
+        onScroll={() => {
+          replySwipe.clearSwipe();
+          scroll.updateScrollPosition();
+        }}
         onWheel={scroll.cancelAutomaticScroll}
         onTouchStart={scroll.cancelAutomaticScroll}
         onPointerDown={scroll.cancelAutomaticScroll}
@@ -271,21 +289,35 @@ function VirtualMessageHistory({
         onContextMenu={menu.onContextMenu}
         onDoubleClick={replyToRow}
         onClickCapture={(event) => {
-          menu.onClick(event);
+          replySwipe.onClick(event);
+          if (!event.defaultPrevented) {
+            menu.onClick(event);
+          }
           if (!event.defaultPrevented) {
             selectionGesture.onClick(event);
           }
         }}
         onPointerDownCapture={(event) => {
+          replySwipe.onPointerDown(event);
           menu.onPointerDown(event);
           selectionGesture.onPointerDown(event);
         }}
         onPointerMove={(event) => {
           menu.onPointerMove(event);
+          if (replySwipe.onPointerMove(event)) {
+            menu.cancelLongPress();
+          }
           selectionGesture.onPointerMove(event);
         }}
-        onPointerUp={menu.cancelLongPress}
-        onPointerCancel={menu.cancelLongPress}
+        onPointerUp={(event) => {
+          menu.cancelLongPress();
+          replySwipe.onPointerUp(event);
+        }}
+        onPointerCancel={(event) => {
+          menu.cancelLongPress();
+          replySwipe.onPointerCancel(event);
+        }}
+        onLostPointerCapture={replySwipe.onPointerCancel}
         aria-label="Message history"
         data-total-rows={allRows.length}
         data-loaded-rows={rows.length}
@@ -313,6 +345,7 @@ function VirtualMessageHistory({
             {virtualItems.map((item) => {
               const row = rows[item.index];
               const isMessageRow = row.kind === 'message' && !row.message.isService;
+              const canSwipeToReply = isMessageRow && canReplyToMessage(row.message);
               return (
                 <div
                   key={row.key}
@@ -320,6 +353,7 @@ function VirtualMessageHistory({
                   data-index={item.index}
                   data-row-key={row.key}
                   data-message-id={isMessageRow ? row.key : undefined}
+                  data-can-swipe-reply={canSwipeToReply ? true : undefined}
                   role={isMessageRow ? 'group' : undefined}
                   aria-label={isMessageRow ? `Message: ${describeMessage(row.message)}` : undefined}
                   tabIndex={isMessageRow && !isPreview ? 0 : undefined}
@@ -351,6 +385,9 @@ function VirtualMessageHistory({
                       />
                     )}
                   </div>
+                  {canSwipeToReply && (
+                    <Reply className={styles.swipeReplyIcon} aria-hidden="true" />
+                  )}
                   {row.kind === 'unread' && (
                     <div
                       className={styles.unreadDivider}
