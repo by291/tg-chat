@@ -448,10 +448,12 @@ async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalida
     let join = community_command(id, json!({"kind": "join"}));
     service.community_command(member.clone(), join).await.unwrap();
     let visible = service
-        .community_members(member, tg_chat::conversations::CommunityPageQuery::new(id))
+        .community_members(member.clone(), tg_chat::conversations::CommunityPageQuery::new(id))
         .await
         .unwrap();
     assert_eq!(visible.items.len(), 1);
+    let details = service.community_details(member.clone(), id).await.unwrap();
+    assert_eq!(details.member_count.as_deref(), Some("2"));
     assert!(
         service
             .community_members(
@@ -461,8 +463,21 @@ async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalida
             .await
             .is_err()
     );
-    let found = service.discover_communities(outsider.clone(), Default::default()).await.unwrap();
+    let search = tg_chat::conversations::CommunityDiscoveryQuery {
+        search: Some("@book_club".to_owned()),
+        kind: Some(tg_chat::conversations::CommunityDiscoveryKind::Channel),
+        ..Default::default()
+    };
+    let found = service.discover_communities(outsider.clone(), search).await.unwrap();
     assert_eq!(found.items.len(), 1);
+    assert_eq!(found.items[0].member_count, "2");
+    assert!(!found.items[0].has_pending_request);
+    let groups = tg_chat::conversations::CommunityDiscoveryQuery {
+        kind: Some(tg_chat::conversations::CommunityDiscoveryKind::Group),
+        ..Default::default()
+    };
+    let found = service.discover_communities(outsider.clone(), groups).await.unwrap();
+    assert!(found.items.is_empty());
     let mut settings = create_input().settings;
     settings.requires_approval = true;
     let configure = community_command(
@@ -472,6 +487,10 @@ async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalida
     service.community_command(owner.clone(), configure).await.unwrap();
     let request = community_command(id, json!({"kind": "join"}));
     service.community_command(outsider.clone(), request).await.unwrap();
+    let pending = service.discover_communities(outsider.clone(), Default::default()).await.unwrap();
+    assert!(pending.items[0].has_pending_request);
+    let other_view = service.discover_communities(member, Default::default()).await.unwrap();
+    assert!(!other_view.items[0].has_pending_request);
     settings.is_public = false;
     let configure = community_command(
         id,

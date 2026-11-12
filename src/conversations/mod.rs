@@ -8,9 +8,9 @@ pub(crate) mod http;
 mod invitations;
 mod membership;
 pub use community_queries::{
-    CommunityListQuery, CommunityMember, CommunityMemberPage, CommunityPage, CommunityPageQuery,
-    CommunitySummary, InvitationPage, InvitationQuery, InvitationView, InvitePreview,
-    JoinRequestPage, JoinRequestView,
+    CommunityDiscoveryKind, CommunityDiscoveryQuery, CommunityListQuery, CommunityMember,
+    CommunityMemberPage, CommunityPage, CommunityPageQuery, CommunitySummary, InvitationPage,
+    InvitationQuery, InvitationView, InvitePreview, JoinRequestPage, JoinRequestView,
 };
 
 pub use community_model::{CommunityAction, CommunityCommand, CommunitySettings, CreateCommunity};
@@ -37,6 +37,12 @@ pub(crate) const VIEW_SELECT: &str =
             CASE WHEN NOT peer.is_suspended THEN peer.avatar_file_id END AS peer_avatar_file_id,
             conversation.title, conversation.description, conversation.public_handle,
             conversation.is_public, conversation.requires_approval, member.role, member.posting_muted_until,
+            CASE WHEN conversation.kind IN ('group', 'channel') THEN
+                (SELECT count(*)::text FROM conversation_members participant
+                 JOIN users account ON account.id = participant.user_id
+                 WHERE participant.conversation_id = conversation.id AND participant.directory_active
+                   AND NOT participant.is_banned AND account.deleted_at IS NULL)
+            END AS member_count,
             conversation.settings_version::text,
             (conversation.kind = 'saved'
              OR (conversation.kind = 'direct' AND peer.deleted_at IS NULL)
@@ -109,6 +115,8 @@ pub struct ConversationView {
     pub public_handle: Option<String>,
     pub is_public: bool,
     pub requires_approval: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub member_count: Option<String>,
     pub role: String,
     pub can_post: bool,
     pub posting_muted_until: Option<DateTime<Utc>>,

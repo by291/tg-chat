@@ -725,7 +725,13 @@
             "required": false,
             "schema": { "type": "integer", "format": "int32", "minimum": 0 }
           },
-          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } }
+          { "name": "search", "in": "query", "required": false, "schema": { "type": "string" } },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/CommunityDiscoveryKind" }
+          }
         ],
         "responses": {
           "200": {
@@ -2546,6 +2552,7 @@
         },
         "additionalProperties": false
       },
+      "CommunityDiscoveryKind": { "type": "string", "enum": ["group", "channel"] },
       "CommunityMember": {
         "type": "object",
         "required": ["id", "username", "display_name", "role", "is_banned", "is_active"],
@@ -2599,11 +2606,13 @@
           "description",
           "is_public",
           "requires_approval",
-          "member_count"
+          "member_count",
+          "has_pending_request"
         ],
         "properties": {
           "avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "description": { "type": "string" },
+          "has_pending_request": { "type": "boolean" },
           "id": { "type": "string", "format": "uuid" },
           "is_public": { "type": "boolean" },
           "kind": { "type": "string" },
@@ -2668,6 +2677,7 @@
           "keep_archived": { "type": "boolean" },
           "kind": { "type": "string" },
           "last_sequence": { "type": "string" },
+          "member_count": { "type": ["string", "null"] },
           "muted_until": { "type": ["string", "null"], "format": "date-time" },
           "peer_avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "peer_id": { "type": "string", "format": "uuid" },

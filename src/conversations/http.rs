@@ -8,9 +8,9 @@ use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
 use super::{
-    CommunityCommand, CommunityListQuery, CommunityMemberPage, CommunityPage, CommunityPageQuery,
-    ConversationView, CreateCommunity, InvitationPage, InvitationQuery, InvitePreview,
-    JoinRequestPage,
+    CommunityCommand, CommunityDiscoveryKind, CommunityDiscoveryQuery, CommunityListQuery,
+    CommunityMemberPage, CommunityPage, CommunityPageQuery, ConversationView, CreateCommunity,
+    InvitationPage, InvitationQuery, InvitePreview, JoinRequestPage,
 };
 use crate::{
     accounts::{
@@ -29,25 +29,18 @@ pub struct InvitePreviewInput {
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(
-    discover,
-    create,
-    details,
-    command,
-    members,
-    requests,
-    invitations,
-    inbox,
-    preview
-))]
+#[openapi(
+    components(schemas(CommunityDiscoveryKind)),
+    paths(discover, create, details, command, members, requests, invitations, inbox, preview)
+)]
 pub struct CommunityDocument;
 
-#[utoipa::path(operation_id = "community_discover", get, path = "/api/v1/communities", params(CommunityListQuery),
+#[utoipa::path(operation_id = "community_discover", get, path = "/api/v1/communities", params(CommunityDiscoveryQuery),
     responses((status = 200, body = CommunityPage)))]
 async fn discover(
     State(state): State<AccountHttpState>,
     context: ActorContext,
-    SafeQuery(query): SafeQuery<CommunityListQuery>,
+    SafeQuery(query): SafeQuery<CommunityDiscoveryQuery>,
 ) -> Result<Json<CommunityPage>, ApiFailure> {
     let page = MessageService::new(state.accounts)
         .discover_communities(context.actor, query)

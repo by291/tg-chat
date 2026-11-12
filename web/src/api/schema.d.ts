@@ -1610,6 +1610,8 @@ export interface components {
       /** Format: uuid */
       operation_id: string;
     };
+    /** @enum {string} */
+    CommunityDiscoveryKind: 'group' | 'channel';
     CommunityMember: {
       display_name: string;
       /** Format: uuid */
@@ -1642,6 +1644,7 @@ export interface components {
       /** Format: uuid */
       avatar_file_id?: string | null;
       description: string;
+      has_pending_request: boolean;
       /** Format: uuid */
       id: string;
       is_public: boolean;
@@ -1674,6 +1677,7 @@ export interface components {
       keep_archived: boolean;
       kind: string;
       last_sequence: string;
+      member_count?: string | null;
       /** Format: date-time */
       muted_until?: string | null;
       /** Format: uuid */
@@ -3313,6 +3317,7 @@ export interface operations {
         after?: string;
         limit?: number;
         search?: string;
+        kind?: components['schemas']['CommunityDiscoveryKind'];
       };
       header?: never;
       path?: never;

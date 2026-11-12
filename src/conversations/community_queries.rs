@@ -20,8 +20,33 @@ const SUMMARY_SELECT: &str =
         (SELECT count(*)::text FROM conversation_members member
          JOIN users account ON account.id = member.user_id
          WHERE member.conversation_id = conversation.id AND member.directory_active
-           AND NOT member.is_banned AND account.deleted_at IS NULL) AS member_count
-     FROM conversations conversation";
+           AND NOT member.is_banned AND account.deleted_at IS NULL) AS member_count";
+
+#[derive(Clone, Copy, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CommunityDiscoveryKind {
+    Group,
+    Channel,
+}
+
+impl CommunityDiscoveryKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Group => "group",
+            Self::Channel => "channel",
+        }
+    }
+}
+
+#[derive(Default, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(deny_unknown_fields)]
+pub struct CommunityDiscoveryQuery {
+    pub after: Option<Uuid>,
+    pub limit: Option<u16>,
+    pub search: Option<String>,
+    pub kind: Option<CommunityDiscoveryKind>,
+}
 
 #[derive(Clone, Default, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
@@ -59,6 +84,7 @@ pub struct CommunitySummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar_file_id: Option<Uuid>,
     pub member_count: String,
+    pub has_pending_request: bool,
 }
 
 #[derive(FromRow, Serialize, ToSchema)]
@@ -129,8 +155,8 @@ pub struct InvitationQuery {
     pub page: CommunityListQuery,
 }
 
-fn page_size(query: &CommunityListQuery) -> Result<usize, AccountError> {
-    let size = query.limit.unwrap_or(DEFAULT_PAGE_SIZE);
+fn page_size(limit: Option<u16>) -> Result<usize, AccountError> {
+    let size = limit.unwrap_or(DEFAULT_PAGE_SIZE);
     if !(1..=MAX_PAGE_SIZE).contains(&size) {
         return Err(AccountError::Validation("page size must be between 1 and 100"));
     }
@@ -169,20 +195,46 @@ impl MessageService {
     pub async fn discover_communities(
         &self,
         actor: Actor,
-        query: CommunityListQuery,
+        query: CommunityDiscoveryQuery,
     ) -> Result<CommunityPage, AccountError> {
-        let limit = page_size(&query)?;
-        let search = query.search.unwrap_or_default().trim().to_owned();
+        let limit = page_size(query.limit)?;
+        let search = query.search.as_deref().unwrap_or_default().trim();
         if search.chars().count() > MAX_SEARCH_CHARACTERS {
             return Err(AccountError::Validation("community search exceeds 100 characters"));
         }
+
         let mut transaction = self.snapshot(&actor).await?;
         let mut statement = QueryBuilder::new(SUMMARY_SELECT);
-        statement.push(" WHERE conversation.is_public AND conversation.deleted_at IS NULL\n            AND NOT conversation.is_quarantined AND conversation.kind IN ('group', 'channel')\n            AND NOT EXISTS (SELECT 1 FROM conversation_members banned WHERE banned.conversation_id = conversation.id\n                AND banned.is_banned AND banned.user_id = ").push_bind(actor.user_id);
+        // Only the requesting account can see whether its application is pending.
+        statement.push(
+            ", EXISTS (SELECT 1 FROM community_join_requests request
+              WHERE request.conversation_id = conversation.id AND request.user_id = ",
+        );
+        statement.push_bind(actor.user_id);
+        statement.push(") AS has_pending_request FROM conversations conversation");
+        statement.push(
+            " WHERE conversation.is_public AND conversation.deleted_at IS NULL
+              AND NOT conversation.is_quarantined AND conversation.kind IN ('group', 'channel')
+              AND NOT EXISTS (SELECT 1 FROM conversation_members banned
+                  WHERE banned.conversation_id = conversation.id AND banned.is_banned
+                    AND banned.user_id = ",
+        );
+        statement.push_bind(actor.user_id);
         statement.push(") AND (").push_bind(query.after);
         statement.push("::uuid IS NULL OR conversation.id > ").push_bind(query.after).push(")");
-        statement.push(" AND strpos(lower(conversation.title || ' ' || conversation.public_handle), lower(")
-            .push_bind(search).push(")) > 0 ORDER BY conversation.id LIMIT ");
+        if let Some(kind) = query.kind {
+            statement.push(" AND conversation.kind = ").push_bind(kind.as_str());
+        }
+        if let Some(handle) = search.strip_prefix('@') {
+            statement.push(" AND strpos(lower(conversation.public_handle), lower(");
+            statement.push_bind(handle).push(")) > 0");
+        } else if !search.is_empty() {
+            statement.push(
+                " AND strpos(lower(conversation.title || ' ' || conversation.public_handle), lower(",
+            );
+            statement.push_bind(search).push(")) > 0");
+        }
+        statement.push(" ORDER BY conversation.id LIMIT ");
         statement.push_bind((limit + 1) as i64);
         let mut items: Vec<CommunitySummary> =
             statement.build_query_as().fetch_all(&mut *transaction).await?;
@@ -248,7 +300,7 @@ impl MessageService {
         actor: Actor,
         query: CommunityPageQuery,
     ) -> Result<CommunityMemberPage, AccountError> {
-        let limit = page_size(&query.page)?;
+        let limit = page_size(query.page.limit)?;
         let mut transaction = self.snapshot(&actor).await?;
         let conversation = community_view(&mut transaction, &actor, query.conversation_id).await?;
         let can_manage = matches!(conversation.role.as_str(), "owner" | "admin");
@@ -279,7 +331,7 @@ impl MessageService {
         actor: Actor,
         query: CommunityPageQuery,
     ) -> Result<JoinRequestPage, AccountError> {
-        let limit = page_size(&query.page)?;
+        let limit = page_size(query.page.limit)?;
         let mut transaction = self.snapshot(&actor).await?;
         let conversation = community_view(&mut transaction, &actor, query.conversation_id).await?;
         require_manager(&conversation)?;
@@ -308,7 +360,7 @@ impl MessageService {
         actor: Actor,
         query: InvitationQuery,
     ) -> Result<InvitationPage, AccountError> {
-        let limit = page_size(&query.page)?;
+        let limit = page_size(query.page.limit)?;
         let mut transaction = self.snapshot(&actor).await?;
         if let Some(id) = query.conversation_id {
             let conversation = community_view(&mut transaction, &actor, id).await?;
