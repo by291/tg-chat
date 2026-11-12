@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 
 const PASSWORD = 'a complete browser password phrase';
-const HISTORY_MESSAGES = 55;
+const HISTORY_MESSAGES = 75;
 
 interface Account {
   username: string;
@@ -35,7 +35,7 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
   const alice = { username: `alice_${randomUUID().slice(0, 8)}`, displayName: 'Alice Messaging' };
   const bobby = { username: `bobby_${randomUUID().slice(0, 8)}`, displayName: 'Bobby Messaging' };
   const peerContext = await browser.newContext({ baseURL });
-  const peer = await peerContext.newPage();
+  let peer = await peerContext.newPage();
   try {
     await register(page, alice);
     await register(peer, bobby);
@@ -57,16 +57,40 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     await expect(outgoing).toHaveCount(1);
     await expect(outgoing.locator('strong')).toContainText('durable bold greeting');
     await expect(page.getByLabel('Choose an attachment')).toHaveCount(0);
+    const row = page.getByRole('button', { name: /^Bobby Messaging/ });
+    await expect(row.locator('time')).toBeVisible();
+    await page.getByRole('button', { name: 'View Bobby Messaging profile' }).click();
+    const profile = page.getByRole('dialog', { name: 'User Info' });
+    await expect(profile.getByText(`@${bobby.username}`, { exact: true })).toBeVisible();
+    await profile.getByRole('button', { name: 'Close profile' }).click();
 
     await peer.getByRole('button', { name: /Alice Messaging/ }).click();
     await expect(peer.locator('article[data-own="false"]')).toContainText('durable bold greeting');
     await page.screenshot({ path: testInfo.outputPath('connected-desktop.png'), fullPage: true });
+    await peer.close();
+
+    await page.route('**/api/v1/messages', (route) =>
+      route.fulfill({
+        status: 400,
+        json: { error: { code: 'validation_error', message: 'The test rejected this send.' } },
+      }),
+    );
+    await editor.fill('Retry from the bubble');
+    await page.getByRole('button', { name: 'Send message', exact: true }).click();
+    const failed = page.getByRole('group', { name: 'Message: Retry from the bubble', exact: true });
+    const retry = failed.getByRole('button', { name: 'Retry sending message' });
+    await expect(retry).toBeVisible();
+    await page.unroute('**/api/v1/messages');
+    await retry.click();
+    await expect(failed.getByRole('img', { name: 'Stored on server' })).toBeVisible();
 
     // Keep the app reachable while only message submission is unavailable across a full reload.
     await page.route('**/api/v1/messages', (route) => route.abort('failed'));
     await editor.fill('Recovered from the persistent outbox');
     await page.getByRole('button', { name: 'Send message', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Pending messages' })).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Message: Recovered from the persistent outbox' }),
+    ).toBeVisible();
     await page.reload();
     await expect(page.getByRole('region', { name: 'Pending messages' })).toContainText(
       'persistent outbox',
@@ -76,6 +100,7 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     await page.getByRole('button', { name: /Bobby Messaging/ }).click();
     await expect(page.locator('[data-message-id]')).toContainText([
       'durable bold greeting',
+      'Retry from the bubble',
       'persistent outbox',
     ]);
 
@@ -105,13 +130,27 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
       });
       expect(response.status()).toBe(200);
     }
-    await page.getByRole('button', { name: 'Latest messages', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Load older messages' })).toBeVisible();
-    await page.getByRole('button', { name: 'Load older messages' }).click();
+    peer = await peerContext.newPage();
+    await peer.goto('/');
+    await peer.getByRole('button', { name: /^Alice Messaging/ }).click();
+    await expect(peer.getByText('Unread messages', { exact: true })).toBeInViewport();
+    const viewport = peer.getByLabel('Message history', { exact: true });
+    await viewport.hover();
+    const newer = peer.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith('/history') && url.searchParams.has('after') && response.ok();
+    });
+    await peer.mouse.wheel(0, 10000);
+    await newer;
+    await peer.getByRole('button', { name: /^Jump to latest message/ }).click();
+    const latest = peer.getByRole('group', {
+      name: `Message: History entry ${HISTORY_MESSAGES - 1}`,
+    });
+    await expect(latest).toBeInViewport();
     const history = await page.request.get(
       `/api/v1/conversations/${conversation.id}/history?limit=100`,
     );
-    expect((await history.json()).messages).toHaveLength(HISTORY_MESSAGES + 2);
+    expect((await history.json()).messages).toHaveLength(HISTORY_MESSAGES + 3);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Back to conversations' }).click();
@@ -123,7 +162,8 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     await page.screenshot({ path: testInfo.outputPath('account-settings-mobile.png') });
     await page.getByRole('button', { name: 'Back to settings' }).click();
     await page.getByRole('button', { name: 'Back to chats' }).click();
-    await page.getByRole('button', { name: /Saved Messages/ }).click();
+    await page.getByRole('button', { name: 'Main menu' }).click();
+    await page.getByRole('menuitem', { name: 'Saved Messages' }).click();
     await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Private saved note');
     await page.getByRole('button', { name: 'Send message', exact: true }).click();
     await expect(page.getByRole('img', { name: 'Stored on server' })).toBeVisible();
