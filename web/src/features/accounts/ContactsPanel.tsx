@@ -1,25 +1,45 @@
-import { useCallback, useState } from 'react';
+import { Search } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Avatar } from '@/components/Avatar';
 import type { components } from '@/api/schema';
 import { SessionOwner, requirePayload } from '../auth/SessionOwner';
-import { AccountForm, Field, textField, useOperation } from './AccountForm';
+import { useOperation } from './AccountForm';
 import { useAccountResource } from './useAccountResource';
 import styles from './Accounts.module.css';
 
 type DirectoryPage = components['schemas']['DirectoryPage'];
+const SEARCH_DELAY_MS = 300;
+
 type DirectoryScope = 'contacts' | 'blocks' | 'search';
 
 /** Browse account-owned relationships and search only bounded public directory fields. */
 export function ContactsPanel({
   owner,
+  scope,
   onStartChat,
 }: {
   owner: SessionOwner;
+  scope: DirectoryScope;
   onStartChat?: (person: components['schemas']['PublicProfile']) => void;
 }) {
-  const [scope, setScope] = useState<DirectoryScope>('contacts');
+  const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string>();
   const action = useOperation();
+  const term = query.trim();
+  useEffect(() => {
+    if (term === search) {
+      return;
+    }
+
+    // Wait for typing to settle before spending the public directory's admission budget.
+    const timer = window.setTimeout(() => {
+      setSearch(term);
+      setCursor(undefined);
+    }, SEARCH_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [term, search]);
+
   const load = useCallback(
     async (): Promise<DirectoryPage> => {
       if (scope === 'search' && search.length < 2) {
@@ -53,12 +73,6 @@ export function ContactsPanel({
   );
   const directory = useAccountResource(load);
 
-  function changeScope(next: DirectoryScope) {
-    setScope(next);
-    setSearch('');
-    setCursor(undefined);
-  }
-
   function changeRelationship(options: {
     targetId: string;
     kind: 'contact' | 'block';
@@ -79,54 +93,29 @@ export function ContactsPanel({
     });
   }
 
-  async function submitSearch(fields: FormData) {
-    setSearch(textField(fields, 'search').trim());
-    setCursor(undefined);
+  const isSearching = term !== search;
+  const canShowResults = !isSearching && !directory.isLoading;
+  let emptyMessage = 'No contacts found.';
+  if (scope === 'blocks') {
+    emptyMessage = 'No blocked users.';
+  } else if (scope === 'search') {
+    emptyMessage = search.length < 2 ? 'Enter at least two characters.' : 'No people found.';
   }
 
   return (
     <div className={styles.panel}>
-      <section className={styles.card}>
-        <h2>Contacts & blocks</h2>
-        <div className={styles.rowActions} aria-label="Directory views">
-          <button
-            type="button"
-            className={styles.textButton}
-            aria-pressed={scope === 'contacts'}
-            onClick={() => changeScope('contacts')}
-          >
-            My contacts
-          </button>
-          <button
-            type="button"
-            className={styles.textButton}
-            aria-pressed={scope === 'blocks'}
-            onClick={() => changeScope('blocks')}
-          >
-            Blocked users
-          </button>
-          <button
-            type="button"
-            className={styles.textButton}
-            aria-pressed={scope === 'search'}
-            onClick={() => changeScope('search')}
-          >
-            Find people
-          </button>
-        </div>
-        <AccountForm key={scope} submitLabel="Search" onSubmit={submitSearch}>
-          <Field
-            label="Username or display name"
-            name="search"
-            defaultValue={search}
-            minLength={scope === 'search' ? 2 : undefined}
+      <section aria-label={scope === 'blocks' ? 'Blocked accounts' : 'People'}>
+        <label className={styles.contactSearch}>
+          <Search size={18} aria-hidden="true" />
+          <input
+            type="search"
+            aria-label={scope === 'search' ? 'Username or display name' : 'Search contacts'}
+            placeholder="Search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             maxLength={80}
-            required={scope === 'search'}
           />
-        </AccountForm>
-        <p className={styles.hint}>
-          Contacts are private and one-way. People you save do not see your contact list.
-        </p>
+        </label>
         {directory.isLoading && <p role="status">Loading people…</p>}
         {(directory.error || action.error) && (
           <p role="alert" className={styles.error}>
@@ -138,30 +127,63 @@ export function ContactsPanel({
             {action.notice}
           </p>
         )}
-        {!directory.isLoading && !directory.value?.users.length && (
-          <p className={styles.empty}>
-            No people to show. Search by username or display name to find someone.
-          </p>
+        {canShowResults && !directory.value?.users.length && (
+          <p className={styles.empty}>{emptyMessage}</p>
         )}
         <ul className={styles.list}>
-          {directory.value?.users.map((person) => (
-            <li key={person.id} className={styles.listRow}>
-              <div>
-                <strong>{person.display_name}</strong>
-                <p>@{person.username}</p>
-                {person.biography && <p className={styles.hint}>{person.biography}</p>}
-              </div>
-              <div className={styles.rowActions}>
-                {onStartChat && scope !== 'blocks' && (
-                  <button
-                    type="button"
-                    className={styles.textButton}
-                    onClick={() => onStartChat(person)}
-                  >
-                    Message
-                  </button>
-                )}
-                {scope === 'search' && (
+          {canShowResults &&
+            directory.value?.users.map((person) => (
+              <li key={person.id} className={styles.listRow}>
+                <div className={styles.contactIdentity}>
+                  <Avatar initials={person.display_name.slice(0, 2).toUpperCase()} />
+                  <div>
+                    <strong>{person.display_name}</strong>
+                    <p>@{person.username}</p>
+                    {person.biography && <p className={styles.hint}>{person.biography}</p>}
+                  </div>
+                </div>
+                <div className={styles.rowActions}>
+                  {onStartChat && scope !== 'blocks' && (
+                    <button
+                      type="button"
+                      className={styles.textButton}
+                      onClick={() => onStartChat(person)}
+                    >
+                      Message
+                    </button>
+                  )}
+                  {scope === 'search' && (
+                    <button
+                      type="button"
+                      className={styles.textButton}
+                      disabled={action.isPending}
+                      onClick={() =>
+                        changeRelationship({
+                          targetId: person.id,
+                          kind: 'contact',
+                          operation: 'add',
+                        })
+                      }
+                    >
+                      Add contact
+                    </button>
+                  )}
+                  {scope === 'contacts' && (
+                    <button
+                      type="button"
+                      className={styles.textButton}
+                      disabled={action.isPending}
+                      onClick={() =>
+                        changeRelationship({
+                          targetId: person.id,
+                          kind: 'contact',
+                          operation: 'remove',
+                        })
+                      }
+                    >
+                      Remove contact
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={styles.textButton}
@@ -169,50 +191,19 @@ export function ContactsPanel({
                     onClick={() =>
                       changeRelationship({
                         targetId: person.id,
-                        kind: 'contact',
-                        operation: 'add',
+                        kind: 'block',
+                        operation: scope === 'blocks' ? 'remove' : 'add',
                       })
                     }
                   >
-                    Add contact
+                    {scope === 'blocks' ? 'Unblock' : 'Block'}
                   </button>
-                )}
-                {scope === 'contacts' && (
-                  <button
-                    type="button"
-                    className={styles.textButton}
-                    disabled={action.isPending}
-                    onClick={() =>
-                      changeRelationship({
-                        targetId: person.id,
-                        kind: 'contact',
-                        operation: 'remove',
-                      })
-                    }
-                  >
-                    Remove contact
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={styles.textButton}
-                  disabled={action.isPending}
-                  onClick={() =>
-                    changeRelationship({
-                      targetId: person.id,
-                      kind: 'block',
-                      operation: scope === 'blocks' ? 'remove' : 'add',
-                    })
-                  }
-                >
-                  {scope === 'blocks' ? 'Unblock' : 'Block'}
-                </button>
-              </div>
-            </li>
-          ))}
+                </div>
+              </li>
+            ))}
         </ul>
         <div className={styles.rowActions}>
-          {cursor && (
+          {canShowResults && cursor && (
             <button
               type="button"
               className={styles.textButton}
@@ -221,7 +212,7 @@ export function ContactsPanel({
               First page
             </button>
           )}
-          {directory.value?.next_cursor && (
+          {canShowResults && directory.value?.next_cursor && (
             <button
               type="button"
               className={styles.textButton}

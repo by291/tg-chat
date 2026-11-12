@@ -19,17 +19,11 @@ it('refreshes a mounted privacy form when the account settings revision advances
     fetch,
   });
   const form = render(<PrivacyPanel owner={owner} settingsVersion="1" />);
-  const initial = await screen.findByRole<HTMLSelectElement>('combobox', {
-    name: 'Who can start direct messages',
-  });
-  expect(initial.value).toBe('everyone');
+  await screen.findByRole('button', { name: /Messages Everyone/ });
 
   form.rerender(<PrivacyPanel owner={owner} settingsVersion="2" />);
   await waitFor(() => {
-    const current = screen.getByRole<HTMLSelectElement>('combobox', {
-      name: 'Who can start direct messages',
-    });
-    expect(current.value).toBe('nobody');
+    expect(screen.getByRole('button', { name: /Messages Nobody/ })).toBeTruthy();
   });
 });
 
@@ -52,18 +46,15 @@ it('keeps save feedback visible when the committed revision arrives through sync
     fetch,
   });
   const form = render(<PrivacyPanel owner={owner} settingsVersion="1" />);
-  const calls = await screen.findByRole<HTMLSelectElement>('combobox', {
-    name: 'Who can call me',
-  });
-  fireEvent.change(calls, { target: { value: 'nobody' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Save privacy' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Calls My contacts/ }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Nobody' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await screen.findByText('Privacy settings saved.');
 
   form.rerender(<PrivacyPanel owner={owner} settingsVersion="2" />);
 
-  const saved = await screen.findByRole<HTMLSelectElement>('combobox', {
-    name: 'Who can call me',
-  });
-  expect(saved.value).toBe('nobody');
+  const saved = await screen.findByRole<HTMLInputElement>('radio', { name: 'Nobody' });
+  expect(saved.checked).toBe(true);
+  expect(privacy.direct_messages).toBe('everyone');
   expect(screen.getByText('Privacy settings saved.')).toBeTruthy();
 });

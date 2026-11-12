@@ -118,7 +118,7 @@
 }
 
 .authPage button:disabled,
-.workspace button:disabled {
+.accountPage button:disabled {
   opacity: 0.55;
   cursor: default;
 }
@@ -149,33 +149,46 @@
   text-align: center;
 }
 
-.workspace {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+.standaloneAccount {
   height: 100dvh;
-  overflow: hidden;
+  overflow: auto;
   background: var(--panel-color);
   color: var(--text-color);
 }
 
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 24px 16px;
-  border-right: 1px solid var(--border-color);
+.accountPage {
+  min-width: 0;
+  min-height: 100%;
+}
+
+.accountPage > header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
   background: var(--surface-color);
-  overflow-y: auto;
+}
+
+.standaloneTitle {
+  margin: 0;
+  padding: 16px;
+}
+
+.accountPage .panel {
+  padding: 12px 16px;
+}
+
+.accountPage .card {
+  padding: 16px;
 }
 
 .identity {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px;
+  padding: 20px 16px;
 }
 
-.identity h1 {
+.identity h3 {
   margin: 0 0 4px;
   font-size: 20px;
   overflow-wrap: anywhere;
@@ -186,28 +199,65 @@
   color: var(--secondary-color);
 }
 
-.navigation {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.settingsGroup {
+  margin: 8px 0;
+  padding: 4px 0 12px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.navigation [aria-current='page'] {
-  border-radius: 16px;
+.settingsGroup h3,
+.settingsGroup p,
+.settingsGroup > .textButton {
+  margin-inline: 12px;
+}
+
+.headerAction {
+  display: grid;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent-color);
+  cursor: pointer;
+  place-items: center;
+}
+
+.headerAction:hover {
   background: var(--hover-color);
 }
 
-.sidebarFooter {
-  margin-top: auto;
-  padding: 12px;
+.contactSearch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  color: var(--secondary-color);
 }
 
-.content {
-  display: flex;
-  flex-direction: column;
+.contactSearch:focus-within {
+  border-color: var(--accent-color);
+}
+
+.contactSearch input {
+  flex: 1;
   min-width: 0;
-  min-height: 0;
-  overflow: auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-color);
+  font: inherit;
+}
+
+.contactIdentity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+  overflow-wrap: anywhere;
 }
 
 .panel {
@@ -298,28 +348,6 @@
 }
 
 @media (max-width: 720px) {
-  .workspace {
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 100dvh;
-    overflow: visible;
-  }
-
-  .sidebar {
-    gap: 8px;
-    padding: 12px;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .navigation {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .sidebarFooter {
-    margin: 0;
-  }
-
   .panel {
     padding: 16px;
   }

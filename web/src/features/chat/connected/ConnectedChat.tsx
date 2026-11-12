@@ -1,6 +1,7 @@
 import {
   ArrowDown,
   ArrowLeft,
+  ContactRound,
   MessageCircle,
   Phone,
   Search,
@@ -8,7 +9,7 @@ import {
   Users,
   Video,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
@@ -100,7 +101,9 @@ interface ConnectedChatProps {
   isMediaAvailable?: boolean;
   user: components['schemas']['PrivateProfile'];
   onSettings: () => void;
-  onFindPeople: () => void;
+  onContacts: () => void;
+  accountPage?: ReactNode;
+  conversationRequest: number;
   onCommunities: () => void;
   onCommunityDetails: (id: string) => void;
 }
@@ -156,8 +159,10 @@ export function ConnectedChat({
   areCallsAvailable = false,
   isMediaAvailable = false,
   user,
+  accountPage,
+  conversationRequest,
   onSettings,
-  onFindPeople,
+  onContacts,
   onCommunities,
   onCommunityDetails,
 }: ConnectedChatProps) {
@@ -303,9 +308,9 @@ export function ConnectedChat({
   const acceptedIds = new Set(messages.map((message) => message.id));
   const selectedKey = selection ? destinationKey(selection.destination) : '';
   useEffect(() => {
-    if (!selectedKey) {
-      setIsDirectoryVisible(true);
-    }
+    setIsDirectoryVisible(!selectedKey);
+  }, [selectedKey, conversationRequest]);
+  useEffect(() => {
     setEditing(undefined);
     setIsPinsOpen(false);
     setSearchConversationId(undefined);
@@ -790,15 +795,22 @@ export function ConnectedChat({
 
   return (
     <CurrentUserProvider value={user.id}>
-      <main className={styles.workspace} data-directory-visible={isDirectoryVisible}>
-        <aside className={styles.directory} aria-label="Conversations">
+      <main
+        className={styles.workspace}
+        data-directory-visible={isDirectoryVisible || Boolean(accountPage)}
+      >
+        <aside
+          className={styles.directory}
+          aria-label="Conversations"
+          hidden={Boolean(accountPage)}
+        >
           <header className={styles.directoryHeader}>
             <h1>Messages</h1>
             <button type="button" aria-label="Account settings" onClick={onSettings}>
               <Settings />
             </button>
-            <button type="button" aria-label="Find people" onClick={onFindPeople}>
-              <Search />
+            <button type="button" aria-label="Contacts" onClick={onContacts}>
+              <ContactRound />
             </button>
             <button type="button" aria-label="Communities" onClick={onCommunities}>
               <Users />
@@ -973,6 +985,11 @@ export function ConnectedChat({
             </section>
           )}
         </aside>
+        {accountPage && (
+          <aside className={styles.accountSidebar} aria-label="Account pages">
+            {accountPage}
+          </aside>
+        )}
         <section className={styles.chat} aria-label="Chat">
           <header className={styles.chatHeader} data-has-call-actions={hasCallActions || undefined}>
             <button

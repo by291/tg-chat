@@ -6,7 +6,8 @@
   background: var(--panel-color);
 }
 
-.directory {
+.directory,
+.accountSidebar {
   overflow: auto;
   border-right: 1px solid var(--border-color);
   background: var(--surface-color);
@@ -43,7 +44,7 @@
   font-size: 13px;
 }
 
-.workspace button {
+.workspace button:where(:not(.accountSidebar *)) {
   border: 0;
   border-radius: 12px;
   padding: 10px;
@@ -52,12 +53,12 @@
   cursor: pointer;
 }
 
-.workspace button:hover,
-.workspace button[aria-pressed='true'] {
+.workspace button:where(:not(.accountSidebar *)):hover,
+.workspace button:where(:not(.accountSidebar *))[aria-pressed='true'] {
   background: var(--panel-color);
 }
 
-.workspace button:disabled {
+.workspace button:where(:not(.accountSidebar *)):disabled {
   cursor: wait;
   opacity: 0.5;
 }
@@ -193,7 +194,8 @@
   }
 
   .workspace[data-directory-visible='true'] .chat,
-  .workspace[data-directory-visible='false'] .directory {
+  .workspace[data-directory-visible='false'] .directory,
+  .workspace[data-directory-visible='false'] .accountSidebar {
     display: none;
   }
 }

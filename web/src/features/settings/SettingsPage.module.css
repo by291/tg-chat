@@ -393,7 +393,7 @@
   left: 16px;
   width: 22px;
   height: 22px;
-  border: 2px solid var(--settings-radio-border);
+  border: 2px solid var(--settings-radio-border, var(--secondary-color));
   border-radius: 50%;
   transition: border-color 100ms ease;
 }

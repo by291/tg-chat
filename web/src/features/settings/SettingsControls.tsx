@@ -66,7 +66,13 @@ export function SettingsHeader({ title, backLabel, onBack, children }: SettingsH
 /** Open a settings category using the same hit area as a preference row. */
 export function SettingsRow({ label, icon: Icon, color, onClick, value }: SettingsRowProps) {
   return (
-    <button type="button" className={styles.row} data-settings-label={label} onClick={onClick}>
+    <button
+      type="button"
+      className={styles.row}
+      data-settings-label={label}
+      aria-label={value ? `${label} ${value}` : label}
+      onClick={onClick}
+    >
       <span className={styles.icon} data-color={color}>
         <Icon aria-hidden="true" />
       </span>
