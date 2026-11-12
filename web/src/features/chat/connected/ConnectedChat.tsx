@@ -1,9 +1,19 @@
-import { ArrowLeft, MessageCircle, Search, Settings, Users } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowLeft,
+  MessageCircle,
+  Phone,
+  Search,
+  Settings,
+  Users,
+  Video,
+} from 'lucide-react';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
+import type { CallOwner } from '@/features/calls/CallOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
@@ -63,7 +73,8 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
 const MAX_BATCH_MESSAGES = 20;
 const EMPTY_ACTIVITY = { isOnline: false, isTyping: false, view: undefined };
 const emptyActivity = () => EMPTY_ACTIVITY;
-const subscribeToNoActivity = () => () => undefined;
+const subscribeToNothing = () => () => undefined;
+const isCallIdle = () => false;
 const REMOVE_MESSAGE_DESCRIPTION =
   'Choose whose history should change. Deletion cannot be undone. Existing forwarded copies remain available.';
 // prettier-ignore
@@ -84,6 +95,8 @@ interface ConnectedChatProps {
   owner: ChatOwner;
   session?: SessionOwner;
   activity?: ActivityOwner;
+  calls?: CallOwner;
+  areCallsAvailable?: boolean;
   isMediaAvailable?: boolean;
   user: components['schemas']['PrivateProfile'];
   onSettings: () => void;
@@ -139,6 +152,8 @@ export function ConnectedChat({
   owner,
   session,
   activity,
+  calls,
+  areCallsAvailable = false,
   isMediaAvailable = false,
   user,
   onSettings,
@@ -148,8 +163,12 @@ export function ConnectedChat({
 }: ConnectedChatProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const presence = useSyncExternalStore(
-    activity?.subscribe ?? subscribeToNoActivity,
+    activity?.subscribe ?? subscribeToNothing,
     activity?.getSnapshot ?? emptyActivity,
+  );
+  const isCallBusy = useSyncExternalStore(
+    calls?.subscribe ?? subscribeToNothing,
+    calls?.isCallBusy ?? isCallIdle,
   );
   const [isDirectoryVisible, setIsDirectoryVisible] = useState(!snapshot.selection);
   const [isPersisting, setIsPersisting] = useState(false);
@@ -194,6 +213,7 @@ export function ConnectedChat({
   // Keep the editor's captured object stable while canonical updates arrive underneath it.
   const editingMessage = useMemo(() => (editing ? renderMessage(editing) : undefined), [editing]);
   const conversation = owner.selectedConversation();
+  const hasCallActions = conversation?.kind === 'direct' && areCallsAvailable;
   const selection = snapshot.selection;
   const activeAlertId = !isDirectoryVisible ? conversation?.id : undefined;
   useEffect(() => owner.setAlertConversation(activeAlertId), [owner, activeAlertId]);
@@ -954,7 +974,7 @@ export function ConnectedChat({
           )}
         </aside>
         <section className={styles.chat} aria-label="Chat">
-          <header className={styles.chatHeader}>
+          <header className={styles.chatHeader} data-has-call-actions={hasCallActions || undefined}>
             <button
               type="button"
               aria-label="Back to conversations"
@@ -974,6 +994,30 @@ export function ConnectedChat({
                 Community details
               </button>
             )}
+            {hasCallActions && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Start voice call"
+                  disabled={!calls || !canPost || isCallBusy}
+                  onClick={() =>
+                    void calls?.start({ conversationId: conversation.id, mode: 'voice' })
+                  }
+                >
+                  <Phone />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Start video call"
+                  disabled={!calls || !canPost || isCallBusy}
+                  onClick={() =>
+                    void calls?.start({ conversationId: conversation.id, mode: 'video' })
+                  }
+                >
+                  <Video />
+                </button>
+              </>
+            )}
             {conversation && (
               <button
                 type="button"
@@ -990,11 +1034,22 @@ export function ConnectedChat({
               </button>
             )}
             {selection && (
-              <button type="button" onClick={() => void owner.loadHistory('latest')}>
-                Latest messages
+              <button
+                type="button"
+                aria-label="Latest messages"
+                className={styles.latestAction}
+                onClick={() => void owner.loadHistory('latest')}
+              >
+                <ArrowDown aria-hidden="true" className={styles.latestIcon} />
+                <span>Latest messages</span>
               </button>
             )}
           </header>
+          {hasCallActions && !calls && (
+            <p role="status" className={styles.callUnavailable}>
+              Calls are unavailable in this browser.
+            </p>
+          )}
           {conversation && (
             <ConversationControls
               conversation={conversation}

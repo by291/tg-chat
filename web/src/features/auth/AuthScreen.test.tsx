@@ -10,6 +10,7 @@ const CAPABILITIES = {
   email_recovery_available: false,
   avatars_available: false,
   messaging_available: false,
+  calls_available: false,
 };
 
 afterEach(cleanup);

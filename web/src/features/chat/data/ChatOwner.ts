@@ -246,7 +246,13 @@ export class ChatOwner {
   }
 
   /** Poll serially while visible and catch up immediately after focus or network recovery. */
-  connect({ onActivityHint }: { onActivityHint?: () => void } = {}): () => void {
+  connect({
+    onActivityHint,
+    onCallHint,
+  }: {
+    onActivityHint?: () => void;
+    onCallHint?: () => void;
+  } = {}): () => void {
     let isStopped = false;
     let isRunning = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -296,12 +302,17 @@ export class ChatOwner {
     const realtime = new Centrifuge(endpoint.toString());
     realtime.on('connected', () => {
       this.alerts.resetBaseline();
+      onCallHint?.();
       wake();
     });
     realtime.on('disconnected', () => this.alerts.resetBaseline());
     realtime.on('publication', (context) => {
       if (context.data?.kind === 'activity') {
         onActivityHint?.();
+        return;
+      }
+      if (context.data?.kind === 'call') {
+        onCallHint?.();
         return;
       }
 

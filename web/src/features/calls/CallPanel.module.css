@@ -1,0 +1,126 @@
+.panel {
+  position: fixed;
+  z-index: 50;
+  inset-block-end: max(12px, env(safe-area-inset-bottom));
+  inset-inline-end: max(12px, env(safe-area-inset-right));
+  box-sizing: border-box;
+  display: grid;
+  gap: 12px;
+  inline-size: min(380px, calc(100vw - 24px));
+  max-block-size: calc(100dvh - 24px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--surface-color);
+  box-shadow:
+    var(--surface-shadow),
+    0 8px 32px rgb(0 0 0 / 18%);
+  color: var(--text-color);
+}
+
+.panel[data-chat-open] {
+  inset-block-end: max(84px, calc(72px + env(safe-area-inset-bottom)));
+  max-block-size: calc(100dvh - 96px);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heading > div {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.panel p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.heading p {
+  color: var(--secondary-color);
+}
+
+.actions,
+.devices,
+.videos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions:empty {
+  display: none;
+}
+
+.panel button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.panel button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.panel button.primary {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+  color: var(--accent-text-color, white);
+}
+
+.panel button.danger,
+.panel p[role='alert'] {
+  color: var(--danger-color, #c23342);
+}
+
+.panel button.close {
+  border-color: transparent;
+}
+
+.video {
+  flex: 1 1 130px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  max-block-size: 180px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  background: #17181b;
+  object-fit: contain;
+}
+
+.device {
+  display: grid;
+  flex: 1 1 130px;
+  gap: 4px;
+  min-inline-size: 0;
+  font-size: 13px;
+}
+
+.device select {
+  inline-size: 100%;
+  min-block-size: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-color);
+  color: inherit;
+}

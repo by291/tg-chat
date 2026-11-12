@@ -292,3 +292,15 @@ it('keeps newer checklist completions when delayed content arrives', () => {
     items: [{ id: 'map', isCompleted: true, version: '2' }],
   });
 });
+
+it('renders an unanswered voice call as a service record in history', () => {
+  const missed = message(1);
+  const rendered = renderMessage({
+    ...missed,
+    service_kind: 'call',
+    content: { ...missed.content, text: 'Voice call · missed' },
+  });
+
+  expect(rendered.isService).toBe(true);
+  expect(rendered.text).toBe('Voice call · missed');
+});

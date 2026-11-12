@@ -31,6 +31,9 @@ import { conversationDestination, type Conversation } from '../communities/commu
 import { ChatOwner } from '../chat/data/ChatOwner';
 import { ConnectedChat } from '../chat/connected/ConnectedChat';
 import { ActivityOwner } from '../chat/activity/ActivityOwner';
+import { CallPanel } from '../calls/CallPanel';
+import { createBrowserCallOwner } from '../calls/browserCallOwner';
+import { isCallSupported } from '../calls/callTabOwner';
 import { useOperation } from './AccountForm';
 import { ContactsPanel } from './ContactsPanel';
 import { PrivacyPanel } from './PrivacyPanel';
@@ -124,9 +127,17 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const { preferences, revision } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const [activity] = useState(() => new ActivityOwner({ session: owner }));
   const [push] = useState(() => new BrowserPushOwner({ session: owner }));
+  const [calls] = useState(() => createBrowserCallOwner(owner));
+  const areCallsAvailable = capabilities.calls_available;
+  const canUseCalls = areCallsAvailable && isCallSupported();
 
   useEffect(() => activity.connect(), [activity, revision]);
   useEffect(() => push.connect(), [push, revision]);
+  useEffect(() => {
+    if (canUseCalls) {
+      return calls.connect();
+    }
+  }, [calls, canUseCalls, revision]);
 
   useEffect(() => {
     if (!chat) {
@@ -185,7 +196,10 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     let isCurrent = true;
     setChat(undefined);
     const connected = new ChatOwner({ session: owner });
-    const disconnect = connected.connect({ onActivityHint: activity.refresh });
+    const disconnect = connected.connect({
+      onActivityHint: activity.refresh,
+      onCallHint: canUseCalls ? () => void calls.refresh() : undefined,
+    });
     void connected
       .start()
       .then(() => {
@@ -213,7 +227,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       disconnect?.();
       connected.dispose();
     };
-  }, [activity, owner, revision, capabilities.messaging_available]);
+  }, [activity, owner, revision, capabilities.messaging_available, canUseCalls, calls]);
 
   function startChat(person: components['schemas']['PublicProfile']) {
     if (!chat) {
@@ -252,22 +266,30 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     setPage('communities');
   }
 
+  const callPanel = canUseCalls ? (
+    <CallPanel key="call-panel" owner={calls} isChatOpen={page === 'messages' && Boolean(chat)} />
+  ) : null;
   if (page === 'messages' && chat) {
     return (
-      <ConnectedStickerPackScope packIds={preferences?.sticker_pack_ids}>
-        <ConnectedChat
-          owner={chat}
-          session={owner}
-          activity={activity}
-          user={auth.user}
-          isMediaAvailable={capabilities.media_uploads_available === true}
-          onSettings={() => setPage('profile')}
-          onFindPeople={() => setPage('contacts')}
-          onCommunities={() => showCommunities()}
-          onCommunityDetails={showCommunities}
-        />
-        <ToastViewport />
-      </ConnectedStickerPackScope>
+      <>
+        <ConnectedStickerPackScope key="messages" packIds={preferences?.sticker_pack_ids}>
+          <ConnectedChat
+            owner={chat}
+            session={owner}
+            activity={activity}
+            calls={canUseCalls ? calls : undefined}
+            areCallsAvailable={areCallsAvailable}
+            user={auth.user}
+            isMediaAvailable={capabilities.media_uploads_available === true}
+            onSettings={() => setPage('profile')}
+            onFindPeople={() => setPage('contacts')}
+            onCommunities={() => showCommunities()}
+            onCommunityDetails={showCommunities}
+          />
+          <ToastViewport />
+        </ConnectedStickerPackScope>
+        {callPanel}
+      </>
     );
   }
 
@@ -331,7 +353,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
 
   return (
     <>
-      <main className={styles.workspace}>
+      <main key="settings" className={styles.workspace}>
         <aside className={styles.sidebar}>
           <div className={styles.identity}>
             <Avatar initials={profile.display_name.slice(0, 2).toUpperCase()} />
@@ -390,6 +412,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
         </section>
       </main>
       <ToastViewport />
+      {callPanel}
     </>
   );
 }
