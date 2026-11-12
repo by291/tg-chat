@@ -437,7 +437,8 @@ background behavior require a configured provider and target device.
 
 ## M9: Independent one-to-one LiveKit calls
 
-[Detailed M9 design](../specs/2026-11-12-m9-livekit-calls-design.md).
+[Detailed M9 design](../specs/2026-11-12-m9-livekit-calls-design.md) and
+[implementation plan](./2026-11-12-m9-livekit-calls.md).
 
 **Outcome:** Contact-authorized users place and answer one-to-one audio/video calls, including
 multi-device ringing and controlled failure/reconnect behavior.
@@ -467,7 +468,7 @@ revive, and a credential for an old room cannot authorize a future call. No guar
 closed/suspended browser is advertised.
 
 **Verification ownership:** `tests/calls.rs`, `tests/livekit_integration.rs`, and
-`web/e2e/calls.spec.ts`, plus real microphone/camera/TURN checks. Two browser tabs on one laptop do
+`web/e2e-accounts/calls.spec.ts`, plus real microphone/camera/TURN checks. Two browser tabs on one laptop do
 not complete this milestone's network acceptance.
 
 ## M10: Release, performance, and recovery acceptance
