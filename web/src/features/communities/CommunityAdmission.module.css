@@ -1,0 +1,40 @@
+.dialog {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(100%, 400px);
+  max-height: calc(100dvh - 48px);
+  padding: 24px;
+  overflow: auto;
+  text-align: center;
+}
+
+.dialog h2,
+.dialog p {
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.secondary {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--input-color);
+  color: var(--text-color);
+  cursor: pointer;
+  font: inherit;
+}
+
+.secondary:disabled {
+  cursor: default;
+}

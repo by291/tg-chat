@@ -14,6 +14,7 @@ import {
   takeNotificationTarget,
 } from '@/features/settings/notifications/notificationNavigation';
 import { SessionOwner, isCancelled } from '../auth/SessionOwner';
+import { CommunityInviteLink } from '../communities/CommunityAdmission';
 import { CommunityWorkspace } from '../communities/CommunityWorkspace';
 import { conversationDestination, type Conversation } from '../communities/communityModels';
 import { ChatOwner, type ChatSnapshot } from '../chat/data/ChatOwner';
@@ -90,10 +91,6 @@ const SUBPAGE_NAVIGATION = {
 } as const;
 
 function initialPage(capabilities: WorkspaceProps['capabilities']): Page {
-  if (window.location.hash.startsWith('#invite=')) {
-    return 'communities';
-  }
-
   return capabilities.messaging_available ? 'messages' : 'settings';
 }
 
@@ -401,6 +398,10 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     <CallPanel key="call-panel" owner={calls} isChatOpen={page === 'messages' && Boolean(chat)} />
   ) : null;
 
+  const inviteLink = chat && (
+    <CommunityInviteLink session={owner} chat={chat} onAdmitted={openCommunity} />
+  );
+
   if (chat && page !== 'communities' && page !== 'operator') {
     return (
       <>
@@ -423,6 +424,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
           <ToastViewport />
         </ConnectedStickerPackScope>
         {callPanel}
+        {inviteLink}
       </>
     );
   }
@@ -432,6 +434,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       <main className={styles.standaloneAccount}>{accountPage}</main>
       <ToastViewport />
       {callPanel}
+      {inviteLink}
     </>
   );
 }

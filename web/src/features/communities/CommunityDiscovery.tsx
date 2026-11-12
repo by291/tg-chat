@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react';
-import type { components } from '@/api/schema';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
 import { requirePayload, type SessionOwner } from '@/features/auth/SessionOwner';
 import { AccountForm, Field, textField, useOperation } from '@/features/accounts/AccountForm';
@@ -7,7 +6,6 @@ import { useAccountResource } from '@/features/accounts/useAccountResource';
 import type { Conversation } from './communityModels';
 import styles from '@/features/accounts/Accounts.module.css';
 
-type Receipt = components['schemas']['CommandReceipt'];
 interface AdmissionProps {
   session: SessionOwner;
   chat: ChatOwner;
@@ -87,115 +85,6 @@ export function CommunityDiscovery(props: AdmissionProps) {
       {discovery.value?.next && (
         <button onClick={() => setAfter(discovery.value!.next!)}>More communities</button>
       )}
-    </section>
-  );
-}
-
-/** Preview invite secrets without putting bearer credentials into server URL logs. */
-export function CommunityAdmission(props: AdmissionProps) {
-  const [preview, setPreview] = useState<components['schemas']['InvitePreview']>();
-  const [token, setToken] = useState('');
-  const [after, setAfter] = useState<string>();
-  const operation = useOperation();
-  const initialToken = new URLSearchParams(window.location.hash.slice(1)).get('invite') ?? '';
-  const load = useCallback(async () => {
-    const reply = await props.session.client.GET('/api/v1/community-invitations', {
-      params: { query: { after } },
-    });
-    return requirePayload(reply);
-  }, [props.session, after]);
-  const inbox = useAccountResource(load);
-
-  function complete(receipt: Receipt) {
-    inbox.reload();
-    if (receipt.conversation) {
-      props.onAdmitted(receipt.conversation);
-    }
-  }
-
-  async function previewLink(fields: FormData) {
-    const input = textField(fields, 'invitation').trim();
-    const parsedToken = input.includes('#')
-      ? (new URLSearchParams(new URL(input).hash.slice(1)).get('invite') ?? '')
-      : input;
-    setPreview(undefined);
-    const reply = await props.session.client.POST('/api/v1/community-invitations/preview', {
-      body: { token: parsedToken },
-    });
-    setToken(parsedToken);
-    setPreview(requirePayload(reply));
-  }
-
-  return (
-    <section className={styles.card} aria-label="Your community invitations">
-      <h2>Accept an invitation</h2>
-      <AccountForm submitLabel="Preview invitation" onSubmit={previewLink}>
-        <Field
-          label="Invitation link or secret"
-          name="invitation"
-          defaultValue={initialToken}
-          required
-        />
-      </AccountForm>
-      {preview && (
-        <article className={styles.card}>
-          <h3>{preview.title}</h3>
-          <p>
-            {preview.kind} · {preview.requires_approval ? 'Approval required' : 'Open invitation'}
-          </p>
-          <button
-            disabled={operation.isPending}
-            onClick={() =>
-              void operation.run({
-                operation: async () => {
-                  const receipt = await props.chat.communities!.command({
-                    conversationId: preview.id,
-                    action: { kind: 'join', token },
-                  });
-                  complete(receipt);
-                },
-                successMessage: 'Request recorded. Approval may be required before admission.',
-              })
-            }
-          >
-            Join through invitation
-          </button>
-        </article>
-      )}
-      {(inbox.error || operation.error) && <p role="alert">{inbox.error || operation.error}</p>}
-      {operation.notice && <p role="status">{operation.notice}</p>}
-      <h3>Direct invitations</h3>
-      {inbox.value?.items.length === 0 && <p>No pending direct invitations.</p>}
-      {inbox.value?.items.map((invitation) => (
-        <article
-          className={styles.card}
-          key={invitation.id}
-          aria-label={`Invitation ${invitation.title}`}
-        >
-          <p>{invitation.title}</p>
-          <button
-            disabled={operation.isPending}
-            onClick={() =>
-              void operation.run({
-                operation: async () => {
-                  const receipt = await props.chat.communities!.command({
-                    conversationId: invitation.conversation_id,
-                    action: { kind: 'join', invitation_id: invitation.id },
-                  });
-                  complete(receipt);
-                },
-              })
-            }
-          >
-            Accept invitation
-          </button>
-        </article>
-      ))}
-      {after && <button onClick={() => setAfter(undefined)}>First received invitations</button>}
-      {inbox.value?.next && (
-        <button onClick={() => setAfter(inbox.value!.next!)}>More received invitations</button>
-      )}
-      <button onClick={inbox.reload}>Refresh invitations</button>
     </section>
   );
 }

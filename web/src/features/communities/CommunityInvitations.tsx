@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { copyTextWithToast } from '@/components/copyTextWithToast';
 import { requirePayload } from '@/features/auth/SessionOwner';
 import { AccountForm, Field, textField, useOperation } from '@/features/accounts/AccountForm';
 import { useAccountResource } from '@/features/accounts/useAccountResource';
@@ -20,6 +21,7 @@ function invitationSecret(): string {
 export function CommunityInvitations(props: CommunityPanelProps) {
   const [after, setAfter] = useState<string>();
   const [link, setLink] = useState('');
+  const [canCopyLink, setCanCopyLink] = useState(false);
   const operation = useOperation();
   const load = useCallback(
     async () => {
@@ -50,8 +52,10 @@ export function CommunityInvitations(props: CommunityPanelProps) {
     const maxUses = Number(textField(fields, 'max_uses'));
     const url = new URL('/', window.location.href);
     url.hash = `invite=${token}`;
-    // Keep the secret visible if transport confirmation is lost; the pending operation retains it too.
+    // Keep the secret visible if confirmation is lost so the user can recover the link.
     setLink(url.href);
+    setCanCopyLink(false);
+
     await props.command({
       kind: 'invite',
       invitation_id: crypto.randomUUID(),
@@ -59,6 +63,7 @@ export function CommunityInvitations(props: CommunityPanelProps) {
       expires_at: new Date(Date.now() + days * DAY_MS).toISOString(),
       max_uses: maxUses,
     });
+    setCanCopyLink(true);
   }
 
   async function invitePerson(fields: FormData) {
@@ -104,12 +109,28 @@ export function CommunityInvitations(props: CommunityPanelProps) {
         />
       </AccountForm>
       {link && (
-        <Field
-          label="Invite link"
-          value={link}
-          readOnly
-          onFocus={(event) => event.target.select()}
-        />
+        <>
+          <Field
+            label="Invite link"
+            value={link}
+            readOnly
+            onFocus={(event) => event.target.select()}
+          />
+          {canCopyLink && (
+            <button
+              type="button"
+              onClick={() =>
+                void copyTextWithToast({
+                  text: link,
+                  successMessage: 'Invite link copied',
+                  errorMessage: 'Could not copy the invite link. Select the link to copy it.',
+                })
+              }
+            >
+              Copy invite link
+            </button>
+          )}
+        </>
       )}
       <p className={styles.hint}>
         Only a hash is retained by the server. Copy a successful link now; revoke it to stop future
