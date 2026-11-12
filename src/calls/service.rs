@@ -92,6 +92,28 @@ impl CallService {
         self
     }
 
+    /// Return the minimal outcome only to a session that owned this call.
+    pub(crate) async fn outcome(
+        &self,
+        actor: &Actor,
+        call_id: Uuid,
+    ) -> Result<Option<CallEndReason>, AccountError> {
+        let mut transaction = self.accounts.pool.begin().await?;
+        self.authorize_actor(&mut transaction, actor).await?;
+
+        // A policy change can end the call and hide its peer. Return only the outcome here.
+        let query = sqlx::query_scalar(
+            "SELECT end_reason FROM calls WHERE id = $1 AND (
+                (caller_id = $2 AND caller_session_id = $3)
+                OR (recipient_id = $2 AND accepting_session_id = $3)
+             )",
+        );
+        let query = query.bind(call_id).bind(actor.user_id).bind(actor.session_id);
+        let outcome = query.fetch_optional(&mut *transaction).await?;
+
+        outcome.ok_or(AccountError::NotFound)
+    }
+
     /// Read deployment call capacity independently of the optional media provider.
     pub fn capacity_from_values(
         values: &HashMap<String, String>,

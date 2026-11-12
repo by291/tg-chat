@@ -554,6 +554,29 @@
         }
       }
     },
+    "/api/v1/calls/{call_id}/outcome": {
+      "get": {
+        "tags": [],
+        "operationId": "call_outcome",
+        "parameters": [
+          {
+            "name": "call_id",
+            "in": "path",
+            "description": "The call identity",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CallOutcome" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/capabilities": {
       "get": {
         "tags": [],
@@ -1885,6 +1908,14 @@
         ]
       },
       "CallMode": { "type": "string", "enum": ["voice", "video"] },
+      "CallOutcome": {
+        "type": "object",
+        "properties": {
+          "end_reason": {
+            "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/CallEndReason" }]
+          }
+        }
+      },
       "CallPhase": { "type": "string", "enum": ["ringing", "connecting", "active", "ended"] },
       "CallView": {
         "type": "object",

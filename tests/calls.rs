@@ -420,3 +420,44 @@ async fn current_stops_showing_an_expired_ring_before_the_worker_runs(pool: PgPo
 
     assert!(fixture.service.current(&fixture.recipient).await.unwrap().is_none());
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn only_the_designated_session_reads_the_private_call_outcome(pool: PgPool) {
+    let fixture = direct_call(&pool).await;
+    save_contact(&pool, &fixture.recipient, &fixture.caller).await;
+    let login = || Login {
+        username: "bobby".to_owned(),
+        password: "a complete password phrase".to_owned(),
+        device_name: "Outcome browser".to_owned(),
+    };
+    let designated = fixture.accounts.login(login()).await.unwrap();
+    let other = fixture.accounts.login(login()).await.unwrap();
+    let recipient = fixture.accounts.authenticate(&designated.token).await.unwrap();
+    let call =
+        fixture.service.start(&fixture.caller, start(fixture.conversation_id)).await.unwrap();
+    let accept = command(call.id, CallAction::Accept);
+    fixture.service.command(&recipient, accept).await.unwrap();
+    let denied = command(call.id, CallAction::MediaPermissionDenied);
+    fixture.service.command(&fixture.caller, denied).await.unwrap();
+
+    let settings = HttpSettings::from_values(&Default::default()).unwrap();
+    let winning_cookie = settings.session_cookie(&designated.token);
+    let losing_cookie = settings.session_cookie(&other.token);
+    let state = AccountHttpState::new(fixture.accounts, settings, support::mail_queue(pool));
+    let application = tg_chat::accounts::http::router(state.with_calls(fixture.service));
+
+    let path = format!("/api/v1/calls/{}/outcome", call.id);
+    let read = |cookie: &str| {
+        let request = Request::get(&path).header(header::COOKIE, cookie.split(';').next().unwrap());
+        application.clone().oneshot(request.body(Body::empty()).unwrap())
+    };
+    let visible = read(&winning_cookie).await.unwrap();
+    assert_eq!(visible.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(visible.into_body(), 1024).await.unwrap();
+    let outcome = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    assert_eq!(outcome, json!({"end_reason": "permission_denied"}));
+
+    let forbidden = read(&losing_cookie).await.unwrap();
+    assert_eq!(forbidden.status(), StatusCode::NOT_FOUND);
+}

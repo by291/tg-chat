@@ -416,6 +416,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/calls/{call_id}/outcome': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['call_outcome'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/capabilities': {
     parameters: {
       query?: never;
@@ -1180,6 +1196,9 @@ export interface components {
       | 'access_revoked';
     /** @enum {string} */
     CallMode: 'voice' | 'video';
+    CallOutcome: {
+      end_reason?: null | components['schemas']['CallEndReason'];
+    };
     /** @enum {string} */
     CallPhase: 'ringing' | 'connecting' | 'active' | 'ended';
     CallView: {
@@ -3121,6 +3140,28 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['RoomCredentials'];
+        };
+      };
+    };
+  };
+  call_outcome: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The call identity */
+        call_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CallOutcome'];
         };
       };
     };
