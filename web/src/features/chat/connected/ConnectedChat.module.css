@@ -414,8 +414,7 @@
   white-space: nowrap;
 }
 
-.pins,
-.conflict {
+.pins {
   max-height: 180px;
   overflow: auto;
   padding: 12px;
@@ -535,6 +534,100 @@
 
 .connectionSpinner {
   flex: none;
+}
+
+.recovery {
+  position: relative;
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.directory .recovery {
+  margin: 8px 12px;
+}
+
+.recoveryToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-color);
+  background: var(--surface-color);
+  cursor: pointer;
+}
+
+summary.recoveryToggle {
+  display: list-item;
+  width: fit-content;
+}
+
+.recoveryPanel {
+  max-height: min(240px, 36dvh);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-color);
+  background: var(--surface-color);
+  overflow-wrap: anywhere;
+}
+
+.composer .recoveryPanel {
+  position: absolute;
+  z-index: 6;
+  inset-inline: 0;
+  bottom: calc(100% + 4px);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 14%);
+}
+
+.recoveryPanel p,
+.draftComparison {
+  margin: 4px 0;
+}
+
+.draftComparison {
+  display: grid;
+  gap: 8px;
+}
+
+.draftComparison dt,
+.recoveredDraft > span {
+  color: var(--secondary-color);
+}
+
+.draftComparison dd {
+  margin: 2px 0;
+  white-space: pre-wrap;
+}
+
+.recoveredDraft {
+  display: grid;
+  gap: 4px;
+  padding-block: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.recoveredDraft > button {
+  justify-self: start;
+}
+
+.recoveryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.recoveryPanel button {
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--accent-color);
+  background: transparent;
+  cursor: pointer;
 }
 
 @media (max-width: 720px) {

@@ -28,6 +28,8 @@ import type { ChecklistMedia } from '@/domain/messages/media';
 import { checklistInput } from '../data/checklistInput';
 import { canonicalMessageContent } from '../data/messageContent';
 import { connectionStatusLabel } from '../data/connectionStatus';
+import { DraftRecovery } from './DraftRecovery';
+import { PendingConversationActions } from './PendingConversationActions';
 import { ConnectedChatMenu } from './ConnectedChatMenu';
 import { ConnectedConversationRow } from './ConnectedConversationRow';
 import { ConnectedPeerProfile } from './ConnectedPeerProfile';
@@ -257,6 +259,12 @@ export function ConnectedChat({
   const conversation = owner.selectedConversation();
   const hasCallActions = conversation?.kind === 'direct' && areCallsAvailable;
   const selection = snapshot.selection;
+  const chatCommands = snapshot.pendingCommands.filter((entry) => {
+    return entry.request.conversation_id === conversation?.id;
+  });
+  const directoryCommands = snapshot.pendingCommands.filter((entry) => {
+    return isDirectoryVisible || entry.request.conversation_id !== conversation?.id;
+  });
   const peerIdForProfile =
     conversation?.kind === 'direct'
       ? conversation.peer_id
@@ -405,6 +413,19 @@ export function ConnectedChat({
     if (!isCancelled(failure)) {
       setError(failure instanceof Error ? failure.message : 'The request could not be completed.');
     }
+  }
+
+  function retryCommand(operationId: string) {
+    void owner.retryCommand(operationId).catch(report);
+  }
+
+  function dismissCommand(operationId: string) {
+    void owner.discardCommand(operationId).catch(report);
+  }
+
+  function conversationNameForId(id: string) {
+    const entry = snapshot.conversations.find((candidate) => candidate.id === id);
+    return entry ? title(entry) : 'Unavailable conversation';
   }
 
   function openConversation(entry: Conversation) {
@@ -974,33 +995,12 @@ export function ConnectedChat({
               onSelect={openGlobalResult}
             />
           )}
-          {snapshot.pendingCommands.length > 0 && (
-            <section className={styles.pending} aria-label="Unconfirmed actions">
-              <h2>Unconfirmed actions</h2>
-              <p>Review current state before retrying or dismissing an action.</p>
-              {snapshot.pendingCommands.map((entry) => (
-                <div key={entry.request.operation_id}>
-                  <span>{entry.request.action.kind}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void owner.retryCommand(entry.request.operation_id).catch(report)
-                    }
-                  >
-                    Retry action
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void owner.discardCommand(entry.request.operation_id).catch(report)
-                    }
-                  >
-                    Dismiss action
-                  </button>
-                </div>
-              ))}
-            </section>
-          )}
+          <PendingConversationActions
+            commands={directoryCommands}
+            conversationName={conversationNameForId}
+            onRetry={retryCommand}
+            onDismiss={dismissCommand}
+          />
           {outbox.length > 0 && (
             <section className={styles.pending} aria-label="Pending messages">
               <h2>Pending messages</h2>
@@ -1297,51 +1297,44 @@ export function ConnectedChat({
                 </ConnectedMediaContext.Provider>
               </div>
               <footer className={styles.composer}>
-                {snapshot.draftConflict && (
-                  <div className={styles.conflict} role="status">
-                    <p>
-                      Another device changed this draft:{' '}
-                      {snapshot.draftConflict.value.text || '(empty draft)'}
-                    </p>
-                    <button type="button" onClick={() => void owner.keepLocalDraft().catch(report)}>
-                      Keep my draft
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void owner.restoreDraft(snapshot.draftConflict!).catch(report)}
-                    >
-                      Use other draft
-                    </button>
-                  </div>
-                )}
-                {snapshot.draftAlternatives?.map((draft) => (
-                  <div className={styles.conflict} key={draft.id}>
-                    <p>Recovered draft: {draft.value.text}</p>
-                    <button
-                      type="button"
-                      onClick={() => void owner.restoreDraft(draft).catch(report)}
-                    >
-                      Restore recovered draft
-                    </button>
-                  </div>
-                ))}
-                {canPost && editing && snapshot.editConflict?.id === editing.id && (
-                  <div className={styles.conflict} role="status">
-                    <p>Current message: {snapshot.editConflict.content.text}</p>
-                    <p>
-                      Your edit is still in the editor. Choose whether to save it over this version.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setEditVersion(snapshot.editConflict!.version)}
-                    >
-                      Keep my edit for next save
-                    </button>
-                    <button type="button" onClick={() => setEditing(undefined)}>
-                      Discard my edit
-                    </button>
-                  </div>
-                )}
+                <DraftRecovery
+                  key={selectedKey}
+                  local={snapshot.draft}
+                  conflict={snapshot.draftConflict}
+                  alternatives={snapshot.draftAlternatives}
+                  onKeep={() => void owner.keepLocalDraft().catch(report)}
+                  onRestore={(draft) => void owner.restoreDraft(draft).catch(report)}
+                />
+                <PendingConversationActions
+                  commands={chatCommands}
+                  messages={snapshot.messages}
+                  onRetry={retryCommand}
+                  onDismiss={dismissCommand}
+                />
+                {canPost &&
+                  editing &&
+                  snapshot.editConflict?.id === editing.id &&
+                  snapshot.editConflict.version !== editVersion && (
+                    <details className={styles.recovery}>
+                      <summary className={styles.recoveryToggle}>Review conflicting edit</summary>
+                      <div className={styles.recoveryPanel}>
+                        <p>Current message: {snapshot.editConflict.content.text}</p>
+                        <p>
+                          Your edit is still in the editor. Choose whether to save it over this
+                          version.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setEditVersion(snapshot.editConflict!.version)}
+                        >
+                          Keep my edit for next save
+                        </button>
+                        <button type="button" onClick={() => setEditing(undefined)}>
+                          Discard my edit
+                        </button>
+                      </div>
+                    </details>
+                  )}
                 {!canPost && <p role="status">You cannot post in this conversation.</p>}
                 {canPost && (
                   <MessageComposer
