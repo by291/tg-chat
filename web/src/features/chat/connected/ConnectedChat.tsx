@@ -1,13 +1,4 @@
-import {
-  ArrowLeft,
-  ContactRound,
-  MessageCircle,
-  Phone,
-  Search,
-  Settings,
-  Users,
-  Video,
-} from 'lucide-react';
+import { ArrowLeft, ContactRound, Phone, Search, Settings, Users, Video } from 'lucide-react';
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
@@ -15,7 +6,6 @@ import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { CallOwner } from '@/features/calls/CallOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
-import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import type { PollMedia } from '@/domain/messages/media';
@@ -25,6 +15,8 @@ import type { MessageCommand, MessageMenuAction } from '../messages/commands';
 import type { ChecklistMedia } from '@/domain/messages/media';
 import { checklistInput } from '../data/checklistInput';
 import { canonicalMessageContent } from '../data/messageContent';
+import { ConnectedChatMenu } from './ConnectedChatMenu';
+import { ConnectedConversationRow } from './ConnectedConversationRow';
 import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
@@ -370,6 +362,13 @@ export function ConnectedChat({
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
     setIsDirectoryVisible(false);
+  }
+
+  function openSavedMessages() {
+    const saved = snapshot.conversations.find((entry) => entry.kind === 'saved');
+    if (saved) {
+      openConversation(saved);
+    }
   }
 
   async function jumpToLatest() {
@@ -828,6 +827,7 @@ export function ConnectedChat({
           hidden={Boolean(accountPage)}
         >
           <header className={styles.directoryHeader}>
+            <ConnectedChatMenu onOpenSaved={openSavedMessages} />
             <h1>Messages</h1>
             <button type="button" aria-label="Account settings" onClick={onSettings}>
               <Settings />
@@ -870,41 +870,14 @@ export function ConnectedChat({
             </label>
           )}
           {directory.map((entry) => (
-            <button
-              type="button"
-              className={styles.conversation}
-              aria-pressed={conversation?.id === entry.id}
+            <ConnectedConversationRow
               key={entry.id}
-              onClick={() => openConversation(entry)}
-            >
-              <span className={styles.avatar}>
-                {session && (entry.avatar_file_id || entry.peer_avatar_file_id) ? (
-                  <RemoteAvatar
-                    session={session}
-                    owner={entry.avatar_file_id ? 'conversation' : 'user'}
-                    id={entry.avatar_file_id ? entry.id : entry.peer_id}
-                    fileId={entry.avatar_file_id ?? entry.peer_avatar_file_id}
-                    initials={title(entry).slice(0, 2).toUpperCase()}
-                  />
-                ) : (
-                  <MessageCircle aria-hidden="true" />
-                )}
-              </span>
-              <span className={styles.summary}>
-                <strong>{title(entry)}</strong>
-                <span>
-                  {entry.draft.content?.text
-                    ? `Draft: ${entry.draft.content.text}`
-                    : entry.summary_text || 'Start a conversation'}
-                </span>
-                {(entry.unread_count !== '0' || entry.is_manually_unread) && (
-                  <span aria-label="Unread messages">
-                    {entry.unread_count === '0' ? 'Unread' : entry.unread_count}
-                  </span>
-                )}
-                {entry.pin_rank !== null && <span>Pinned</span>}
-              </span>
-            </button>
+              conversation={entry}
+              name={title(entry)}
+              session={session}
+              isSelected={conversation?.id === entry.id}
+              onOpen={() => openConversation(entry)}
+            />
           ))}
           {snapshot.isReady && (
             <GlobalMessageSearch
