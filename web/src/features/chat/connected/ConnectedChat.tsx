@@ -546,6 +546,8 @@ export function ConnectedChat({
         await owner.enqueueMedia({
           value: message,
           files: message.files,
+          shouldSendFilesSeparately: message.shouldSendFilesSeparately,
+          shouldPreserveDraft: message.shouldPreserveDraft,
           disableLinkPreview: message.disableLinkPreview,
         });
       } else {
@@ -1419,6 +1421,7 @@ export function ConnectedChat({
                     replyMessage={replyMessage}
                     isDisabled={isPersisting || !snapshot.isReady || !canPost}
                     draft={snapshot.draft.value.text}
+                    draftIdentity={snapshot.draft.id}
                     draftCustomEmoji={snapshot.draft.value.customEmoji}
                     draftRichText={snapshot.draft.value.richText}
                     onDraftChange={(value) => {

@@ -398,3 +398,92 @@ it('keeps the text editor available while unsupported attachment controls are hi
   expect(screen.queryByRole('button', { name: 'Attach' })).toBeNull();
   expect(screen.getByRole('textbox', { name: 'Message' })).toBeTruthy();
 });
+
+describe('connected attachment confirmation', () => {
+  it('keeps the draft when closing a selected file without sending', async () => {
+    const onMediaSubmit = vi.fn(async () => true);
+    const onDraftChange = vi.fn();
+    const file = new File(['photo'], 'sample.png', { type: 'image/png' });
+    renderComposer({ isTextOnly: true, isMediaAvailable: true, onMediaSubmit, onDraftChange });
+
+    fireEvent.change(screen.getByLabelText('Choose an attachment'), {
+      target: { files: [file] },
+    });
+
+    await screen.findByRole('dialog', { name: 'Send attachments' });
+    expect(screen.getByRole('textbox', { name: 'Caption' }).textContent).toBe('A caption');
+    expect(screen.getByText('sample.png')).toBeTruthy();
+    expect(onMediaSubmit).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('A caption');
+    expect(onDraftChange).not.toHaveBeenCalled();
+    expect(onMediaSubmit).not.toHaveBeenCalled();
+  });
+
+  it('adds and removes photos before explicitly sending the selection as a file', async () => {
+    const onMediaSubmit = vi.fn(async () => false);
+    const first = new File(['first'], 'first.png', { type: 'image/png' });
+    const second = new File(['second'], 'second.png', { type: 'image/png' });
+    renderComposer({ isTextOnly: true, isMediaAvailable: true, onMediaSubmit });
+
+    fireEvent.change(screen.getByLabelText('Choose an attachment'), {
+      target: { files: [first] },
+    });
+    await screen.findByRole('dialog', { name: 'Send attachments' });
+    fireEvent.change(screen.getByLabelText('Choose more attachments'), {
+      target: { files: [second] },
+    });
+    expect(screen.getByText('second.png')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Remove first.png' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Send as file' }));
+    expect(onMediaSubmit).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Send attachments' }));
+    expect(onMediaSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'A caption',
+        files: [
+          expect.objectContaining({ blob: second, filename: 'second.png', kind: 'document' }),
+        ],
+      }),
+    );
+    expect(screen.getByRole('dialog', { name: 'Send attachments' })).toBeTruthy();
+    expect(screen.getByText('second.png')).toBeTruthy();
+  });
+
+  it('sends a separated batch with the open caption while preserving a newer draft', async () => {
+    const onMediaSubmit = vi.fn(async () => true);
+    const first = new File(['photo'], 'first.png', { type: 'image/png' });
+    const second = new File(['video'], 'second.mp4', { type: 'video/mp4' });
+    const view = renderComposer({
+      isTextOnly: true,
+      isMediaAvailable: true,
+      onMediaSubmit,
+      draftIdentity: 'first-draft',
+    });
+
+    fireEvent.change(screen.getByLabelText('Choose an attachment'), {
+      target: { files: [first, second] },
+    });
+    await screen.findByRole('dialog', { name: 'Send attachments' });
+    view.rerenderComposer({ draft: 'New draft from another tab', draftIdentity: 'newer-draft' });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Send as album' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send attachments' }));
+
+    expect(onMediaSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'A caption',
+        shouldSendFilesSeparately: true,
+        shouldPreserveDraft: true,
+        files: [
+          expect.objectContaining({ blob: first, kind: 'image' }),
+          expect.objectContaining({ blob: second, kind: 'video' }),
+        ],
+      }),
+    );
+    expect((await screen.findByRole('textbox', { name: 'Message' })).textContent).toBe(
+      'New draft from another tab',
+    );
+  });
+});

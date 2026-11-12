@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
 import { AttachmentPreview } from './attachments/AttachmentPreview';
+import { ConnectedAttachmentDialog } from './attachments/ConnectedAttachmentDialog';
 import {
   ConnectedAttachmentPreview,
   selectConnectedFiles,
+  type AttachmentMode,
 } from './attachments/ConnectedAttachments';
 import { useVoiceRecorder } from '@/features/media/useVoiceRecorder';
 import type { MediaSelection } from '@/features/media/uploadTransfer';
@@ -35,11 +37,20 @@ export interface ComposedMessage extends EmojiText {
   sticker?: string;
   media?: MessageMedia;
   files?: MediaSelection[];
+  shouldSendFilesSeparately?: boolean;
+  shouldPreserveDraft?: boolean;
   disableLinkPreview?: boolean;
+}
+
+interface AttachmentPreviewState {
+  files: MediaSelection[];
+  caption: EmojiText;
+  draftIdentity: string;
 }
 
 interface MessageComposerProps {
   draft: string;
+  draftIdentity?: string;
   isTextOnly?: boolean;
   canSendSticker?: boolean;
   isMediaAvailable?: boolean;
@@ -64,6 +75,7 @@ interface MessageComposerProps {
 /** Coordinate the editable draft, composition modes, and message submission boundary. */
 export function MessageComposer({
   draft,
+  draftIdentity,
   isTextOnly = false,
   canSendSticker = false,
   isMediaAvailable = false,
@@ -85,7 +97,8 @@ export function MessageComposer({
   onNotify,
 }: MessageComposerProps) {
   const connectedInput = useRef<HTMLInputElement>(null);
-  const connectedMode = useRef<'media' | 'document'>('media');
+  const connectedMode = useRef<AttachmentMode>('media');
+  const [attachmentPreview, setAttachmentPreview] = useState<AttachmentPreviewState>();
   const [connectedFiles, setConnectedFiles] = useState<MediaSelection[]>([]);
   const recorder = useVoiceRecorder((selection) => setConnectedFiles([selection]));
   const editorRef = useRef<EmojiEditorControls>(null);
@@ -112,6 +125,7 @@ export function MessageComposer({
     richText: draftRichText,
   };
   const value = editingMessage ? editValue : draftValue;
+  const currentDraftIdentity = draftIdentity ?? JSON.stringify(draftValue);
   const text = value.text;
   const hasLink = /https?:\/\//i.test(text) || /href=["']https?:\/\//i.test(value.richText ?? '');
   const canShowPreviewControl = isTextOnly && hasLink;
@@ -170,7 +184,7 @@ export function MessageComposer({
   }
 
   function sendMessage() {
-    if (!canSubmit || isPreparingAttachment) {
+    if (!canSubmit || isPreparingAttachment || attachmentPreview) {
       return;
     }
 
@@ -245,13 +259,20 @@ export function MessageComposer({
     setConnectedFiles([]);
   }
 
-  function appendFiles(files: File[], mode: 'media' | 'document') {
-    if (!isMediaAvailable || editingMessage || isDisabled || recorder.isRecording) {
+  function previewFiles(files: File[], mode: AttachmentMode) {
+    const isUnavailable = !isMediaAvailable || !onMediaSubmit || editingMessage || isDisabled;
+    const isRecording = recorder.isRecording || recorder.isRequesting;
+    if (isUnavailable || isRecording || attachmentPreview || !files.length) {
       return;
     }
+
     try {
-      const next = selectConnectedFiles({ current: connectedFiles, files, mode });
-      setConnectedFiles(next);
+      const selections = selectConnectedFiles({ current: [], files, mode });
+      setAttachmentPreview({
+        files: selections,
+        caption: draftValue,
+        draftIdentity: currentDraftIdentity,
+      });
     } catch (error) {
       onNotify(error instanceof Error ? error.message : 'Could not select these attachments.');
     }
@@ -267,7 +288,7 @@ export function MessageComposer({
       if (input) {
         connectedMode.current = action;
         input.accept = action === 'media' ? 'image/*,video/*' : '';
-        input.multiple = action === 'media';
+        input.multiple = true;
         input.click();
       }
       return;
@@ -305,7 +326,7 @@ export function MessageComposer({
           return;
         }
         event.preventDefault();
-        appendFiles(Array.from(event.dataTransfer.files), 'media');
+        previewFiles(Array.from(event.dataTransfer.files), 'media');
       }}
     >
       <ComposerContextBar
@@ -323,17 +344,18 @@ export function MessageComposer({
         />
       )}
       {!editingMessage && connectedFiles.length > 0 && (
-        <div className={styles.connectedSelections} aria-label="Selected attachments">
+        <ul className={styles.connectedSelections} aria-label="Selected attachments">
           {connectedFiles.map((selection, index) => (
             <ConnectedAttachmentPreview
               key={`${selection.filename}:${index}`}
               selection={selection}
+              isDisabled={isDisabled}
               onRemove={() =>
                 setConnectedFiles((current) => current.filter((_, item) => item !== index))
               }
             />
           ))}
-        </div>
+        </ul>
       )}
       {isMediaAvailable && (recorder.isRequesting || recorder.isRecording) && (
         <div className={styles.connectedSelections}>
@@ -379,7 +401,7 @@ export function MessageComposer({
                     return;
                   }
 
-                  appendFiles(Array.from(event.target.files ?? []), connectedMode.current);
+                  previewFiles(Array.from(event.target.files ?? []), connectedMode.current);
                   event.target.value = '';
                 }}
               />
@@ -401,7 +423,7 @@ export function MessageComposer({
             isTextOnly
               ? (file) => {
                   if (isMediaAvailable) {
-                    appendFiles([file], 'media');
+                    previewFiles([file], 'media');
                   } else {
                     onNotify('Only text and emoji can be sent in this conversation.');
                   }
@@ -451,6 +473,20 @@ export function MessageComposer({
           />
           Disable link preview
         </label>
+      )}
+      {attachmentPreview && onMediaSubmit && !editingMessage && (
+        <ConnectedAttachmentDialog
+          initialFiles={attachmentPreview.files}
+          initialCaption={attachmentPreview.caption}
+          onSubmit={(submission) =>
+            onMediaSubmit({
+              ...submission,
+              shouldPreserveDraft: currentDraftIdentity !== attachmentPreview.draftIdentity,
+            })
+          }
+          onClose={() => setAttachmentPreview(undefined)}
+          finalFocusEl={() => editorRef.current?.getElement() ?? null}
+        />
       )}
       {listDialog && (
         <ComposerListDialog

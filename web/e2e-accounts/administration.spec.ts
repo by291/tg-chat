@@ -132,7 +132,8 @@ async function sendOriginal(page: Page) {
     mimeType: 'text/plain',
     buffer: ORIGINAL_BYTES,
   });
-  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Send attachments', exact: true });
+  await preview.getByRole('button', { name: 'Send attachments', exact: true }).click();
   await expect(originalMessage(page).getByRole('img', { name: 'Stored on server' })).toBeVisible();
 }
 

@@ -288,7 +288,8 @@ async function uploadDocument(page: Page) {
     mimeType: 'text/plain',
     buffer: Buffer.from(FORWARDED_BYTES),
   });
-  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Send attachments', exact: true });
+  await preview.getByRole('button', { name: 'Send attachments', exact: true }).click();
 
   const row = page.locator('[data-message-id]').filter({ hasText: FORWARDED_DOCUMENT });
   await expect(row.getByRole('img', { name: 'Stored on server' })).toBeVisible();

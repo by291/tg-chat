@@ -86,8 +86,11 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
       mimeType: 'application/octet-stream',
       buffer: Buffer.alloc(DOCUMENT_BYTES, 31),
     });
-    await page.getByRole('button', { name: 'Send message', exact: true }).click();
+    const preview = page.getByRole('dialog', { name: 'Send attachments', exact: true });
+    await expect(preview.getByText(DOCUMENT_NAME, { exact: true })).toBeVisible();
     const bubble = page.locator('article[data-own="true"]').filter({ hasText: DOCUMENT_NAME });
+    await expect(bubble).toHaveCount(0);
+    await preview.getByRole('button', { name: 'Send attachments', exact: true }).click();
     await expect(bubble).toBeVisible();
     const bubbleId = await bubble.getAttribute('id');
     await committed.ready;
