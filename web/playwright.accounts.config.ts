@@ -12,6 +12,7 @@ export default defineConfig({
     'administration.spec.ts',
     'notifications.spec.ts',
     'livekit-contract.spec.ts',
+    'calls.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

@@ -17,6 +17,7 @@
     "test:lifecycle": "playwright test --config playwright.lifecycle.config.ts",
     "test:communities": "playwright test --config playwright.communities.config.ts",
     "test:accounts": "playwright test --config playwright.accounts.config.ts",
+    "test:calls": "playwright test --config playwright.calls.config.ts e2e-accounts/calls.spec.ts",
     "api:generate": "node scripts/generate-api.mjs",
     "api:check": "node scripts/generate-api.mjs --check"
   },

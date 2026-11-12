@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
 import { createRuntimeEnvironment, serializeEnvironment } from './runtime-environment.mjs';
+import { callsEnvironment, callsOverride, verifyCallBrowsers } from './check-calls-runtime.mjs';
 import { verifyMessageRecovery } from './check-messaging.mjs';
 import { verifyMediaBackup } from './check-media-backup.mjs';
 import { verifySynchronization } from './check-synchronization.mjs';
@@ -21,7 +22,9 @@ const COMMAND_TIMEOUT_MS = 1_200_000;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const SECRET_MARKER = `private-request-${randomUUID()}`;
 const OBJECT_CONTENT = 'Object storage survives service restarts.\n';
+const isCallsRun = process.argv.includes('--calls');
 const environment = createRuntimeEnvironment({ httpPort: '0', s3Port: '0' });
+Object.assign(environment, isCallsRun ? callsEnvironment : { TG_CHAT_CALLS_ENABLED: 'false' });
 environment.TG_CHAT_MAILPIT_PORT = '0';
 environment.TG_CHAT_SMTP_HOST = 'mailpit';
 environment.TG_CHAT_SMTP_PORT = '1025';
@@ -49,6 +52,12 @@ const composeArguments = [
   '--file',
   join(ROOT, 'compose.yaml'),
 ];
+
+if (isCallsRun) {
+  const callsOverridePath = join(temporaryDirectory, 'compose.calls.yaml');
+  writeFileSync(callsOverridePath, callsOverride);
+  composeArguments.push('--profile', 'calls', '--file', callsOverridePath);
+}
 
 function redact(message) {
   let sanitized = String(message);
@@ -82,7 +91,7 @@ function compose(argumentsList, options = {}) {
   // Shell overrides must not redirect an isolated test toward another environment.
   return execute('docker', [...composeArguments, ...argumentsList], {
     ...options,
-    env: { ...process.env, ...environment },
+    env: { ...process.env, ...environment, COMPOSE_PROFILES: '' },
   });
 }
 
@@ -205,6 +214,8 @@ async function waitForStoredObject(origin) {
 async function verifyRoutes(origin) {
   await expectStatus(`${origin}/health/live`, 200);
   await expectStatus(`${origin}/health/ready`, 200);
+  const capabilities = await expectStatus(`${origin}/api/v1/capabilities`, 200);
+  assert.equal(JSON.parse(capabilities).calls_available, false);
   const page = await expectStatus(`${origin}/`, 200);
   assert.match(page, /<html/);
 
@@ -594,12 +605,56 @@ async function verifyPersistence({ origin, storageOrigin }) {
   await waitForStoredObject(restartedStorageOrigin);
 }
 
+async function verifyCallsRuntime() {
+  console.log('Building the isolated calls runtime.');
+  // prettier-ignore
+  compose([
+    'build',
+    'migrate',
+    'api',
+    'worker',
+    'gateway',
+    'link-preview-fetcher',
+  ]);
+  compose(['up', '-d', '--wait']);
+  console.log('Checking connected calls with Chromium fake media devices.');
+  verifyCallBrowsers({ compose, execute, root: ROOT });
+
+  const origin = endpoint('gateway', '80');
+  configurePublicOrigin(origin);
+  console.log('Checking durable messaging while LiveKit is stopped.');
+  resetAdmissionFixtures();
+  compose(['stop', 'livekit']);
+  try {
+    await verifyMessageRecovery({
+      origin,
+      restartApi: async () => {
+        compose(['restart', 'api']);
+        await waitUntilReady(`${origin}/health/ready`);
+      },
+    });
+  } finally {
+    compose(['start', 'livekit']);
+  }
+
+  configurePublicOrigin(callsEnvironment.TG_CHAT_PUBLIC_ORIGIN);
+  resetAdmissionFixtures();
+  console.log('Checking browser call recovery after restarting LiveKit.');
+  verifyCallBrowsers({ compose, execute, root: ROOT });
+}
+
 async function main() {
   writeFileSync(environmentPath, serializeEnvironment(environment), {
     mode: 0o600,
   });
 
   try {
+    if (isCallsRun) {
+      await verifyCallsRuntime();
+      console.log('Calls runtime acceptance passed.');
+      return;
+    }
+
     console.log('Building isolated runtime images.');
     // prettier-ignore
     compose([
