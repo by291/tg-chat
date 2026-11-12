@@ -644,7 +644,7 @@ export function ConnectedChat({
           is_complete: interaction.isComplete,
         });
         return true;
-      case 'add-task':
+      case 'append-tasks':
         if (interaction.expectedListVersion === undefined) {
           return false;
         }
@@ -652,7 +652,7 @@ export function ConnectedChat({
           kind: 'append_checklist_tasks',
           message_id: message.id,
           expected_list_version: interaction.expectedListVersion,
-          tasks: [{ id: interaction.id, text: interaction.text }],
+          tasks: interaction.tasks,
         });
         return true;
       case 'edit-checklist': {

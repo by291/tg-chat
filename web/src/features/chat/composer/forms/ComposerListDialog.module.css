@@ -665,3 +665,10 @@
 .entries[data-kind='poll'] .entry:has([data-open='true']) {
   z-index: 1;
 }
+
+.taskEditorFields {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

@@ -17,8 +17,7 @@ export type MessageInteraction =
       isComplete: boolean;
     }
   | {
-      type: 'add-task';
-      id: string;
-      text: string;
+      type: 'append-tasks';
+      tasks: { id: string; text: string }[];
       expectedListVersion?: string;
     };

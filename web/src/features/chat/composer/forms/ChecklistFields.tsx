@@ -17,6 +17,7 @@ interface ChecklistTextFieldProps {
 
 interface ChecklistFieldsProps {
   entries: ListEntry[];
+  maxEntries?: number;
   onUpdate: (index: number, text: string) => void;
   onAppend: (entry: ListEntry) => void;
   onRemove: (index: number) => void;
@@ -59,11 +60,17 @@ export function ChecklistTextField({
 }
 
 /** Keep Telegram's contiguous task rows and focus each explicitly added task. */
-export function ChecklistFields({ entries, onUpdate, onAppend, onRemove }: ChecklistFieldsProps) {
+export function ChecklistFields({
+  entries,
+  maxEntries = MAX_CHECKLIST_TASKS,
+  onUpdate,
+  onAppend,
+  onRemove,
+}: ChecklistFieldsProps) {
   const inputs = useRef(new Map<string, HTMLInputElement>());
 
   function addTask() {
-    if (entries.length >= MAX_CHECKLIST_TASKS) {
+    if (entries.length >= maxEntries) {
       return;
     }
 
@@ -92,7 +99,7 @@ export function ChecklistFields({ entries, onUpdate, onAppend, onRemove }: Check
           onRemove={() => onRemove(index)}
         />
       ))}
-      {entries.length < MAX_CHECKLIST_TASKS && (
+      {entries.length < maxEntries && (
         <button type="button" className={styles.addButton} onClick={addTask}>
           <Plus size={24} />
           Add Task

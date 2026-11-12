@@ -194,6 +194,23 @@ test('votes and checklist tasks converge, and revocation removes private history
       timeout: CONVERGENCE_TIMEOUT_MS,
     });
 
+    await owner.page.bringToFront();
+    await ownerChecklist.click({ button: 'right' });
+    await owner.page.getByRole('menuitem', { name: 'Add Task', exact: true }).click();
+    const taskEditor = owner.page.getByRole('dialog', { name: 'Add tasks' });
+    await taskEditor.getByRole('textbox', { name: 'Task 1' }).fill('Send the minutes');
+    await taskEditor.getByRole('button', { name: 'Add Task', exact: true }).click();
+    await taskEditor.getByRole('textbox', { name: 'Task 2' }).fill('File the notes');
+    await taskEditor.getByRole('button', { name: 'Save tasks' }).click();
+    await expect(taskEditor).toHaveCount(0);
+    await expect(
+      participantChecklist.getByRole('checkbox', { name: 'Send the minutes' }),
+    ).toBeVisible({ timeout: CONVERGENCE_TIMEOUT_MS });
+    await expect(
+      participantChecklist.getByRole('checkbox', { name: 'File the notes' }),
+    ).toBeVisible();
+    await expect(participantChecklist.getByText('2 of 4 tasks completed')).toBeVisible();
+
     await participant.page.bringToFront();
     const captured = latch<string>();
     const revoked = latch<void>();

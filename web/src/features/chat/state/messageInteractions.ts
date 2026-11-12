@@ -64,22 +64,28 @@ export function applyMessageInteraction(
 
     return { ...message, media: { ...media, items } };
   }
-  if (interaction.type === 'add-task') {
-    const text = interaction.text.trim();
+  if (interaction.type === 'append-tasks') {
     const canAppend = !message.forwardedFrom && (isOwner || media.canOthersAppend);
-    const isValidText = text.length > 0 && text.length <= MAX_CHECKLIST_TEXT_LENGTH;
-    const hasDuplicateId = media.items.some((item) => item.id === interaction.id);
-    if (!canAppend || !isValidText || hasDuplicateId || media.items.length >= MAX_CHECKLIST_TASKS) {
+    const tasks = interaction.tasks;
+    const hasCapacity = media.items.length + tasks.length <= MAX_CHECKLIST_TASKS;
+    if (!canAppend || !tasks.length || !hasCapacity) {
       return message;
     }
 
-    const item = {
-      id: interaction.id,
-      text,
-      isCompleted: false,
-    };
+    const identities = new Set(media.items.map((item) => item.id));
+    const items = [...media.items];
+    for (const task of tasks) {
+      const text = task.text.trim();
+      const isValidText = text.length > 0 && text.length <= MAX_CHECKLIST_TEXT_LENGTH;
+      if (!isValidText || identities.has(task.id)) {
+        return message;
+      }
 
-    return { ...message, media: { ...media, items: [...media.items, item] } };
+      identities.add(task.id);
+      items.push({ id: task.id, text, isCompleted: false });
+    }
+
+    return { ...message, media: { ...media, items } };
   }
 
   return message;

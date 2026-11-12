@@ -138,33 +138,6 @@
   text-align: center;
 }
 
-.appendForm {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.appendForm input {
-  flex: 1 1 100%;
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: inherit;
-  background: transparent;
-  font: inherit;
-}
-
-.appendForm button {
-  padding: 6px 8px;
-  border: 0;
-  color: var(--accent-color);
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .avatar {
     transition: none;

@@ -1,13 +1,10 @@
 import { Check } from 'lucide-react';
 import { useState } from 'react';
-import {
-  MAX_CHECKLIST_TASKS,
-  MAX_CHECKLIST_TEXT_LENGTH,
-  type ChecklistMedia,
-} from '@/domain/messages/media';
+import { MAX_CHECKLIST_TASKS, type ChecklistMedia } from '@/domain/messages/media';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { type Message } from '@/domain/messages/message';
+import { AppendChecklistDialog } from '../../../composer/forms/AppendChecklistDialog';
 import { MessageCheckbox } from '../../selection/MessageCheckbox';
 import { ChecklistCelebration } from './ChecklistCelebration';
 import { useStructuredMessageAction } from '../../StructuredMessageActions';
@@ -24,8 +21,6 @@ export function ChecklistMessage({
   onInteract: (interaction: MessageInteraction) => void | Promise<boolean>;
 }) {
   const [isAdding, setIsAdding] = useState(false);
-  const [newTask, setNewTask] = useState('');
-  const [isAppending, setIsAppending] = useState(false);
   const currentUserId = useCurrentUserId();
   const isOwner = message.authorId === currentUserId;
   const canComplete =
@@ -68,29 +63,6 @@ export function ChecklistMessage({
       expectedTaskVersion: task.version,
       isComplete: !task.isCompleted,
     });
-  }
-
-  async function appendTask() {
-    const text = newTask.trim();
-    if (!text || isAppending || !canAppend) {
-      return;
-    }
-
-    setIsAppending(true);
-    try {
-      const accepted = await onInteract({
-        type: 'add-task',
-        id: crypto.randomUUID(),
-        text,
-        expectedListVersion: checklist.listVersion,
-      });
-      if (accepted !== false) {
-        setNewTask('');
-        setIsAdding(false);
-      }
-    } finally {
-      setIsAppending(false);
-    }
   }
 
   return (
@@ -146,34 +118,18 @@ export function ChecklistMessage({
         ))}
       </div>
       {isAdding && canAppend && (
-        <form
-          className={styles.appendForm}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void appendTask();
-          }}
-        >
-          <input
-            autoFocus
-            aria-label="New task"
-            placeholder="Task"
-            value={newTask}
-            maxLength={MAX_CHECKLIST_TEXT_LENGTH}
-            disabled={isAppending}
-            onChange={(event) => setNewTask(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setIsAdding(false);
-              }
-            }}
-          />
-          <button type="submit" disabled={!newTask.trim() || isAppending}>
-            Add
-          </button>
-          <button type="button" onClick={() => setIsAdding(false)}>
-            Cancel
-          </button>
-        </form>
+        <AppendChecklistDialog
+          title={checklist.title}
+          remainingTasks={MAX_CHECKLIST_TASKS - checklist.items.length}
+          onClose={() => setIsAdding(false)}
+          onSubmit={(tasks) =>
+            onInteract({
+              type: 'append-tasks',
+              tasks,
+              expectedListVersion: checklist.listVersion,
+            })
+          }
+        />
       )}
       <span className={styles.completed}>
         {completedCount} of {checklist.items.length} tasks completed
