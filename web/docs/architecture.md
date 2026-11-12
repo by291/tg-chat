@@ -109,10 +109,18 @@ The initial chat load can retry in place with the same authenticated session. Se
 
 ## Connected communities
 
-Community workflows share SessionOwner, ChatOwner, and the existing durable pending store. Discovery
-and invitation previews expose metadata; history enters only after admission establishes a canonical
-conversation projection. Direct selections keep recipient-based draft keys; shared conversations use
-the canonical conversation ID. The server supplies posting and management permissions.
+Community workflows share SessionOwner, ChatOwner, and the existing durable pending store. The
+chat directory and the community sidebar use the same discovery surface. Public search and invitation
+previews expose metadata. History enters the workspace after admission establishes an authorized
+conversation projection. A pending request stays attached to the public result after a reload.
+
+Group and channel profiles keep the conversation mounted while members browse authorized details
+or managers open their settings and member actions. The server supplies posting and management
+permissions. Profiles expose an aggregate audience size within the authorized view. Channel subscribers
+can change personal notification settings from the read-only footer.
+
+Direct selections keep recipient-based draft keys. Shared conversations use the canonical
+conversation ID.
 
 CommunityOperations persists stable mutation identities before transport and applies acknowledgements
 through the same cache epoch fence as message commands. Unconfirmed operations have an explicit

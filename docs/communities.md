@@ -18,7 +18,8 @@ Targeted invitations belong to one recipient and require explicit acceptance. Li
 an opaque cryptographically random secret; only its hash is stored on the server. The browser puts
 the secret in a URL fragment and sends it in a POST body for preview or joining, keeping it out of
 server URL logs. API consumers must generate the same random secret contract as the browser.
-The link must be copied after successful creation; management queries cannot reconstruct it.
+Opening a link previews its metadata. A visitor confirms before joining or requesting admission.
+The link can be copied after successful creation. Management queries cannot reconstruct it.
 
 Invitations expire, can be revoked, and may have a use budget. The final successful admission consumes
 one use under the conversation lock. Approval rechecks the original invitation, current ban and
@@ -43,6 +44,8 @@ groups. The server independently checks the deadline on every publication. Chann
 Channel messages display the community title while retaining the authenticated actor identifier for
 audit and author-only editing. Ordinary channel subscribers can inspect only their own membership;
 administrators can inspect the subscriber directory. Group members can inspect their member list.
+An admitted conversation exposes its aggregate member or subscriber count. Discovery can also
+indicate whether the searching account's own approval request is pending.
 
 Shared permission checks cover sends, edits, deletion, pins, expiry, snapshots, and history. Personal
 archive, hide, unread, mute, clear, and draft operations retain their existing per-account ownership.
