@@ -508,11 +508,22 @@ async fn view(
     let query = sqlx::query_scalar("SELECT display_name FROM users WHERE id = $1");
     let peer_display_name = query.bind(call.peer_id(actor)).fetch_one(&mut *connection).await?;
     let now = database_now(connection).await?;
+    let is_room_ready = if call.is_designated(actor)
+        && matches!(call.phase, CallPhase::Connecting | CallPhase::Active)
+    {
+        let query = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM call_rooms WHERE call_id = $1 AND provider_sid IS NOT NULL)",
+        );
+        query.bind(call.id).fetch_one(&mut *connection).await?
+    } else {
+        false
+    };
 
     Ok(call.view(CallViewer {
         actor,
         peer_display_name,
         now,
+        is_room_ready,
     }))
 }
 

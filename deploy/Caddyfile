@@ -32,6 +32,20 @@
 		reverse_proxy centrifugo:8000
 	}
 
+	@call_signaling path /rtc /rtc/*
+	handle @call_signaling {
+		# Check live call ownership before passing any new signaling connection to LiveKit.
+		forward_auth api:8080 {
+			uri /internal/calls/signaling
+		}
+		reverse_proxy livekit:7880 {
+			header_up -Cookie
+			transport http {
+				dial_timeout 2s
+			}
+		}
+	}
+
 	handle {
 		root * /srv
 		try_files {path} /index.html

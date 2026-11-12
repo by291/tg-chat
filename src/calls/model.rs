@@ -80,6 +80,7 @@ pub struct CallView {
     pub phase: CallPhase,
     pub revision: String,
     pub deadline: Option<DateTime<Utc>>,
+    pub is_room_ready: bool,
     pub end_reason: Option<CallEndReason>,
     pub allowed_actions: Vec<CallAction>,
 }
@@ -171,6 +172,7 @@ impl CallRow {
             phase: self.phase,
             revision: self.revision.to_string(),
             deadline: self.deadline(),
+            is_room_ready: viewer.is_room_ready,
             end_reason: self.end_reason,
             allowed_actions: self.allowed_actions(viewer.actor, viewer.now),
         }
@@ -181,4 +183,5 @@ pub(crate) struct CallViewer<'a> {
     pub actor: &'a Actor,
     pub peer_display_name: String,
     pub now: DateTime<Utc>,
+    pub is_room_ready: bool,
 }

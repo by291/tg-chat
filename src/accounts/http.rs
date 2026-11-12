@@ -30,6 +30,7 @@ pub struct AccountHttpState {
     pub(crate) activity: crate::realtime::Activity,
     pub(crate) notifications: Option<crate::notifications::NotificationService>,
     pub(crate) calls: Option<crate::calls::CallService>,
+    pub(crate) call_rooms: Option<crate::calls::rooms::CallRooms>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -104,12 +105,20 @@ impl AccountHttpState {
             activity,
             notifications: None,
             calls: None,
+            call_rooms: None,
         }
     }
 
     /// Expose calls when their application and media services are configured.
     pub fn with_calls(mut self, calls: crate::calls::CallService) -> Self {
         self.calls = Some(calls);
+
+        self
+    }
+
+    /// Attach the room credential boundary for the configured call provider.
+    pub(crate) fn with_call_rooms(mut self, rooms: crate::calls::rooms::CallRooms) -> Self {
+        self.call_rooms = Some(rooms);
 
         self
     }
@@ -457,6 +466,7 @@ pub fn router(state: AccountHttpState) -> Router {
     let routes = routes.merge(crate::realtime::activity_http::router());
     let routes = routes.merge(crate::notifications::http::routes());
     let routes = routes.merge(crate::calls::http::router());
+    let routes = routes.merge(crate::calls::credential_http::router());
     let routes = routes.layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
     let routes = routes.merge(crate::messages::http::router());
     let routes = routes.merge(crate::conversations::http::router());

@@ -108,10 +108,10 @@ ringing or message Push. An unavailable history or media service cannot keep a s
 
 Disable room auto-creation in the self-hosted profile and explicitly delete ended rooms.
 An issued JWT can remain valid after removal, and LiveKit can refresh it during a connection.
-Stop issuing application credentials at termination and reconcile any late activity against
-terminal rooms. Room names are never reused. Verify in the pinned server that an old token
-cannot recreate a deleted room or join a later call. Measure the residual access window
-around cleanup using both initial and refreshed credentials.
+Keep the provider's signaling port private. The application gateway verifies the room
+credential and checks current call state on every new connection. Termination closes this
+admission path before cleanup, and room names are never reused. Verify rejection at the
+gateway and measure how long already admitted media stays connected during cleanup.
 [LiveKit token lifecycle][livekit-tokens] and [room configuration][livekit-config]
 
 ## Deployment and acceptance

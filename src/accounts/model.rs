@@ -41,6 +41,8 @@ pub enum AccountError {
     CallNotAllowed,
     #[error("a call cannot start right now")]
     CallBusy,
+    #[error("the call room is still being prepared")]
+    CallRoomPending,
     #[error("registration is currently closed")]
     RegistrationClosed,
     #[error("too many requests; try again later")]

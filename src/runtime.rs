@@ -12,6 +12,7 @@ use crate::{
         http::{AccountHttpState, router as account_router},
         transport::HttpSettings,
     },
+    calls::{CallService, livekit::LiveKit, room_work::RoomWork, rooms::CallRooms, signaling},
     config::{ServiceKind, Settings},
     database::connect_pool,
     http::{ApplicationState, router_with_api},
@@ -98,6 +99,14 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         .map_err(|_| RuntimeError::AccountConfiguration)?;
     let media_storage =
         MediaStorageSettings::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
+    let livekit = match LiveKit::from_values(&values) {
+        Ok(provider) => provider,
+        Err(_) => {
+            // Calls are optional even when their deployment configuration is incomplete.
+            tracing::warn!("call_provider_configuration_unavailable");
+            None
+        }
+    };
     let worker = if matches!(service, ServiceKind::Worker) {
         let queue = mail.clone();
         let stop = shutdown.clone();
@@ -106,6 +115,9 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             client: realtime_client.clone(),
             idle_days: account_settings.idle_days,
         };
+        let rooms = livekit
+            .clone()
+            .map(|provider| RoomWork::new(pool.clone(), provider, realtime_client.clone()));
         let previews =
             values.get("TG_CHAT_LINK_PREVIEW_ENDPOINT").filter(|value| !value.is_empty());
         let previews = previews.and_then(|endpoint| {
@@ -151,12 +163,18 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
                     previews.run(stop.clone()).await;
                 }
             };
+            let prepare_rooms = async {
+                if let Some(rooms) = rooms {
+                    rooms.run(stop.clone()).await;
+                }
+            };
             tokio::join!(
                 queue.run(stop.clone()),
                 realtime::run(services, stop.clone()),
                 prepare_media,
                 prepare_previews,
                 push.run(stop.clone()),
+                prepare_rooms,
             );
         }))
     } else {
@@ -166,6 +184,9 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
+        let call_rooms = livekit.map(|provider| {
+            CallRooms::new(pool.clone(), CallService::new(accounts.clone()), provider)
+        });
         let notifications = NotificationService::from_values(accounts.clone(), &values);
         let state = AccountHttpState::new(accounts.clone(), transport, mail);
         let mut state = state.with_activity_realtime(realtime_client);
@@ -174,7 +195,14 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             let limits = MediaLimits::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
             state = state.with_media(UploadService::new(accounts.clone(), limits, media));
         }
-        let routes = account_router(state);
+        let call_signaling = call_rooms.as_ref().map(|rooms| signaling::router(rooms.clone()));
+        if let Some(rooms) = call_rooms {
+            state = state.with_call_rooms(rooms);
+        }
+        let mut routes = account_router(state);
+        if let Some(call_signaling) = call_signaling {
+            routes = routes.merge(call_signaling);
+        }
         match realtime_settings {
             Some(settings) => routes.merge(realtime::router(accounts, settings)),
             None => routes,

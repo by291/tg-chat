@@ -400,6 +400,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/calls/{call_id}/credentials': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['credentials'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/capabilities': {
     parameters: {
       query?: never;
@@ -1176,6 +1192,7 @@ export interface components {
       end_reason?: null | components['schemas']['CallEndReason'];
       /** Format: uuid */
       id: string;
+      is_room_ready: boolean;
       mode: components['schemas']['CallMode'];
       peer_display_name: string;
       /** Format: uuid */
@@ -2245,6 +2262,12 @@ export interface components {
       /** Format: uuid */
       upload_id: string;
     };
+    RoomCredentials: {
+      /** Format: date-time */
+      expires_at: string;
+      token: string;
+      url: string;
+    };
     SearchPage: {
       /** Format: date-time */
       date_from?: string | null;
@@ -3074,6 +3097,28 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['CallView'];
+        };
+      };
+    };
+  };
+  credentials: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The call identity */
+        call_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RoomCredentials'];
         };
       };
     };

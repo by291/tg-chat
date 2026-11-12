@@ -67,6 +67,7 @@ impl utoipa::Modify for AccountApi {
     fn modify(&self, document: &mut utoipa::openapi::OpenApi) {
         document.merge(crate::accounts::http::AccountDocument::openapi());
         document.merge(crate::calls::http::CallDocument::openapi());
+        document.merge(crate::calls::credential_http::CredentialDocument::openapi());
         document.merge(crate::messages::http::MessageDocument::openapi());
         document.merge(crate::conversations::http::CommunityDocument::openapi());
         document.merge(crate::contacts::http::ContactDocument::openapi());

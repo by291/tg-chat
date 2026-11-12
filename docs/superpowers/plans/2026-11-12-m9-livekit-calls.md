@@ -61,10 +61,11 @@ deterministic test implementation share the contract.
 
 ## Review focus
 
-- **Task 1.** Once the provider confirms deletion, an obsolete credential cannot reopen a room.
+- **Task 1.** The pinned provider can create and remove the two-participant room.
 - **Task 2.** A stale accept waiting on a lock cannot claim a call after its ringing deadline.
 - **Task 3.** A full chat wakeup queue cannot prevent terminal state or release of both slots.
 - **Task 4.** An in-flight create that completes after termination cannot publish credentials.
+- **Task 4.** A valid credential for a terminal call cannot pass the application gateway.
 - **Task 5.** A delayed leave or room query cannot replace a newer connection observation.
 - **Task 6.** A delayed media grant after logout cannot reopen a microphone or camera.
 
@@ -86,12 +87,9 @@ at `POST /internal/livekit/webhook` once Task 5 lands.
   [livekit-api 0.10.1][rust-sdk], and [livekit-client 2.24.0][browser-sdk]. Use only
   server API, token, and webhook support in Rust. The browser pin serves the
   integration fixture first and the connected UI in Task 6.
-- [ ] Add the real integration assertion
-  `obsolete_credentials_cannot_reopen_a_deleted_room`. Verify the configured server can
-  explicitly create a room, enforces two participants, and rejects access to a deleted room
-  with initial and refreshed credentials. Verify an obsolete credential grants no access
-  to a subsequent call's distinct room. Measure any residual access while cleanup is
-  pending. Keep credentials in memory in the disposable provider fixtures.
+- [ ] Verify the pinned provider explicitly creates a room, admits the two participants,
+  rejects a third, and reports room removal after deletion. Keep credentials in memory in
+  the disposable provider fixtures.
 - [ ] Run `cargo test --locked --test livekit_integration -- --include-ignored` against
   the disposable profile. Run the browser contract using
   `pnpm --dir web exec playwright test -c playwright.calls.config.ts livekit-contract.spec.ts`.
@@ -99,9 +97,8 @@ at `POST /internal/livekit/webhook` once Task 5 lands.
 - [ ] Configure explicit room creation with `room.auto_create: false`. Set empty and departure
   timeouts beyond the app's setup and reconnect deadlines respectively. Record the
   observed behavior of the pinned server. The [open LiveKit room deletion report][room-issue]
-  concerns an earlier release. Treat the result on the chosen pin as unverified until tested.
-  If it fails the post-deletion assertion, verify a compatible fixed pin before proceeding
-  with that runtime. If no pin passes, surface the design constraint for review.
+  concerns an earlier release. The application gateway in Task 4 owns terminal admission,
+  and the provider's signaling port stays private.
 - [ ] Verify the profile also stops cleanly and the default runtime starts without LiveKit.
   Keep internal room administration and webhook ingress private. Commit
   `build(calls): pin the optional LiveKit runtime`.
@@ -222,6 +219,9 @@ designated eligible session. An otherwise eligible session gets a retryable
 - [ ] Recheck designation, current account/session access, block, quarantine, terminal
   state, and relevant deadlines at credential issuance. Mint locally with the official
   SDK. Keep credentials out of the generic call view and mark the response `no-store`.
+- [ ] Route public signaling through the application gateway. Verify the signed room and
+  participant identity and current call state before forwarding a new connection.
+  Cover admission before and after termination with `gateway_admission_uses_current_designated_call_state`.
 - [ ] Regenerate contracts and rerun call and LiveKit integration tests. Commit
   `feat(calls): provision rooms and issue scoped credentials`.
 
