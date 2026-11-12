@@ -347,6 +347,7 @@ export function renderPending(options: {
     ...message,
     media,
     deliveryStatus: pending.status,
+    deliveryError: pending.status === 'failed' ? pending.error : undefined,
     pendingMedia,
   };
 }

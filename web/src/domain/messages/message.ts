@@ -44,12 +44,8 @@ export const messageSchema = z.object({
     )
     .optional(),
   // prettier-ignore
-  deliveryStatus: z.enum([
-    'queued',
-    'sending',
-    'accepted',
-    'failed',
-  ]).optional(),
+  deliveryError: z.string().optional(),
+  deliveryStatus: z.enum(['queued', 'sending', 'accepted', 'failed']).optional(),
   isEdited: z.boolean().optional(),
   isPinned: z.boolean().optional(),
 });

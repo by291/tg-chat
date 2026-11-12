@@ -25,6 +25,7 @@ import type { MessageCommand, MessageMenuAction } from '../messages/commands';
 import type { ChecklistMedia } from '@/domain/messages/media';
 import { checklistInput } from '../data/checklistInput';
 import { canonicalMessageContent } from '../data/messageContent';
+import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
 import { PinnedMessages } from './PinnedMessages';
@@ -339,6 +340,10 @@ export function ConnectedChat({
     return destinationKey(destination) === selectedKey || isCanonical || isRecipient;
   });
   const inlinePending = snapshot.hasNewer ? [] : pending;
+  const inlinePendingIds = new Set(inlinePending.map((entry) => entry.request.message_id));
+  const outbox = snapshot.pending.filter(
+    (entry) => isDirectoryVisible || !inlinePendingIds.has(entry.request.message_id),
+  );
   for (const entry of inlinePending) {
     if (!acceptedIds.has(entry.request.message_id)) {
       messages.push(
@@ -374,6 +379,10 @@ export function ConnectedChat({
       report(failure);
       throw failure;
     }
+  }
+
+  function retryPendingMessage(messageId: string) {
+    void owner.retry(messageId).catch(report);
   }
 
   async function openGlobalResult(result: { conversationId: string; messageId: string }) {
@@ -932,10 +941,10 @@ export function ConnectedChat({
               ))}
             </section>
           )}
-          {snapshot.pending.length > 0 && (
+          {outbox.length > 0 && (
             <section className={styles.pending} aria-label="Pending messages">
               <h2>Pending messages</h2>
-              {snapshot.pending.map((entry) => (
+              {outbox.map((entry) => (
                 <div className={styles.pendingItem} key={entry.request.message_id}>
                   <button
                     type="button"
@@ -1157,45 +1166,47 @@ export function ConnectedChat({
                   <ContactLinkContext.Provider
                     value={session ? (id) => void openContactLink(id).catch(report) : undefined}
                   >
-                    <MessageTimeline
-                      key={selectedKey}
-                      messages={messages}
-                      precedingMessage={
-                        snapshot.precedingMessage
-                          ? renderMessage(snapshot.precedingMessage)
-                          : undefined
-                      }
-                      shouldShowSender={conversation?.kind === 'group'}
-                      allowedActions={allowedActions}
-                      selectedIds={selectedIds}
-                      onToggleSelection={toggleSelection}
-                      onSetSelection={setMessageSelection}
-                      reactionChoices={REACTIONS}
-                      navigation={snapshot.navigation}
-                      firstUnreadMessageId={snapshot.firstUnreadMessageId}
-                      unreadCount={Number(conversation?.unread_count ?? 0)}
-                      isMuted={isConversationMuted(conversation)}
-                      latestRequest={latestSendRequest}
-                      onReachMessage={(messageId) => {
-                        if (!isDirectoryVisible && !editing) {
-                          void owner.markReached(messageId).catch(report);
+                    <MessageRetryContext.Provider value={retryPendingMessage}>
+                      <MessageTimeline
+                        key={selectedKey}
+                        messages={messages}
+                        precedingMessage={
+                          snapshot.precedingMessage
+                            ? renderMessage(snapshot.precedingMessage)
+                            : undefined
                         }
-                      }}
-                      remoteHistory={{
-                        hasOlder: snapshot.hasOlder,
-                        hasNewer: snapshot.hasNewer,
-                        isLoading: snapshot.isLoading,
-                        loadOlder: () => void owner.loadHistory('older'),
-                        loadNewer: () => void owner.loadHistory('newer'),
-                        jumpToLatest,
-                      }}
-                      searchQuery=""
-                      onCommand={messageCommand}
-                      onReact={react}
-                      onInteract={interact}
-                      onOpenMedia={() => undefined}
-                      onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-                    />
+                        shouldShowSender={conversation?.kind === 'group'}
+                        allowedActions={allowedActions}
+                        selectedIds={selectedIds}
+                        onToggleSelection={toggleSelection}
+                        onSetSelection={setMessageSelection}
+                        reactionChoices={REACTIONS}
+                        navigation={snapshot.navigation}
+                        firstUnreadMessageId={snapshot.firstUnreadMessageId}
+                        unreadCount={Number(conversation?.unread_count ?? 0)}
+                        isMuted={isConversationMuted(conversation)}
+                        latestRequest={latestSendRequest}
+                        onReachMessage={(messageId) => {
+                          if (!isDirectoryVisible && !editing) {
+                            void owner.markReached(messageId).catch(report);
+                          }
+                        }}
+                        remoteHistory={{
+                          hasOlder: snapshot.hasOlder,
+                          hasNewer: snapshot.hasNewer,
+                          isLoading: snapshot.isLoading,
+                          loadOlder: () => void owner.loadHistory('older'),
+                          loadNewer: () => void owner.loadHistory('newer'),
+                          jumpToLatest,
+                        }}
+                        searchQuery=""
+                        onCommand={messageCommand}
+                        onReact={react}
+                        onInteract={interact}
+                        onOpenMedia={() => undefined}
+                        onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+                      />
+                    </MessageRetryContext.Provider>
                   </ContactLinkContext.Provider>
                 </ConnectedMediaContext.Provider>
               </div>

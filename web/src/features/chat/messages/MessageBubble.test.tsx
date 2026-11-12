@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
-import { messageSchema } from '@/domain/messages/message';
+import { messageSchema, type Message } from '@/domain/messages/message';
 import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '@/features/settings/appPreferences';
 import { MessageBubble } from './MessageBubble';
+import { MessageRetryContext } from './messageRetryContext';
 
 afterEach(() => {
   cleanup();
@@ -18,19 +20,29 @@ const message = {
   text: 'A plain message',
 };
 
-function renderTextBubble({ shouldShowSender }: { shouldShowSender: boolean }) {
+function renderTextBubble({
+  shouldShowSender,
+  bubbleMessage = message,
+  onRetry,
+}: {
+  shouldShowSender: boolean;
+  bubbleMessage?: Message;
+  onRetry?: (messageId: string) => void;
+}) {
   return render(
-    <MessageBubble
-      message={message}
-      shouldShowSender={shouldShowSender}
-      isGroupStart
-      isGroupEnd
-      isHighlighted={false}
-      onInteract={() => {}}
-      onReact={() => {}}
-      onOpenMedia={() => {}}
-      onJumpToMessage={() => {}}
-    />,
+    <MessageRetryContext.Provider value={onRetry}>
+      <MessageBubble
+        message={bubbleMessage}
+        shouldShowSender={shouldShowSender}
+        isGroupStart
+        isGroupEnd
+        isHighlighted={false}
+        onInteract={() => {}}
+        onReact={() => {}}
+        onOpenMedia={() => {}}
+        onJumpToMessage={() => {}}
+      />
+    </MessageRetryContext.Provider>,
   );
 }
 
@@ -95,6 +107,75 @@ describe('text message senders', () => {
     renderTextBubble({ shouldShowSender: false });
     expect(screen.queryByText('Alex')).toBeNull();
     expect(screen.getByText('A plain message')).toBeTruthy();
+  });
+});
+
+describe('outgoing message status', () => {
+  it.each([
+    { deliveryStatus: 'queued', label: 'Queued for sending' },
+    { deliveryStatus: 'sending', label: 'Sending' },
+  ] as const)('shows a clock while a message is $deliveryStatus', ({ deliveryStatus, label }) => {
+    renderTextBubble({
+      shouldShowSender: false,
+      bubbleMessage: { ...message, authorId: 'you', deliveryStatus },
+    });
+
+    expect(screen.getByRole('img', { name: label }).querySelector('circle')).toBeTruthy();
+  });
+
+  const failedMessage: Message = {
+    ...message,
+    id: 'pending-message',
+    authorId: 'you',
+    deliveryStatus: 'failed',
+  };
+
+  it('retries the failed message with a single keyboard-accessible control', async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn();
+    const { container } = renderTextBubble({
+      shouldShowSender: false,
+      bubbleMessage: failedMessage,
+      onRetry,
+    });
+
+    const retry = screen.getByRole('button', { name: /retry sending message/i });
+    const metadata = container.querySelector('[data-message-metadata]');
+    expect(metadata?.querySelectorAll('button')).toHaveLength(1);
+
+    await user.tab();
+    expect(document.activeElement).toBe(retry);
+    await user.keyboard('{Enter}');
+
+    expect(onRetry).toHaveBeenCalledExactlyOnceWith('pending-message');
+  });
+
+  it('leaves failed attachments to the upload controls', () => {
+    renderTextBubble({
+      shouldShowSender: false,
+      bubbleMessage: {
+        ...failedMessage,
+        pendingMedia: {
+          status: 'Upload failed',
+          items: [{ occurrenceId: 'upload', filename: 'photo.jpg', isReady: false }],
+        },
+      },
+      onRetry: vi.fn(),
+    });
+
+    expect(screen.getByRole('img', { name: 'Send failed' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /retry sending message/i })).toBeNull();
+  });
+
+  it('shows the server acceptance receipt without an option to retry', () => {
+    renderTextBubble({
+      shouldShowSender: false,
+      bubbleMessage: { ...failedMessage, deliveryStatus: 'accepted' },
+      onRetry: vi.fn(),
+    });
+
+    expect(screen.getByRole('img', { name: 'Stored on server' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /retry sending message/i })).toBeNull();
   });
 });
 

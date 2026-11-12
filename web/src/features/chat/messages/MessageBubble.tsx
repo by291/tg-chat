@@ -1,11 +1,12 @@
 import { Check, Quote } from 'lucide-react';
-import { memo, useLayoutEffect, useRef } from 'react';
+import { memo, useContext, useLayoutEffect, useRef } from 'react';
 import { useAppPreferences } from '@/features/settings/appPreferences';
 import { getLargeEmojiSize } from './content/largeEmoji';
 import { Ripple } from '@/components/Ripple';
 import { MessageBody, MessageText } from './content/MessageBody';
 import { LinkPreview } from './content/LinkPreview';
 import { MessageMetadata } from './MessageMetadata';
+import { MessageRetryContext } from './messageRetryContext';
 import { MessageReaction } from './reactions/MessageReaction';
 import { finishReactionLayout } from './reactions/reactionLayoutTransition';
 import { MessageTail } from './MessageTail';
@@ -93,6 +94,16 @@ export const MessageBubble = memo(function MessageBubble({
   }, [message.id, onMount]);
   const currentUserId = useCurrentUserId();
   const isOwn = message.authorId === currentUserId;
+  const retryMessage = useContext(MessageRetryContext);
+  // Pending uploads have their own retry and file re-selection controls.
+  const canRetry =
+    isOwn &&
+    !isPreview &&
+    !isSelecting &&
+    !message.pendingMedia &&
+    message.deliveryStatus === 'failed';
+  const onRetry = canRetry && retryMessage ? () => retryMessage(message.id) : undefined;
+  const metadata = <MessageMetadata message={message} onRetry={onRetry} />;
   const isRoundVideo = message.media?.kind === 'video' && message.media.isRound;
   const isStandalone = Boolean(message.sticker || isRoundVideo || largeEmojiSize);
   const hasVisualMedia = Boolean(
@@ -216,15 +227,13 @@ export const MessageBubble = memo(function MessageBubble({
             message={message}
             onOpenMedia={onOpenMedia}
             onInteract={onInteract}
-            metadata={hasInlineMediaMetadata ? <MessageMetadata message={message} /> : undefined}
+            metadata={hasInlineMediaMetadata ? metadata : undefined}
           />
-          {hasOverlayTime && <MessageMetadata message={message} />}
+          {hasOverlayTime && metadata}
         </div>
         <div className={styles.messageContent} data-message-text>
           {!isLinkPreview && !largeEmojiSize && <MessageText message={message} />}
-          {!hasOverlayTime && !hasReactions && !hasInlineMediaMetadata && (
-            <MessageMetadata message={message} />
-          )}
+          {!hasOverlayTime && !hasReactions && !hasInlineMediaMetadata && metadata}
         </div>
         {message.linkPreview && (
           <div className={styles.mediaContent}>
@@ -242,7 +251,7 @@ export const MessageBubble = memo(function MessageBubble({
                 onReact={onReact}
               />
             ))}
-            {!hasOverlayTime && <MessageMetadata message={message} />}
+            {!hasOverlayTime && metadata}
           </div>
         )}
       </div>
