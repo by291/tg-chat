@@ -15,7 +15,7 @@
 }
 
 .authCard h1 {
-  margin: 20px 0 8px;
+  margin: 20px 0 24px;
   font-size: 27px;
   text-align: center;
 }
@@ -34,12 +34,6 @@
 .brandIcon svg {
   width: 38px;
   height: 38px;
-}
-
-.subtitle {
-  margin: 0 0 28px;
-  color: var(--secondary-color);
-  text-align: center;
 }
 
 .form fieldset {
@@ -284,9 +278,15 @@
 
 .profileHeading {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
   margin-bottom: 24px;
+}
+
+.profileHeading p {
+  margin: 0;
+  text-align: center;
 }
 
 .list {

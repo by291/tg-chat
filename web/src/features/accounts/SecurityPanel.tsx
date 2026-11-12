@@ -109,7 +109,7 @@ export function SecurityPanel({
   return (
     <div className={styles.panel}>
       <section className={styles.card}>
-        <h2>Password & recovery</h2>
+        <h3>Change password</h3>
         <AccountForm submitLabel="Change password" onSubmit={changePassword} shouldReset>
           <Field
             label="Current password"

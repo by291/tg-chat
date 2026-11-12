@@ -50,34 +50,24 @@ export function ProfilePanel({
       <section className={styles.card}>
         <div className={styles.profileHeading}>
           {isAvatarAvailable ? (
-            <>
-              <AvatarEditor
-                session={owner}
-                owner="user"
-                id={profile.id}
-                fileId={profile.avatar_file_id}
-                initials={profile.display_name.slice(0, 2).toUpperCase()}
-                size="large"
-                onAssign={assignAvatar}
-              />
-              <h2>Profile</h2>
-            </>
+            <AvatarEditor
+              session={owner}
+              owner="user"
+              id={profile.id}
+              fileId={profile.avatar_file_id}
+              initials={profile.display_name.slice(0, 2).toUpperCase()}
+              size="large"
+              onAssign={assignAvatar}
+            />
           ) : (
             <>
               <Avatar initials={profile.display_name.slice(0, 2).toUpperCase()} size="large" />
-              <div>
-                <h2>Profile</h2>
-                <button
-                  className={styles.textButton}
-                  disabled
-                  aria-describedby="avatar-unavailable"
-                >
-                  Change photo
-                </button>
-                <p id="avatar-unavailable" className={styles.hint}>
-                  Avatar uploads are not available yet.
-                </p>
-              </div>
+              <button className={styles.textButton} disabled aria-describedby="avatar-unavailable">
+                Change photo
+              </button>
+              <p id="avatar-unavailable" className={styles.hint}>
+                Avatar uploads are disabled.
+              </p>
             </>
           )}
         </div>
@@ -116,15 +106,6 @@ export function ProfilePanel({
         )}
       </section>
       <SettingsAccountDetails profile={{ username: profile.username, email: profile.email }} />
-      <section className={styles.card}>
-        <h3>Conversations</h3>
-        <p className={styles.hint}>
-          Messaging is coming soon. Your account settings and contacts are ready to use.
-        </p>
-        <a className={styles.textButton} href="/demo">
-          Explore sample conversations
-        </a>
-      </section>
     </div>
   );
 }

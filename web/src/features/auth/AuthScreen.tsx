@@ -111,7 +111,6 @@ export function AuthScreen({ owner, capabilities }: AuthScreenProps) {
           <Send aria-hidden="true" />
         </span>
         <h1>{title}</h1>
-        <p className={styles.subtitle}>Your account, your conversations.</p>
         {mode === 'recovery' ? (
           <RecoveryForm owner={owner} />
         ) : (
