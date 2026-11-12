@@ -437,6 +437,8 @@ background behavior require a configured provider and target device.
 
 ## M9: Independent one-to-one LiveKit calls
 
+[Detailed M9 design](../specs/2026-11-12-m9-livekit-calls-design.md).
+
 **Outcome:** Contact-authorized users place and answer one-to-one audio/video calls, including
 multi-device ringing and controlled failure/reconnect behavior.
 
