@@ -116,7 +116,8 @@ impl RoomWork {
              )
              UPDATE call_rooms room SET create_lease_id = $1,
                create_lease_until = clock_timestamp() + make_interval(secs => $2),
-               cleanup_safe_at = clock_timestamp() + make_interval(secs => $3)
+               cleanup_safe_at = GREATEST(room.cleanup_safe_at,
+                   room.create_lease_until + make_interval(secs => $3))
              FROM candidate WHERE room.call_id = candidate.call_id
              RETURNING room.call_id, room.room_name, room.create_lease_id",
         );
@@ -142,7 +143,7 @@ impl RoomWork {
             && call.setup_deadline.is_some_and(|deadline| deadline > now);
         let update = sqlx::query(
             "UPDATE call_rooms SET provider_sid = $3, create_lease_id = NULL,
-                 create_lease_until = NULL, cleanup_safe_at = NULL
+                 create_lease_until = NULL
              WHERE call_id = $1 AND create_lease_id = $2
                AND create_lease_until > clock_timestamp()",
         );
@@ -174,13 +175,16 @@ impl RoomWork {
     }
 
     async fn retry_create(&self, claim: CreateClaim) -> Result<(), AccountError> {
-        // Keep the cleanup delay after a timed-out create whose provider outcome is unknown.
+        // A later success cannot resolve the outcome of this timed-out provider request.
         let retry = sqlx::query(
             "UPDATE call_rooms SET create_after = clock_timestamp() + make_interval(secs => $3),
+                 cleanup_safe_at = GREATEST(cleanup_safe_at,
+                     clock_timestamp() + make_interval(secs => $4)),
                  create_lease_id = NULL, create_lease_until = NULL
              WHERE call_id = $1 AND create_lease_id = $2",
         );
         let retry = retry.bind(claim.call_id).bind(claim.create_lease_id).bind(RETRY_SECONDS);
+        let retry = retry.bind(UNCERTAIN_CREATE_SECONDS);
         retry.execute(&self.pool).await?;
 
         Ok(())
@@ -194,6 +198,8 @@ impl RoomWork {
                  WHERE work.available_at <= clock_timestamp()
                    AND (work.lease_until IS NULL OR work.lease_until <= clock_timestamp())
                    AND (room.cleanup_safe_at IS NULL OR room.cleanup_safe_at <= clock_timestamp())
+                   AND (room.create_lease_until IS NULL
+                     OR room.create_lease_until + make_interval(secs => $3) <= clock_timestamp())
                  ORDER BY work.available_at, work.call_id LIMIT 1 FOR UPDATE OF work SKIP LOCKED
              )
              UPDATE call_room_cleanup work SET lease_id = $1,
@@ -201,7 +207,7 @@ impl RoomWork {
              FROM candidate WHERE work.call_id = candidate.call_id
              RETURNING work.call_id, candidate.room_name, work.lease_id",
         );
-        let query = query.bind(Uuid::new_v4()).bind(LEASE_SECONDS);
+        let query = query.bind(Uuid::new_v4()).bind(LEASE_SECONDS).bind(UNCERTAIN_CREATE_SECONDS);
 
         Ok(query.fetch_optional(&self.pool).await?)
     }

@@ -272,6 +272,7 @@ impl LiveKit {
             "participant_joined"
                 | "participant_left"
                 | "participant_connection_aborted"
+                | "room_started"
                 | "room_finished"
         ) {
             return Ok(None);

@@ -124,3 +124,31 @@ async fn gateway_admission_uses_current_designated_call_state(pool: PgPool) {
         Err(AccountError::Forbidden)
     ));
 }
+
+#[sqlx::test]
+#[ignore = "requires isolated PostgreSQL"]
+async fn successful_create_retry_preserves_the_earlier_cleanup_fence(pool: PgPool) {
+    let (calls, caller, _, call_id) = accepted_call(&pool).await;
+    let work = RoomWork::new(pool.clone(), fixture_provider(), None);
+    work.reserve_room().await.unwrap();
+    let first = work.claim_create().await.unwrap().unwrap();
+    work.retry_create(first).await.unwrap();
+    let due =
+        sqlx::query("UPDATE call_rooms SET create_after = clock_timestamp() WHERE call_id = $1");
+    due.bind(call_id).execute(&pool).await.unwrap();
+    let second = work.claim_create().await.unwrap().unwrap();
+    work.publish_create(second, "RM_retry".to_owned()).await.unwrap();
+
+    let hangup = CallCommand {
+        call_id,
+        operation_id: Uuid::new_v4(),
+        action: CallAction::Hangup,
+    };
+    calls.command(&caller, hangup).await.unwrap();
+
+    assert!(work.claim_cleanup().await.unwrap().is_none());
+    let settled =
+        sqlx::query("UPDATE call_rooms SET cleanup_safe_at = clock_timestamp() WHERE call_id = $1");
+    settled.bind(call_id).execute(&pool).await.unwrap();
+    assert_eq!(work.claim_cleanup().await.unwrap().unwrap().call_id, call_id);
+}
