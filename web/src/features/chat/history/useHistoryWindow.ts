@@ -7,8 +7,11 @@ const NAVIGATION_CONTEXT_ROWS = 12;
 
 export interface RemoteHistory {
   hasOlder: boolean;
+  hasNewer?: boolean;
   isLoading: boolean;
   loadOlder: () => void;
+  loadNewer?: () => void;
+  jumpToLatest?: () => Promise<void>;
 }
 
 /** Expand locally available history without changing the identity of existing rows. */

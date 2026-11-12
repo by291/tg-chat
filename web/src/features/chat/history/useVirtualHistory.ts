@@ -4,17 +4,24 @@ import { useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { estimateHistoryRow } from './historyEstimate';
 import { animateHistoryNavigation, getHistoryNavigationWindow } from './animateHistoryNavigation';
-import type { HistoryRow } from './historyRows';
+import { unreadHistoryRowKey, type HistoryRow } from './historyRows';
+import type { RemoteHistory } from './useHistoryWindow';
 import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import type { MessageNavigation } from './MessageTimeline';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
 import { animateHistoryInset } from './animateHistoryInset';
 import { createHistoryScroll } from './createHistoryScroll';
-import { canMarkLatestRead, shouldLoadOlderHistory } from './historyViewportPolicy';
+import {
+  canMarkLatestRead,
+  canReadVisibleHistory,
+  shouldLoadHistoryBoundary,
+  shouldLoadOlderHistory,
+} from './historyViewportPolicy';
 
 const OVERSCAN_ROWS = 8;
 const WIDTH_SETTLE_DELAY_MS = 100;
 const FOLLOW_BOTTOM_DISTANCE = 80;
+const DISABLE_END_FOLLOW_DISTANCE = -1;
 const SHOW_JUMP_DISTANCE = 160;
 const HISTORY_TOP_PADDING = 8;
 const HISTORY_BOTTOM_PADDING = 12;
@@ -25,8 +32,11 @@ interface VirtualHistoryOptions {
   overlayInsets?: ChatOverlayInsets;
   hasOlder: boolean;
   loadOlder: () => void;
+  remoteHistory?: RemoteHistory;
   navigation?: MessageNavigation;
-  onReachLatest?: () => void;
+  latestRequest?: number;
+  onReachLatest?: (messageId: string) => void;
+  onReachMessage?: (messageId: string) => void;
 }
 
 interface NavigationWindow {
@@ -48,8 +58,11 @@ export function useVirtualHistory({
   overlayInsets = NO_OVERLAYS,
   hasOlder,
   loadOlder,
+  remoteHistory,
   navigation,
+  latestRequest,
   onReachLatest,
+  onReachMessage,
 }: VirtualHistoryOptions) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -59,6 +72,7 @@ export function useVirtualHistory({
     createHistoryScroll({
       getAnimatedRows: () => animatedRowsRef.current,
       isNavigationActive: () => Boolean(cancelNavigationRef.current),
+      onRevealComplete: scheduleScrollWork,
     }),
   );
   const previousBottomAlignmentRef = useRef(0);
@@ -70,17 +84,22 @@ export function useVirtualHistory({
   const readingAnchorRef = useRef<ReadingAnchor | undefined>(undefined);
   const lastNavigationRef = useRef<string | undefined>(undefined);
   const latestRequestIdRef = useRef(0);
+  const pendingLatestRequestRef = useRef<LatestNavigationRequest | undefined>(undefined);
+  const externalLatestRequestRef = useRef(latestRequest);
   const cancelResizeRestoreRef = useRef<(() => void) | undefined>(undefined);
   const isResizingRef = useRef(false);
   const scrollFrameRef = useRef(0);
   const scrollWorkRef = useRef<() => void>(() => {});
   const activeNavigationRowsRef = useRef(rows);
   const previousLastKeyRef = useRef(rows.at(-1)?.key);
+  const hasNewer = Boolean(remoteHistory?.hasNewer);
+  const previousHasNewerRef = useRef(hasNewer);
   const requestedHistoryStartRef = useRef<string | undefined>(undefined);
+  const requestedHistoryEndRef = useRef<string | undefined>(undefined);
   const [navigationWindow, setNavigationWindow] = useState<NavigationWindow>();
   const [latestNavigation, setLatestNavigation] = useState<LatestNavigationRequest>();
   const isLatestNavigation = Boolean(
-    latestNavigation && latestNavigation.messageRequestId === navigation?.requestId,
+    latestNavigation && !hasNewer && latestNavigation.messageRequestId === navigation?.requestId,
   );
   let navigationKey: string | undefined;
   if (isLatestNavigation) {
@@ -94,6 +113,10 @@ export function useVirtualHistory({
     // that message request later must not resurrect an already consumed bottom navigation.
     if (latestNavigation && latestNavigation.messageRequestId !== navigation?.requestId) {
       setLatestNavigation(undefined);
+    }
+    const pendingLatestRequest = pendingLatestRequestRef.current;
+    if (pendingLatestRequest && pendingLatestRequest.messageRequestId !== navigation?.requestId) {
+      pendingLatestRequestRef.current = undefined;
     }
   }, [latestNavigation, navigation?.requestId]);
 
@@ -140,7 +163,9 @@ export function useVirtualHistory({
     viewport &&
     viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= FOLLOW_BOTTOM_DISTANCE,
   );
-  const shouldReveal = hasAppended && (isOwnMessage || isFollowingLatest);
+  // An arriving newer page extends the reading window, even if it happens to reach the end.
+  const canFollowLatest = !hasNewer && !previousHasNewerRef.current;
+  const shouldReveal = canFollowLatest && hasAppended && (isOwnMessage || isFollowingLatest);
   if (shouldReveal && isInitializedRef.current && !shouldReduceMotion) {
     // Ref measurements run before layout effects. Reserve scroll ownership before they can
     // apply estimate corrections, otherwise the first painted frame starts from a jump.
@@ -169,8 +194,9 @@ export function useVirtualHistory({
     scrollPaddingEnd: overlayInsets.bottom,
     scrollToFn: historyScroll.scrollTo,
     anchorTo: 'end',
-    followOnAppend: shouldReduceMotion ? 'auto' : 'smooth',
-    scrollEndThreshold: FOLLOW_BOTTOM_DISTANCE,
+    followOnAppend: canFollowLatest && (shouldReduceMotion ? 'auto' : 'smooth'),
+    // Keep the key anchor when a bounded page is resized without pinning its temporary bottom.
+    scrollEndThreshold: canFollowLatest ? FOLLOW_BOTTOM_DISTANCE : DISABLE_END_FOLLOW_DISTANCE,
   });
   const viewportHeight = virtualizer.scrollRect?.height ?? 0;
   const bottomAlignment = Math.max(0, viewportHeight - virtualizer.getTotalSize());
@@ -204,7 +230,7 @@ export function useVirtualHistory({
         virtualizer.scrollToEnd({ behavior: 'smooth' });
         return;
       }
-      if (previousDistance <= FOLLOW_BOTTOM_DISTANCE) {
+      if (!hasNewer && previousDistance <= FOLLOW_BOTTOM_DISTANCE) {
         virtualizer.scrollToEnd({ behavior: 'auto' });
         const animatedRows = animatedRowsRef.current;
         if (animatedRows && bottomChange !== 0) {
@@ -227,6 +253,7 @@ export function useVirtualHistory({
       overlayInsets,
       virtualizer,
       shouldReduceMotion,
+      hasNewer,
     ],
   );
 
@@ -278,6 +305,7 @@ export function useVirtualHistory({
       cancelAnimationFrame(scrollFrameRef.current);
       scrollFrameRef.current = 0;
       lastNavigationRef.current = undefined;
+      pendingLatestRequestRef.current = undefined;
     };
   }, []);
 
@@ -301,6 +329,7 @@ export function useVirtualHistory({
     const previousBottomAlignment = previousBottomAlignmentRef.current;
     previousBottomAlignmentRef.current = bottomAlignment;
     previousLastKeyRef.current = lastRow?.key;
+    previousHasNewerRef.current = hasNewer;
     if (!isInitializedRef.current) {
       return;
     }
@@ -347,17 +376,25 @@ export function useVirtualHistory({
       lastNavigationRef.current = undefined;
     }
 
-    const targetIndex = isLatestNavigation
-      ? rows.length - 1
-      : rows.findIndex((row) => row.key === navigation?.messageId);
+    let targetIndex = rows.length - 1;
+    let alignment: 'start' | 'center' | 'end' = 'end';
+    if (!isLatestNavigation) {
+      const target = navigation?.messageId;
+      targetIndex = rows.findIndex((row) => row.key === target);
+      alignment = 'center';
+      if (navigation?.kind === 'unread' && target) {
+        const dividerKey = unreadHistoryRowKey(target);
+        const dividerIndex = rows.findIndex((row) => row.key === dividerKey);
+        targetIndex = dividerIndex >= 0 ? dividerIndex : targetIndex;
+        alignment = 'start';
+      }
+    }
     const viewport = viewportRef.current;
     if (targetIndex < 0 || !viewport) {
       return;
     }
 
     const messageId = rows[targetIndex].key;
-    const alignment = isLatestNavigation ? 'end' : 'center';
-
     if (shouldPrepareWindow) {
       const nextWindow = getHistoryNavigationWindow({
         viewport,
@@ -453,8 +490,8 @@ export function useVirtualHistory({
         return;
       }
 
-      const wasAtEnd =
-        viewport.scrollHeight - viewport.scrollTop - previousHeight <= FOLLOW_BOTTOM_DISTANCE;
+      const distanceFromEnd = viewport.scrollHeight - viewport.scrollTop - previousHeight;
+      const wasAtEnd = !previousHasNewerRef.current && distanceFromEnd <= FOLLOW_BOTTOM_DISTANCE;
       previousHeight = height;
 
       // Responsive width transitions deliver several intermediate sizes. Keep the original anchor
@@ -511,19 +548,36 @@ export function useVirtualHistory({
   function updateScrollPosition() {
     rememberReadingPosition();
     const viewport = viewportRef.current;
+    if (!viewport) {
+      return;
+    }
+
     const activity = {
       isInitialized: isInitializedRef.current,
       isResizing: isResizingRef.current,
-      isNavigating: Boolean(cancelNavigationRef.current || navigationWindow),
+      isNavigating: Boolean(
+        cancelNavigationRef.current ||
+        navigationWindow ||
+        pendingLatestRequestRef.current ||
+        historyScroll.isAnimating(),
+      ),
     };
-    const canRead = canMarkLatestRead({
+    const readPosition = {
       activity,
       viewport,
       isPageVisible: document.visibilityState === 'visible',
       hasPageFocus: document.hasFocus(),
-    });
-    if (canRead) {
-      onReachLatest?.();
+    };
+    if (onReachLatest && !hasNewer && lastRow?.kind === 'message') {
+      if (canMarkLatestRead(readPosition)) {
+        onReachLatest(lastRow.key);
+      }
+    }
+    if (onReachMessage && canReadVisibleHistory(readPosition)) {
+      const reachedId = getReachedMessageId(viewport);
+      if (reachedId) {
+        onReachMessage(reachedId);
+      }
     }
 
     const firstRowKey = rows[0]?.key;
@@ -536,29 +590,101 @@ export function useVirtualHistory({
       firstRowKey,
       requestedStartKey: requestedHistoryStartRef.current,
     });
-    if (!shouldPrefetch) {
+    if (shouldPrefetch) {
+      // Record ownership before requesting: scroll and measurement callbacks can share a frame.
+      requestedHistoryStartRef.current = firstRowKey;
+      loadOlder();
       return;
     }
 
-    // Scroll and measurement callbacks may share the loaded boundary until React commits.
-    // Record ownership before requesting; anchorTo: 'end' preserves the reading position.
-    requestedHistoryStartRef.current = firstRowKey;
-    loadOlder();
+    const loadNewer = remoteHistory?.loadNewer;
+    const lastRowKey = lastRow?.key;
+    const shouldPrefetchNewer = shouldLoadHistoryBoundary({
+      activity,
+      viewport,
+      hasUserInteracted: hasUserInteractedRef.current,
+      hasMore: hasNewer && !remoteHistory?.isLoading,
+      scrollDirection: virtualizer.scrollDirection,
+      boundaryKey: lastRowKey,
+      requestedKey: requestedHistoryEndRef.current,
+      edge: 'end',
+    });
+    if (loadNewer && shouldPrefetchNewer) {
+      requestedHistoryEndRef.current = lastRowKey;
+      loadNewer();
+    }
   }
 
-  function jumpToLatest() {
+  function getReachedMessageId(viewport: HTMLDivElement) {
+    const visibleTop = viewport.scrollTop + overlayInsets.top;
+    const visibleBottom = viewport.scrollTop + viewport.clientHeight - overlayInsets.bottom;
+    const renderedItems = virtualizer.getVirtualItems();
+    for (let index = renderedItems.length - 1; index >= 0; index -= 1) {
+      const item = renderedItems[index];
+      const row = rows[item.index];
+      const isIncoming =
+        row?.kind === 'message' && !row.message.isService && row.message.authorId !== currentUserId;
+      const isVisible =
+        item.end + bottomAlignment > visibleTop && item.start + bottomAlignment < visibleBottom;
+      if (isIncoming && isVisible) {
+        return row.key;
+      }
+    }
+
+    return undefined;
+  }
+
+  async function jumpToLatest() {
+    if (pendingLatestRequestRef.current) {
+      return;
+    }
+
+    const loadLatest = remoteHistory?.jumpToLatest;
+    if (hasNewer && !loadLatest) {
+      return;
+    }
+
     cancelNavigation();
     virtualizer.cancelScroll();
     setNavigationWindow(undefined);
     latestRequestIdRef.current += 1;
-    setLatestNavigation({
+    const request = {
       requestId: latestRequestIdRef.current,
       messageRequestId: navigation?.requestId,
-    });
+    };
+    if (hasNewer && loadLatest) {
+      pendingLatestRequestRef.current = request;
+      try {
+        await loadLatest();
+      } catch {
+        if (pendingLatestRequestRef.current === request) {
+          pendingLatestRequestRef.current = undefined;
+          scheduleScrollWork();
+        }
+        return;
+      }
+
+      // A newer navigation or user gesture may take ownership before the window arrives.
+      if (pendingLatestRequestRef.current !== request) {
+        return;
+      }
+      pendingLatestRequestRef.current = undefined;
+    }
+
+    setLatestNavigation(request);
   }
+
+  useEffect(() => {
+    const hasNewRequest = latestRequest !== externalLatestRequestRef.current;
+    externalLatestRequestRef.current = latestRequest;
+    if (hasNewRequest && latestRequest !== undefined) {
+      void jumpToLatest();
+    }
+  }, [latestRequest]);
 
   function cancelAutomaticScroll() {
     hasUserInteractedRef.current = true;
+    pendingLatestRequestRef.current = undefined;
     cancelNavigation();
     lastNavigationRef.current = navigationKey;
     setNavigationWindow(undefined);

@@ -41,6 +41,7 @@ const HIGHLIGHT_DURATION = 1800;
 export interface MessageNavigation {
   messageId: string;
   requestId: number;
+  kind?: 'unread';
 }
 
 interface MessageTimelineProps {
@@ -56,10 +57,13 @@ interface MessageTimelineProps {
   precedingMessage?: Message;
   messageIdPrefix?: string;
   searchQuery: string;
+  firstUnreadMessageId?: string;
   unreadCount?: number;
   isMuted?: boolean;
-  onReachLatest?: () => void;
+  onReachLatest?: (messageId: string) => void;
+  onReachMessage?: (messageId: string) => void;
   navigation?: MessageNavigation;
+  latestRequest?: number;
   selectedIds?: string[];
   onToggleSelection?: (messageId: string) => void;
   onSetSelection?: (change: MessageSelectionChange) => void;
@@ -83,10 +87,13 @@ function VirtualMessageHistory({
   overlayInsets,
   messageById,
   searchQuery,
+  firstUnreadMessageId,
   unreadCount = 0,
   isMuted = false,
   onReachLatest,
+  onReachMessage,
   navigation,
+  latestRequest,
   selectedIds,
   onToggleSelection,
   onSetSelection,
@@ -102,9 +109,15 @@ function VirtualMessageHistory({
   onJumpToMessage,
 }: VirtualMessageHistoryProps) {
   const currentUserId = useCurrentUserId();
+  const unreadNavigationId = navigation?.kind === 'unread' ? navigation.messageId : undefined;
+  const unreadId = unreadNavigationId ?? firstUnreadMessageId;
+  const unreadMessage = unreadId ? messageById.get(unreadId) : undefined;
+  const canShowUnread = !searchQuery && !isPreview && unreadMessage && !unreadMessage.isService;
+  const dividerId =
+    canShowUnread && unreadMessage.authorId !== currentUserId ? unreadId : undefined;
   const allRows = useMemo(
-    () => createHistoryRows(messages, { precedingMessage }),
-    [messages, precedingMessage],
+    () => createHistoryRows(messages, { precedingMessage, firstUnreadMessageId: dividerId }),
+    [messages, precedingMessage, dividerId],
   );
   const [highlightedId, setHighlightedId] = useState('');
   const [calendarRequest, setCalendarRequest] = useState({ timestamp: Date.now(), id: 0 });
@@ -117,8 +130,11 @@ function VirtualMessageHistory({
     overlayInsets,
     hasOlder,
     loadOlder,
+    remoteHistory,
     navigation,
+    latestRequest,
     onReachLatest,
+    onReachMessage: searchQuery || isPreview ? undefined : onReachMessage,
   });
   useLayoutEffect(
     () => {
@@ -186,7 +202,8 @@ function VirtualMessageHistory({
         currentUserId,
       })
     : [];
-  const isJumpVisible = (scroll.canJumpToLatest || unreadCount > 0) && !searchQuery;
+  const canJumpToLatest = scroll.canJumpToLatest || remoteHistory?.hasNewer || unreadCount > 0;
+  const isJumpVisible = canJumpToLatest && !searchQuery;
   const unreadNoun = unreadCount === 1 ? 'message' : 'messages';
   const jumpLabel =
     unreadCount > 0
@@ -199,6 +216,11 @@ function VirtualMessageHistory({
     }
 
     history.revealMessage(navigation.messageId);
+    if (navigation.kind === 'unread') {
+      setHighlightedId('');
+      return;
+    }
+
     setHighlightedId(navigation.messageId);
     const timeout = window.setTimeout(() => setHighlightedId(''), HIGHLIGHT_DURATION);
 
@@ -308,9 +330,8 @@ function VirtualMessageHistory({
                   style={{ transform: `translateY(${item.start + bottomAlignment}px)` }}
                 >
                   <div className={styles.rowContent} data-message-row-content>
-                    {row.kind === 'date' ? (
-                      <div className={styles.dateSpace} aria-hidden="true" />
-                    ) : (
+                    {row.kind === 'date' && <div className={styles.dateSpace} aria-hidden="true" />}
+                    {row.kind === 'message' && (
                       <MessageBubble
                         message={row.message}
                         shouldShowSender={shouldShowSender}
@@ -330,6 +351,15 @@ function VirtualMessageHistory({
                       />
                     )}
                   </div>
+                  {row.kind === 'unread' && (
+                    <div
+                      className={styles.unreadDivider}
+                      role="separator"
+                      aria-label="Unread messages"
+                    >
+                      Unread messages
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -385,7 +415,7 @@ function VirtualMessageHistory({
           data-visible={isJumpVisible}
           aria-hidden={!isJumpVisible}
           tabIndex={isJumpVisible ? 0 : -1}
-          onClick={scroll.jumpToLatest}
+          onClick={() => void scroll.jumpToLatest()}
         >
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path

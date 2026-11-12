@@ -1,5 +1,4 @@
 import {
-  ArrowDown,
   ArrowLeft,
   ContactRound,
   MessageCircle,
@@ -36,6 +35,7 @@ import { ChatOwner } from '../data/ChatOwner';
 import {
   compareCounter,
   destinationKey,
+  isConversationMuted,
   type CanonicalMessage,
   type MessageBodyInput,
   renderMessage,
@@ -178,6 +178,7 @@ export function ConnectedChat({
   const [isDirectoryVisible, setIsDirectoryVisible] = useState(!snapshot.selection);
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
+  const [latestSendRequest, setLatestSendRequest] = useState(0);
   const [folder, setFolder] = useState('inbox');
   const [directoryQuery, setDirectoryQuery] = useState('');
   const [searchConversationId, setSearchConversationId] = useState<string>();
@@ -337,7 +338,8 @@ export function ConnectedChat({
       destination.kind === 'recipient' && destination.user_id === conversation?.peer_id;
     return destinationKey(destination) === selectedKey || isCanonical || isRecipient;
   });
-  for (const entry of pending) {
+  const inlinePending = snapshot.hasNewer ? [] : pending;
+  for (const entry of inlinePending) {
     if (!acceptedIds.has(entry.request.message_id)) {
       messages.push(
         renderPending({
@@ -363,6 +365,15 @@ export function ConnectedChat({
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
     setIsDirectoryVisible(false);
+  }
+
+  async function jumpToLatest() {
+    try {
+      await owner.jumpToLatest();
+    } catch (failure) {
+      report(failure);
+      throw failure;
+    }
   }
 
   async function openGlobalResult(result: { conversationId: string; messageId: string }) {
@@ -406,6 +417,9 @@ export function ConnectedChat({
         });
       } else {
         await owner.queueSend(message);
+      }
+      if (!editing && snapshot.hasNewer) {
+        setLatestSendRequest((current) => current + 1);
       }
       const defaults = session?.getSnapshot().preferences?.notification_defaults;
       if (!editing && defaults?.should_play_sent_sound) {
@@ -1050,17 +1064,6 @@ export function ConnectedChat({
                 <Search />
               </button>
             )}
-            {selection && (
-              <button
-                type="button"
-                aria-label="Latest messages"
-                className={styles.latestAction}
-                onClick={() => void owner.loadHistory('latest')}
-              >
-                <ArrowDown aria-hidden="true" className={styles.latestIcon} />
-                <span>Latest messages</span>
-              </button>
-            )}
           </header>
           {hasCallActions && !calls && (
             <p role="status" className={styles.callUnavailable}>
@@ -1144,58 +1147,58 @@ export function ConnectedChat({
                   </button>
                 </div>
               )}
-              <div className={styles.historyControls}>
-                {snapshot.hasOlder && (
-                  <button
-                    type="button"
-                    disabled={snapshot.isLoading}
-                    onClick={() => void owner.loadHistory('older')}
-                  >
-                    Load older messages
-                  </button>
+              <div className={styles.historyPane}>
+                {snapshot.isLoading && (
+                  <div className={styles.historyLoading} role="status">
+                    Loading messages…
+                  </div>
                 )}
-                {snapshot.isLoading && <span role="status">Loading messages…</span>}
-                {snapshot.hasNewer && <span>Viewing older history</span>}
-              </div>
-              <ConnectedMediaContext.Provider value={mediaActions}>
-                <ContactLinkContext.Provider
-                  value={session ? (id) => void openContactLink(id).catch(report) : undefined}
-                >
-                  <MessageTimeline
-                    key={selectedKey}
-                    messages={messages}
-                    precedingMessage={
-                      snapshot.precedingMessage
-                        ? renderMessage(snapshot.precedingMessage)
-                        : undefined
-                    }
-                    shouldShowSender={conversation?.kind === 'group'}
-                    allowedActions={allowedActions}
-                    selectedIds={selectedIds}
-                    onToggleSelection={toggleSelection}
-                    onSetSelection={setMessageSelection}
-                    reactionChoices={REACTIONS}
-                    navigation={snapshot.navigation}
-                    onReachLatest={() => {
-                      const reached = snapshot.messages.at(-1);
-                      if (reached && !isDirectoryVisible && !editing) {
-                        void owner.markReached(reached.id).catch(report);
+                <ConnectedMediaContext.Provider value={mediaActions}>
+                  <ContactLinkContext.Provider
+                    value={session ? (id) => void openContactLink(id).catch(report) : undefined}
+                  >
+                    <MessageTimeline
+                      key={selectedKey}
+                      messages={messages}
+                      precedingMessage={
+                        snapshot.precedingMessage
+                          ? renderMessage(snapshot.precedingMessage)
+                          : undefined
                       }
-                    }}
-                    remoteHistory={{
-                      hasOlder: snapshot.hasOlder,
-                      isLoading: snapshot.isLoading,
-                      loadOlder: () => void owner.loadHistory('older'),
-                    }}
-                    searchQuery=""
-                    onCommand={messageCommand}
-                    onReact={react}
-                    onInteract={interact}
-                    onOpenMedia={() => undefined}
-                    onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-                  />
-                </ContactLinkContext.Provider>
-              </ConnectedMediaContext.Provider>
+                      shouldShowSender={conversation?.kind === 'group'}
+                      allowedActions={allowedActions}
+                      selectedIds={selectedIds}
+                      onToggleSelection={toggleSelection}
+                      onSetSelection={setMessageSelection}
+                      reactionChoices={REACTIONS}
+                      navigation={snapshot.navigation}
+                      firstUnreadMessageId={snapshot.firstUnreadMessageId}
+                      unreadCount={Number(conversation?.unread_count ?? 0)}
+                      isMuted={isConversationMuted(conversation)}
+                      latestRequest={latestSendRequest}
+                      onReachMessage={(messageId) => {
+                        if (!isDirectoryVisible && !editing) {
+                          void owner.markReached(messageId).catch(report);
+                        }
+                      }}
+                      remoteHistory={{
+                        hasOlder: snapshot.hasOlder,
+                        hasNewer: snapshot.hasNewer,
+                        isLoading: snapshot.isLoading,
+                        loadOlder: () => void owner.loadHistory('older'),
+                        loadNewer: () => void owner.loadHistory('newer'),
+                        jumpToLatest,
+                      }}
+                      searchQuery=""
+                      onCommand={messageCommand}
+                      onReact={react}
+                      onInteract={interact}
+                      onOpenMedia={() => undefined}
+                      onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+                    />
+                  </ContactLinkContext.Provider>
+                </ConnectedMediaContext.Provider>
+              </div>
               <footer className={styles.composer}>
                 {snapshot.draftConflict && (
                   <div className={styles.conflict} role="status">

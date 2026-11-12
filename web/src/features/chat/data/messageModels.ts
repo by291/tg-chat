@@ -10,6 +10,12 @@ export type MessageBodyInput = components['schemas']['MessageBodyInput'];
 
 export const MAX_VISIBLE_MESSAGES = 200;
 
+/** Check the current deadline for the conversation's notification mute. */
+export function isConversationMuted(conversation?: Conversation): boolean {
+  const deadline = conversation?.muted_until;
+  return Boolean(deadline && Date.parse(deadline) > Date.now());
+}
+
 /** Compare authoritative decimal counters without browser integer precision loss. */
 export function compareCounter(first: string, second: string): number {
   const difference = BigInt(first) - BigInt(second);
@@ -23,7 +29,7 @@ export function compareCounter(first: string, second: string): number {
 export function mergeMessages(options: {
   current: CanonicalMessage[];
   incoming: CanonicalMessage[];
-  edge: 'older' | 'latest';
+  edge: 'older' | 'newer' | 'latest';
 }): CanonicalMessage[] {
   const messages = new Map(options.current.map((message) => [message.id, message]));
   for (const message of options.incoming) {

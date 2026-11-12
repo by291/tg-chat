@@ -1,5 +1,5 @@
 import type { components } from '@/api/schema';
-import type { Conversation } from '../data/messageModels';
+import { isConversationMuted, type Conversation } from '../data/messageModels';
 import type { Confirmation } from './ActionConfirmation';
 import styles from './ConnectedChat.module.css';
 
@@ -14,9 +14,7 @@ export function ConversationControls(props: {
   onPins: () => void;
 }) {
   const conversation = props.conversation;
-  const isMuted = Boolean(
-    conversation.muted_until && Date.parse(conversation.muted_until) > Date.now(),
-  );
+  const isMuted = isConversationMuted(conversation);
 
   function preference(change: components['schemas']['PreferenceChange']) {
     void props.onCommand({ kind: 'preferences', change }).catch(props.onError);

@@ -55,13 +55,31 @@ const TRANSIENT_ERROR_CODES = new Set([
   'network_unavailable',
 ]);
 
+type HistoryEdge = 'older' | 'newer' | 'latest';
+type HistoryPage = components['schemas']['HistoryPage'];
+type HistoryAnchor =
+  | { messageId: string; dateAt?: never; unread?: never }
+  | { dateAt: string; messageId?: never; unread?: never }
+  | { unread: true; messageId?: never; dateAt?: never };
+
+interface HistoryRequest {
+  edge: HistoryEdge;
+  anchor?: HistoryAnchor;
+  shouldSupersede?: boolean;
+}
+
 interface HistoryLoad {
-  generation: number;
-  edge: 'older' | 'latest';
+  edge: HistoryEdge;
   concurrentMessages: CanonicalMessage[];
 }
 
-type HistoryAnchor = { messageId: string; dateAt?: never } | { dateAt: string; messageId?: never };
+interface ReadAdvance {
+  generation: number;
+  conversationId: string;
+  through: string;
+}
+
+type HistoryWindow = Pick<ChatSnapshot, 'messages' | 'precedingMessage' | 'hasOlder' | 'hasNewer'>;
 
 interface Selection {
   destination: Destination;
@@ -80,7 +98,8 @@ export interface ChatSnapshot {
   draftConflict?: Draft;
   draftAlternatives?: Draft[];
   editConflict?: CanonicalMessage;
-  navigation?: { messageId: string; requestId: number };
+  navigation?: { messageId: string; requestId: number; kind?: 'unread' };
+  firstUnreadMessageId?: string;
   hasOlder: boolean;
   hasNewer: boolean;
   isLoading: boolean;
@@ -132,6 +151,73 @@ function precedingMessage(options: {
   return preceding;
 }
 
+function mergeHistoryPage(options: {
+  snapshot: ChatSnapshot;
+  load: HistoryLoad;
+  page: HistoryPage;
+  boundary: string;
+}): HistoryWindow {
+  const { snapshot, load, page, boundary } = options;
+  const isReplacement = load.edge === 'latest';
+  const isOlder = load.edge === 'older';
+  const pageIds = new Set(page.messages.map((message) => message.id));
+  const current = isReplacement
+    ? snapshot.messages.filter((message) => pageIds.has(message.id))
+    : snapshot.messages;
+  const knownIds = new Set([...current, ...page.messages].map((message) => message.id));
+  const additions = [...page.messages];
+  const emptyPageBoundary = isReplacement ? '0' : boundary;
+  const pageBoundary = page.messages.at(-1)?.sequence ?? emptyPageBoundary;
+  const rightBoundary = isOlder ? boundary : pageBoundary;
+  let nextSequence = BigInt(rightBoundary);
+  let hasNewer = isOlder ? snapshot.hasNewer : page.has_newer;
+
+  // Only the page can bridge gaps between remote sequence windows.
+  for (const message of load.concurrentMessages) {
+    if (knownIds.has(message.id)) {
+      additions.push(message);
+      continue;
+    }
+    const sequence = BigInt(message.sequence);
+    if (sequence <= nextSequence) {
+      continue;
+    }
+    if (isOlder || hasNewer || sequence !== nextSequence + 1n) {
+      hasNewer = true;
+      continue;
+    }
+
+    nextSequence = sequence;
+    knownIds.add(message.id);
+    additions.push(message);
+  }
+
+  const messages = mergeMessages({
+    current,
+    incoming: additions,
+    edge: load.edge,
+  });
+  const didTrim = knownIds.size > MAX_VISIBLE_MESSAGES;
+  const preceding = precedingMessage({
+    messages,
+    candidates: [
+      page.preceding_message ?? undefined,
+      isReplacement ? undefined : snapshot.precedingMessage,
+      ...current,
+      ...additions,
+    ],
+  });
+  const hasOlder = isOlder
+    ? page.has_older
+    : page.has_older || didTrim || (!isReplacement && snapshot.hasOlder);
+  return {
+    messages,
+    precedingMessage: preceding,
+    hasOlder,
+    hasNewer: hasNewer || (isOlder && didTrim),
+  };
+}
+
 export class ChatOwner {
   private readonly session: SessionOwner;
   private readonly revision: number;
@@ -146,10 +232,13 @@ export class ChatOwner {
   private readonly unsubscribe: () => void;
   private cursor = '';
   private viewGeneration = 0;
+  private openingHistoryGeneration?: number;
+  private navigationRequestId = 0;
   private contactOpenGeneration = 0;
   private readonly alerts = new ConnectedAlerts();
   private activeAlertConversation?: string;
   private historyLoad?: HistoryLoad;
+  private readAdvance?: ReadAdvance;
   private isDisposed = false;
   private syncPromise?: Promise<void>;
   private sendPromise?: Promise<void>;
@@ -369,6 +458,7 @@ export class ChatOwner {
       hasOlder: false,
       hasNewer: false,
       navigation: undefined,
+      firstUnreadMessageId: undefined,
     });
   }
 
@@ -493,12 +583,15 @@ export class ChatOwner {
     this.ensureCurrent();
     void this.flushDraft().catch((error) => this.report(error));
     const generation = ++this.viewGeneration;
+    this.openingHistoryGeneration = generation;
     this.historyLoad = undefined;
     this.publish({
       selection,
       isLoading: false,
       messages: [],
       precedingMessage: undefined,
+      navigation: undefined,
+      firstUnreadMessageId: undefined,
       draft: emptyDraft(),
       draftConflict: undefined,
       draftAlternatives: [],
@@ -507,10 +600,26 @@ export class ChatOwner {
       hasNewer: false,
       error: '',
     });
+
+    try {
+      await this.restoreSelection({ selection, generation, messageId: options?.messageId });
+    } finally {
+      if (this.openingHistoryGeneration === generation) {
+        this.openingHistoryGeneration = undefined;
+      }
+    }
+  }
+
+  private async restoreSelection(options: {
+    selection: Selection;
+    generation: number;
+    messageId?: string;
+  }): Promise<void> {
+    const { selection, generation, messageId } = options;
     const initialDraftId = this.snapshot.draft.id;
     const persisted = await this.requireStore().read();
     if (!this.isCurrentView(generation)) {
-      if (options) {
+      if (messageId) {
         throw new DOMException('Another conversation replaced this jump.', 'AbortError');
       }
       return;
@@ -536,8 +645,8 @@ export class ChatOwner {
         draftAlternatives: persisted.draftAlternatives?.[key] ?? [],
       });
     }
-    if (options) {
-      await this.jumpToMessage(options.messageId, { shouldRevalidate: true });
+    if (messageId) {
+      await this.jumpToMessage(messageId, { shouldRevalidate: true });
       return;
     }
 
@@ -546,8 +655,16 @@ export class ChatOwner {
     if (!this.isCurrentView(generation)) {
       return;
     }
+    const shouldOpenAtUnread = conversation && conversation.kind !== 'saved';
     const page = conversation ? cached.pages[conversation.id] : undefined;
-    if (page) {
+    const cachedLast = page?.messages.at(-1);
+    // A stale directory count must not expose an unread cached tail before positioning.
+    const hasReadCachedPage =
+      !shouldOpenAtUnread ||
+      !cachedLast ||
+      compareCounter(cachedLast.sequence, conversation.read_through) <= 0;
+    const canShowCachedLatest = page && !page.has_newer && !page.anchor_id && hasReadCachedPage;
+    if (canShowCachedLatest) {
       this.publish({
         messages: page.messages,
         precedingMessage: page.preceding_message ?? undefined,
@@ -555,7 +672,8 @@ export class ChatOwner {
         hasNewer: page.has_newer,
       });
     }
-    await this.loadHistory('latest');
+    const anchor = shouldOpenAtUnread ? { unread: true as const } : undefined;
+    await this.requestHistory({ edge: 'latest', anchor });
   }
 
   /** Retain new edits immediately while IndexedDB serializes their durable draft revisions. */
@@ -903,6 +1021,7 @@ export class ChatOwner {
   /** Retry the persisted action only within receipt retention. */
   async retryCommand(operationId: string): Promise<void> {
     const persisted = await this.requireStore().read();
+    this.ensureCurrent();
     this.publish({ pendingCommands: persisted.commands ?? [] });
     const entry = persisted.commands?.find(
       (command) => command.request.operation_id === operationId,
@@ -1158,43 +1277,104 @@ export class ChatOwner {
     ) {
       return;
     }
-    await this.command({ kind: 'read', through: reached.sequence });
+
+    const generation = this.viewGeneration;
+    const currentAdvance = this.readAdvance;
+    if (currentAdvance?.generation === generation) {
+      if (compareCounter(reached.sequence, currentAdvance.through) > 0) {
+        currentAdvance.through = reached.sequence;
+      }
+      return;
+    }
+
+    const advance = {
+      generation,
+      conversationId: conversation.id,
+      through: reached.sequence,
+    };
+    this.readAdvance = advance;
+    try {
+      await this.advanceRead(advance);
+    } finally {
+      if (this.readAdvance === advance) {
+        this.readAdvance = undefined;
+      }
+    }
+  }
+
+  private async advanceRead(advance: ReadAdvance): Promise<void> {
+    let submittedThrough: string | undefined;
+    while (this.isCurrentView(advance.generation) && submittedThrough !== advance.through) {
+      const conversation = this.selectedConversation();
+      const through = advance.through;
+      if (
+        conversation?.id !== advance.conversationId ||
+        compareCounter(through, conversation.read_through) <= 0
+      ) {
+        return;
+      }
+
+      // Queue the next operation only after the in-flight command has resolved successfully.
+      submittedThrough = through;
+      await this.command({ kind: 'read', through });
+    }
   }
 
   /** Reveal a reply target through its bounded authorized neighborhood. */
   async jumpToMessage(messageId: string, options?: { shouldRevalidate: boolean }): Promise<void> {
     const existing = this.snapshot.messages.find((message) => message.id === messageId);
     if (existing && !options?.shouldRevalidate) {
-      this.publish({ navigation: { messageId, requestId: Date.now() } });
+      this.historyLoad = undefined;
+      this.publish({
+        isLoading: false,
+        navigation: { messageId, requestId: ++this.navigationRequestId },
+      });
       return;
     }
-    await this.loadHistory('latest', { messageId });
+    await this.requestHistory({ edge: 'latest', anchor: { messageId }, shouldSupersede: true });
   }
 
   /** Reveal the first authorized message on or after a date, or the latest earlier message. */
   async jumpToDate(timestamp: number): Promise<void> {
     const dateAt = new Date(timestamp).toISOString();
-    await this.loadHistory('latest', { dateAt });
+    await this.requestHistory({ edge: 'latest', anchor: { dateAt }, shouldSupersede: true });
   }
 
-  /** Load bounded history and allow an explicit jump to supersede a pending edge request. */
-  async loadHistory(edge: 'older' | 'latest', anchor?: HistoryAnchor): Promise<void> {
+  /** Return to the live edge even when an earlier history request is pending. */
+  async jumpToLatest(): Promise<void> {
+    await this.requestHistory({ edge: 'latest', shouldSupersede: true });
+  }
+
+  /** Extend a visible window in either direction or refresh the newest page. */
+  async loadHistory(edge: HistoryEdge): Promise<void> {
+    await this.requestHistory({ edge });
+  }
+
+  private async requestHistory(request: HistoryRequest): Promise<void> {
     this.ensureCurrent();
+    const { anchor, edge, shouldSupersede } = request;
     const conversation = this.selectedConversation();
     if (!conversation) {
-      if (anchor) {
+      if (anchor && shouldSupersede) {
         throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
       }
       return;
     }
-    if (this.snapshot.isLoading && !anchor) {
+    if (this.snapshot.isLoading && !shouldSupersede) {
       return;
     }
+    const first = this.snapshot.messages[0];
+    const last = this.snapshot.messages.at(-1);
+    if (edge === 'older' && (!first || !this.snapshot.hasOlder)) {
+      return;
+    }
+    if (edge === 'newer' && (!last || !this.snapshot.hasNewer)) {
+      return;
+    }
+
     const generation = this.viewGeneration;
     const epoch = this.cacheSnapshot?.epoch;
-    const first = this.snapshot.messages[0];
     const load: HistoryLoad = {
-      generation,
       edge,
       concurrentMessages: [],
     };
@@ -1202,7 +1382,7 @@ export class ChatOwner {
     const isCurrentLoad = () => this.historyLoad === load && this.isCurrentView(generation);
     const hasCurrentLoad = () => {
       const isCurrent = isCurrentLoad();
-      if (!isCurrent && anchor) {
+      if (!isCurrent && shouldSupersede) {
         throw new DOMException('Another history request replaced this jump.', 'AbortError');
       }
       return isCurrent;
@@ -1216,8 +1396,10 @@ export class ChatOwner {
             path: { conversation_id: conversation.id },
             query: {
               before: edge === 'older' ? first?.sequence : undefined,
+              after: edge === 'newer' ? last?.sequence : undefined,
               around: anchor?.messageId,
               date_at: anchor?.dateAt,
+              unread: anchor?.unread,
             },
           },
         },
@@ -1227,7 +1409,10 @@ export class ChatOwner {
       }
       const page = requirePayload(reply);
       const anchorId = page.anchor_id ?? anchor?.messageId;
-      if (anchor && !page.messages.some((message) => message.id === anchorId)) {
+      const resolvedAnchorId = page.messages.some((message) => message.id === anchorId)
+        ? anchorId
+        : undefined;
+      if (anchor && !anchor.unread && !resolvedAnchorId) {
         throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
       }
       const cached = await this.requireCache().read();
@@ -1235,7 +1420,7 @@ export class ChatOwner {
         return;
       }
       if (epoch !== cached.epoch) {
-        if (anchor) {
+        if (shouldSupersede) {
           throw new DOMException('History visibility changed while loading.', 'AbortError');
         }
         return;
@@ -1251,7 +1436,10 @@ export class ChatOwner {
       }
       if (!didSave) {
         await this.reloadSharedCache();
-        if (anchor) {
+        if (!hasCurrentLoad()) {
+          return;
+        }
+        if (shouldSupersede) {
           const updated = this.selectedConversation();
           const invalidation = this.cacheSnapshot?.invalidations[conversation.id];
           const isUnavailable =
@@ -1261,49 +1449,34 @@ export class ChatOwner {
           if (isUnavailable) {
             throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
           }
-          throw new DOMException('History changed while opening the message.', 'AbortError');
+          throw new DOMException('History changed while loading.', 'AbortError');
         }
         this.publish({ hasNewer: true });
         return;
       }
-      // A send or sync may have committed after the history snapshot began. Keep those newer rows.
-      const firstSequence = page.messages[0]?.sequence;
-      const candidates = [...this.snapshot.messages, ...load.concurrentMessages];
-      const current = candidates.filter((message) => {
-        if (anchor) {
-          return false;
-        }
-        return (
-          edge === 'older' || !firstSequence || compareCounter(message.sequence, firstSequence) >= 0
-        );
+      const window = mergeHistoryPage({
+        snapshot: this.snapshot,
+        load,
+        page,
+        boundary: last?.sequence ?? '0',
       });
-      const messages = mergeMessages({
-        current,
-        incoming: page.messages,
-        edge,
-      });
-      const combinedIds = new Set([...current, ...page.messages].map((message) => message.id));
-      const hasTrimmedNewer = edge === 'older' && combinedIds.size > MAX_VISIBLE_MESSAGES;
+      const navigation = resolvedAnchorId
+        ? {
+            messageId: resolvedAnchorId,
+            requestId: ++this.navigationRequestId,
+            ...(anchor?.unread && { kind: 'unread' as const }),
+          }
+        : this.snapshot.navigation;
       this.publish({
-        messages,
-        precedingMessage: precedingMessage({
-          messages,
-          // prettier-ignore
-          candidates: [
-            page.preceding_message ?? undefined,
-            ...candidates,
-            ...page.messages,
-          ],
-        }),
-        navigation: anchorId
-          ? { messageId: anchorId, requestId: Date.now() }
-          : this.snapshot.navigation,
-        hasOlder: page.has_older,
-        hasNewer: page.has_newer || hasTrimmedNewer || (edge === 'older' && this.snapshot.hasNewer),
+        ...window,
+        navigation,
+        firstUnreadMessageId: anchor?.unread
+          ? resolvedAnchorId
+          : this.snapshot.firstUnreadMessageId,
         error: '',
       });
     } catch (error) {
-      if (anchor) {
+      if (shouldSupersede) {
         throw error;
       }
       if (isCurrentLoad()) {
@@ -1598,7 +1771,7 @@ export class ChatOwner {
     const isSelected = this.selectedConversation()?.id === message.conversation_id;
     const isVisible = this.snapshot.messages.some((candidate) => candidate.id === message.id);
     const load = this.historyLoad;
-    if (isSelected && load?.edge === 'latest' && load.generation === this.viewGeneration) {
+    if (isSelected && load) {
       // Sync advances independently of HTTP; retain arrivals until this page is installed.
       load.concurrentMessages = mergeMessages({
         current: load.concurrentMessages,
@@ -1608,16 +1781,18 @@ export class ChatOwner {
     }
     // An older request owns its original left edge. Appending here could evict the bridge row.
     const isLoadingOlder = load?.edge === 'older';
-    const firstVisible = this.snapshot.messages[0];
+    const isOpening = this.openingHistoryGeneration === this.viewGeneration;
     const lastVisible = this.snapshot.messages.at(-1);
-    const isBeforeWindow =
-      firstVisible && compareCounter(message.sequence, firstVisible.sequence) < 0;
+    const isAfterWindow =
+      !lastVisible || compareCounter(message.sequence, lastVisible.sequence) > 0;
     const hasSequenceGap =
       lastVisible && BigInt(message.sequence) > BigInt(lastVisible.sequence) + 1n;
     // A history snapshot can be newer than the feed cursor. Backlog must not create a remote gap.
     const canExtendWindow =
-      !isBeforeWindow && !hasSequenceGap && !this.snapshot.hasNewer && !isLoadingOlder;
-    const shouldRefreshLatest = isSelected && hasSequenceGap && !this.snapshot.hasNewer && !load;
+      isAfterWindow && !hasSequenceGap && !this.snapshot.hasNewer && !isLoadingOlder && !isOpening;
+    const isMissingNewer = isSelected && isAfterWindow && !isOpening && !isVisible;
+    const shouldRefreshLatest =
+      isMissingNewer && hasSequenceGap && !this.snapshot.hasNewer && !load;
     const canAppend = isSelected && (isVisible || canExtendWindow);
     const messages = canAppend
       ? mergeMessages({
@@ -1633,7 +1808,7 @@ export class ChatOwner {
         messages,
         candidates: [this.snapshot.precedingMessage, ...this.snapshot.messages],
       }),
-      hasNewer: this.snapshot.hasNewer || (isSelected && !isBeforeWindow && !canAppend),
+      hasNewer: this.snapshot.hasNewer || (isMissingNewer && !canAppend),
       hasOlder:
         this.snapshot.hasOlder || (messages[0] !== undefined && messages[0].sequence !== '1'),
     });
@@ -1664,6 +1839,8 @@ export class ChatOwner {
       this.publish({
         messages: [],
         precedingMessage: undefined,
+        navigation: undefined,
+        firstUnreadMessageId: undefined,
         isLoading: false,
         hasNewer: true,
       });
@@ -1721,9 +1898,11 @@ export class ChatOwner {
     }
     const precedingMessage =
       this.snapshot.precedingMessage?.id === messageId ? undefined : this.snapshot.precedingMessage;
+    const firstUnreadMessageId = this.snapshot.firstUnreadMessageId;
     this.publish({
       messages,
       precedingMessage,
+      firstUnreadMessageId: firstUnreadMessageId === messageId ? undefined : firstUnreadMessageId,
       draft: redactDraftReply(this.snapshot.draft, messageId),
       draftConflict: this.snapshot.draftConflict
         ? redactDraftReply(this.snapshot.draftConflict, messageId)
@@ -1777,6 +1956,8 @@ export class ChatOwner {
       this.publish({
         messages: [],
         precedingMessage: undefined,
+        navigation: undefined,
+        firstUnreadMessageId: undefined,
         draft: persisted.drafts[destination] ?? this.snapshot.draft,
         draftConflict: undefined,
         draftAlternatives: persisted.draftAlternatives?.[destination] ?? [],
@@ -1829,6 +2010,8 @@ export class ChatOwner {
       this.publish({
         messages: [],
         precedingMessage: undefined,
+        navigation: undefined,
+        firstUnreadMessageId: undefined,
         isLoading: false,
       });
     }
@@ -1862,7 +2045,8 @@ export class ChatOwner {
     const last = this.snapshot.messages.at(-1);
     const hasUnfetchedMessages =
       selected && (!last || compareCounter(selected.last_sequence, last.sequence) > 0);
-    if (hasUnfetchedMessages && !this.snapshot.hasNewer && !this.snapshot.isLoading) {
+    const isOpening = this.openingHistoryGeneration === this.viewGeneration;
+    if (hasUnfetchedMessages && !isOpening && !this.snapshot.hasNewer && !this.snapshot.isLoading) {
       await this.loadHistory('latest');
     }
   }
@@ -1874,6 +2058,8 @@ export class ChatOwner {
     this.publish({
       messages: [],
       precedingMessage: undefined,
+      navigation: undefined,
+      firstUnreadMessageId: undefined,
       isLoading: false,
     });
     const expected = await this.requireCache().read();

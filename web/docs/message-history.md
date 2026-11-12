@@ -82,17 +82,20 @@ See [architecture](./architecture.md) for durable state and backend boundaries, 
 
 ## Connected remote history
 
-The connected owner retains a bounded older/latest sequence window. The timeline accepts a remote
-history source and delegates loading when the viewport reaches the older edge. It still uses the
-existing TanStack Virtual measurements and anchors; remote availability does not create a second
-scroll owner. A preceding-message projection preserves sender grouping at a fetched page boundary.
+The connected owner retains a bounded sequence window. On entry the server can center the page
+on the first visible unread message and the timeline places a divider before it. The divider
+stays in place while the reader's cursor advances. Scrolling toward either loaded edge requests
+the next page and keeps the visible anchor. The floating arrow returns to the server's latest
+window when newer pages remain. The same TanStack Virtual measurements and preceding-message
+projection preserve the reading position and sender grouping.
 
 A pending message keeps its client UUID when accepted, preventing an optimistic row from becoming a
 second canonical row. Connected metadata distinguishes queued/sending/failed states from server
-acceptance. The acceptance indicator makes no delivery claim; the peer's read cursor separately
-controls the read indicator. Foreground read advancement uses the actually reached visible message,
-not the directory's newest sequence. Connected lifecycle controls use authoritative commands and
-retain editor text when an expected-version edit conflicts.
+acceptance. A failed text bubble offers retry using its original identity. The acceptance
+indicator makes no device-delivery claim, and the peer's read cursor separately controls the read
+indicator. Foreground read advancement uses the visible incoming message actually reached.
+Connected lifecycle controls use authoritative commands and retain editor text when an
+expected-version edit conflicts.
 
 Reply jumps can request an authorized bounded neighborhood outside the loaded window. Pins have a
 separate paginated directory. Hidden, deleted, cleared, or expired targets remove obsolete excerpts;

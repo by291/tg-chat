@@ -9,6 +9,7 @@ import { useVirtualHistory } from './useVirtualHistory';
 import type { HistoryRow } from './historyRows';
 import { CURRENT_USER_ID } from '@/domain/identity';
 import type { ChatOverlayInsets } from '../useChatOverlayInsets';
+import type { RemoteHistory } from './useHistoryWindow';
 
 const VIEWPORT_WIDTH = 696;
 const VIEWPORT_HEIGHT = 400;
@@ -80,21 +81,35 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 interface HistoryScreenProps {
   navigation?: MessageNavigation;
   historyRows?: HistoryRow[];
   overlayInsets?: ChatOverlayInsets;
+  remoteHistory?: RemoteHistory;
+  onReachLatest?: (messageId: string) => void;
+  onReachMessage?: (messageId: string) => void;
 }
 
-function HistoryScreen({ navigation, historyRows = rows, overlayInsets }: HistoryScreenProps) {
+function HistoryScreen({
+  navigation,
+  historyRows = rows,
+  overlayInsets,
+  remoteHistory,
+  onReachLatest,
+  onReachMessage,
+}: HistoryScreenProps) {
   const scroll = useVirtualHistory({
     rows: historyRows,
     navigation,
     overlayInsets,
     hasOlder: false,
     loadOlder: () => {},
+    remoteHistory,
+    onReachLatest,
+    onReachMessage,
   });
   const totalHeight = scroll.virtualizer.getTotalSize();
   const bottomAlignment = Math.max(0, VIEWPORT_HEIGHT - totalHeight);
@@ -162,7 +177,146 @@ async function advanceAnimation(milliseconds: number) {
   });
 }
 
+function createPendingHistoryRequest() {
+  let complete!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  return { promise, complete };
+}
+
+describe('bounded remote history', () => {
+  const remoteHistory: RemoteHistory = {
+    hasOlder: false,
+    hasNewer: true,
+    isLoading: false,
+    loadOlder: () => {},
+  };
+
+  it('requests newer history once at the current boundary as the user scrolls down', async () => {
+    const loadNewer = vi.fn();
+    render(
+      <HistoryScreen
+        navigation={{ messageId: 'lab-history-12', requestId: 1 }}
+        remoteHistory={{ ...remoteHistory, loadNewer }}
+      />,
+    );
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+    expect(loadNewer).not.toHaveBeenCalled();
+
+    const viewport = screen.getByLabelText('Message history');
+    fireEvent.wheel(viewport);
+    act(() => viewport.scrollTo({ top: viewport.scrollHeight - viewport.clientHeight }));
+    await settleInitialFrame();
+    fireEvent.scroll(viewport);
+    await settleInitialFrame();
+
+    expect(loadNewer).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves position when the final newer page arrives at the loaded bottom', async () => {
+    const view = render(<HistoryScreen remoteHistory={remoteHistory} />);
+    await settleInitialFrame();
+    const viewport = screen.getByLabelText('Message history');
+    fireEvent.wheel(viewport);
+    await settleInitialFrame();
+    const readingOffset = viewport.scrollTop;
+
+    view.rerender(
+      <HistoryScreen
+        historyRows={appendMessage({ authorId: 'alex' })}
+        remoteHistory={{ ...remoteHistory, hasNewer: false }}
+      />,
+    );
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+
+    expect(viewport.scrollTop).toBeCloseTo(readingOffset, 0);
+  });
+
+  it('waits for the latest remote window before scrolling to its real bottom', async () => {
+    const { promise, complete } = createPendingHistoryRequest();
+    const jumpToLatest = vi.fn(() => promise);
+    const view = render(<HistoryScreen remoteHistory={{ ...remoteHistory, jumpToLatest }} />);
+    await settleInitialFrame();
+    const viewport = screen.getByLabelText('Message history');
+    fireEvent.click(screen.getByRole('button', { name: 'Latest' }));
+
+    expect(jumpToLatest).toHaveBeenCalledTimes(1);
+    view.rerender(
+      <HistoryScreen
+        historyRows={appendMessage({ authorId: 'alex' })}
+        remoteHistory={{ ...remoteHistory, hasNewer: false }}
+      />,
+    );
+    await act(async () => complete());
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+
+    expect(viewport.scrollTop).toBeCloseTo(viewport.scrollHeight - viewport.clientHeight, 0);
+  });
+
+  it('keeps a newer reply jump when a previous latest request resolves', async () => {
+    const { promise, complete } = createPendingHistoryRequest();
+    const jumpToLatest = () => promise;
+    const view = render(<HistoryScreen remoteHistory={{ ...remoteHistory, jumpToLatest }} />);
+    await settleInitialFrame();
+    fireEvent.click(screen.getByRole('button', { name: 'Latest' }));
+    view.rerender(
+      <HistoryScreen
+        navigation={{ messageId: 'lab-history-12', requestId: 1 }}
+        remoteHistory={{ ...remoteHistory, hasNewer: false }}
+      />,
+    );
+    await act(async () => complete());
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+
+    const viewport = screen.getByLabelText('Message history');
+    const target = screen.getByText('lab-history-12');
+    const targetTop = Number.parseFloat(target.style.top) - viewport.scrollTop;
+    expect(targetTop).toBeGreaterThanOrEqual(0);
+    expect(targetTop).toBeLessThan(viewport.clientHeight);
+  });
+
+  it('reports visible incoming messages without marking a middle window as latest', async () => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const onReachLatest = vi.fn();
+    const onReachMessage = vi.fn();
+    render(
+      <HistoryScreen
+        historyRows={appendMessage({ authorId: 'alex' })}
+        remoteHistory={remoteHistory}
+        overlayInsets={COMPOSER_OVERLAY_INSETS}
+        onReachLatest={onReachLatest}
+        onReachMessage={onReachMessage}
+      />,
+    );
+    await settleInitialFrame();
+
+    expect(onReachMessage).toHaveBeenLastCalledWith('new-message');
+    expect(onReachLatest).not.toHaveBeenCalled();
+  });
+});
+
 describe('initial virtual positioning', () => {
+  it('opens an unread divider below the sticky date and top overlay', async () => {
+    const messages = createHistoryMessages().slice(0, HISTORY_MESSAGE_COUNT);
+    const firstUnreadMessageId = 'lab-history-12';
+    render(
+      <HistoryScreen
+        historyRows={createHistoryRows(messages, { firstUnreadMessageId })}
+        navigation={{ messageId: firstUnreadMessageId, requestId: 1, kind: 'unread' }}
+        overlayInsets={COMPOSER_OVERLAY_INSETS}
+      />,
+    );
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+
+    const viewport = screen.getByLabelText('Message history');
+    const divider = screen.getByText('unread-lab-history-12');
+    const dividerTop = Number.parseFloat(divider.style.top) - viewport.scrollTop;
+    const expectedDividerTop = COMPOSER_OVERLAY_INSETS.top + 36;
+    expect(dividerTop).toBeCloseTo(expectedDividerTop, 0);
+  });
+
   it('positions adjacent rows without rounding their fractional heights', async () => {
     render(<HistoryScreen />);
     await settleInitialFrame();
@@ -307,6 +461,34 @@ describe('new message reveal', () => {
 });
 
 describe('reveal coordination', () => {
+  it('waits to mark an incoming message until its reveal has finished', async () => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const onReachMessage = vi.fn();
+    const messages = createHistoryMessages().slice(0, SHORT_HISTORY_MESSAGE_COUNT);
+    const view = render(
+      <HistoryScreen historyRows={createHistoryRows(messages)} onReachMessage={onReachMessage} />,
+    );
+    await settleInitialFrame();
+    const newest = {
+      ...messages[messages.length - 1],
+      id: 'new-message',
+      authorId: 'alex',
+    };
+
+    view.rerender(
+      <HistoryScreen
+        historyRows={createHistoryRows([...messages, newest])}
+        onReachMessage={onReachMessage}
+      />,
+    );
+    await advanceAnimation(ANIMATION_SAMPLE_DELAY_MS);
+    expect(onReachMessage).not.toHaveBeenCalledWith(newest.id);
+
+    await advanceAnimation(ANIMATION_SETTLE_DELAY_MS);
+    expect(onReachMessage).toHaveBeenLastCalledWith(newest.id);
+  });
+
   it('preserves the list position while a photo replaces the attachment preview', async () => {
     const view = render(<HistoryScreen overlayInsets={REPLY_OVERLAY_INSETS} />);
     await settleInitialFrame();

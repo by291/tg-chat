@@ -1,4 +1,5 @@
 import type { Virtualizer } from '@tanstack/react-virtual';
+import { HISTORY_DATE_ROW_HEIGHT } from './historyDates';
 
 const MIN_DURATION_MS = 250;
 const MAX_DURATION_MS = 600;
@@ -13,7 +14,7 @@ interface HistoryTargetOptions {
   virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
   messageId: string;
   targetIndex: number;
-  alignment?: 'center' | 'end';
+  alignment?: 'start' | 'center' | 'end';
 }
 
 interface HistoryNavigationOptions extends HistoryTargetOptions {
@@ -49,8 +50,10 @@ function findTarget({
   const topInset = virtualizer.options.scrollPaddingStart;
   const bottomInset = virtualizer.options.scrollPaddingEnd;
   const visibleHeight = Math.max(0, viewport.clientHeight - topInset - bottomInset);
-  const centerOffset = Math.max(0, (visibleHeight - item.size) / 2);
-  const desiredOffset = item.start - topInset - centerOffset;
+  // The sticky date remains above the unread divider when opening at the read boundary.
+  const alignedOffset =
+    alignment === 'start' ? HISTORY_DATE_ROW_HEIGHT : Math.max(0, (visibleHeight - item.size) / 2);
+  const desiredOffset = item.start - topInset - alignedOffset;
 
   return {
     index: item.index,
@@ -100,7 +103,7 @@ export function animateHistoryNavigation(options: HistoryNavigationOptions): () 
     onComplete();
     if (target) {
       // Let the virtualizer reconcile the measured landing instead of maintaining a second anchor.
-      // The target is centered in the unobscured area, not under the floating header or composer.
+      // Use the same unobscured area for both centered jumps and unread starts.
       virtualizer.scrollToOffset(target.offset, { behavior: 'auto' });
     }
   }

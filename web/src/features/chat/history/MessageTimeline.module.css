@@ -128,6 +128,16 @@
   height: 36px;
 }
 
+.unreadDivider {
+  margin-bottom: 8px;
+  color: var(--accent-color);
+  background: var(--surface-color);
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
 .jumpButton {
   position: absolute;
   right: calc((100% - var(--chat-content-width, 100%)) / 2);

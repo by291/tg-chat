@@ -31,19 +31,36 @@ interface PrefetchPolicyOptions {
   requestedStartKey?: string;
 }
 
+interface HistoryBoundaryOptions {
+  activity: HistoryActivity;
+  viewport?: HistoryViewport | null;
+  hasUserInteracted: boolean;
+  hasMore: boolean;
+  boundaryKey?: string;
+  requestedKey?: string;
+  scrollDirection: 'forward' | 'backward' | null;
+  edge: 'start' | 'end';
+}
+
 function hasStablePosition(activity: HistoryActivity) {
   return activity.isInitialized && !activity.isResizing && !activity.isNavigating;
 }
 
-/** Mark the latest message read only when its rendered bottom is visible in the focused page. */
-export function canMarkLatestRead({
+/** Admit read updates only when a foreground viewport has settled. */
+export function canReadVisibleHistory({
   activity,
   viewport,
   isPageVisible,
   hasPageFocus,
 }: ReadPolicyOptions) {
   const canRead = hasStablePosition(activity) && isPageVisible && hasPageFocus;
-  if (!canRead || !viewport?.clientHeight || !viewport.clientWidth) {
+  return canRead && Boolean(viewport?.clientHeight && viewport.clientWidth);
+}
+
+/** Mark the latest message read only when its rendered bottom is visible in the focused page. */
+export function canMarkLatestRead(options: ReadPolicyOptions) {
+  const { viewport } = options;
+  if (!viewport || !canReadVisibleHistory(options)) {
     return false;
   }
 
@@ -51,6 +68,32 @@ export function canMarkLatestRead({
   const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
 
   return distanceFromBottom <= READ_BOTTOM_DISTANCE;
+}
+
+/** Prefetch each boundary once while the user is approaching it. */
+export function shouldLoadHistoryBoundary({
+  activity,
+  viewport,
+  hasUserInteracted,
+  hasMore,
+  boundaryKey,
+  requestedKey,
+  scrollDirection,
+  edge,
+}: HistoryBoundaryOptions) {
+  const canPrefetch = hasStablePosition(activity) && hasUserInteracted && hasMore;
+  if (!canPrefetch || !viewport || !boundaryKey || requestedKey === boundaryKey) {
+    return false;
+  }
+
+  // Momentum must keep loading ahead; only layout rebuilding and explicit navigation defer it.
+  const prefetchDistance = Math.max(MIN_HISTORY_PREFETCH_DISTANCE, viewport.clientHeight);
+  if (edge === 'start') {
+    return scrollDirection !== 'forward' && viewport.scrollTop <= prefetchDistance;
+  }
+
+  const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+  return scrollDirection !== 'backward' && distanceFromBottom <= prefetchDistance;
 }
 
 /** Prefetch each older-history boundary once as user scrolling approaches it. */
@@ -63,13 +106,14 @@ export function shouldLoadOlderHistory({
   firstRowKey,
   requestedStartKey,
 }: PrefetchPolicyOptions) {
-  const canPrefetch = hasStablePosition(activity) && hasUserInteracted && hasOlder;
-  if (!canPrefetch || !viewport || !firstRowKey || requestedStartKey === firstRowKey) {
-    return false;
-  }
-
-  // Momentum must keep loading ahead; only layout rebuilding and explicit navigation defer it.
-  const prefetchDistance = Math.max(MIN_HISTORY_PREFETCH_DISTANCE, viewport.clientHeight);
-
-  return scrollDirection !== 'forward' && viewport.scrollTop <= prefetchDistance;
+  return shouldLoadHistoryBoundary({
+    activity,
+    viewport,
+    hasUserInteracted,
+    hasMore: hasOlder,
+    boundaryKey: firstRowKey,
+    requestedKey: requestedStartKey,
+    scrollDirection,
+    edge: 'start',
+  });
 }

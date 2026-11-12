@@ -39,7 +39,7 @@ function getRowDate(row: HistoryRow, index: number): DateRow | undefined {
   if (row.kind === 'date') {
     return { ...row, key: getDateGroupKey(row.timestamp) };
   }
-  if (index !== 0) {
+  if (index !== 0 || row.kind !== 'message') {
     return undefined;
   }
 

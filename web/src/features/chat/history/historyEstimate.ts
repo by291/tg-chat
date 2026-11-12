@@ -10,6 +10,7 @@ const HORIZONTAL_GUTTER = 40;
 const TEXT_LINE_HEIGHT = 21;
 const AVERAGE_GLYPH_WIDTH = 8;
 const SERVICE_ROW_HEIGHT = 42;
+const UNREAD_ROW_HEIGHT = 38;
 const BASE_MESSAGE_HEIGHT = 28;
 const MESSAGE_GAP = 2;
 const GROUP_END_GAP = 6;
@@ -41,6 +42,9 @@ function estimateTextHeight(text: string, availableWidth: number) {
 export function estimateHistoryRow(row: HistoryRow, viewportWidth = DEFAULT_VIEWPORT_WIDTH) {
   if (row.kind === 'date') {
     return HISTORY_DATE_ROW_HEIGHT;
+  }
+  if (row.kind === 'unread') {
+    return UNREAD_ROW_HEIGHT;
   }
 
   const message = row.message;

@@ -217,6 +217,26 @@ function historyPage(options: { first: number; last: number; hasNewer?: boolean 
   });
 }
 
+function holdFirstViewportRead() {
+  const firstRead = deferredResponse();
+  const reached: string[] = [];
+  const readReceipt = (through: string) =>
+    Response.json({
+      observation_cursor: cursorFixture(Number(through)),
+      conversation: { ...SAVED, read_through: through, version: String(Number(through) + 1) },
+    });
+  const { owner } = fixture({
+    history: async () => historyPage({ first: 1, last: 5 }),
+    commands: async (request) => {
+      const input = await request.json();
+      reached.push(input.action.through);
+      return reached.length === 1 ? firstRead.promise : readReceipt(input.action.through);
+    },
+    transport: async () => syncPage({ first: 1, last: 0 }),
+  });
+  return { owner, reached, releaseFirstRead: () => firstRead.release(readReceipt('1')) };
+}
+
 function syncPage(options: { first: number; last: number }) {
   const groups = Array.from({ length: options.last - options.first + 1 }, (_, index) => {
     const sequence = options.first + index;
@@ -471,6 +491,139 @@ describe('connected chat ownership', () => {
     await expect(jump).rejects.toMatchObject({ code: 'not_found' });
     expect(owner.getSnapshot().navigation).toBeUndefined();
     owner.dispose();
+  });
+
+  it('opens at the first unread message and keeps its marker after reading', async () => {
+    const conversation = {
+      ...DIRECT,
+      unread_count: '220',
+      last_sequence: '230',
+      read_through: '10',
+    };
+    const { owner } = fixture({
+      conversation,
+      history: async (request) => {
+        const query = new URL(request.url).searchParams;
+        if (query.get('unread') !== 'true') {
+          return historyPage({ first: 181, last: 230 });
+        }
+        const page = await historyPage({ first: 6, last: 55, hasNewer: true }).json();
+        return Response.json({ ...page, anchor_id: 'message-11' });
+      },
+      commands: async () =>
+        Response.json({
+          conversation: { ...conversation, read_through: '18', unread_count: '212' },
+          observation_cursor: cursorFixture(56),
+        }),
+      transport: async () => syncPage({ first: 1, last: 0 }),
+    });
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    try {
+      await owner.start();
+      await owner.select(SELECTION);
+      expect(owner.getSnapshot().navigation).toMatchObject({
+        kind: 'unread',
+        messageId: 'message-11',
+      });
+      expect(owner.getSnapshot().messages[0]?.sequence).toBe('6');
+      await owner.markReached('message-18');
+      expect(owner.selectedConversation()?.read_through).toBe('18');
+      expect(owner.getSnapshot().firstUnreadMessageId).toBe('message-11');
+    } finally {
+      focus.mockRestore();
+      visibility.mockRestore();
+      owner.dispose();
+    }
+  });
+
+  it('extends a historical window toward newer messages and opens the actual latest page', async () => {
+    const { owner } = fixture({
+      history: async (request) => {
+        const query = new URL(request.url).searchParams;
+        if (query.has('around')) {
+          return historyPage({ first: 1, last: 100, hasNewer: true });
+        }
+        const after = query.get('after');
+        if (after) {
+          const sequence = Number(after);
+          return historyPage({ first: sequence + 1, last: sequence + 100, hasNewer: true });
+        }
+        return historyPage({ first: 351, last: 400 });
+      },
+    });
+    try {
+      await owner.start();
+      await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+      await owner.jumpToMessage('message-50');
+      await owner.loadHistory('newer');
+      await owner.loadHistory('newer');
+
+      const snapshot = owner.getSnapshot();
+      const sequences = snapshot.messages.map((message) => Number(message.sequence));
+      expect(sequences).toEqual(Array.from({ length: 200 }, (_, index) => index + 101));
+      expect(snapshot.precedingMessage?.sequence).toBe('100');
+      expect(snapshot.hasOlder).toBe(true);
+      expect(snapshot.hasNewer).toBe(true);
+
+      await owner.jumpToLatest();
+      expect(owner.getSnapshot().messages[0]?.sequence).toBe('351');
+      expect(owner.getSnapshot().messages.at(-1)?.sequence).toBe('400');
+      expect(owner.getSnapshot().hasNewer).toBe(false);
+    } finally {
+      owner.dispose();
+    }
+  });
+
+  it('does not replace an explicit in-window jump with a pending latest response', async () => {
+    const latest = deferredResponse();
+    let latestCount = 0;
+    const { owner } = fixture({
+      history: async () => {
+        latestCount += 1;
+        return latestCount === 1 ? historyPage({ first: 31, last: 80 }) : latest.promise;
+      },
+    });
+    try {
+      await owner.start();
+      await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+      const returning = owner.jumpToLatest();
+      await owner.jumpToMessage('message-31');
+      latest.release(historyPage({ first: 101, last: 150 }));
+
+      await expect(returning).rejects.toMatchObject({ name: 'AbortError' });
+      expect(owner.getSnapshot().navigation?.messageId).toBe('message-31');
+      expect(owner.getSnapshot().messages[0]?.sequence).toBe('31');
+      expect(owner.getSnapshot().isLoading).toBe(false);
+    } finally {
+      owner.dispose();
+    }
+  });
+
+  it('does not publish an arriving row before the initial unread window', async () => {
+    const unread = deferredResponse();
+    const conversation = { ...DIRECT, unread_count: '200', last_sequence: '200' };
+    const { owner } = fixture({
+      conversation,
+      history: async () => unread.promise,
+      transport: async () =>
+        Response.json(changePage({ position: 201, conversation, message: historyMessage(201) })),
+    });
+    try {
+      await owner.start();
+      const opening = owner.select(SELECTION);
+      await vi.waitFor(() => expect(owner.getSnapshot().isLoading).toBe(true));
+      await owner.catchUp();
+      expect(owner.getSnapshot().messages).toEqual([]);
+
+      const page = await historyPage({ first: 1, last: 50, hasNewer: true }).json();
+      unread.release(Response.json({ ...page, anchor_id: 'message-1' }));
+      await opening;
+      expect(owner.getSnapshot().messages.at(-1)?.sequence).toBe('50');
+      expect(owner.getSnapshot().firstUnreadMessageId).toBe('message-1');
+    } finally {
+      owner.dispose();
+    }
   });
 
   it('keeps sync messages consumed while an older view is loading its latest snapshot', async () => {
@@ -853,6 +1006,93 @@ it('marks only a reached visible message read while the document is foreground',
   expect(actions).toEqual([{ kind: 'read', through: '2' }]);
   Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => false });
   owner.dispose();
+});
+
+it('advances to the greatest sequence reached while a read command is pending', async () => {
+  const { owner, reached, releaseFirstRead } = holdFirstViewportRead();
+  const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+  let first: Promise<void> | undefined;
+  try {
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+    first = owner.markReached('message-1');
+    await vi.waitFor(() => expect(reached).toEqual(['1']));
+    await owner.markReached('message-3');
+    await owner.markReached('message-5');
+    await owner.markReached('message-4');
+    expect(reached).toEqual(['1']);
+
+    releaseFirstRead();
+    await first;
+    expect(reached).toEqual(['1', '5']);
+    expect(owner.selectedConversation()?.read_through).toBe('5');
+  } finally {
+    releaseFirstRead();
+    await first?.catch(() => undefined);
+    focus.mockRestore();
+    owner.dispose();
+  }
+});
+
+it('does not submit a queued viewport read after reopening the same conversation', async () => {
+  const { owner, reached, releaseFirstRead } = holdFirstViewportRead();
+  const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+  const selection = { destination: { kind: 'saved' as const }, title: 'Saved' };
+  let first: Promise<void> | undefined;
+  try {
+    await owner.start();
+    await owner.select(selection);
+    first = owner.markReached('message-1');
+    await vi.waitFor(() => expect(reached).toEqual(['1']));
+    await owner.markReached('message-5');
+    owner.showInbox();
+    await owner.select(selection);
+    releaseFirstRead();
+
+    await first;
+    expect(reached).toEqual(['1']);
+    expect(owner.selectedConversation()?.read_through).toBe('1');
+  } finally {
+    releaseFirstRead();
+    await first?.catch(() => undefined);
+    focus.mockRestore();
+    owner.dispose();
+  }
+});
+
+it('cancels a viewport read if the session changes while its command is loaded', async () => {
+  const persistedRead = deferredResponse();
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const commands = vi.fn(async () => Response.json({}));
+  const { owner, session } = fixture({
+    store,
+    commands,
+    history: async () => historyPage({ first: 1, last: 1 }),
+  });
+  const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+  let isCommandLoaded = false;
+  try {
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+    const readStore = store.read.bind(store);
+    vi.spyOn(store, 'read').mockImplementationOnce(async () => {
+      const snapshot = await readStore();
+      isCommandLoaded = true;
+      await persistedRead.promise;
+      return snapshot;
+    });
+    const pendingRead = owner.markReached('message-1');
+    await vi.waitFor(() => expect(isCommandLoaded).toBe(true));
+    session.invalidate({ shouldBroadcast: false });
+    persistedRead.release(new Response());
+
+    await expect(pendingRead).rejects.toMatchObject({ name: 'AbortError' });
+    expect(commands).not.toHaveBeenCalled();
+  } finally {
+    persistedRead.release(new Response());
+    focus.mockRestore();
+    owner.dispose();
+  }
 });
 
 it('preserves an edit draft and exposes the current message when content versions conflict', async () => {

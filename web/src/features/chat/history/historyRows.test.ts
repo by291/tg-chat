@@ -57,4 +57,15 @@ describe('history rows', () => {
     const rows = createHistoryRows(messages);
     expect(rows.find((row) => row.key === 'after-service')).toMatchObject({ isGroupStart: true });
   });
+
+  it('places the unread divider before its incoming message and breaks the sender group', () => {
+    const messages = createInitialState().messages.slice(0, 2);
+    const unread = messages[1];
+    const rows = createHistoryRows(messages, { firstUnreadMessageId: unread.id });
+    const unreadIndex = rows.findIndex((row) => row.key === unread.id);
+
+    expect(rows[unreadIndex - 1]).toMatchObject({ kind: 'unread', messageId: unread.id });
+    expect(rows[unreadIndex - 2]).toMatchObject({ isGroupEnd: true });
+    expect(rows[unreadIndex]).toMatchObject({ isGroupStart: true });
+  });
 });

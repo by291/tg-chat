@@ -34,17 +34,13 @@
   flex: 1;
 }
 
-.latestIcon {
-  display: none;
-}
-
 .chatHeader p {
   margin: 4px 0 0;
   color: var(--secondary-color);
   font-size: 13px;
 }
 
-.workspace button:where(:not(.accountSidebar *)) {
+.workspace button:where(:not(.accountSidebar *, .historyPane *, .composer *)) {
   border: 0;
   border-radius: 12px;
   padding: 10px;
@@ -53,12 +49,12 @@
   cursor: pointer;
 }
 
-.workspace button:where(:not(.accountSidebar *)):hover,
-.workspace button:where(:not(.accountSidebar *))[aria-pressed='true'] {
+.workspace button:where(:not(.accountSidebar *, .historyPane *, .composer *)):hover,
+.workspace button:where(:not(.accountSidebar *, .historyPane *, .composer *))[aria-pressed='true'] {
   background: var(--panel-color);
 }
 
-.workspace button:where(:not(.accountSidebar *)):disabled {
+.workspace button:where(:not(.accountSidebar *, .historyPane *, .composer *)):disabled {
   cursor: wait;
   opacity: 0.5;
 }
@@ -102,6 +98,28 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+
+.historyPane {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.historyLoading {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  inset-inline-start: 50%;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--surface-color);
+  color: var(--secondary-color);
+  font-size: 13px;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .composer {
@@ -183,14 +201,6 @@
 
   .chatHeader[data-has-call-actions] > button {
     padding-inline: 6px;
-  }
-
-  .chatHeader[data-has-call-actions] .latestAction span {
-    display: none;
-  }
-
-  .chatHeader[data-has-call-actions] .latestIcon {
-    display: block;
   }
 
   .workspace[data-directory-visible='true'] .chat,

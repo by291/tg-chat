@@ -25,12 +25,14 @@ type HistoryScrollFunction = VirtualizerOptions<HTMLDivElement, HTMLDivElement>[
 interface HistoryScrollOptions {
   getAnimatedRows: () => HTMLDivElement | null;
   isNavigationActive?: () => boolean;
+  onRevealComplete?: () => void;
 }
 
 /** Apply message reveals and pass idle measurements through without competing with navigation. */
 export function createHistoryScroll({
   getAnimatedRows,
   isNavigationActive = () => false,
+  onRevealComplete,
 }: HistoryScrollOptions) {
   let frame = 0;
   let targetOffset = 0;
@@ -120,6 +122,7 @@ export function createHistoryScroll({
       if (progress === 1 || hasArrived) {
         cancel();
         elementScroll(targetOffset, { behavior: 'auto' }, virtualizer);
+        onRevealComplete?.();
         return;
       }
 
