@@ -102,6 +102,8 @@ pub struct PollVoterQuery {
 pub struct PollVoter {
     pub user_id: Uuid,
     pub display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_file_id: Option<Uuid>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -613,7 +615,10 @@ impl MessageService {
             return Err(AccountError::NotFound);
         }
         let query_voters = sqlx::query_as::<_, PollVoter>(
-            "SELECT vote.user_id, account.display_name FROM message_poll_votes vote
+            "SELECT vote.user_id, account.display_name,
+                CASE WHEN NOT account.is_suspended AND account.deleted_at IS NULL
+                     THEN account.avatar_file_id END AS avatar_file_id
+             FROM message_poll_votes vote
              JOIN users account ON account.id = vote.user_id WHERE vote.message_id = $1
               AND ($2::uuid IS NULL OR $2 = ANY(vote.option_ids))
               AND ($3::uuid IS NULL OR vote.user_id > $3) ORDER BY vote.user_id LIMIT $4",

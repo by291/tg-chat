@@ -3453,6 +3453,7 @@
         "type": "object",
         "required": ["user_id", "display_name"],
         "properties": {
+          "avatar_file_id": { "type": ["string", "null"], "format": "uuid" },
           "display_name": { "type": "string" },
           "user_id": { "type": "string", "format": "uuid" }
         }

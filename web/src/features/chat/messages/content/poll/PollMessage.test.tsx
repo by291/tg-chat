@@ -79,6 +79,29 @@ afterEach(() => {
 });
 
 describe('poll result transitions', () => {
+  it('opens public voter details from the count shown after a vote', () => {
+    const publicPoll = {
+      ...poll,
+      shouldShowVoters: true,
+      canViewVoters: true,
+      voterCount: 1,
+    };
+    const onInteract = vi.fn();
+    const view = render(<PollMessage poll={publicPoll} onInteract={onInteract} />);
+    expect(screen.queryByRole('button', { name: 'View voters' })).toBeNull();
+
+    view.rerender(
+      <PollMessage
+        poll={{ ...publicPoll, selectedOptionIds: ['layout'] }}
+        onInteract={onInteract}
+      />,
+    );
+    const resultsButton = screen.getByRole('button', { name: 'View voters' });
+    expect(resultsButton.textContent).toBe('1 member voted');
+    fireEvent.click(resultsButton);
+    expect(onInteract).toHaveBeenCalledWith({ type: 'view-voters' });
+  });
+
   it('labels an unanswered server quiz without exposing an answer', () => {
     const quiz = { ...poll, isQuiz: true };
     render(<PollMessage poll={quiz} onInteract={() => undefined} />);

@@ -1514,10 +1514,11 @@ export function ConnectedChat({
         )}
         {voterMessageId && canViewVoters && (
           <PollVotersDialog
-            key={`${conversation?.generation}:${voterMessageId}:${voterPoll.version}`}
+            key={`${conversation?.generation}:${voterMessageId}`}
             owner={owner}
+            session={session}
             messageId={voterMessageId}
-            options={voterPoll.options}
+            poll={voterPoll}
             onClose={() => setVoterMessageId(undefined)}
           />
         )}

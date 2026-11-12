@@ -195,10 +195,6 @@ test('votes and checklist tasks converge, and revocation removes private history
     });
 
     await participant.page.bringToFront();
-    await participantPoll.getByRole('button', { name: 'View voters', exact: true }).click();
-    const voters = participant.page.getByRole('dialog', { name: 'Poll voters' });
-    await expect(voters.getByText(owner.grant.user.display_name, { exact: true })).toBeVisible();
-
     const captured = latch<string>();
     const revoked = latch<void>();
     const delivered = latch<void>();
@@ -211,6 +207,15 @@ test('votes and checklist tasks converge, and revocation removes private history
 
       const response = await route.fetch();
       expect(response.status()).toBe(200);
+      const page: components['schemas']['PollVoterPage'] = await response.json();
+      const hasParticipant = page.voters.some((voter) => {
+        return voter.user_id === participant.grant.user.id;
+      });
+      if (!hasParticipant) {
+        await route.fulfill({ response });
+        return;
+      }
+
       captured.release(url.pathname);
       await revoked.ready;
       await route.fulfill({ response }).catch(() => {
@@ -220,7 +225,12 @@ test('votes and checklist tasks converge, and revocation removes private history
     });
 
     try {
-      await voters.getByRole('combobox').selectOption({ label: 'Afternoon' });
+      await participantPoll.getByRole('button', { name: 'View voters', exact: true }).click();
+      const voters = participant.page.getByRole('dialog', { name: 'Poll voters' });
+      const afternoon = voters.getByRole('region', { name: 'Afternoon' });
+      await expect(afternoon.getByText(owner.grant.user.display_name)).toBeVisible();
+      await expect(afternoon.getByText('50%')).toBeVisible();
+      await expect(afternoon.getByText('1 vote', { exact: true })).toBeVisible();
       const voterPath = await captured.ready;
       await commandCommunity({
         account: owner,

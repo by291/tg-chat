@@ -2171,6 +2171,8 @@ export interface components {
       voter_count?: number | null;
     };
     PollVoter: {
+      /** Format: uuid */
+      avatar_file_id?: string | null;
       display_name: string;
       /** Format: uuid */
       user_id: string;

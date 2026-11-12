@@ -1,16 +1,16 @@
-import type { PollMedia } from '@/domain/messages/media';
-
 const PERCENTAGE_SCALE = 100;
 
 /** Match tweb's answer shares, distributing rounding remainders so results total one hundred. */
-export function getPollPercentages(poll: PollMedia): number[] {
-  const totalAnswers = poll.options.reduce((total, option) => total + option.votes, 0);
+export function getPollPercentages(poll: {
+  options: ReadonlyArray<{ votes?: number | null }>;
+}): number[] {
+  const totalAnswers = poll.options.reduce((total, option) => total + (option.votes ?? 0), 0);
   if (!totalAnswers) {
     return poll.options.map(() => 0);
   }
 
   const percentages = poll.options.map((option) => {
-    return (option.votes / totalAnswers) * PERCENTAGE_SCALE;
+    return ((option.votes ?? 0) / totalAnswers) * PERCENTAGE_SCALE;
   });
   const rounded = percentages.map(Math.floor);
   const remaining = PERCENTAGE_SCALE - rounded.reduce((total, percentage) => total + percentage, 0);

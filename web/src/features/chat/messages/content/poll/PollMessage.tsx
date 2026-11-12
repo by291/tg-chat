@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH, type PollMedia } from '@/domain/messages/media';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import { getSelectedPollOptions } from '../../../state/pollVoting';
@@ -28,6 +28,7 @@ export function PollMessage({
   const [isAddingOption, setIsAddingOption] = useState(false);
   const [now, setNow] = useState(Date.now);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const resultCountId = useId();
   const hasPendingAction = useRef(false);
   const isPastDeadline = poll.closesAt !== undefined && poll.closesAt <= now;
   const isClosed = poll.isClosed === true || isPastDeadline;
@@ -48,6 +49,10 @@ export function PollMessage({
   const memberLabel = totalVotes === 1 ? '1 member' : `${totalVotes} members`;
   const votesLabel = `${memberLabel} ${isQuiz ? 'answered' : 'voted'}`;
   const resultLabel = totalVotes ? votesLabel : 'No votes';
+  const hasPendingVote =
+    (canVote || isSubmitting) && poll.canChooseMultiple && validPendingIds.length > 0;
+  const canShowVoters =
+    poll.canViewVoters && shouldShowResults && totalVotes > 0 && !hasPendingVote;
   let footerLabel = (hasVoted && !isEditingVote) || isClosed ? resultLabel : 'Select an option';
   if (isClosed && !canRevealResults) {
     footerLabel = 'Waiting for results';
@@ -216,7 +221,7 @@ export function PollMessage({
         <p className={styles.explanation}>{poll.explanation}</p>
       )}
       <div className={styles.footer}>
-        {(canVote || isSubmitting) && poll.canChooseMultiple && validPendingIds.length > 0 ? (
+        {hasPendingVote && (
           <button
             type="button"
             className={styles.action}
@@ -226,7 +231,20 @@ export function PollMessage({
             Vote
             <Ripple />
           </button>
-        ) : (
+        )}
+        {canShowVoters && (
+          <button
+            type="button"
+            className={styles.action}
+            aria-label="View voters"
+            aria-describedby={resultCountId}
+            onClick={() => onInteract({ type: 'view-voters' })}
+          >
+            <span id={resultCountId}>{resultLabel}</span>
+            <Ripple />
+          </button>
+        )}
+        {!hasPendingVote && !canShowVoters && (
           <span className={styles.footerText}>
             {poll.shouldHideResults && !isClosed
               ? 'Results hidden until the poll closes'
@@ -234,7 +252,7 @@ export function PollMessage({
           </span>
         )}
       </div>
-      {(poll.canEdit || poll.canClose || poll.canViewVoters || canChangeVote) && (
+      {(poll.canEdit || poll.canClose || canChangeVote) && (
         <div className={styles.footer}>
           {canChangeVote && !isEditingVote && poll.canVote !== undefined && (
             <button
@@ -262,15 +280,6 @@ export function PollMessage({
               onClick={() => onInteract({ type: 'close-poll' })}
             >
               Close poll
-            </button>
-          )}
-          {poll.canViewVoters && (
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => onInteract({ type: 'view-voters' })}
-            >
-              View voters
             </button>
           )}
         </div>
