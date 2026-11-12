@@ -99,8 +99,13 @@ shared renderers the authenticated user while preserving the demo default outsid
 Canonical projections and their checkpoint share an IndexedDB transaction, with epoch/cursor
 compare-and-set across tabs. Pending operations and drafts have separate transactional ownership, so
 a full canonical reset preserves unsent work. Versioned draft conflicts require an explicit choice
-when local input is dirty. See [durable messaging](../../docs/messaging.md) for acceptance, cursor,
-and recovery guarantees.
+when local input is dirty. The composer keeps its local text and offers a draft comparison above
+the editor. Unconfirmed actions are reviewable in their conversation or from the directory.
+
+The chat displays connection and catch-up feedback without replacing the active timeline or
+composer. Successful HTTP catch-up can keep it current while realtime wakeups are unavailable.
+The initial chat load can retry in place with the same authenticated session. See
+[durable messaging](../../docs/messaging.md) for acceptance, cursor, and recovery guarantees.
 
 ## Connected communities
 

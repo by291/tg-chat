@@ -94,6 +94,12 @@ second canonical row. Connected metadata distinguishes queued/sending/failed sta
 acceptance. A failed text bubble offers retry using its original identity. The acceptance
 indicator makes no device-delivery claim, and the peer's read cursor separately controls the read
 indicator. Foreground read advancement uses the visible incoming message actually reached.
+The sender can see the exact read time of an eligible private message in its menu when permitted by
+the reader's online status privacy setting. The conversation row menu can also explicitly mark the
+known history as read without opening the chat.
+
+The chat header previews the latest accessible pin and can jump to it or open the pin list.
+Touch users can swipe a message to reply. A vertical scroll keeps its normal behavior.
 Connected lifecycle controls use authoritative commands and retain editor text when an
 expected-version edit conflicts.
 
