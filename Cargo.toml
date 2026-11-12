@@ -20,6 +20,11 @@ lettre = { version = "=0.11.23", default-features = false, features = [
     "pool",
     "tokio1-rustls-tls",
 ] }
+livekit-api = { version = "=0.10.1", default-features = false, features = [
+    "services",
+    "webhooks",
+    "rustls-tls-webpki-roots",
+] }
 hex = "=0.4.3"
 infer = { version = "=0.22.0", default-features = false }
 tempfile = "=3.27.0"

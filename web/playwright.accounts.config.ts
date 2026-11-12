@@ -11,6 +11,7 @@ export default defineConfig({
     'message-interactions.spec.ts',
     'administration.spec.ts',
     'notifications.spec.ts',
+    'livekit-contract.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

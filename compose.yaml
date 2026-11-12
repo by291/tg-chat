@@ -20,6 +20,11 @@ x-application: &application
     TG_CHAT_S3_PUBLIC_ENDPOINT: ${TG_CHAT_S3_PUBLIC_ENDPOINT:-http://127.0.0.1:8333}
     TG_CHAT_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
     TG_CHAT_S3_SECRET_KEY: ${TG_CHAT_S3_SECRET_KEY:?Generate .env first}
+    TG_CHAT_CALLS_ENABLED: ${TG_CHAT_CALLS_ENABLED:-false}
+    TG_CHAT_LIVEKIT_INTERNAL_URL: ${TG_CHAT_LIVEKIT_INTERNAL_URL:-http://livekit:7880}
+    TG_CHAT_LIVEKIT_PUBLIC_URL: ${TG_CHAT_LIVEKIT_PUBLIC_URL:-}
+    TG_CHAT_LIVEKIT_API_KEY: ${TG_CHAT_LIVEKIT_API_KEY:-}
+    TG_CHAT_LIVEKIT_API_SECRET: ${TG_CHAT_LIVEKIT_API_SECRET:-}
     TG_CHAT_TRUST_GATEWAY: 'true'
     TG_CHAT_SMTP_HOST: ${TG_CHAT_SMTP_HOST:-}
     TG_CHAT_SMTP_PORT: ${TG_CHAT_SMTP_PORT:-587}
@@ -229,6 +234,19 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  livekit:
+    profiles: [calls]
+    image: livekit/livekit-server:v1.13.11
+    command: [--config=/etc/livekit/config.yaml]
+    environment:
+      LIVEKIT_KEYS: "${TG_CHAT_LIVEKIT_API_KEY:-}: ${TG_CHAT_LIVEKIT_API_SECRET:-}"
+    volumes:
+      - ./deploy/livekit.yaml:/etc/livekit/config.yaml:ro
+    ports:
+      - '127.0.0.1:7881:7881/tcp'
+      - '127.0.0.1:7882:7882/udp'
+      - '127.0.0.1:3478:3478/udp'
 
   mailpit:
     profiles: [mail]
