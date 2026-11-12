@@ -3,6 +3,47 @@ import { expect, test } from '@playwright/test';
 const CALENDAR_NOW = new Date('2026-11-08T12:00:00');
 const SEARCH_STEPS = 12;
 const WIDE_VIEWPORT = { width: 1600, height: 1000 };
+const NARROW_VIEWPORT = { width: 390, height: 844 };
+
+test('narrow search switches between the result list and the located conversation', async ({
+  page,
+}) => {
+  await page.setViewportSize(NARROW_VIEWPORT);
+  await page.goto('/?chat=lab');
+  const composer = page.getByRole('textbox', { name: 'Message', exact: true });
+  await composer.fill('Draft before searching');
+  await page.getByRole('button', { name: 'Chat options' }).click();
+  await page.getByRole('menuitem', { name: 'Search', exact: true }).click();
+  const search = page.getByRole('textbox', { name: 'Search in this conversation' });
+  const results = page.getByRole('region', { name: 'Search results' });
+  const position = page.getByRole('status', { name: 'Search position' });
+  const highlight = page.locator('article[data-highlighted="true"]');
+
+  await search.fill('Archive note 100');
+  await expect(results).toBeVisible();
+  await expect(composer).toBeHidden();
+  await expect(position).toHaveText('2 results');
+  await results.getByRole('button', { name: /Archive note 1000:/ }).click();
+
+  await expect(results).toBeHidden();
+  await expect(search).toHaveValue('Archive note 100');
+  await expect(highlight).toContainText('Archive note 1000:');
+  const next = page.getByRole('button', { name: 'Next search result' });
+  await expect(next).toBeEnabled();
+  await next.click();
+  await expect(position).toHaveText('2 of 2');
+  await expect(position).toBeInViewport();
+  await expect(highlight).toContainText('Archive note 100:');
+
+  await page.getByRole('button', { name: 'Show search results' }).click();
+  await expect(results).toBeVisible();
+  await expect(results.getByRole('button', { name: /Archive note 100:/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Show in chat' }).click();
+  await expect(results).toBeHidden();
+  await expect(position).toHaveText('2 of 2');
+  await page.getByRole('button', { name: 'Close search', exact: true }).click();
+  await expect(composer).toHaveText('Draft before searching');
+});
 
 test('search keeps keyboard navigation active until the highlighted result is confirmed', async ({
   page,

@@ -500,4 +500,15 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   await results.getByRole('button', { name: new RegExp(SEARCH_HIT) }).click();
   await expect(hit).toBeInViewport({ timeout: CONVERGENCE_TIMEOUT_MS });
   await expect(hit).toContainText(SEARCH_HIT);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Search this conversation', exact: true }).click();
+  const conversationSearch = page.getByRole('textbox', { name: 'Search in this conversation' });
+  await conversationSearch.fill(SEARCH_TERM);
+  const mobileResults = page.getByRole('region', { name: 'Search results', exact: true });
+  await mobileResults.getByRole('button', { name: new RegExp(SEARCH_HIT) }).click();
+  await expect(hit).toBeInViewport({ timeout: CONVERGENCE_TIMEOUT_MS });
+  await page.getByRole('button', { name: 'Show search results', exact: true }).click();
+  await expect(mobileResults.getByRole('button', { name: new RegExp(SEARCH_HIT) })).toBeVisible();
+  await expect(conversationSearch).toHaveValue(SEARCH_TERM);
 });

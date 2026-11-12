@@ -117,6 +117,16 @@
     --chat-bottom-inset: max(8px, env(safe-area-inset-bottom));
   }
 
+  .conversation:has(.pinnedSlot[data-search-open='true']) {
+    --mobile-search-height: calc(100cqh - var(--chat-edge-inset) - var(--chat-bottom-inset));
+    container-type: size;
+  }
+
+  .conversation:has(.pinnedSlot[data-search-open='true']) .footerOverlay,
+  .conversation:has([data-narrow-results='true']) .historyPage {
+    visibility: hidden;
+  }
+
   .pinnedSlot[data-search-open='true'] {
     display: none;
   }

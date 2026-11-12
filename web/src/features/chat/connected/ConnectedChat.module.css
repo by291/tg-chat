@@ -481,6 +481,30 @@
   background: var(--surface-color);
 }
 
+@media (max-width: 760px) {
+  .chat:has(.conversationSearch) {
+    --mobile-search-inset: 8px;
+    --mobile-search-bottom: max(var(--mobile-search-inset), env(safe-area-inset-bottom));
+    --mobile-search-height: calc(100cqh - var(--mobile-search-inset) - var(--mobile-search-bottom));
+    position: relative;
+    container-type: size;
+  }
+
+  .chat:has(.conversationSearch) .chatHeader,
+  .chat:has(.conversationSearch) .composer,
+  .chat:has([data-narrow-results='true']) .historyPane {
+    visibility: hidden;
+  }
+
+  .chat .conversationSearch {
+    position: absolute;
+    inset: var(--mobile-search-inset) var(--mobile-search-inset) auto;
+    z-index: 6;
+    background: transparent;
+    pointer-events: none;
+  }
+}
+
 .callUnavailable {
   margin: 0;
   padding: 6px 12px;

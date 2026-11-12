@@ -23,6 +23,12 @@
   box-shadow: 0 0 10px #0004;
 }
 
+.searchControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .inputRow {
   display: flex;
   align-items: center;
@@ -134,10 +140,109 @@
 }
 
 @media (max-width: 760px) {
-  .search {
-    left: 4px;
-    border-radius: 24px;
+  .search[data-narrow-results] {
+    inset: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
+    height: var(--mobile-search-height, 100dvh);
+    gap: 0;
+    pointer-events: none;
+  }
+
+  .searchCard,
+  .searchCard[data-focused='true'] {
+    display: flex;
+    align-self: stretch;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .inputRow,
+  .searchCard .filters,
+  .searchControls {
+    flex-shrink: 0;
+    border-radius: 16px;
     background: var(--surface-color);
+    pointer-events: auto;
+  }
+
+  .inputRow {
+    height: 48px;
+    box-shadow: var(--surface-shadow);
+  }
+
+  .search .resultsCollapse[data-open='true'] {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    border-radius: 16px;
+    background: var(--surface-color);
+    pointer-events: auto;
+  }
+
+  .search .resultsCollapse[hidden] {
+    display: none;
+  }
+
+  .search .results {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    max-height: none;
+  }
+
+  .search .resultViewport {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .searchControls {
+    position: relative;
+    min-height: 48px;
+    padding: 0 4px;
+    box-shadow: var(--surface-shadow);
+  }
+
+  .mobileCount {
+    margin-inline-start: 4px;
+    color: var(--secondary-color);
+    font-size: 14px;
+  }
+
+  .searchControls .mobileToggle {
+    min-height: 40px;
+    margin-inline-start: auto;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--accent-color);
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mobileNavigation {
+    position: absolute;
+    inset-inline-end: 4px;
+    bottom: calc(100% + 8px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: auto;
+  }
+
+  .mobileNavigation button {
+    border-radius: 50%;
+    background: var(--surface-color);
+    box-shadow: var(--surface-shadow);
   }
 
   .mobileBack {

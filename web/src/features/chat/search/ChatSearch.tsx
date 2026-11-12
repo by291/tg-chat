@@ -14,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { SearchResults } from './SearchResults';
@@ -25,6 +26,7 @@ import {
   type SearchSenderRoster,
 } from './SearchSenderPicker';
 import { MessageSearchStatus } from './MessageSearchStatus';
+import { MobileSearchNavigation } from './MobileSearchNavigation';
 import {
   useMessageSearch,
   type LoadMessageSearchPage,
@@ -38,6 +40,7 @@ import type { Message } from '@/domain/messages/message';
 import styles from './ChatSearch.module.css';
 
 const IME_KEY_CODE = 229;
+const NARROW_SEARCH_QUERY = '(max-width: 760px)';
 
 const MEDIA_KINDS: ReadonlyArray<{ kind: SearchMessageKind; label: string }> = [
   { kind: 'photo_video', label: 'Photos and videos' },
@@ -75,12 +78,24 @@ function dayBoundary(value: string, options?: { isExclusiveEnd: boolean }): stri
   return date.toISOString();
 }
 
+function isNarrowSearchViewport() {
+  return window.matchMedia?.(NARROW_SEARCH_QUERY).matches ?? false;
+}
+
+function subscribeToSearchViewport(onChange: () => void) {
+  const media = window.matchMedia?.(NARROW_SEARCH_QUERY);
+  media?.addEventListener('change', onChange);
+  return () => media?.removeEventListener('change', onChange);
+}
+
 /** Search the conversation without replacing or remounting its timeline. */
 export function ChatSearch(props: ChatSearchProps) {
   const { messages, canFilterSender, onClose, onJump, source } = props;
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const hasClosedRef = useRef(false);
   const isPresent = useIsPresent();
+  const isNarrow = useSyncExternalStore(subscribeToSearchViewport, isNarrowSearchViewport);
   const [query, setQuery] = useState('');
   const [sender, setSender] = useState<SearchSender>();
   const senderId = sender?.id ?? '';
@@ -91,7 +106,9 @@ export function ChatSearch(props: ChatSearchProps) {
   const [isChoosingSender, setIsChoosingSender] = useState(false);
   const [isChoosingDate, setIsChoosingDate] = useState(false);
   const [isFocused, setIsFocused] = useState(true);
+  const [isShowingMobileTimeline, setIsShowingMobileTimeline] = useState(false);
   const [activeId, setActiveId] = useState('');
+  const [locatedId, setLocatedId] = useState('');
   const senders = useMemo(() => {
     const names = new Map<string, string>();
     for (const message of messages) {
@@ -154,7 +171,9 @@ export function ChatSearch(props: ChatSearchProps) {
   const results = source ? (remote.page?.hits.map(renderMessage) ?? []) : localResults;
   const activeIndex = results.findIndex((message) => message.id === activeId);
   const hasQuery = Boolean(text || kind || senderId);
-  const shouldShowResults = isFocused && (hasQuery || isChoosingSender || Boolean(error));
+  const isResultListOpen = isNarrow ? !isShowingMobileTimeline : isFocused;
+  const shouldShowResults = isResultListOpen && (hasQuery || isChoosingSender || Boolean(error));
+  const shouldShowFilters = isNarrow ? isResultListOpen : isFocused;
   const closeSearch = useCallback(() => {
     // AnimatePresence keeps this mounted during exit; repeated Escape must not toggle it open.
     if (hasClosedRef.current) {
@@ -193,6 +212,10 @@ export function ChatSearch(props: ChatSearchProps) {
 
   function jumpToDate(timestamp: number) {
     if (source) {
+      if (isNarrow) {
+        setIsShowingMobileTimeline(true);
+        setLocatedId('');
+      }
       void source.onJumpToDate(timestamp).catch(showNavigationError);
       return;
     }
@@ -205,9 +228,32 @@ export function ChatSearch(props: ChatSearchProps) {
 
   function chooseResult(message: Message) {
     setActiveId(message.id);
+    setLocatedId(message.id);
     setIsFocused(false);
     inputRef.current?.blur();
+    if (isNarrow) {
+      setIsShowingMobileTimeline(true);
+      if (!isShowingMobileTimeline) {
+        mobileToggleRef.current?.focus({ preventScroll: true });
+      }
+    }
     void Promise.resolve(onJump(message.id)).catch(showNavigationError);
+  }
+
+  function toggleMobileView() {
+    if (isShowingMobileTimeline) {
+      setIsShowingMobileTimeline(false);
+      return;
+    }
+
+    const message = results[Math.max(0, activeIndex)];
+    if (message?.id === locatedId) {
+      setIsShowingMobileTimeline(true);
+      return;
+    }
+    if (message) {
+      chooseResult(message);
+    }
   }
 
   function showNavigationError(failure: unknown) {
@@ -218,6 +264,7 @@ export function ChatSearch(props: ChatSearchProps) {
     const message = isMissing ? 'Message unavailable' : 'Could not open the message';
     setNavigationError({ key: requestKey, message });
     setIsFocused(true);
+    setIsShowingMobileTimeline(false);
   }
 
   function stepResult(options: { direction: number; shouldConfirm: boolean }) {
@@ -278,6 +325,7 @@ export function ChatSearch(props: ChatSearchProps) {
   }
 
   function clearSearch() {
+    setIsShowingMobileTimeline(false);
     if (query) {
       setQuery('');
       setActiveId('');
@@ -300,7 +348,7 @@ export function ChatSearch(props: ChatSearchProps) {
   }
 
   return (
-    <div className={styles.search}>
+    <div className={styles.search} data-narrow-results={isNarrow && shouldShowResults}>
       <div className={styles.searchCard} data-focused={isFocused}>
         <div className={styles.inputRow}>
           <IconButton label="Close search" className={styles.mobileBack} onClick={closeSearch}>
@@ -317,6 +365,7 @@ export function ChatSearch(props: ChatSearchProps) {
             onChange={(event) => {
               setQuery(event.target.value);
               setActiveId('');
+              setIsShowingMobileTimeline(false);
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={(event) => {
@@ -328,7 +377,7 @@ export function ChatSearch(props: ChatSearchProps) {
             }}
             onKeyDown={navigateFromInput}
           />
-          {results.length > 0 && (
+          {!isNarrow && results.length > 0 && (
             <div className={styles.navigation}>
               <IconButton
                 label="Previous search result"
@@ -350,7 +399,7 @@ export function ChatSearch(props: ChatSearchProps) {
             <X />
           </IconButton>
         </div>
-        {source && isFocused && (
+        {source && shouldShowFilters && (
           <div className={styles.filters}>
             <label>
               Type
@@ -392,6 +441,7 @@ export function ChatSearch(props: ChatSearchProps) {
           className={styles.resultsCollapse}
           data-open={shouldShowResults}
           inert={!shouldShowResults}
+          hidden={isNarrow && !shouldShowResults}
         >
           <div className={styles.results}>
             {isChoosingSender && source?.senderRoster && (
@@ -434,22 +484,36 @@ export function ChatSearch(props: ChatSearchProps) {
           </div>
         </div>
       </div>
-      {canFilterSender && (
-        <IconButton
-          label="Search members"
-          aria-pressed={isChoosingSender || Boolean(senderId)}
-          onClick={() => {
-            setIsChoosingSender(!isChoosingSender);
-            setIsChoosingDate(false);
-            inputRef.current?.focus();
-          }}
-        >
-          <UserRound />
+      <div className={styles.searchControls}>
+        {canFilterSender && (
+          <IconButton
+            label="Search members"
+            aria-pressed={isChoosingSender || Boolean(senderId)}
+            onClick={() => {
+              setIsChoosingSender(!isChoosingSender);
+              setIsChoosingDate(false);
+              setIsShowingMobileTimeline(false);
+              inputRef.current?.focus();
+            }}
+          >
+            <UserRound />
+          </IconButton>
+        )}
+        <IconButton label="Jump to date" onClick={() => setIsChoosingDate(!isChoosingDate)}>
+          <CalendarDays />
         </IconButton>
-      )}
-      <IconButton label="Jump to date" onClick={() => setIsChoosingDate(!isChoosingDate)}>
-        <CalendarDays />
-      </IconButton>
+        {isNarrow && !isChoosingSender && results.length > 0 && (
+          <MobileSearchNavigation
+            activeIndex={activeIndex}
+            count={results.length}
+            hasMore={Boolean(remote.page?.next_cursor || remote.page?.is_truncated)}
+            isShowingTimeline={isShowingMobileTimeline}
+            toggleRef={mobileToggleRef}
+            onToggle={toggleMobileView}
+            onStep={(direction) => stepResult({ direction, shouldConfirm: true })}
+          />
+        )}
+      </div>
       <SearchDateDialog
         isOpen={isChoosingDate}
         onClose={() => setIsChoosingDate(false)}

@@ -126,6 +126,10 @@
     display: inline-flex;
   }
 
+  .header[data-search-open='true'] .backButton {
+    visibility: hidden;
+  }
+
   .identity {
     margin-left: 9px;
   }

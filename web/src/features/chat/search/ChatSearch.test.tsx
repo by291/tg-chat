@@ -2,11 +2,57 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ChatSearch } from './ChatSearch';
+import { canonicalFixture } from '../data/messageFixtures.test-support';
 import { createInitialState } from '../demo/fixtures';
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+it('keeps a paged query and its filters when switching narrow search views', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const loadPage = vi.fn().mockResolvedValue({
+    hits: [canonicalFixture({ id: 'newest-match' })],
+    next_cursor: 'older-matches',
+    observation_cursor: 'observation',
+    is_truncated: false,
+  });
+  const onJump = vi.fn();
+  render(
+    <ChatSearch
+      messages={[]}
+      canFilterSender={false}
+      onJump={onJump}
+      onClose={vi.fn()}
+      source={{
+        conversationId: 'group',
+        visibilityKey: 'current',
+        loadPage,
+        onJumpToDate: vi.fn(),
+      }}
+    />,
+  );
+
+  const input = screen.getByRole('textbox', { name: 'Search in this conversation' });
+  const dateFrom = screen.getByLabelText('From date');
+  fireEvent.change(dateFrom, { target: { value: '2026-11-01' } });
+  fireEvent.change(input, { target: { value: 'archive' } });
+  await screen.findByRole('button', { name: 'More results' });
+  fireEvent.click(screen.getByRole('button', { name: 'Show in chat' }));
+
+  expect(onJump).toHaveBeenCalledWith('newest-match');
+  expect(screen.getByRole('status', { name: 'Search position' }).textContent).toBe('1 of 1+');
+  fireEvent.click(screen.getByRole('button', { name: 'Show search results' }));
+  expect(screen.getByRole('button', { name: 'More results' })).toBeTruthy();
+  expect(input).toHaveProperty('value', 'archive');
+  expect(screen.getByLabelText('From date')).toHaveProperty('value', '2026-11-01');
+  expect(loadPage).toHaveBeenCalledOnce();
 });
 
 function renderSearch() {
