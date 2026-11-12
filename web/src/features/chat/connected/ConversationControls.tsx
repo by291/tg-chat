@@ -1,6 +1,6 @@
 import { Menu } from '@ark-ui/react/menu';
 import { Portal } from '@ark-ui/react/portal';
-import { ChevronRight, Ellipsis, Pin, Timer } from 'lucide-react';
+import { ChevronRight, Ellipsis, Flag, Pin, Timer } from 'lucide-react';
 import type { components } from '@/api/schema';
 import { IconButton } from '@/components/IconButton';
 import overlays from '@/components/overlays/overlays.module.css';
@@ -21,6 +21,7 @@ interface ConversationControlsProps {
   onConfirm: (confirmation: Confirmation) => void;
   onError: (error: unknown) => void;
   onPins: () => void;
+  onReport?: () => void;
 }
 
 function forwardingAction(conversation: Conversation): string {
@@ -144,6 +145,11 @@ export function ConversationControls(props: ConversationControlsProps) {
               </Menu.Item>
             )}
             <Menu.Separator className={overlays.menuSeparator} />
+            {props.onReport && (
+              <Menu.Item value="report" className={overlays.menuItem} onSelect={props.onReport}>
+                <Flag /> {conversation.kind === 'channel' ? 'Report channel' : 'Report group'}
+              </Menu.Item>
+            )}
             <Menu.Item
               value="clear"
               className={overlays.menuItem}

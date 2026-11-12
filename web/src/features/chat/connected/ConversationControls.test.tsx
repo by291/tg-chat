@@ -23,6 +23,24 @@ afterEach(() => {
 });
 
 describe('connected conversation actions', () => {
+  it('starts message selection from the community report entry', async () => {
+    const onReport = vi.fn();
+    render(
+      <ConversationControls
+        conversation={conversationFixture({ kind: 'channel', can_manage: false })}
+        onCommand={vi.fn()}
+        onConfirm={vi.fn()}
+        onError={vi.fn()}
+        onPins={vi.fn()}
+        onReport={onReport}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Conversation options' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Report channel' }));
+    expect(onReport).toHaveBeenCalledOnce();
+  });
+
   it('offers personal actions in the header without granting subscriber management', async () => {
     render(
       <ConversationControls

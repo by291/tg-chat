@@ -67,6 +67,7 @@ interface MessageTimelineProps {
   navigation?: MessageNavigation;
   latestRequest?: number;
   selectedIds?: string[];
+  canSelectMessage?: (message: Message) => boolean;
   onToggleSelection?: (messageId: string) => void;
   onSetSelection?: (change: MessageSelectionChange) => void;
   onCommand: (command: MessageCommand) => void;
@@ -97,6 +98,7 @@ function VirtualMessageHistory({
   navigation,
   latestRequest,
   selectedIds,
+  canSelectMessage,
   onToggleSelection,
   onSetSelection,
   isPreview,
@@ -370,7 +372,9 @@ function VirtualMessageHistory({
                         message={row.message}
                         shouldShowSender={shouldShowSender}
                         onMount={notifyMessageMount}
-                        isSelecting={selectedIds !== undefined}
+                        isSelecting={
+                          selectedIds !== undefined && (canSelectMessage?.(row.message) ?? true)
+                        }
                         isSelected={selectedIds?.includes(row.message.id)}
                         isPreview={isPreview}
                         idPrefix={messageIdPrefix}

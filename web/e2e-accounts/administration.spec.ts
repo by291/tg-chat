@@ -9,6 +9,7 @@ const CONVERGENCE_TIMEOUT_MS = 15_000;
 const ORIGINAL_NAME = 'reported-original.txt';
 const ORIGINAL_BYTES = Buffer.from('The case retains this exact original.\n');
 const SHARED_MESSAGE = 'Shared history survives conversation quarantine.';
+const DEFAULT_EVIDENCE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 type AuthResponse = components['schemas']['AuthResponse'];
 
@@ -84,14 +85,19 @@ function operatorCredentials(): Credentials {
   return { username, password };
 }
 
-async function seedDirectHistory(author: Account, recipient: Account) {
+async function sendText(input: {
+  author: Account;
+  destination: components['schemas']['Destination'];
+  text: string;
+}) {
+  const { author, destination, text } = input;
   const message: components['schemas']['SendMessage'] = {
     operation_id: randomUUID(),
     message_id: randomUUID(),
-    destination: { kind: 'recipient', user_id: recipient.grant.user.id },
+    destination,
     content: {
       schema_version: 1,
-      text: SHARED_MESSAGE,
+      text,
       custom_emoji: [],
     },
   };
@@ -100,6 +106,8 @@ async function seedDirectHistory(author: Account, recipient: Account) {
     data: message,
   });
   expect(response.status()).toBe(200);
+  const receipt: components['schemas']['SendReceipt'] = await response.json();
+  return receipt.message.id;
 }
 
 function conversationButton(page: Page, title: string) {
@@ -203,6 +211,85 @@ async function changeQuarantine(page: Page, state: 'quarantine' | 'restore') {
   expect((await committed).status()).toBe(204);
 }
 
+async function reportGroupMessages({
+  author,
+  recipient,
+  operator,
+}: {
+  author: Account;
+  recipient: Account;
+  operator: Account;
+}) {
+  const conversationId = randomUUID();
+  const title = 'Report acceptance group';
+  const group = await author.context.request.post('/api/v1/communities', {
+    headers: mutationHeaders(author.origin, author.grant.csrf_token),
+    data: {
+      operation_id: randomUUID(),
+      conversation_id: conversationId,
+      kind: 'group',
+      title,
+      description: '',
+      is_public: true,
+      public_handle: `reports_${conversationId.slice(0, 8)}`,
+      requires_approval: false,
+    },
+  });
+  expect(group.status()).toBe(200);
+  const join = await recipient.context.request.post('/api/v1/communities/commands', {
+    headers: mutationHeaders(recipient.origin, recipient.grant.csrf_token),
+    data: {
+      operation_id: randomUUID(),
+      conversation_id: conversationId,
+      action: { kind: 'join' },
+    },
+  });
+  expect(join.status()).toBe(200);
+
+  const destination = { kind: 'conversation', conversation_id: conversationId } as const;
+  const firstId = await sendText({ author, destination, text: 'First reported message' });
+  const secondId = await sendText({ author, destination, text: 'Second reported message' });
+  const ownId = await sendText({ author: recipient, destination, text: 'Reporter reply' });
+  const page = recipient.page;
+  await page.bringToFront();
+  await conversationButton(page, title).click();
+  await page.getByRole('button', { name: 'Conversation options' }).click();
+  await page.getByRole('menuitem', { name: 'Report group' }).click();
+
+  const selection = page.getByRole('region', { name: 'Message selection' });
+  const reportSelected = selection.getByRole('button', { name: 'Report selected messages' });
+  await expect(reportSelected).toBeDisabled();
+  const ownMessage = page.locator(`[data-message-id="${ownId}"]`);
+  await expect(ownMessage).toBeVisible();
+  await expect(ownMessage.getByRole('checkbox')).toHaveCount(0);
+  for (const messageId of [firstId, secondId]) {
+    const row = page.locator(`[data-message-id="${messageId}"]`);
+    await row.getByRole('checkbox').click();
+  }
+
+  await reportSelected.click();
+  const report = page.getByRole('dialog', { name: 'Report messages', exact: true });
+  await report.getByRole('button', { name: 'Spam', exact: true }).click();
+  await report.getByRole('button', { name: 'Back', exact: true }).click();
+  await report.getByRole('button', { name: 'Harassment', exact: true }).click();
+  await report.getByRole('button', { name: 'Submit report', exact: true }).click();
+  await expect(report).toHaveCount(0);
+  await expect(selection).toHaveCount(0);
+  await expect(page.getByText('2 reports submitted', { exact: true })).toBeVisible();
+
+  const response = await operator.context.request.get('/api/v1/operator/cases');
+  expect(response.status()).toBe(200);
+  const cases: components['schemas']['CasePage'] = await response.json();
+  const groupCases = cases.items.filter((item) => item.conversation_id === conversationId);
+  expect(groupCases).toHaveLength(2);
+  expect(groupCases.map((item) => item.message_id).sort()).toEqual([firstId, secondId].sort());
+  expect(groupCases.every((item) => item.reason === 'harassment')).toBe(true);
+  for (const item of groupCases) {
+    const retention = Date.parse(item.evidence_expires_at) - Date.parse(item.created_at);
+    expect(retention).toBe(DEFAULT_EVIDENCE_RETENTION_MS);
+  }
+}
+
 test('retained report originals and quarantine work across connected browsers', async ({
   baseURL,
   browser,
@@ -214,13 +301,21 @@ test('retained report originals and quarantine work across connected browsers', 
   try {
     const author = await register(context, origin, 'Evidence Author');
     const recipient = await register(recipientContext, origin, 'Evidence Reporter');
-    await seedDirectHistory(author, recipient);
+    await sendText({
+      author,
+      destination: { kind: 'recipient', user_id: recipient.grant.user.id },
+      text: SHARED_MESSAGE,
+    });
     await Promise.all([openMessages(author.page), openMessages(recipient.page)]);
     await Promise.all([
       openDirectHistory(author.page, 'Evidence Reporter'),
       openDirectHistory(recipient.page, 'Evidence Author'),
     ]);
     await author.page.bringToFront();
+    await sharedMessage(author.page).click({ button: 'right' });
+    await expect(author.page.getByRole('menuitem', { name: 'Select', exact: true })).toBeVisible();
+    await expect(author.page.getByRole('menuitem', { name: 'Report', exact: true })).toHaveCount(0);
+    await author.page.keyboard.press('Escape');
     await sendOriginal(author.page);
     await recipient.page.bringToFront();
     const note = `Original evidence ${randomUUID()}`;
@@ -258,6 +353,8 @@ test('retained report originals and quarantine work across connected browsers', 
       openDirectHistory(author.page, 'Evidence Reporter'),
       openDirectHistory(recipient.page, 'Evidence Author'),
     ]);
+
+    await reportGroupMessages({ author, recipient, operator });
   } finally {
     await Promise.all([recipientContext.close(), operatorContext.close()]);
   }

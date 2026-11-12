@@ -244,8 +244,9 @@ export function ConnectedChat({
   const [isPinsOpen, setIsPinsOpen] = useState(false);
   const [contactDestination, setContactDestination] = useState<string>();
   const [selectedIds, setSelectedIds] = useState<string[]>();
+  const [isChoosingReportMessages, setIsChoosingReportMessages] = useState(false);
   const [forwardIds, setForwardIds] = useState<string[]>();
-  const [reportedMessageId, setReportedMessageId] = useState<string>();
+  const [reportedMessageIds, setReportedMessageIds] = useState<string[]>();
   const [voterMessageId, setVoterMessageId] = useState<string>();
   const [checklistEditor, setChecklistEditor] = useState<{
     messageId: string;
@@ -325,7 +326,17 @@ export function ConnectedChat({
   }
   const canPost = conversation?.can_post ?? selection?.destination.kind !== 'conversation';
   const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
+  const canReportCommunity = Boolean(session && isCommunity && conversation.role !== 'owner');
+  const reportableMessageIds = new Set(
+    snapshot.messages.filter(canReportMessage).map((message) => message.id),
+  );
+  const canReportSelection = Boolean(
+    session && selectedIds?.length && selectedIds.every((id) => reportableMessageIds.has(id)),
+  );
   const allowedActions = CONNECTED_ACTIONS.filter((action) => {
+    if (isChoosingReportMessages) {
+      return action === 'clear-selection';
+    }
     if (action === 'report') {
       return Boolean(session);
     }
@@ -404,8 +415,9 @@ export function ConnectedChat({
     setPollEditor(undefined);
     setChecklistEditor(undefined);
     setSelectedIds(undefined);
+    setIsChoosingReportMessages(false);
     setForwardIds(undefined);
-    setReportedMessageId(undefined);
+    setReportedMessageIds(undefined);
   }, [selectedKey, conversation?.generation]);
   useEffect(() => {
     if (!canPost) {
@@ -752,13 +764,15 @@ export function ConnectedChat({
     }
     switch (command.action) {
       case 'report':
-        setReportedMessageId(canonical.id);
+        if (session && canReportMessage(canonical)) {
+          setReportedMessageIds([canonical.id]);
+        }
         break;
       case 'select':
         toggleSelection(canonical.id);
         break;
       case 'clear-selection':
-        setSelectedIds(undefined);
+        cancelMessageSelection();
         break;
       case 'forward':
         setForwardIds([canonical.id]);
@@ -812,6 +826,28 @@ export function ConnectedChat({
     }
   }
 
+  function canReportMessage(message: CanonicalMessage) {
+    return message.author_id !== user.id && !message.is_deleted && !message.service_kind;
+  }
+
+  function startReportSelection() {
+    setIsChoosingReportMessages(true);
+    setSelectedIds([]);
+  }
+
+  function cancelMessageSelection() {
+    setIsChoosingReportMessages(false);
+    setSelectedIds(undefined);
+  }
+
+  function reportSelectedMessages() {
+    if (!canReportSelection || !selectedIds) {
+      return;
+    }
+
+    setReportedMessageIds(selectedIds);
+  }
+
   function toggleSelection(messageId: string) {
     const current = selectedIds ?? [];
     setMessageSelection({ messageIds: [messageId], shouldSelect: !current.includes(messageId) });
@@ -823,9 +859,13 @@ export function ConnectedChat({
       return;
     }
 
-    const eligibleMessages = snapshot.messages.filter(
-      (message) => !message.is_deleted && !message.service_kind && messageIds.includes(message.id),
-    );
+    const eligibleMessages = snapshot.messages.filter((message) => {
+      if (message.is_deleted || message.service_kind || !messageIds.includes(message.id)) {
+        return false;
+      }
+
+      return !isChoosingReportMessages || reportableMessageIds.has(message.id);
+    });
     if (eligibleMessages.length === 0) {
       return;
     }
@@ -1210,6 +1250,7 @@ export function ConnectedChat({
                 onConfirm={setConfirmation}
                 onError={report}
                 onPins={() => setIsPinsOpen(true)}
+                onReport={canReportCommunity ? startReportSelection : undefined}
               />
             )}
           </header>
@@ -1271,12 +1312,29 @@ export function ConnectedChat({
           {selection ? (
             <>
               {selectedIds && (
-                <div className={styles.historyControls} aria-label="Message selection">
-                  <button type="button" onClick={() => setSelectedIds(undefined)}>
+                <div
+                  className={styles.historyControls}
+                  role="region"
+                  aria-label="Message selection"
+                >
+                  <button type="button" onClick={cancelMessageSelection}>
                     Cancel selection
                   </button>
-                  <span>{selectedIds.length} selected</span>
-                  {canForward && (
+                  {isChoosingReportMessages && !selectedIds.length ? (
+                    <span>Select messages to report</span>
+                  ) : (
+                    <span>{selectedIds.length} selected</span>
+                  )}
+                  {(canReportSelection || isChoosingReportMessages) && (
+                    <button
+                      type="button"
+                      disabled={!canReportSelection}
+                      onClick={reportSelectedMessages}
+                    >
+                      Report selected messages
+                    </button>
+                  )}
+                  {!isChoosingReportMessages && canForward && (
                     <button
                       type="button"
                       disabled={!selectedIds.length}
@@ -1285,13 +1343,15 @@ export function ConnectedChat({
                       Forward selected messages
                     </button>
                   )}
-                  <button
-                    type="button"
-                    disabled={!selectedIds.length}
-                    onClick={confirmSelectedRemoval}
-                  >
-                    Delete selected messages
-                  </button>
+                  {!isChoosingReportMessages && (
+                    <button
+                      type="button"
+                      disabled={!selectedIds.length}
+                      onClick={confirmSelectedRemoval}
+                    >
+                      Delete selected messages
+                    </button>
+                  )}
                 </div>
               )}
               <div className={styles.historyPane}>
@@ -1320,6 +1380,11 @@ export function ConnectedChat({
                           shouldShowSender={conversation?.kind === 'group'}
                           allowedActions={allowedActions}
                           selectedIds={selectedIds}
+                          canSelectMessage={
+                            isChoosingReportMessages
+                              ? (message) => reportableMessageIds.has(message.id)
+                              : undefined
+                          }
                           onToggleSelection={toggleSelection}
                           onSetSelection={setMessageSelection}
                           reactionChoices={REACTIONS}
@@ -1358,7 +1423,7 @@ export function ConnectedChat({
                   </ContactLinkContext.Provider>
                 </ConnectedMediaContext.Provider>
               </div>
-              <footer className={styles.composer}>
+              <footer className={styles.composer} hidden={isChoosingReportMessages}>
                 <DraftRecovery
                   key={selectedKey}
                   local={snapshot.draft}
@@ -1471,12 +1536,13 @@ export function ConnectedChat({
             onSubmit={queueContact}
           />
         )}
-        {reportedMessageId && session && (
+        {reportedMessageIds && session && (
           <ReportMessageDialog
-            key={reportedMessageId}
+            key={reportedMessageIds.join(':')}
             session={session}
-            messageIds={[reportedMessageId]}
-            onClose={() => setReportedMessageId(undefined)}
+            messageIds={reportedMessageIds}
+            onComplete={cancelMessageSelection}
+            onClose={() => setReportedMessageIds(undefined)}
           />
         )}
         {forwardIds && (

@@ -232,7 +232,9 @@ export function MessageMenu({
       : getMessageItems(message, currentUserId);
   }
   if (allowedActions) {
-    if (!isSelecting && allowedActions.includes('report')) {
+    const canReport =
+      message && message.authorId !== currentUserId && !message.isService && !isSelecting;
+    if (canReport && allowedActions.includes('report')) {
       items.push({
         action: 'report',
         label: 'Report',

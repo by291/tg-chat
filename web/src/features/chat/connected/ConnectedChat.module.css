@@ -311,6 +311,11 @@
   font-size: 13px;
 }
 
+.historyControls {
+  flex-wrap: wrap;
+  padding-inline: var(--chat-edge-inset);
+}
+
 .error {
   padding: 12px 20px;
   margin: 0;
