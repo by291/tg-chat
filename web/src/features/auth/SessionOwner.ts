@@ -32,13 +32,15 @@ export interface SessionSnapshot {
 export class ApiError extends Error {
   readonly code: string;
   readonly context?: unknown;
+  readonly status?: number;
 
   /** Preserve a safe machine code alongside the API's user-facing failure description. */
-  constructor(options: { code: string; message: string; context?: unknown }) {
+  constructor(options: { code: string; message: string; context?: unknown; status?: number }) {
     super(options.message);
     this.name = 'ApiError';
     this.code = options.code;
     this.context = options.context;
+    this.status = options.status;
   }
 }
 
@@ -340,6 +342,10 @@ export class SessionOwner {
     if (failure.code === 'unauthenticated') {
       this.invalidate();
     }
-    throw new ApiError({ ...failure, context: parsed.success ? parsed.data.current : undefined });
+    throw new ApiError({
+      ...failure,
+      context: parsed.success ? parsed.data.current : undefined,
+      status: response.status,
+    });
   }
 }

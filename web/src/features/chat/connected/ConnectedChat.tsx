@@ -1,4 +1,13 @@
-import { ArrowLeft, ContactRound, Phone, Search, Settings, Users, Video } from 'lucide-react';
+import {
+  ArrowLeft,
+  ContactRound,
+  LoaderCircle,
+  Phone,
+  Search,
+  Settings,
+  Users,
+  Video,
+} from 'lucide-react';
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Avatar } from '@/components/Avatar';
 import type { components } from '@/api/schema';
@@ -17,6 +26,7 @@ import type { MessageCommand, MessageMenuAction } from '../messages/commands';
 import type { ChecklistMedia } from '@/domain/messages/media';
 import { checklistInput } from '../data/checklistInput';
 import { canonicalMessageContent } from '../data/messageContent';
+import { connectionStatusLabel } from '../data/connectionStatus';
 import { ConnectedChatMenu } from './ConnectedChatMenu';
 import { ConnectedConversationRow } from './ConnectedConversationRow';
 import { ConnectedPeerProfile } from './ConnectedPeerProfile';
@@ -190,6 +200,7 @@ export function ConnectedChat({
   onCommunityDetails,
 }: ConnectedChatProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
+  const connectionLabel = connectionStatusLabel(snapshot.connectionStatus);
   const presence = useSyncExternalStore(
     activity?.subscribe ?? subscribeToNothing,
     activity?.getSnapshot ?? emptyActivity,
@@ -882,11 +893,15 @@ export function ConnectedChat({
           </header>
           {!snapshot.isReady && <p role="status">Loading conversations…</p>}
           <div className={styles.directorySearch}>
-            <Search size={18} aria-hidden="true" />
+            {connectionLabel ? (
+              <LoaderCircle size={18} className={styles.connectionSpinner} aria-hidden="true" />
+            ) : (
+              <Search size={18} aria-hidden="true" />
+            )}
             <input
               type="text"
               aria-label="Search chats and messages"
-              placeholder="Search"
+              placeholder={connectionLabel ?? 'Search'}
               value={directoryQuery}
               onChange={(event) => setDirectoryQuery(event.target.value)}
               onKeyDown={(event) => {
@@ -896,6 +911,15 @@ export function ConnectedChat({
               }}
             />
           </div>
+          {connectionLabel && (
+            <p
+              className={styles.directoryConnection}
+              data-has-query={Boolean(directoryQuery)}
+              role="status"
+            >
+              {connectionLabel}
+            </p>
+          )}
           {!normalizedDirectoryQuery && (
             <label className={styles.folder}>
               Conversations
@@ -1106,6 +1130,12 @@ export function ConnectedChat({
               </button>
             )}
           </header>
+          {connectionLabel && (
+            <p className={styles.mobileConnection} role="status">
+              <LoaderCircle size={16} className={styles.connectionSpinner} aria-hidden="true" />
+              {connectionLabel}
+            </p>
+          )}
           {hasCallActions && !calls && (
             <p role="status" className={styles.callUnavailable}>
               Calls are unavailable in this browser.

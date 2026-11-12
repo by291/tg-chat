@@ -9,6 +9,7 @@ import { CanonicalCache, observedAtLeast, type CanonicalSnapshot } from './canon
 import type { EmojiText } from '@/domain/messages/customEmoji';
 import { ApiError, isCancelled, requirePayload, SessionOwner } from '@/features/auth/SessionOwner';
 import { canonicalMessageContent } from './messageContent';
+import type { ConnectionStatus } from './connectionStatus';
 import type { SearchSenderRoster } from '../search/SearchSenderPicker';
 import type { LoadMessageSearchPage } from '../search/useMessageSearch';
 import { ChatMediaQueue } from './ChatMediaQueue';
@@ -48,6 +49,7 @@ const DRAFT_DEBOUNCE_MS = 500;
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
 const MAX_ALERT_GROUPS = 200;
 const MAX_ALERT_PREVIEW = 100;
+const SERVER_ERROR_STATUS = 500;
 // prettier-ignore
 const TRANSIENT_ERROR_CODES = new Set([
   'dependency_unavailable',
@@ -104,6 +106,8 @@ export interface ChatSnapshot {
   hasNewer: boolean;
   isLoading: boolean;
   isReady: boolean;
+  connectionStatus: ConnectionStatus;
+  startupError?: string;
   error: string;
 }
 
@@ -123,12 +127,22 @@ function initialSnapshot(): ChatSnapshot {
     hasNewer: false,
     isLoading: false,
     isReady: false,
+    connectionStatus: 'ready',
     error: '',
   };
 }
 
 function failureMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'The request could not be completed.';
+}
+
+function isConnectionFailure(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.code === 'network_unavailable' ||
+      error.code === 'dependency_unavailable' ||
+      (error.status !== undefined && error.status >= SERVER_ERROR_STATUS))
+  );
 }
 
 function precedingMessage(options: {
@@ -294,15 +308,6 @@ export class ChatOwner {
       key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
     });
     const persisted = await this.store.open();
-    this.mediaQueue = new ChatMediaQueue({
-      sessionId: this.sessionId,
-      store: this.store,
-      transport: this.mediaTransport,
-      onPending: (message) => this.replacePending(message),
-      onReady: () => {
-        void this.sendPreparedMedia().catch((error) => this.report(error));
-      },
-    });
     this.ensureCurrent();
     this.cache ??= new CanonicalCache({
       key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
@@ -317,6 +322,17 @@ export class ChatOwner {
     const cached = await this.cache.open(bootstrap);
     await this.reconcileDraftAccess(cached.conversations);
     this.ensureCurrent();
+
+    // Do not create upload work until the retryable bootstrap steps have succeeded.
+    this.mediaQueue = new ChatMediaQueue({
+      sessionId: this.sessionId,
+      store: this.store,
+      transport: this.mediaTransport,
+      onPending: (message) => this.replacePending(message),
+      onReady: () => {
+        void this.sendPreparedMedia().catch((error) => this.report(error));
+      },
+    });
     this.cacheSnapshot = cached;
     this.cursor = cached.cursor;
     this.publish({
@@ -328,23 +344,25 @@ export class ChatOwner {
         status: message.status === 'sending' ? 'queued' : message.status,
       })),
       isReady: true,
+      startupError: undefined,
       error: '',
     });
     this.kickMedia();
     void this.flushForwards().catch((error) => this.report(error));
   }
 
-  /** Poll serially while visible and catch up immediately after focus or network recovery. */
+  /** Load the chat and poll serially while visible, with an immediate retry for the workspace. */
   connect({
     onActivityHint,
     onCallHint,
   }: {
     onActivityHint?: () => void;
     onCallHint?: () => void;
-  } = {}): () => void {
+  } = {}): { disconnect: () => void; retry: () => void } {
     let isStopped = false;
     let isRunning = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let shouldResumeAfterCurrent = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let backoff = POLL_INTERVAL_MS;
     let unwatchCache: (() => void) | undefined;
     const watchCache = () => {
@@ -358,13 +376,16 @@ export class ChatOwner {
       if (isStopped || isRunning || this.isDisposed) {
         return;
       }
-      if (!this.snapshot.isReady || document.visibilityState === 'hidden') {
-        timer = setTimeout(tick, POLL_INTERVAL_MS);
+      const isBackgroundChat = this.snapshot.isReady && document.visibilityState === 'hidden';
+      if (!navigator.onLine || isBackgroundChat) {
         return;
       }
       isRunning = true;
-      watchCache();
       try {
+        if (!this.snapshot.isReady) {
+          await this.start();
+        }
+        watchCache();
         await this.pruneMediaSources();
         await this.catchUp();
         await this.flush();
@@ -372,20 +393,48 @@ export class ChatOwner {
         await this.flushDraft();
         backoff = POLL_INTERVAL_MS;
       } catch (error) {
-        this.report(error);
+        if (!this.snapshot.isReady && !isCancelled(error)) {
+          this.recordStartupFailure(error);
+        } else if (!isConnectionFailure(error)) {
+          // Sync owns transport feedback, while other failures still need their action error.
+          this.report(error);
+        }
         const jitter = Math.floor(Math.random() * POLL_INTERVAL_MS);
         backoff = Math.min(backoff * 2 + jitter, MAX_BACKOFF_MS);
+      } finally {
+        isRunning = false;
       }
-      isRunning = false;
-      if (!isStopped) {
-        timer = setTimeout(tick, backoff);
+
+      if (isStopped || this.isDisposed) {
+        return;
       }
+      if (shouldResumeAfterCurrent) {
+        shouldResumeAfterCurrent = false;
+        void tick();
+        return;
+      }
+      timer = setTimeout(tick, backoff);
     };
     const wake = () => {
       clearTimeout(timer);
       void tick();
     };
-    timer = setTimeout(tick, POLL_INTERVAL_MS);
+    const offline = () => {
+      clearTimeout(timer);
+      this.alerts.resetBaseline();
+      this.setConnectionStatus('waiting');
+    };
+    const online = () => {
+      if (this.snapshot.connectionStatus === 'waiting') {
+        this.setConnectionStatus('reconnecting');
+      }
+      // An outstanding request may have started before the connection returned.
+      if (isRunning) {
+        shouldResumeAfterCurrent = true;
+        return;
+      }
+      wake();
+    };
     const endpoint = new URL('/connection/websocket', window.location.href);
     endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
     const realtime = new Centrifuge(endpoint.toString());
@@ -394,7 +443,11 @@ export class ChatOwner {
       onCallHint?.();
       wake();
     });
-    realtime.on('disconnected', () => this.alerts.resetBaseline());
+    realtime.on('disconnected', () => {
+      this.alerts.resetBaseline();
+      // HTTP polling can keep the chat current without its realtime wakeup channel.
+      wake();
+    });
     realtime.on('publication', (context) => {
       if (context.data?.kind === 'activity') {
         onActivityHint?.();
@@ -408,9 +461,9 @@ export class ChatOwner {
       wake();
     });
     realtime.connect();
-    watchCache();
     window.addEventListener('focus', wake);
-    window.addEventListener('online', wake);
+    window.addEventListener('online', online);
+    window.addEventListener('offline', offline);
     const visibilityChanged = () => {
       if (document.visibilityState === 'hidden') {
         this.alerts.resetBaseline();
@@ -419,15 +472,37 @@ export class ChatOwner {
     };
     document.addEventListener('visibilitychange', visibilityChanged);
 
-    return () => {
+    if (navigator.onLine) {
+      wake();
+    } else {
+      offline();
+    }
+
+    const disconnect = () => {
       isStopped = true;
       realtime.disconnect();
       unwatchCache?.();
       clearTimeout(timer);
       window.removeEventListener('focus', wake);
-      window.removeEventListener('online', wake);
+      window.removeEventListener('online', online);
+      window.removeEventListener('offline', offline);
       document.removeEventListener('visibilitychange', visibilityChanged);
     };
+    return { disconnect, retry: wake };
+  }
+
+  private recordStartupFailure(error: unknown): void {
+    if (isConnectionFailure(error)) {
+      this.setConnectionStatus('reconnecting');
+    }
+    this.publish({ startupError: failureMessage(error) });
+  }
+
+  private setConnectionStatus(next: ConnectionStatus): void {
+    const connectionStatus = navigator.onLine ? next : 'waiting';
+    if (connectionStatus !== this.snapshot.connectionStatus) {
+      this.publish({ connectionStatus });
+    }
   }
 
   /** Suppress in-app alerts for the conversation currently visible in the workspace. */
@@ -708,6 +783,10 @@ export class ChatOwner {
   /** Synchronize one captured draft while preserving later typing and explicit remote conflicts. */
   flushDraft(): Promise<void> {
     clearTimeout(this.draftTimer);
+    if (!navigator.onLine) {
+      // The reconnect loop will send the persisted draft once the network returns.
+      return Promise.resolve();
+    }
     this.draftPromise ??= this.saveRemoteDraft().finally(() => {
       this.draftPromise = undefined;
     });
@@ -973,8 +1052,18 @@ export class ChatOwner {
         if (!(error instanceof ApiError) || error.code !== 'sync_reset_required') {
           throw error;
         }
+        this.setConnectionStatus('updating');
         await this.resetCache();
         await this.loadHistory('latest');
+      })
+      .then(() => this.setConnectionStatus('ready'))
+      .catch((error: unknown) => {
+        if (isConnectionFailure(error)) {
+          this.setConnectionStatus('reconnecting');
+        } else if (!isCancelled(error)) {
+          this.setConnectionStatus('ready');
+        }
+        throw error;
       })
       .finally(() => {
         this.syncPromise = undefined;
@@ -1532,6 +1621,9 @@ export class ChatOwner {
       });
       this.ensureCurrent();
       const page = requirePayload(reply);
+      if (this.snapshot.connectionStatus === 'reconnecting') {
+        this.setConnectionStatus('updating');
+      }
       this.observeAccountSettings(page.account_settings_version);
       const expected = this.cacheSnapshot;
       if (!expected) {

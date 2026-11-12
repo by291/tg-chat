@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
+import { Centrifuge } from 'centrifuge';
 import { describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { SessionOwner } from '@/features/auth/SessionOwner';
@@ -70,6 +71,7 @@ function fixture(options: {
   sessionId?: string;
   history?: (request: Request) => Promise<Response>;
   commands?: (request: Request) => Promise<Response>;
+  beforeBootstrap?: () => void;
 }) {
   const sessionId = options.sessionId ?? crypto.randomUUID();
   const session = new SessionOwner({
@@ -77,6 +79,7 @@ function fixture(options: {
     fetch: async (request) => {
       const path = new URL(request.url).pathname;
       if (path.endsWith('/bootstrap')) {
+        options.beforeBootstrap?.();
         return Response.json({
           deployment_id: 'test-deployment',
           user: USER,
@@ -290,6 +293,116 @@ function syncTransport(page: ReturnType<typeof changePage>) {
 }
 
 describe('connected chat ownership', () => {
+  it('retries a failed first load without replacing the authenticated session', async () => {
+    let shouldFail = true;
+    const { owner, session } = fixture({
+      beforeBootstrap: () => {
+        if (shouldFail) {
+          throw new TypeError('Server unreachable');
+        }
+      },
+      transport: async () => syncPage({ first: 1, last: 0 }),
+    });
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const realtime = vi.spyOn(Centrifuge.prototype, 'connect').mockImplementation(() => {});
+    const connection = owner.connect();
+
+    try {
+      await vi.waitFor(() => expect(owner.getSnapshot().startupError).toContain('could not'));
+      expect(owner.getSnapshot().isReady).toBe(false);
+      shouldFail = false;
+      connection.retry();
+
+      await vi.waitFor(() => expect(owner.getSnapshot().isReady).toBe(true));
+      expect(owner.getSnapshot().startupError).toBeUndefined();
+      expect(session.getSnapshot().auth?.user.id).toBe(USER.id);
+    } finally {
+      connection.disconnect?.();
+      owner.dispose();
+      visibility.mockRestore();
+      realtime.mockRestore();
+    }
+  });
+
+  it('reports offline and catch-up states while preserving the active draft', async () => {
+    const recovery = deferredResponse();
+    let shouldDelaySync = false;
+    const { owner } = fixture({
+      transport: async () => {
+        if (shouldDelaySync) {
+          return recovery.promise;
+        }
+        return syncPage({ first: 1, last: 0 });
+      },
+    });
+    const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const realtime = vi.spyOn(Centrifuge.prototype, 'connect').mockImplementation(() => {});
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.setDraft({ text: 'Keep typing' });
+    const flushDraft = vi.spyOn(owner, 'flushDraft');
+    const states: string[] = [];
+    const unsubscribe = owner.subscribe(() => states.push(owner.getSnapshot().connectionStatus));
+    const connection = owner.connect();
+
+    try {
+      await vi.waitFor(() => expect(flushDraft).toHaveBeenCalled());
+      expect(owner.getSnapshot().connectionStatus).toBe('ready');
+      network.mockReturnValue(false);
+      window.dispatchEvent(new Event('offline'));
+      expect(owner.getSnapshot().connectionStatus).toBe('waiting');
+
+      shouldDelaySync = true;
+      network.mockReturnValue(true);
+      window.dispatchEvent(new Event('online'));
+      expect(owner.getSnapshot().connectionStatus).toBe('reconnecting');
+      recovery.release(syncPage({ first: 1, last: 0 }));
+
+      await vi.waitFor(() => expect(owner.getSnapshot().connectionStatus).toBe('ready'));
+      expect(states).toContain('updating');
+      expect(owner.getSnapshot().selection?.title).toBe('Saved Messages');
+      expect(owner.getSnapshot().draft.value.text).toBe('Keep typing');
+    } finally {
+      connection.disconnect?.();
+      unsubscribe();
+      owner.dispose();
+      network.mockRestore();
+      visibility.mockRestore();
+      realtime.mockRestore();
+      flushDraft.mockRestore();
+    }
+  });
+
+  it('retains an offline draft locally until remote synchronization can resume', async () => {
+    const commands = vi.fn(async (request: Request) => {
+      const submitted = await request.json();
+      return Response.json({
+        observation_cursor: cursorFixture(1),
+        conversation: { ...SAVED, draft: { version: '1', content: submitted.action.content } },
+      });
+    });
+    const network = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const { owner } = fixture({ commands });
+    try {
+      await owner.start();
+      await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+      network.mockReturnValue(false);
+      await owner.setDraft({ text: 'Typed without a connection' });
+      await owner.flushDraft();
+      expect(commands).not.toHaveBeenCalled();
+      expect(owner.getSnapshot().draft.value.text).toBe('Typed without a connection');
+
+      network.mockReturnValue(true);
+      await owner.flushDraft();
+      expect(commands).toHaveBeenCalledOnce();
+      expect(owner.getSnapshot().draft.serverVersion).toBe('1');
+    } finally {
+      owner.dispose();
+      network.mockRestore();
+    }
+  });
+
   it('keeps the later conversation when a contact card lookup finishes late', async () => {
     const profile = deferredResponse();
     const { owner } = fixture({ transport: () => profile.promise });

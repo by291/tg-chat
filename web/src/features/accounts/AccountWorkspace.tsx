@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { UserPlus } from 'lucide-react';
 import { ToastViewport } from '@/components/Toast';
@@ -16,7 +16,8 @@ import {
 import { SessionOwner, isCancelled } from '../auth/SessionOwner';
 import { CommunityWorkspace } from '../communities/CommunityWorkspace';
 import { conversationDestination, type Conversation } from '../communities/communityModels';
-import { ChatOwner } from '../chat/data/ChatOwner';
+import { ChatOwner, type ChatSnapshot } from '../chat/data/ChatOwner';
+import { connectionStatusLabel } from '../chat/data/connectionStatus';
 import { ConnectedChat } from '../chat/connected/ConnectedChat';
 import { ActivityOwner } from '../chat/activity/ActivityOwner';
 import { CallPanel } from '../calls/CallPanel';
@@ -45,6 +46,15 @@ interface WorkspaceProps {
   auth: components['schemas']['AuthResponse'];
   capabilities: components['schemas']['Capabilities'];
 }
+
+interface ChatConnection {
+  owner: ChatOwner;
+  retry: () => void;
+}
+
+type ChatStartup = Pick<ChatSnapshot, 'isReady' | 'connectionStatus' | 'startupError'>;
+
+const READY_CHAT: ChatStartup = { isReady: true, connectionStatus: 'ready' };
 
 const SUBPAGE_NAVIGATION = {
   profile: {
@@ -87,14 +97,27 @@ function initialPage(capabilities: WorkspaceProps['capabilities']): Page {
   return capabilities.messaging_available ? 'messages' : 'settings';
 }
 
+const subscribeBeforeChat = () => () => undefined;
+
 /** Keep authenticated ownership separate from demo state and persistence. */
 export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) {
   const [page, setPage] = useState<Page>(() => initialPage(capabilities));
   const [conversationRequest, setConversationRequest] = useState(0);
   const action = useOperation();
   const [communityId, setCommunityId] = useState<string>();
-  const [chat, setChat] = useState<ChatOwner>();
+  const [chatConnection, setChatConnection] = useState<ChatConnection>();
   const [chatError, setChatError] = useState('');
+  const getStartupSnapshot = useCallback((): ChatStartup | undefined => {
+    const snapshot = chatConnection?.owner.getSnapshot();
+    // The connected page subscribes directly once the account shell has finished bootstrapping.
+    return snapshot?.isReady ? READY_CHAT : snapshot;
+  }, [chatConnection]);
+  const startup = useSyncExternalStore(
+    chatConnection?.owner.subscribe ?? subscribeBeforeChat,
+    getStartupSnapshot,
+  );
+  const chat =
+    capabilities.messaging_available && startup?.isReady ? chatConnection?.owner : undefined;
   const { preferences, revision } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const [activity] = useState(() => new ActivityOwner({ session: owner }));
   const [push] = useState(() => new BrowserPushOwner({ session: owner }));
@@ -164,38 +187,15 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       return;
     }
 
-    let isCurrent = true;
-    setChat(undefined);
     const connected = new ChatOwner({ session: owner });
-    const disconnect = connected.connect({
+    const { disconnect, retry } = connected.connect({
       onActivityHint: activity.refresh,
       onCallHint: canUseCalls ? () => void calls.refresh() : undefined,
     });
-    void connected
-      .start()
-      .then(() => {
-        if (!isCurrent) {
-          return;
-        }
-        setChat(connected);
-        void connected
-          .catchUp()
-          .then(() => connected.flush())
-          .catch((error: unknown) => {
-            if (!isCancelled(error)) {
-              setChatError(error instanceof Error ? error.message : 'Chat synchronization failed.');
-            }
-          });
-      })
-      .catch((error: unknown) => {
-        if (!isCancelled(error)) {
-          setChatError(error instanceof Error ? error.message : 'Chat could not be loaded.');
-        }
-      });
+    setChatConnection({ owner: connected, retry });
 
     return () => {
-      isCurrent = false;
-      disconnect?.();
+      disconnect();
       connected.dispose();
     };
   }, [activity, owner, revision, capabilities.messaging_available, canUseCalls, calls]);
@@ -252,16 +252,30 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
         />
       );
       break;
-    case 'messages':
+    case 'messages': {
+      const startupStatus = connectionStatusLabel(startup?.connectionStatus ?? 'ready');
+      const startupError = startup?.startupError;
       content = (
         <div className={styles.panel}>
-          {!chatError && <p role="status">Loading conversations…</p>}
+          {startupStatus && <p role="status">{startupStatus}</p>}
+          {!startupStatus && !startupError && <p role="status">Loading conversations…</p>}
+          {startupError && (
+            <>
+              <p role="alert" className={styles.error}>
+                {startupError}
+              </p>
+              <button type="button" onClick={chatConnection?.retry}>
+                Retry loading chats
+              </button>
+            </>
+          )}
           <button type="button" className={styles.textButton} onClick={() => setPage('settings')}>
             Account settings
           </button>
         </div>
       );
       break;
+    }
     case 'preferences':
       content = (
         <>

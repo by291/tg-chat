@@ -440,3 +440,50 @@
   color: var(--secondary-color);
   font-size: 13px;
 }
+
+.directoryConnection,
+.mobileConnection {
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 8px;
+  margin: 0;
+  color: var(--secondary-color);
+  font-size: 13px;
+}
+
+.directoryConnection[data-has-query='false'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  padding: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mobileConnection {
+  display: none;
+  background: var(--surface-color);
+}
+
+.connectionSpinner {
+  flex: none;
+}
+
+@media (max-width: 720px) {
+  .mobileConnection {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .connectionSpinner {
+    animation: connection-spin 900ms linear infinite;
+  }
+}
+
+@keyframes connection-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
