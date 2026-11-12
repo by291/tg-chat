@@ -48,14 +48,24 @@ describe('durable pending ownership', () => {
     await expect(first.open()).rejects.toThrow();
   });
 
-  it('rejects overflow before accepting another pending identity', async () => {
+  it('rejects the whole batch and preserves its draft when only one slot remains', async () => {
     const store = new PendingMessages({ key: crypto.randomUUID() });
     await store.open();
-    for (let index = 0; index < 100; index += 1) {
+    for (let index = 0; index < 99; index += 1) {
       await store.enqueue({ message: pending() });
     }
-    await expect(store.enqueue({ message: pending() })).rejects.toThrow('100');
-    expect((await store.read()).pending).toHaveLength(100);
+    const draft = { id: 'caption', value: { text: 'Keep this caption' } };
+    await store.saveDraft({ destination: 'saved', draft });
+
+    await expect(
+      store.enqueueMany({
+        messages: [pending(), pending()],
+        draft: { destination: 'saved', id: draft.id },
+      }),
+    ).rejects.toThrow('100');
+    const snapshot = await store.read();
+    expect(snapshot.pending).toHaveLength(99);
+    expect(snapshot.drafts.saved.value.text).toBe('Keep this caption');
   });
 });
 

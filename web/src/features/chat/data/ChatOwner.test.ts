@@ -1984,6 +1984,67 @@ it('keeps newly authorized reply quotes when adopting a remote draft after readm
   }
 });
 
+it('puts the caption and reply on the first message of a split batch', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const { owner } = fixture({ store });
+  try {
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.setReply({ message_id: 'reply-target' });
+    await owner.setDraft({ text: 'My caption' });
+
+    await owner.enqueueMedia({
+      value: { text: 'My caption' },
+      files: [
+        { blob: new Blob(['first']), filename: 'first.txt', kind: 'document' },
+        { blob: new Blob(['second']), filename: 'second.txt', kind: 'document' },
+      ],
+      shouldSendFilesSeparately: true,
+    });
+
+    const pending = (await store.read()).pending;
+    expect(pending.map((message) => message.media?.map((item) => item.filename))).toEqual([
+      ['first.txt'],
+      ['second.txt'],
+    ]);
+    expect(pending.map((message) => message.request.content.text)).toEqual(['My caption', '']);
+    expect(pending.map((message) => message.request.reply?.message_id)).toEqual([
+      'reply-target',
+      undefined,
+    ]);
+    expect(new Set(pending.map((message) => message.request.message_id)).size).toBe(2);
+    expect(owner.getSnapshot().draft.value.text).toBe('');
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('queues a captured attachment without consuming a newer draft or its reply', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const { owner } = fixture({ store });
+  try {
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved Messages' });
+    await owner.setReply({ message_id: 'new-reply-target' });
+    await owner.setDraft({ text: 'New draft' });
+
+    await owner.enqueueMedia({
+      value: { text: 'Captured caption' },
+      files: [{ blob: new Blob(['file']), filename: 'file.txt', kind: 'document' }],
+      shouldPreserveDraft: true,
+    });
+
+    const { pending, drafts } = await store.read();
+    expect(pending[0].request.content.text).toBe('Captured caption');
+    expect(pending[0].request.reply).toBeUndefined();
+    const [savedDraft] = Object.values(drafts);
+    expect(savedDraft.value.text).toBe('New draft');
+    expect(savedDraft.reply?.message_id).toBe('new-reply-target');
+  } finally {
+    owner.dispose();
+  }
+});
+
 it('sends text while a restored media transfer is waiting', async () => {
   const store = new PendingMessages({ key: crypto.randomUUID() });
   await store.open();

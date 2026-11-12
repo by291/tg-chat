@@ -15,6 +15,7 @@ export interface PendingMessage {
   request: components['schemas']['SendMessage'];
   createdAt: number;
   isPrepared?: boolean;
+  shouldPreserveDraft?: boolean;
   title?: string;
   status: 'queued' | 'sending' | 'failed';
   error?: string;
@@ -221,27 +222,37 @@ export class PendingMessages {
 
   /** Commit the stable operation before transport and clear only the exact draft it captured. */
   async enqueue(options: EnqueueOptions): Promise<void> {
+    await this.enqueueMany({ messages: [options.message], draft: options.draft });
+  }
+
+  /** Admit a whole batch and its draft update in a single browser-storage transaction. */
+  async enqueueMany(options: { messages: PendingMessage[]; draft?: EnqueueOptions['draft'] }) {
+    const { messages, draft } = options;
+    const identities = new Set(messages.map((message) => message.request.message_id));
+    if (identities.size !== messages.length) {
+      throw new Error('Duplicate pending message identity.');
+    }
+
     await this.mutate((snapshot) => {
       dropExpiredBlobs(snapshot);
-      const index = pendingIndex(snapshot, options.message.request.message_id);
-      const exists = index >= 0;
-      if (!exists && snapshot.pending.length >= MAX_PENDING_MESSAGES) {
+      const remaining = snapshot.pending.filter((message) => {
+        return !identities.has(message.request.message_id);
+      });
+      const pending = [...remaining, ...messages];
+      if (pending.length > MAX_PENDING_MESSAGES) {
         throw new Error('There are already 100 pending messages. Retry or discard one first.');
       }
-      if (options.message.media) {
-        const existingBytes = exists ? queuedBytes(snapshot.pending[index]) : 0;
-        const used = snapshot.pending.reduce((bytes, message) => bytes + queuedBytes(message), 0);
-        const total = used - existingBytes + queuedBytes(options.message);
-        if (total > MAX_PENDING_MEDIA_BYTES) {
+
+      if (messages.some((message) => message.media)) {
+        const totalBytes = pending.reduce((total, message) => total + queuedBytes(message), 0);
+        if (totalBytes > MAX_PENDING_MEDIA_BYTES) {
           throw new Error('Pending media storage is full. Retry or discard an upload first.');
         }
       }
-      snapshot.pending = snapshot.pending.filter(
-        (message) => message.request.message_id !== options.message.request.message_id,
-      );
-      snapshot.pending.push(options.message);
-      if (options.draft && snapshot.drafts[options.draft.destination]?.id === options.draft.id) {
-        delete snapshot.drafts[options.draft.destination];
+
+      snapshot.pending = pending;
+      if (draft && snapshot.drafts[draft.destination]?.id === draft.id) {
+        delete snapshot.drafts[draft.destination];
       }
     });
   }

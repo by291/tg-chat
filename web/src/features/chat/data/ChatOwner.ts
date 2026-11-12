@@ -853,6 +853,8 @@ export class ChatOwner {
   async enqueueMedia(input: {
     value: EmojiText;
     files: MediaSelection[];
+    shouldSendFilesSeparately?: boolean;
+    shouldPreserveDraft?: boolean;
     disableLinkPreview?: boolean;
   }): Promise<void> {
     if (input.files.length === 0) {
@@ -869,6 +871,8 @@ export class ChatOwner {
   private async queueMessage(input: {
     value: EmojiText;
     files?: MediaSelection[];
+    shouldSendFilesSeparately?: boolean;
+    shouldPreserveDraft?: boolean;
     body?: MessageBodyInput;
     disableLinkPreview?: boolean;
   }): Promise<void> {
@@ -881,48 +885,69 @@ export class ChatOwner {
       throw new Error('You do not have permission to post in this conversation.');
     }
     const isIndependent = input.body !== undefined;
+    const shouldConsumeDraft = !isIndependent && !input.shouldPreserveDraft;
     const capturedDraft = this.snapshot.draft;
     const draftId = capturedDraft.id;
     const generation = this.viewGeneration;
-    if (!isIndependent && capturedDraft.isReplyUnavailable) {
+    if (shouldConsumeDraft && capturedDraft.isReplyUnavailable) {
       throw new Error('Remove the unavailable reply context before sending.');
     }
     // Draft delivery can help conditional clearing, but must never gate durable send admission.
-    if (!isIndependent) {
+    if (shouldConsumeDraft) {
       void this.flushDraft().catch((error) => this.report(error));
     }
     const content = canonicalMessageContent(input.value, {
       isCaption: isIndependent || Boolean(input.files),
     });
-    const draft = isIndependent
-      ? undefined
-      : { destination: destinationKey(selection.destination), id: draftId };
+    const draft = shouldConsumeDraft
+      ? { destination: destinationKey(selection.destination), id: draftId }
+      : undefined;
+    const media = input.files?.map(pendingMedia);
+    const [firstAttachment, ...followingAttachments] = media ?? [];
+    const shouldSplit = input.shouldSendFilesSeparately && followingAttachments.length > 0;
     const pending: PendingMessage = {
-      media: input.files?.map(pendingMedia),
+      media: shouldSplit && firstAttachment ? [firstAttachment] : media,
       createdAt: Date.now(),
       title: selection.title,
       status: 'queued',
       // Independent bodies never participate in conditional server-side draft clearing.
       isPrepared: isIndependent,
+      shouldPreserveDraft: input.shouldPreserveDraft,
       request: {
         operation_id: crypto.randomUUID(),
         message_id: crypto.randomUUID(),
         destination: selection.destination,
         content,
-        reply: isIndependent ? undefined : capturedDraft.reply,
+        reply: shouldConsumeDraft ? capturedDraft.reply : undefined,
         body: input.body,
         disable_link_preview: input.disableLinkPreview,
       },
     };
-    await this.requireStore().enqueue({
-      message: pending,
-      draft,
-    });
+    const messages = [pending];
+    if (shouldSplit) {
+      const emptyCaption = canonicalMessageContent({ text: '' }, { isCaption: true });
+      for (const attachment of followingAttachments) {
+        // Only the leading send owns the caption, reply, and captured draft.
+        messages.push({
+          ...pending,
+          media: [attachment],
+          shouldPreserveDraft: true,
+          request: {
+            operation_id: crypto.randomUUID(),
+            message_id: crypto.randomUUID(),
+            destination: selection.destination,
+            content: emptyCaption,
+          },
+        });
+      }
+    }
+
+    await this.requireStore().enqueueMany({ messages, draft });
     this.ensureCurrent();
     const canClearDraft =
-      !isIndependent && this.isCurrentView(generation) && this.snapshot.draft.id === draftId;
+      shouldConsumeDraft && this.isCurrentView(generation) && this.snapshot.draft.id === draftId;
     this.publish({
-      pending: [...this.snapshot.pending, pending],
+      pending: [...this.snapshot.pending, ...messages],
       draft: canClearDraft
         ? { ...emptyDraft(), serverVersion: capturedDraft.serverVersion }
         : this.snapshot.draft,
@@ -1748,6 +1773,7 @@ export class ChatOwner {
     const content = pending.request.content;
     const reply = pending.request.reply;
     const isMatchingDraft =
+      !pending.shouldPreserveDraft &&
       serverDraft?.content?.text === content.text &&
       (serverDraft.content.rich_text ?? null) === (content.rich_text ?? null) &&
       JSON.stringify(serverDraft.content.custom_emoji) === JSON.stringify(content.custom_emoji) &&
