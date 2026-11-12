@@ -5,9 +5,9 @@ import { PasswordConfirmation } from '@/features/accounts/SecurityPanel';
 import { requirePayload, type SessionOwner } from '@/features/auth/SessionOwner';
 import styles from '@/features/accounts/Accounts.module.css';
 import { OperatorActionForm } from './OperatorActionForm';
+import { ReportCases } from './ReportCases';
+import operatorStyles from './OperatorWorkspace.module.css';
 
-type CasePage = components['schemas']['CasePage'];
-type CaseDetail = components['schemas']['CaseDetail'];
 type Community = components['schemas']['OperatorCommunity'];
 type Account = components['schemas']['OperatorAccount'];
 type Storage = components['schemas']['StorageUsage'];
@@ -23,158 +23,6 @@ const PAGES: Record<OperatorPage, string> = {
   jobs: 'Failed jobs',
   registration: 'Registration',
 };
-
-function ReportCases({ owner }: { owner: SessionOwner }) {
-  const operation = useOperation();
-  const [page, setPage] = useState<CasePage>();
-  const [detail, setDetail] = useState<CaseDetail>();
-  const [openedId, setOpenedId] = useState<string>();
-
-  function loadCases(after?: string) {
-    void operation.run({
-      operation: async () => {
-        const response = await owner.client.GET('/api/v1/operator/cases', {
-          params: { query: { after } },
-        });
-        setPage(requirePayload(response));
-      },
-    });
-  }
-
-  function openCase(caseId: string) {
-    setOpenedId(caseId);
-    setDetail(undefined);
-    void operation.run({
-      operation: async () => {
-        const response = await owner.client.GET('/api/v1/operator/cases/{case_id}', {
-          params: { path: { case_id: caseId } },
-        });
-        setDetail(requirePayload(response));
-      },
-    });
-  }
-
-  const report = detail?.case;
-  return (
-    <>
-      <button type="button" disabled={operation.isPending} onClick={() => loadCases()}>
-        Load reports
-      </button>
-      {operation.error && <p role="alert">{operation.error}</p>}
-      {page?.items.length === 0 && <p>No reports.</p>}
-      <ul>
-        {page?.items.map((item) => (
-          <li key={item.id}>
-            <button type="button" disabled={operation.isPending} onClick={() => openCase(item.id)}>
-              Review {item.reason.replaceAll('_', ' ')} report
-            </button>
-            <span> {item.resolved_at ? 'Resolved' : 'Open'}</span>
-          </li>
-        ))}
-      </ul>
-      {page?.next && (
-        <button type="button" disabled={operation.isPending} onClick={() => loadCases(page.next!)}>
-          Older reports
-        </button>
-      )}
-      {detail && report && report.id === openedId && (
-        <section className={styles.card} aria-label="Case evidence">
-          <h3>Case evidence</h3>
-          {detail.evidence ? (
-            <>
-              <p>{detail.evidence.message_text}</p>
-              {detail.evidence.structured_body != null && (
-                <pre>{JSON.stringify(detail.evidence.structured_body, null, 2)}</pre>
-              )}
-              {detail.evidence.reporter_note && <p>Report note: {detail.evidence.reporter_note}</p>}
-              <ul>
-                {detail.attachments.map((file) => (
-                  <li key={file.occurrence_id}>
-                    <a href={caseDownload(report.id, file.occurrence_id)} download={file.file_name}>
-                      Download {file.file_name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <p>Evidence expires {new Date(report.evidence_expires_at).toLocaleString()}.</p>
-            </>
-          ) : (
-            <p>Evidence has expired.</p>
-          )}
-          {!report.resolved_at && (
-            <OperatorActionForm
-              owner={owner}
-              label="Resolve case"
-              action={() => ({ kind: 'resolve_case', case_id: report.id })}
-              onCommitted={() => openCase(report.id)}
-            />
-          )}
-          {!report.resolved_at && detail.evidence && (
-            <OperatorActionForm
-              owner={owner}
-              label="Extend evidence retention"
-              action={(fields) => {
-                const deadline = new Date(textField(fields, 'deadline')).toISOString();
-                return { kind: 'extend_evidence', case_id: report.id, deadline };
-              }}
-              onCommitted={() => openCase(report.id)}
-            >
-              <Field label="New evidence deadline" name="deadline" type="datetime-local" required />
-            </OperatorActionForm>
-          )}
-          <OperatorActionForm
-            owner={owner}
-            label="Change reported account suspension"
-            action={(fields) => {
-              const isSuspended = textField(fields, 'state') === 'suspend';
-              return {
-                kind: 'set_suspension',
-                user_id: report.reported_author_id,
-                is_suspended: isSuspended,
-              };
-            }}
-            onCommitted={() => openCase(report.id)}
-          >
-            <label className={styles.field}>
-              Reported account action
-              <select name="state">
-                <option value="suspend">Suspend</option>
-                <option value="restore">Restore</option>
-              </select>
-            </label>
-          </OperatorActionForm>
-          <OperatorActionForm
-            owner={owner}
-            label="Change conversation quarantine"
-            action={(fields) => {
-              const isQuarantined = textField(fields, 'state') === 'quarantine';
-              return {
-                kind: 'set_quarantine',
-                target: { kind: 'case', case_id: report.id },
-                is_quarantined: isQuarantined,
-              };
-            }}
-            onCommitted={() => openCase(report.id)}
-          >
-            <label className={styles.field}>
-              Conversation action
-              <select name="state">
-                <option value="quarantine">Quarantine</option>
-                <option value="restore">Restore</option>
-              </select>
-            </label>
-          </OperatorActionForm>
-        </section>
-      )}
-    </>
-  );
-}
-
-function caseDownload(caseId: string, occurrenceId: string): string {
-  const casePath = encodeURIComponent(caseId);
-  const attachmentPath = encodeURIComponent(occurrenceId);
-  return `/api/v1/operator/cases/${casePath}/attachments/${attachmentPath}`;
-}
 
 function AccountOperations({ owner }: { owner: SessionOwner }) {
   const [results, setResults] = useState<Account[]>();
@@ -424,12 +272,17 @@ export function OperatorWorkspace({ owner }: { owner: SessionOwner }) {
 
   return (
     <div className={styles.panel}>
-      <PasswordConfirmation owner={owner} />
+      {page !== 'cases' && <PasswordConfirmation owner={owner} />}
       <section className={styles.card}>
         <h2>Platform administration</h2>
-        <nav className={styles.navigation} aria-label="Operator navigation">
+        <nav className={operatorStyles.navigation} aria-label="Operator navigation">
           {Object.entries(PAGES).map(([id, label]) => (
-            <button key={id} type="button" onClick={() => setPage(id as OperatorPage)}>
+            <button
+              key={id}
+              type="button"
+              aria-current={id === page ? 'page' : undefined}
+              onClick={() => setPage(id as OperatorPage)}
+            >
               {label}
             </button>
           ))}

@@ -3,14 +3,14 @@ import { ApiError, isCancelled } from '../auth/SessionOwner';
 import styles from './Accounts.module.css';
 
 interface OperationOptions {
-  operation: () => Promise<void>;
+  operation: () => Promise<void | false>;
   successMessage?: string;
 }
 
 interface AccountFormProps {
   children: ReactNode;
   submitLabel: string;
-  onSubmit: (fields: FormData) => Promise<void>;
+  onSubmit: (fields: FormData) => Promise<void | false>;
   successMessage?: string;
   shouldReset?: boolean;
 }
@@ -26,8 +26,10 @@ export function useOperation() {
     setError('');
     setNotice('');
     try {
-      await operation();
-      setNotice(successMessage);
+      const result = await operation();
+      if (result !== false) {
+        setNotice(successMessage);
+      }
     } catch (failure) {
       if (!isCancelled(failure)) {
         const message =
@@ -74,7 +76,11 @@ export function AccountForm({
         const fields = new FormData(form);
         void action.run({
           operation: async () => {
-            await onSubmit(fields);
+            // Deferred submissions keep their fields while a separate confirmation is pending.
+            const result = await onSubmit(fields);
+            if (result === false) {
+              return false;
+            }
             if (shouldReset) {
               form.reset();
             }

@@ -7,18 +7,27 @@ import styles from './Accounts.module.css';
 type Profile = components['schemas']['PrivateProfile'];
 
 /** Refresh recent password proof before device revocation or recovery-address changes. */
-export function PasswordConfirmation({ owner }: { owner: SessionOwner }) {
+export function PasswordConfirmation({
+  owner,
+  onConfirmed,
+}: {
+  owner: SessionOwner;
+  onConfirmed?: () => void;
+}) {
   async function confirm(fields: FormData) {
     await owner.client.POST('/api/v1/auth/reauthenticate', {
       body: { password: textField(fields, 'password') },
     });
+    onConfirmed?.();
   }
 
   return (
     <section className={styles.card}>
       <h3>Confirm your password</h3>
       <p className={styles.hint}>
-        For sensitive changes, confirm your password here and retry the action.
+        {onConfirmed
+          ? 'Confirm your password to continue reviewing reports.'
+          : 'For sensitive changes, confirm your password here and retry the action.'}
       </p>
       <AccountForm
         submitLabel="Confirm password"
@@ -31,6 +40,7 @@ export function PasswordConfirmation({ owner }: { owner: SessionOwner }) {
           name="password"
           type="password"
           autoComplete="current-password"
+          autoFocus={Boolean(onConfirmed)}
           required
         />
       </AccountForm>

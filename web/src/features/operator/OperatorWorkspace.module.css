@@ -1,0 +1,106 @@
+.navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.navigation button,
+.textButton {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+.navigation button:hover,
+.textButton:hover,
+.reportRow:hover {
+  background: var(--hover-color);
+}
+
+.navigation [aria-current='page'] {
+  background: var(--hover-color);
+  font-weight: 600;
+}
+
+.queueHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.reportList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reportList li + li {
+  border-top: 1px solid var(--border-color);
+}
+
+.reportRow {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-color);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+
+.reportRow time,
+.caseSummary {
+  color: var(--secondary-color);
+  font-size: 14px;
+}
+
+.reportRow span {
+  font-size: 14px;
+}
+
+.review > .textButton {
+  margin-bottom: 12px;
+}
+
+.evidence {
+  margin: 20px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--panel-color);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.evidence h4,
+.caseActions h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.evidence a {
+  color: var(--accent-color);
+}
+
+.messageText {
+  white-space: pre-wrap;
+}
+
+.caseActions form {
+  padding: 16px 0;
+  border-top: 1px solid var(--border-color);
+}

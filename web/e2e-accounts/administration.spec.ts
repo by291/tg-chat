@@ -165,23 +165,16 @@ async function deleteOriginal(page: Page) {
   await expect(originalMessage(page)).toHaveCount(0);
 }
 
-async function confirmPassword(page: Page, password: string) {
-  await page.getByLabel('Password confirmation', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Confirm password', exact: true }).click();
-  await expect(
-    page.getByText('Password confirmed. You can retry your sensitive change.'),
-  ).toBeVisible();
-}
-
 async function downloadOriginal(page: Page, note: string) {
-  await page.getByRole('button', { name: 'Load reports', exact: true }).click();
   const cases = page.getByRole('button', { name: 'Review other report', exact: true });
   await cases.first().click();
   const evidence = page.getByRole('region', { name: 'Case evidence', exact: true });
   await expect(evidence.getByText(`Report note: ${note}`, { exact: true })).toBeVisible();
 
+  const link = evidence.getByRole('link', { name: `Download ${ORIGINAL_NAME}`, exact: true });
+  const downloadUrl = await link.getAttribute('href');
   const pendingDownload = page.waitForEvent('download');
-  await evidence.getByRole('link', { name: `Download ${ORIGINAL_NAME}`, exact: true }).click();
+  await link.click();
   const download = await pendingDownload;
   expect(download.suggestedFilename()).toBe(ORIGINAL_NAME);
   const path = await download.path();
@@ -190,6 +183,7 @@ async function downloadOriginal(page: Page, note: string) {
   }
 
   expect(await readFile(path)).toEqual(ORIGINAL_BYTES);
+  return downloadUrl!;
 }
 
 function waitForPost(page: Page, path: string) {
@@ -209,16 +203,20 @@ async function changeQuarantine(page: Page, state: 'quarantine' | 'restore') {
   const committed = waitForPost(page, '/api/v1/operator/commands');
   await form.getByRole('button', { name: buttonName, exact: true }).click();
   expect((await committed).status()).toBe(204);
+  const feedback = state === 'quarantine' ? 'Conversation quarantined.' : 'Conversation restored.';
+  await expect(page.getByText(feedback, { exact: true })).toBeVisible();
 }
 
 async function reportGroupMessages({
   author,
   recipient,
   operator,
+  originalDownloadUrl,
 }: {
   author: Account;
   recipient: Account;
   operator: Account;
+  originalDownloadUrl: string;
 }) {
   const conversationId = randomUUID();
   const title = 'Report acceptance group';
@@ -288,6 +286,8 @@ async function reportGroupMessages({
     const retention = Date.parse(item.evidence_expires_at) - Date.parse(item.created_at);
     expect(retention).toBe(DEFAULT_EVIDENCE_RETENTION_MS);
   }
+  const otherCaseUrl = originalDownloadUrl.replace(/cases\/[^/]+/, `cases/${groupCases[0].id}`);
+  expect((await operator.context.request.get(otherCaseUrl)).status()).toBe(404);
 }
 
 test('retained report originals and quarantine work across connected browsers', async ({
@@ -331,8 +331,9 @@ test('retained report originals and quarantine work across connected browsers', 
     await operator.page.goto('/');
     await operator.page.getByRole('button', { name: 'Account settings' }).click();
     await operator.page.getByRole('button', { name: 'Administration', exact: true }).click();
-    await confirmPassword(operator.page, credentials.password);
-    await downloadOriginal(operator.page, note);
+    await operator.page.setViewportSize({ width: 390, height: 844 });
+    const downloadUrl = await downloadOriginal(operator.page, note);
+    expect((await recipient.context.request.get(downloadUrl)).status()).toBe(403);
     await changeQuarantine(operator.page, 'quarantine');
 
     await expect(sharedMessage(author.page)).toHaveCount(0, { timeout: CONVERGENCE_TIMEOUT_MS });
@@ -353,8 +354,16 @@ test('retained report originals and quarantine work across connected browsers', 
       openDirectHistory(author.page, 'Evidence Reporter'),
       openDirectHistory(recipient.page, 'Evidence Author'),
     ]);
+    const evidence = operator.page.getByRole('region', { name: 'Case evidence', exact: true });
+    const resolveCase = operator.page.getByRole('button', { name: 'Resolve case', exact: true });
+    const resolveForm = evidence.locator('form').filter({ has: resolveCase });
+    await resolveForm.getByLabel('Reason', { exact: true }).fill('Review completed');
+    await resolveCase.click();
+    await expect(operator.page.getByText('Case resolved.', { exact: true })).toBeVisible();
+    await operator.page.getByRole('button', { name: 'Back to reports' }).click();
+    await expect(operator.page.getByText('Resolved', { exact: true })).toBeVisible();
 
-    await reportGroupMessages({ author, recipient, operator });
+    await reportGroupMessages({ author, recipient, operator, originalDownloadUrl: downloadUrl });
   } finally {
     await Promise.all([recipientContext.close(), operatorContext.close()]);
   }

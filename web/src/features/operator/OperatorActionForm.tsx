@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import type { components } from '@/api/schema';
 import { AccountForm, Field, textField } from '@/features/accounts/AccountForm';
-import type { SessionOwner } from '@/features/auth/SessionOwner';
+import { ApiError, type SessionOwner } from '@/features/auth/SessionOwner';
 
 type OperatorAction = components['schemas']['OperatorAction'];
 type OperatorCommand = components['schemas']['OperatorCommand'];
@@ -10,16 +10,17 @@ interface OperatorActionFormProps {
   owner: SessionOwner;
   label: string;
   action: (fields: FormData) => OperatorAction;
-  onCommitted: () => void;
+  onCommitted: (action: OperatorAction) => void;
+  onPasswordRequired?: () => void;
   children?: ReactNode;
 }
 
 /** Bind a reason and stable operation identity to one reviewed operator action. */
 export function OperatorActionForm(props: OperatorActionFormProps) {
-  const { owner, label, action, onCommitted, children } = props;
+  const { owner, label, action, onCommitted, onPasswordRequired, children } = props;
   const lastCommand = useRef<OperatorCommand>(undefined);
 
-  async function submit(fields: FormData) {
+  async function submit(fields: FormData): Promise<void | false> {
     const reason = textField(fields, 'reason').trim();
     const input = action(fields);
     const previous = lastCommand.current;
@@ -33,9 +34,19 @@ export function OperatorActionForm(props: OperatorActionFormProps) {
       action: input,
     };
     lastCommand.current = command;
-    await owner.client.POST('/api/v1/operator/commands', { body: command });
+    try {
+      await owner.client.POST('/api/v1/operator/commands', { body: command });
+    } catch (failure) {
+      const needsPassword =
+        failure instanceof ApiError && failure.code === 'recent_authentication_required';
+      if (onPasswordRequired && needsPassword) {
+        onPasswordRequired();
+        return false;
+      }
+      throw failure;
+    }
     lastCommand.current = undefined;
-    onCommitted();
+    onCommitted(input);
   }
 
   return (
