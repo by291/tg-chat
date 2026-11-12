@@ -1074,7 +1074,7 @@ export function ConnectedChat({
           </aside>
         )}
         <section className={styles.chat} aria-label="Chat">
-          <header className={styles.chatHeader} data-has-call-actions={hasCallActions || undefined}>
+          <header className={styles.chatHeader}>
             <button
               type="button"
               aria-label="Back to conversations"
@@ -1151,6 +1151,15 @@ export function ConnectedChat({
                 <Search />
               </button>
             )}
+            {conversation && (
+              <ConversationControls
+                conversation={conversation}
+                onCommand={(action) => owner.command(action)}
+                onConfirm={setConfirmation}
+                onError={report}
+                onPins={() => setIsPinsOpen(true)}
+              />
+            )}
           </header>
           {connectionLabel && (
             <p className={styles.mobileConnection} role="status">
@@ -1162,15 +1171,6 @@ export function ConnectedChat({
             <p role="status" className={styles.callUnavailable}>
               Calls are unavailable in this browser.
             </p>
-          )}
-          {conversation && (
-            <ConversationControls
-              conversation={conversation}
-              onCommand={(action) => owner.command(action)}
-              onConfirm={setConfirmation}
-              onError={report}
-              onPins={() => setIsPinsOpen(true)}
-            />
           )}
           {conversation && searchConversationId === conversation.id && (
             <div className={styles.conversationSearch}>
@@ -1200,11 +1200,13 @@ export function ConnectedChat({
               />
             </div>
           )}
-          {isPinsOpen && conversation && (
+          {conversation && searchConversationId !== conversation.id && (
             <PinnedMessages
-              key={conversation.id}
+              key={`${conversation.id}:${conversation.generation}`}
               owner={owner}
               version={conversation.version}
+              isListOpen={isPinsOpen}
+              onOpen={() => setIsPinsOpen(true)}
               onClose={() => setIsPinsOpen(false)}
               onError={report}
             />

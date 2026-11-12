@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { PinnedMessages } from './PinnedMessages';
@@ -43,15 +43,25 @@ it('labels pinned contact cards and stickers without visible text', async () => 
     generation: '1',
   };
 
+  const jumpToMessage = vi.fn().mockResolvedValue(undefined);
+  const onOpen = vi.fn();
   render(
     <PinnedMessages
-      owner={{ loadPins: vi.fn().mockResolvedValue(page), jumpToMessage: vi.fn() }}
+      owner={{ loadPins: vi.fn().mockResolvedValue(page), jumpToMessage }}
       version="1"
+      isListOpen={false}
+      onOpen={onOpen}
       onClose={vi.fn()}
       onError={vi.fn()}
     />,
   );
 
-  expect(await screen.findByRole('button', { name: '😂 Sticker' })).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Emergency contact' })).toBeTruthy();
+  const preview = await screen.findByRole('button', {
+    name: 'Pinned message: Emergency contact',
+  });
+  fireEvent.click(preview);
+  expect(jumpToMessage).toHaveBeenCalledWith('contact');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open pinned messages' }));
+  expect(onOpen).toHaveBeenCalledOnce();
 });

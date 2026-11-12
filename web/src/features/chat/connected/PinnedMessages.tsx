@@ -1,93 +1,161 @@
-import { useEffect, useState } from 'react';
+import { List, Pin, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { components } from '@/api/schema';
+import { IconButton } from '@/components/IconButton';
 import type { ChatOwner } from '../data/ChatOwner';
 import { renderMessage, type CanonicalMessage } from '../data/messageModels';
 import { describeMessage } from '../messageFormatting';
 import styles from './ConnectedChat.module.css';
 
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
+type HistoryPage = components['schemas']['HistoryPage'];
+
+interface PinnedMessagesProps {
+  owner: Pick<ChatOwner, 'loadPins' | 'jumpToMessage'>;
+  version: string;
+  isListOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onError: (error: unknown) => void;
+}
 
 function pinLabel(message: CanonicalMessage): string {
   const rendered = renderMessage(message);
   return describeMessage({ ...rendered, text: rendered.text.trim() });
 }
 
-/** Page through authorized pins without loading unrelated history into the viewport. */
-export function PinnedMessages(props: {
-  owner: Pick<ChatOwner, 'loadPins' | 'jumpToMessage'>;
-  version: string;
-  onClose: () => void;
-  onError: (error: unknown) => void;
-}) {
-  const [page, setPage] = useState<components['schemas']['HistoryPage']>();
+function visiblePins(page?: HistoryPage): CanonicalMessage[] {
+  const now = Date.now();
+  return (
+    page?.messages.filter((message) => {
+      return !message.expires_at || Date.parse(message.expires_at) > now;
+    }) ?? []
+  );
+}
+
+/** Show an authorized pin preview and page through pins independently of the timeline. */
+export function PinnedMessages(props: PinnedMessagesProps) {
+  const [latest, setLatest] = useState<{ page: HistoryPage; version: string }>();
+  const latestPage = latest?.version === props.version ? latest.page : undefined;
+  const [older, setOlder] = useState<HistoryPage>();
   const [isLoading, setIsLoading] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [expiryTick, setExpiryTick] = useState(0);
+  const requestGeneration = useRef(0);
+
   useEffect(() => {
-    const deadlines =
-      page?.messages.flatMap((message) =>
-        message.expires_at ? [Date.parse(message.expires_at)] : [],
-      ) ?? [];
-    const next = Math.min(...deadlines.filter((deadline) => deadline > now));
-    if (!Number.isFinite(next)) {
+    const pins = [...visiblePins(latestPage), ...visiblePins(older)];
+    const deadlines = pins.flatMap((message) => {
+      return message.expires_at ? [Date.parse(message.expires_at)] : [];
+    });
+    const deadline = Math.min(...deadlines);
+    if (!Number.isFinite(deadline)) {
       return;
     }
-    const timer = setTimeout(
-      () => setNow(Date.now()),
-      Math.min(next - Date.now(), MAX_TIMER_DELAY_MS),
-    );
+    const delay = Math.min(deadline - Date.now(), MAX_TIMER_DELAY_MS);
+    const timer = setTimeout(() => setExpiryTick((current) => current + 1), Math.max(1, delay));
     return () => clearTimeout(timer);
-  }, [page, now]);
-  const messages = page?.messages.filter(
-    (message) => !message.expires_at || Date.parse(message.expires_at) > Date.now(),
-  );
-  useEffect(() => {
-    let isCurrent = true;
-    setPage(undefined);
-    void props.owner
-      .loadPins()
-      .then((loaded) => {
-        if (isCurrent) {
-          setPage(loaded);
-        }
-      })
-      .catch(props.onError);
-    return () => {
-      isCurrent = false;
-    };
-  }, [props.owner, props.version]);
+  }, [latestPage, older, expiryTick]);
 
-  async function older() {
+  useEffect(() => {
+    const generation = ++requestGeneration.current;
+    setOlder(undefined);
+    setIsLoading(true);
+    setHasLoadError(false);
+
+    void props.owner.loadPins().then(
+      (page) => {
+        if (requestGeneration.current === generation) {
+          setLatest({ page, version: props.version });
+          setIsLoading(false);
+        }
+      },
+      () => {
+        if (requestGeneration.current === generation) {
+          setLatest(undefined);
+          setIsLoading(false);
+          setHasLoadError(true);
+        }
+      },
+    );
+    return () => {
+      requestGeneration.current++;
+    };
+  }, [props.owner, props.version, reload]);
+
+  const page = latestPage && (older ?? latestPage);
+  const messages = visiblePins(page);
+  const preview = visiblePins(latestPage).at(-1);
+
+  async function loadOlder() {
+    const generation = requestGeneration.current;
     setIsLoading(true);
     try {
       const loaded = await props.owner.loadPins(page?.messages[0]?.sequence);
-      setPage(loaded);
+      if (requestGeneration.current === generation) {
+        setOlder(loaded);
+      }
     } catch (error) {
-      props.onError(error);
+      if (requestGeneration.current === generation) {
+        props.onError(error);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestGeneration.current === generation) {
+        setIsLoading(false);
+      }
     }
   }
 
+  function jump(message: CanonicalMessage) {
+    void props.owner.jumpToMessage(message.id).then(props.onClose, props.onError);
+  }
+
   return (
-    <section className={styles.pins} aria-label="Pinned messages">
-      <button type="button" onClick={props.onClose}>
-        Close pins
-      </button>
-      {messages?.length === 0 && <p>No pinned messages.</p>}
-      {messages?.map((message) => (
-        <button
-          type="button"
-          key={message.id}
-          onClick={() => void props.owner.jumpToMessage(message.id).catch(props.onError)}
-        >
-          {pinLabel(message)}
-        </button>
-      ))}
-      {page?.has_older && (
-        <button type="button" disabled={isLoading} onClick={() => void older()}>
-          Older pins
-        </button>
+    <>
+      {preview && (
+        <div className={styles.pinPreview}>
+          <button
+            type="button"
+            className={styles.pinJump}
+            aria-label={`Pinned message: ${pinLabel(preview)}`}
+            onClick={() => jump(preview)}
+          >
+            <Pin aria-hidden="true" />
+            <span>
+              <strong>Pinned message</strong>
+              <span>{pinLabel(preview)}</span>
+            </span>
+          </button>
+          <IconButton label="Open pinned messages" onClick={props.onOpen}>
+            <List />
+          </IconButton>
+        </div>
       )}
-    </section>
+      {props.isListOpen && (
+        <section className={styles.pins} aria-label="Pinned messages">
+          <IconButton label="Close pins" onClick={props.onClose}>
+            <X />
+          </IconButton>
+          {isLoading && <p role="status">Loading pinned messages…</p>}
+          {hasLoadError && (
+            <button type="button" onClick={() => setReload((current) => current + 1)}>
+              Retry loading pinned messages
+            </button>
+          )}
+          {page && messages.length === 0 && <p>No pinned messages.</p>}
+          {messages.map((message) => (
+            <button type="button" key={message.id} onClick={() => jump(message)}>
+              {pinLabel(message)}
+            </button>
+          ))}
+          {page?.has_older && (
+            <button type="button" disabled={isLoading} onClick={() => void loadOlder()}>
+              Older pins
+            </button>
+          )}
+        </section>
+      )}
+    </>
   );
 }

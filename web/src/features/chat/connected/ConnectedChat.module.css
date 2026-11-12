@@ -356,23 +356,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .chatHeader[data-has-call-actions] {
+  .chatHeader {
     gap: 6px;
     padding-inline: 10px;
   }
 
-  .chatHeader[data-has-call-actions] > div {
-    min-width: 0;
-  }
-
-  .chatHeader[data-has-call-actions] h2 {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .chatHeader[data-has-call-actions] > button {
-    padding-inline: 6px;
+  .chat .chatHeader > button {
+    flex: none;
+    min-width: 40px;
+    padding: 8px;
   }
 
   .workspace[data-directory-visible='true'] .chat,
@@ -382,21 +374,44 @@
   }
 }
 
-.preferences {
-  padding: 12px 20px;
+.pinPreview {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding: 0 12px;
+  border-top: 1px solid var(--border-color);
   background: var(--surface-color);
 }
 
-.preferences .actions {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  padding-top: 12px;
+.pinPreview .pinJump {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-align: start;
 }
 
-.preferences label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.pinJump > svg {
+  flex: none;
+  color: var(--accent-color);
+}
+
+.pinJump > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.pinJump strong {
+  color: var(--accent-color);
+}
+
+.pinJump span span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pins,
