@@ -261,29 +261,25 @@ test('retained report originals and quarantine work across connected browsers', 
   }
 });
 
-async function openCommunities(page: Page) {
-  await page.getByRole('button', { name: 'Communities', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Communities', exact: true })).toBeVisible();
-}
-
 async function createOwnedCommunity(page: Page, title: string) {
-  await openCommunities(page);
-  await page.getByLabel('Community type').selectOption('group');
+  await page.getByRole('button', { name: 'Main menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'New Group', exact: true }).click();
   await page.getByLabel('Community title', { exact: true }).fill(title);
-  await page.getByRole('button', { name: 'Create community', exact: true }).click();
-  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Back to chats', exact: true }).click();
+  await page.getByRole('button', { name: 'Create group', exact: true }).click();
+  const chat = page.getByRole('region', { name: 'Chat', exact: true });
+  await expect(chat.getByRole('heading', { name: title, exact: true })).toBeVisible();
 }
 
 async function deleteOwnedCommunity(page: Page, title: string) {
-  await openCommunities(page);
-  await page.getByRole('button', { name: new RegExp(`^${title} · group · owner$`) }).click();
+  const directory = page.getByRole('complementary', { name: 'Conversations' });
+  await directory.getByRole('button', { name: new RegExp(`^${title}`) }).click();
+  await page.getByRole('button', { name: `View ${title} profile`, exact: true }).click();
   await page.getByRole('button', { name: 'Delete community', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Delete community for everyone?', exact: true });
   const committed = waitForPost(page, '/api/v1/communities/commands');
   await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
   expect((await committed).status()).toBe(200);
-  await page.getByRole('button', { name: 'Back to chats', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Group info' })).toHaveCount(0);
 }
 
 async function requestDeletion(page: Page, expectedStatus: number) {
