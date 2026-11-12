@@ -7,7 +7,8 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use utoipa::OpenApi;
+use serde::Deserialize;
+use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
 use super::{
@@ -21,6 +22,7 @@ use crate::{
         extractors::{ActorContext, ApiFailure, SafeJson, SafeQuery},
         http::AccountHttpState,
     },
+    jobs::link_previews::LinkPreviewView,
     sync::{Bootstrap, SyncPage, SyncQuery},
 };
 
@@ -32,6 +34,7 @@ const MAX_MESSAGE_BODY_BYTES: usize = 128 * 1024;
         bootstrap,
         sync,
         search,
+        link_preview,
         send,
         forward,
         message,
@@ -43,6 +46,12 @@ const MAX_MESSAGE_BODY_BYTES: usize = 128 * 1024;
     components(schemas(MessageKind))
 )]
 pub struct MessageDocument;
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct DraftLinkPreview {
+    url: String,
+}
 
 #[utoipa::path(
     get, path = "/api/v1/chat/bootstrap",
@@ -92,6 +101,33 @@ async fn search(
         .map_err(|error| context.request.failure(error))?;
 
     Ok(Json(page))
+}
+
+#[utoipa::path(
+    post, path = "/api/v1/chat/link-preview", request_body = DraftLinkPreview,
+    responses((status = 200, body = LinkPreviewView), (status = 204), (status = 429))
+)]
+async fn link_preview(
+    State(state): State<AccountHttpState>,
+    context: ActorContext,
+    SafeJson(input): SafeJson<DraftLinkPreview>,
+) -> Result<Response, ApiFailure> {
+    let Some(previews) = state.link_previews else {
+        return Ok(StatusCode::NO_CONTENT.into_response());
+    };
+
+    let user_id = context.actor.user_id.to_string();
+    state
+        .limiter
+        .admit_link_preview(&user_id)
+        .await
+        .map_err(|error| context.request.failure(error))?;
+
+    let response = match previews.lookup(&input.url).await {
+        Some(preview) => Json(preview).into_response(),
+        None => StatusCode::NO_CONTENT.into_response(),
+    };
+    Ok(response)
 }
 
 #[utoipa::path(
@@ -292,6 +328,7 @@ pub(crate) fn router() -> Router<AccountHttpState> {
     routes
         .route("/chat/commands", post(command))
         .route("/chat/search", get(search))
+        .route("/chat/link-preview", post(link_preview))
         .route("/messages/forward", post(forward))
         .route("/messages/{message_id}/read-time", get(read_time))
         .route("/messages/{message_id}/poll/voters", get(poll_voters))

@@ -13,6 +13,7 @@ const SEARCH_HIT = '週末遙遠會議紀錄';
 const SEARCH_TERM = '遙遠會議';
 const NEWER_HISTORY_MESSAGES = 64;
 const NO_PREVIEW_URL = 'https://opt-out.example.test/meeting';
+const LINK_PREVIEW_PATH = '/api/v1/chat/link-preview';
 
 interface Account {
   context: BrowserContext;
@@ -443,9 +444,40 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   const hit = page.locator(`[data-message-id="${target.message.id}"]`);
   await expect(hit).toHaveCount(0);
 
+  const privateLink = { url: 'http://127.0.0.1/' };
+  const missingCsrf = await owner.context.request.post(LINK_PREVIEW_PATH, {
+    headers: { origin: owner.origin, 'x-tg-chat-request': '1' },
+    data: privateLink,
+  });
+  expect(missingCsrf.status()).toBe(403);
+  const rejectedLink = await owner.context.request.post(LINK_PREVIEW_PATH, {
+    headers: headers(owner),
+    data: privateLink,
+  });
+  expect(rejectedLink.status()).toBe(204);
+
+  const metadata: components['schemas']['LinkPreviewView'] = {
+    url: NO_PREVIEW_URL,
+    site_name: 'Example Planning',
+    title: 'Thursday meeting',
+    summary: 'Agenda and location',
+  };
+  await page.route(`**${LINK_PREVIEW_PATH}`, async (route) => {
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON()).toEqual({ url: NO_PREVIEW_URL });
+    await route.fulfill({ json: metadata });
+  });
+
   const composer = page.getByRole('textbox', { name: 'Message', exact: true });
   await composer.fill(NO_PREVIEW_URL);
-  await page.getByLabel('Disable link preview', { exact: true }).check();
+  const preview = page.getByRole('group', { name: 'Link preview', exact: true });
+  await expect(preview).toContainText(metadata.site_name);
+  await expect(preview).toContainText(metadata.title);
+  await expect(preview).toContainText(metadata.summary);
+  await expect(preview.getByRole('img')).toHaveCount(0);
+  await preview.getByRole('button', { name: 'Disable link preview', exact: true }).click();
+  await expect(preview).toHaveCount(0);
+  await expect(composer).toHaveText(NO_PREVIEW_URL);
   const sent = page.waitForResponse((response) => {
     return response.url().endsWith('/api/v1/messages') && response.request().method() === 'POST';
   });

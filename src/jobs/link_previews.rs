@@ -341,7 +341,7 @@ async fn read_metadata(mut response: Response) -> Option<FetchMetadata> {
 }
 
 impl LinkPreviews {
-    /// Build a Worker client for the configured private fetcher control endpoint.
+    /// Build a client for the configured private fetcher control endpoint.
     pub fn new(pool: PgPool, endpoint: Url) -> Result<Self, AccountError> {
         let has_credentials = !endpoint.username().is_empty() || endpoint.password().is_some();
         let is_http = matches!(endpoint.scheme(), "http" | "https");
@@ -359,6 +359,15 @@ impl LinkPreviews {
             client,
             endpoint,
         })
+    }
+
+    /// Look up text metadata for an eligible draft URL without persisting the draft.
+    pub async fn lookup(&self, candidate: &str) -> Option<LinkPreviewView> {
+        let url = eligible_url(candidate)?;
+        match self.fetch(url).await {
+            FetchOutcome::Preview(preview) => Some(preview),
+            FetchOutcome::Unavailable | FetchOutcome::Busy => None,
+        }
     }
 
     /// Claim and complete one preview without holding a database transaction over HTTP.

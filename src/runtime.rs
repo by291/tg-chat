@@ -38,6 +38,7 @@ use crate::{
 const GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 const WORKER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 const POOL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
+const LINK_PREVIEW_ENDPOINT: &str = "TG_CHAT_LINK_PREVIEW_ENDPOINT";
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
@@ -84,6 +85,24 @@ async fn drain_worker(worker: Option<tokio::task::JoinHandle<()>>) {
     tracing::warn!("worker_drain_deadline_reached");
 }
 
+fn configured_link_previews(
+    pool: &sqlx::PgPool,
+    values: &HashMap<String, String>,
+) -> Option<LinkPreviews> {
+    let endpoint = values.get(LINK_PREVIEW_ENDPOINT).filter(|value| !value.is_empty())?;
+    let previews = reqwest::Url::parse(endpoint)
+        .map_err(|_| ())
+        .and_then(|url| LinkPreviews::new(pool.clone(), url).map_err(|_| ()));
+    match previews {
+        Ok(previews) => Some(previews),
+        Err(()) => {
+            // An invalid control endpoint must leave normal messaging available.
+            tracing::warn!("link_preview_configuration_unavailable");
+            None
+        }
+    }
+}
+
 /// Serve one process until shutdown, bounding both HTTP draining and pool cleanup.
 pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), RuntimeError> {
     let pool = connect_pool(&settings.database);
@@ -114,7 +133,9 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             None
         }
     };
+    let previews = configured_link_previews(&pool, &values);
     let worker = if matches!(service, ServiceKind::Worker) {
+        let previews = previews.clone();
         let queue = mail.clone();
         let stop = shutdown.clone();
         let services = WorkerServices {
@@ -132,21 +153,6 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
                 realtime: realtime_client.clone(),
                 idle_days: account_settings.idle_days,
             })
-        });
-        let previews =
-            values.get("TG_CHAT_LINK_PREVIEW_ENDPOINT").filter(|value| !value.is_empty());
-        let previews = previews.and_then(|endpoint| {
-            let result = reqwest::Url::parse(endpoint)
-                .map_err(|_| ())
-                .and_then(|url| LinkPreviews::new(pool.clone(), url).map_err(|_| ()));
-            match result {
-                Ok(worker) => Some(worker),
-                Err(()) => {
-                    // Invalid isolation settings disable preview jobs without affecting messaging.
-                    tracing::warn!("link_preview_configuration_unavailable");
-                    None
-                }
-            }
         });
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
@@ -214,6 +220,9 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let state = AccountHttpState::new(accounts.clone(), transport, mail);
         let mut state = state.with_activity_realtime(realtime_client);
         state = state.with_notifications(notifications);
+        if let Some(previews) = previews {
+            state = state.with_link_previews(previews);
+        }
         if let Some(media) = media_storage {
             let limits = MediaLimits::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
             state = state.with_media(UploadService::new(accounts.clone(), limits, media));

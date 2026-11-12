@@ -9,7 +9,7 @@ use axum::{
     routing::post,
 };
 use serde_json::{Value, json};
-use sqlx::PgPool;
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tg_chat::{
     accounts::{AccountError, Actor},
     jobs::link_previews::LinkPreviews,
@@ -111,6 +111,25 @@ async fn incoming(requests: &mut mpsc::Receiver<FetchRequest>) -> FetchRequest {
 async fn card(service: &MessageService, actor: Actor, message: Uuid) -> Value {
     let current = service.message(actor, message).await.unwrap();
     serde_json::to_value(current).unwrap()["link_preview"].clone()
+}
+
+#[tokio::test]
+async fn draft_lookup_relays_text_metadata_without_persisting_a_job() {
+    let pool =
+        PgPoolOptions::new().connect_lazy("postgres://localhost/unused_preview_test").unwrap();
+    let (fetcher, mut requests) = fetcher().await;
+    let previews = LinkPreviews::new(pool, fetcher.endpoint.clone()).unwrap();
+    let lookup = tokio::spawn(async move { previews.lookup(FIRST_URL).await });
+
+    let request = incoming(&mut requests).await;
+    assert_eq!(request.url, FIRST_URL);
+    request.complete.send(StatusCode::OK).unwrap();
+
+    let preview = lookup.await.unwrap().unwrap();
+    assert_eq!(preview.url, FIRST_URL);
+    assert_eq!(preview.site_name, "Example");
+    assert_eq!(preview.title, "Example preview");
+    assert_eq!(preview.summary, "A plain text summary");
 }
 
 #[sqlx::test]

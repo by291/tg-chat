@@ -631,6 +631,28 @@
         }
       }
     },
+    "/api/v1/chat/link-preview": {
+      "post": {
+        "tags": [],
+        "operationId": "link_preview",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/DraftLinkPreview" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/LinkPreviewView" } }
+            }
+          },
+          "204": { "description": "" },
+          "429": { "description": "" }
+        }
+      }
+    },
     "/api/v1/chat/search": {
       "get": {
         "tags": [],
@@ -2777,6 +2799,12 @@
           "next_cursor": { "type": ["string", "null"] },
           "users": { "type": "array", "items": { "$ref": "#/components/schemas/PublicProfile" } }
         }
+      },
+      "DraftLinkPreview": {
+        "type": "object",
+        "required": ["url"],
+        "properties": { "url": { "type": "string" } },
+        "additionalProperties": false
       },
       "DraftView": {
         "type": "object",

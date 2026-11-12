@@ -235,6 +235,19 @@ export class SessionOwner {
     }
   }
 
+  /** Load optional draft link metadata using the current authenticated browser session. */
+  previewLink = async (
+    url: string,
+    signal: AbortSignal,
+  ): Promise<components['schemas']['LinkPreviewView'] | undefined> => {
+    const response = await this.client.POST('/api/v1/chat/link-preview', {
+      body: { url },
+      signal,
+    });
+
+    return response.data;
+  };
+
   private replacePreferences(preferences: AccountPreferences): void {
     const current = this.snapshot.preferences;
     // An earlier read may finish after a local update or a newer cross-device refresh.

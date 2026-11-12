@@ -1,5 +1,5 @@
-import { Maximize2, Minimize2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Link, Maximize2, Minimize2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
 import { AttachmentPreview } from './attachments/AttachmentPreview';
@@ -16,7 +16,9 @@ import { EmojiEditor, type EmojiEditorControls } from '@/features/editor/EmojiEd
 import type { EmojiText, CustomEmojiEntity } from '@/domain/messages/customEmoji';
 import { EmojiPicker } from './picker/EmojiPicker';
 import { ComposerContextBar } from './context/ComposerContextBar';
+import { ComposerLinkPreviewBar } from './context/ComposerLinkPreviewBar';
 import { DiscardEditDialog } from './context/DiscardEditDialog';
+import { findComposerLink, useLinkPreview, type LoadLinkPreview } from './linkPreview';
 import { hasMessageEditChanged } from './context/messageEditing';
 import type { Attachment } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
@@ -64,6 +66,7 @@ interface MessageComposerProps {
   onShareContact?: () => void;
   onChecklistSubmit?: (message: ComposedMessage) => Promise<boolean>;
   onPollSubmit?: (message: ComposedMessage) => Promise<boolean>;
+  onLoadLinkPreview?: LoadLinkPreview;
   onCancelContext: () => void;
   onJumpToMessage: (messageId: string) => void;
   onNotify: (message: string) => void;
@@ -88,6 +91,7 @@ export function MessageComposer({
   onMediaSubmit,
   onShareContact,
   onPollSubmit,
+  onLoadLinkPreview,
   onChecklistSubmit,
   onCancelContext,
   onJumpToMessage,
@@ -112,7 +116,9 @@ export function MessageComposer({
   const [listDialog, setListDialog] = useState<'poll' | 'checklist'>();
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isPreviewDisabled, setIsPreviewDisabled] = useState(false);
+  const [isPreviewDisabled, setIsPreviewDisabled] = useState(
+    Boolean(editingMessage?.disableLinkPreview),
+  );
   const [editorHeight, setEditorHeight] = useState(0);
   const canExpand = editorHeight >= EXPAND_BUTTON_MIN_HEIGHT || isExpanded;
   const draftValue: EmojiText = {
@@ -134,8 +140,27 @@ export function MessageComposer({
     });
   });
   const text = value.text;
-  const hasLink = /https?:\/\//i.test(text) || /href=["']https?:\/\//i.test(value.richText ?? '');
-  const canShowPreviewControl = isTextOnly && hasLink;
+  const previewUrl = useMemo(
+    () => (isTextOnly ? findComposerLink({ text, richText: value.richText }) : undefined),
+    [isTextOnly, text, value.richText],
+  );
+  const canShowPreviewControl = Boolean(previewUrl) && !recorder.isActive;
+  const isPreviewVisible = canShowPreviewControl && !isPreviewDisabled;
+  const publishedPreview = editingMessage?.linkPreview;
+  const existingPreview =
+    publishedPreview && publishedPreview.url === previewUrl
+      ? {
+          url: publishedPreview.url,
+          site_name: publishedPreview.site,
+          title: publishedPreview.title,
+          summary: publishedPreview.description,
+        }
+      : undefined;
+  const loadedPreview = useLinkPreview({
+    url: isPreviewVisible && !existingPreview ? previewUrl : undefined,
+    scope: editingMessage?.id,
+    onLoad: onLoadLinkPreview,
+  });
   const didPreviewChange = Boolean(editingMessage?.disableLinkPreview) !== isPreviewDisabled;
   const hasContent =
     Boolean(forwardMessages?.length) ||
@@ -232,6 +257,11 @@ export function MessageComposer({
     onCancelContext();
   }
 
+  function toggleLinkPreview() {
+    setIsPreviewDisabled((previous) => !previous);
+    editorRef.current?.focus();
+  }
+
   function cancelComposition() {
     if (recorder.isActive) {
       recorder.cancel();
@@ -314,6 +344,7 @@ export function MessageComposer({
       data-dragging={attachments.isDragging}
       data-has-context={Boolean(contextMessage || forwardMessages?.length)}
       data-has-attachment={Boolean((attachment || mediaAttachment) && !editingMessage)}
+      data-has-link-preview={isPreviewVisible}
       onDragOver={isTextOnly ? (event) => event.preventDefault() : attachments.dragOver}
       onDragLeave={isTextOnly ? undefined : attachments.dragLeave}
       onDrop={(event) => {
@@ -332,6 +363,13 @@ export function MessageComposer({
         onJumpToMessage={onJumpToMessage}
         onCancel={requestCancelContext}
       />
+      {isPreviewVisible && (
+        <ComposerLinkPreviewBar
+          preview={existingPreview ?? loadedPreview}
+          isDisabled={isDisabled}
+          onDismiss={toggleLinkPreview}
+        />
+      )}
       {(attachment || mediaAttachment) && !editingMessage && (
         <AttachmentPreview
           attachment={attachment}
@@ -426,6 +464,16 @@ export function MessageComposer({
             canSelectSticker ? (sticker) => onSubmit({ text: '', sticker }) : undefined
           }
         />
+        {canShowPreviewControl && isPreviewDisabled && (
+          <IconButton
+            label="Restore link preview"
+            disabled={isDisabled}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={toggleLinkPreview}
+          >
+            <Link />
+          </IconButton>
+        )}
         <ComposerSendButton
           isEditing={Boolean(editingMessage)}
           hasContent={hasContent}
@@ -434,17 +482,6 @@ export function MessageComposer({
           onSend={sendMessage}
         />
       </div>
-      {canShowPreviewControl && !recorder.isActive && (
-        <label className={styles.previewPreference}>
-          <input
-            type="checkbox"
-            checked={isPreviewDisabled}
-            disabled={isDisabled}
-            onChange={(event) => setIsPreviewDisabled(event.target.checked)}
-          />
-          Disable link preview
-        </label>
-      )}
       {attachmentPreview && onMediaSubmit && !editingMessage && (
         <ConnectedAttachmentDialog
           initialFiles={attachmentPreview.files}

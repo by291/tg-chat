@@ -31,6 +31,7 @@ pub struct AccountHttpState {
     pub(crate) notifications: Option<crate::notifications::NotificationService>,
     pub(crate) calls: Option<crate::calls::CallService>,
     pub(crate) call_rooms: Option<crate::calls::rooms::CallRooms>,
+    pub(crate) link_previews: Option<crate::jobs::link_previews::LinkPreviews>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -106,7 +107,18 @@ impl AccountHttpState {
             notifications: None,
             calls: None,
             call_rooms: None,
+            link_previews: None,
         }
+    }
+
+    /// Enable draft link previews through the private preview fetcher.
+    pub fn with_link_previews(
+        mut self,
+        previews: crate::jobs::link_previews::LinkPreviews,
+    ) -> Self {
+        self.link_previews = Some(previews);
+
+        self
     }
 
     /// Expose calls when their application and media services are configured.

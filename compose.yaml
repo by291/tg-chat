@@ -139,6 +139,11 @@ services:
       TG_CHAT_BIND_ADDRESS: 0.0.0.0:8080
       TG_CHAT_PUSH_VAPID_PUBLIC_KEY: ${TG_CHAT_PUSH_VAPID_PUBLIC_KEY:-}
       TG_CHAT_PUSH_PROVIDER_HOSTS: ${TG_CHAT_PUSH_PROVIDER_HOSTS:-}
+      TG_CHAT_LINK_PREVIEW_ENDPOINT: http://link-preview-fetcher:8091/preview
+    networks:
+      default:
+        gw_priority: 1
+      preview-control: {}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -191,7 +196,7 @@ services:
       context: .
       dockerfile: deploy/Dockerfile
       target: preview-fetcher
-    # Bind the control API exclusively to the Worker network, even on a dual-homed container.
+    # Bind the control API exclusively to the internal network, away from preview egress.
     command:
       - /bin/sh
       - -ec

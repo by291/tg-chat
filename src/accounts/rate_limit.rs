@@ -13,6 +13,7 @@ const IDENTITY_LIMIT: u64 = 10;
 const CLIENT_LIMIT: u64 = 20;
 const MESSAGE_LIMIT: u64 = 120;
 const MEDIA_LIMIT: u64 = 120;
+const LINK_PREVIEW_LIMIT: u64 = 30;
 const REGISTRATION_LIMIT: u64 = 5;
 const REGISTRATION_WINDOW_SECONDS: u64 = 600;
 const COUNTER_SCRIPT: &str = "
@@ -74,6 +75,11 @@ impl RateLimiter {
     /// Limit transfer commands without consuming the user's text-send budget.
     pub(crate) async fn admit_media(&self, user_id: &str) -> Result<(), AccountError> {
         self.admit_activity(&format!("media:{user_id}"), MEDIA_LIMIT).await
+    }
+
+    /// Bound speculative preview requests without consuming message admission.
+    pub(crate) async fn admit_link_preview(&self, user_id: &str) -> Result<(), AccountError> {
+        self.admit_activity(&format!("link-preview:{user_id}"), LINK_PREVIEW_LIMIT).await
     }
 
     async fn admit_activity(&self, bucket: &str, limit: u64) -> Result<(), AccountError> {

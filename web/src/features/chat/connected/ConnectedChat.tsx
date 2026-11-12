@@ -1417,6 +1417,7 @@ export function ConnectedChat({
                     onChecklistSubmit={queueChecklist}
                     isMediaAvailable={isMediaAvailable}
                     onMediaSubmit={submit}
+                    onLoadLinkPreview={session?.previewLink}
                     editingMessage={editingMessage}
                     replyMessage={replyMessage}
                     isDisabled={isPersisting || !snapshot.isReady || !canPost}

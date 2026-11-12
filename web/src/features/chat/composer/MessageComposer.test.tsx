@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +7,7 @@ import { MessageComposer } from './MessageComposer';
 import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '@/features/settings/appPreferences';
 import type { Attachment } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
+import type { components } from '@/api/schema';
 
 const imageDecoders = vi.hoisted(() => new Map<string, (attachment: Attachment) => void>());
 const imageDecodeFailures = vi.hoisted(() => new Map<string, (error: Error) => void>());
@@ -122,15 +123,161 @@ async function finishDecoding(name: string) {
   });
 }
 
+const FIRST_PREVIEW = {
+  url: 'https://example.com/notes',
+  site_name: 'Example',
+  title: 'Meeting notes',
+  summary: 'The agenda for Thursday',
+};
+
+const NEXT_PREVIEW = {
+  url: 'https://example.org/agenda',
+  site_name: 'Planning',
+  title: 'Project agenda',
+  summary: 'A list of upcoming decisions',
+};
+
+function deferredPreview() {
+  type Preview = components['schemas']['LinkPreviewView'];
+  let complete: (preview: Preview) => void = () => {};
+  const pending = new Promise<Preview>((resolve) => {
+    complete = resolve;
+  });
+  return { pending, complete };
+}
+
 it('carries the sender link preview opt-out with the message', async () => {
   matchMobileViewport();
   const user = userEvent.setup();
   const onSubmit = vi.fn();
-  renderComposer({ draft: 'Read https://example.test/notes', isTextOnly: true, onSubmit });
-  await user.click(screen.getByRole('checkbox', { name: 'Disable link preview' }));
+  const onLoadLinkPreview = vi.fn().mockResolvedValue(FIRST_PREVIEW);
+  renderComposer({
+    draft: `Read ${FIRST_PREVIEW.url}`,
+    isTextOnly: true,
+    onLoadLinkPreview,
+    onSubmit,
+  });
+  expect(await screen.findByText('Example')).toBeTruthy();
+  expect(screen.getByText(/Meeting notes/)).toBeTruthy();
+  expect(screen.getByText(/The agenda for Thursday/)).toBeTruthy();
+
+  await user.click(screen.getByRole('button', { name: 'Disable link preview' }));
+  expect(screen.queryByText(/Meeting notes/)).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Send message' }));
 
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ disableLinkPreview: true }));
+});
+
+it('keeps a late lookup from replacing the preview of the current link', async () => {
+  const previous = deferredPreview();
+  const onLoadLinkPreview = vi.fn((url: string) =>
+    url === FIRST_PREVIEW.url ? previous.pending : Promise.resolve(NEXT_PREVIEW),
+  );
+  const composer = renderComposer({
+    draft: `Read ${FIRST_PREVIEW.url}`,
+    isTextOnly: true,
+    onLoadLinkPreview,
+  });
+  await waitFor(() => {
+    expect(onLoadLinkPreview).toHaveBeenCalledWith(FIRST_PREVIEW.url, expect.any(AbortSignal));
+  });
+  composer.rerenderComposer({ draft: `Read ${NEXT_PREVIEW.url}` });
+  expect(await screen.findByText('Planning')).toBeTruthy();
+  await act(async () => previous.complete(FIRST_PREVIEW));
+
+  expect(screen.queryByText('Example')).toBeNull();
+  expect(screen.getByText('Planning')).toBeTruthy();
+});
+
+it('uses a formatted link destination without looking up the anchor label', async () => {
+  const onLoadLinkPreview = vi.fn().mockResolvedValue(FIRST_PREVIEW);
+  renderComposer({
+    draft: NEXT_PREVIEW.url,
+    draftRichText: `<p><a href="${FIRST_PREVIEW.url}">${NEXT_PREVIEW.url}</a></p>`,
+    isTextOnly: true,
+    onLoadLinkPreview,
+  });
+
+  expect(await screen.findByText('Example')).toBeTruthy();
+  expect(onLoadLinkPreview).toHaveBeenCalledExactlyOnceWith(
+    FIRST_PREVIEW.url,
+    expect.any(AbortSignal),
+  );
+});
+
+it('skips a private address before looking up a later public link', async () => {
+  const onLoadLinkPreview = vi.fn().mockResolvedValue(FIRST_PREVIEW);
+  renderComposer({
+    draft: `See http://192.168.1.10/first or ${FIRST_PREVIEW.url}`,
+    isTextOnly: true,
+    onLoadLinkPreview,
+  });
+
+  expect(await screen.findByText('Example')).toBeTruthy();
+  expect(onLoadLinkPreview).toHaveBeenCalledExactlyOnceWith(
+    FIRST_PREVIEW.url,
+    expect.any(AbortSignal),
+  );
+});
+
+it('allows saving an edit that restores a disabled preview without changing the text', async () => {
+  const user = userEvent.setup();
+  const onSubmit = vi.fn();
+  renderComposer({
+    editingMessage: {
+      id: 'disabled-preview',
+      chatId: 'dev',
+      authorId: 'you',
+      authorName: 'You',
+      text: FIRST_PREVIEW.url,
+      createdAt: 1000,
+      reactions: [],
+      disableLinkPreview: true,
+    },
+    isTextOnly: true,
+    onSubmit,
+  });
+
+  await user.click(screen.getByRole('button', { name: 'Restore link preview' }));
+  await user.click(screen.getByRole('button', { name: 'Save message' }));
+
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.objectContaining({ text: FIRST_PREVIEW.url, disableLinkPreview: false }),
+  );
+});
+
+it('keeps the draft preview dismissed when the sender replaces its link', async () => {
+  matchMobileViewport();
+  const user = userEvent.setup();
+  const onSubmit = vi.fn();
+  const composer = renderComposer({
+    draft: FIRST_PREVIEW.url,
+    isTextOnly: true,
+    onSubmit,
+  });
+
+  await user.click(screen.getByRole('button', { name: 'Disable link preview' }));
+  composer.rerenderComposer({ draft: NEXT_PREVIEW.url });
+  await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+  expect(onSubmit).toHaveBeenCalledWith(
+    expect.objectContaining({ text: NEXT_PREVIEW.url, disableLinkPreview: true }),
+  );
+});
+
+it('leaves the preview service idle when the sender types plain text', async () => {
+  vi.useFakeTimers();
+  try {
+    const onLoadLinkPreview = vi.fn();
+    const composer = renderComposer({ draft: 'A caption', isTextOnly: true, onLoadLinkPreview });
+    composer.rerenderComposer({ draft: 'A longer caption' });
+    await act(async () => vi.runOnlyPendingTimersAsync());
+
+    expect(onLoadLinkPreview).not.toHaveBeenCalled();
+    expect(screen.queryByRole('group', { name: 'Link preview' })).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 describe('image composition', () => {
