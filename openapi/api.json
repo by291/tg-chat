@@ -2658,6 +2658,7 @@
           "requires_approval": { "type": "boolean" },
           "role": { "type": "string" },
           "settings_version": { "type": "string" },
+          "summary_created_at": { "type": ["string", "null"], "format": "date-time" },
           "summary_expires_at": { "type": ["string", "null"], "format": "date-time" },
           "summary_text": { "type": "string" },
           "title": { "type": "string" },

@@ -52,6 +52,7 @@ pub(crate) const VIEW_SELECT: &str =
                 ELSE conversation.forwarding_high_consent END) AS has_forwarding_consent,
             conversation.last_sequence::text, conversation.version::text,
             COALESCE(summary.text, '') AS summary_text, summary.expires_at AS summary_expires_at,
+            summary.created_at AS summary_created_at,
             conversation.updated_at,
             member.generation::text,
             (SELECT count(*)::text FROM messages message
@@ -82,7 +83,7 @@ pub(crate) const VIEW_SELECT: &str =
                      WHEN EXISTS (SELECT 1 FROM media_message_references reference
                                   WHERE reference.message_id = message.id) THEN 'Media message'
                      ELSE '' END AS text,
-                message.expires_at FROM messages message
+                message.expires_at, message.created_at FROM messages message
          WHERE message.conversation_id = conversation.id
            AND message.sequence > member.clear_through AND message.deleted_at IS NULL
            AND (message.expires_at IS NULL OR message.expires_at > now())
@@ -119,6 +120,7 @@ pub struct ConversationView {
     pub version: String,
     pub summary_text: String,
     pub summary_expires_at: Option<DateTime<Utc>>,
+    pub summary_created_at: Option<DateTime<Utc>>,
     pub updated_at: DateTime<Utc>,
     pub generation: String,
     pub unread_count: String,

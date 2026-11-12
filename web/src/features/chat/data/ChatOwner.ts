@@ -2133,6 +2133,7 @@ export class ChatOwner {
         ...conversation,
         summary_text: '',
         summary_expires_at: null,
+        summary_created_at: null,
       };
     });
     this.snapshot = { ...this.snapshot, conversations };

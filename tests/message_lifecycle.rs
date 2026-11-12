@@ -151,6 +151,7 @@ async fn personal_hides_and_expiry_remove_content_before_cleanup(pool: PgPool) {
 async fn hidden_and_deleted_messages_leave_no_directory_preview_or_unread_count(pool: PgPool) {
     let (service, alice, bobby) = fixture(pool).await;
     let sent = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    assert_eq!(sent.conversation.summary_created_at, Some(sent.message.created_at));
     let hide = command(
         sent.conversation.id,
         json!({
@@ -163,6 +164,7 @@ async fn hidden_and_deleted_messages_leave_no_directory_preview_or_unread_count(
     let directory =
         bootstrap.conversations.iter().find(|item| item.id == sent.conversation.id).unwrap();
     assert!(directory.summary_text.is_empty());
+    assert!(directory.summary_created_at.is_none());
     assert_eq!(directory.unread_count, "0");
 
     let delete = command(
@@ -177,6 +179,7 @@ async fn hidden_and_deleted_messages_leave_no_directory_preview_or_unread_count(
     let directory =
         bootstrap.conversations.iter().find(|item| item.id == sent.conversation.id).unwrap();
     assert!(directory.summary_text.is_empty());
+    assert!(directory.summary_created_at.is_none());
 }
 
 #[sqlx::test]

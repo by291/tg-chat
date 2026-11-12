@@ -1677,6 +1677,8 @@ export interface components {
       role: string;
       settings_version: string;
       /** Format: date-time */
+      summary_created_at?: string | null;
+      /** Format: date-time */
       summary_expires_at?: string | null;
       summary_text: string;
       title: string;
