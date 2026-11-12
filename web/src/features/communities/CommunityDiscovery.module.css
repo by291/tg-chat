@@ -1,0 +1,105 @@
+.discovery {
+  min-width: 0;
+  padding: 12px;
+  color: var(--text-color);
+}
+
+.discovery h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  color: var(--secondary-color);
+  background: var(--input-color);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  color: var(--text-color);
+  background: transparent;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 8px;
+}
+
+.discovery .filters button,
+.discovery .action {
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 16px;
+  color: var(--text-color);
+  background: var(--input-color);
+  cursor: pointer;
+}
+
+.discovery .filters button[aria-pressed='true'],
+.discovery .action {
+  color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 12%, var(--surface-color));
+}
+
+.discovery .action:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.results > h3 {
+  margin: 12px 4px 4px;
+  color: var(--secondary-color);
+  font-size: 13px;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 4px;
+}
+
+.resultText {
+  flex: 1;
+  min-width: 0;
+}
+
+.resultText h3,
+.resultText p {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resultText h3 {
+  font-size: 14px;
+}
+
+.resultText p,
+.requested {
+  color: var(--secondary-color);
+  font-size: 12px;
+}
+
+.resultText .description {
+  margin-top: 2px;
+}
+
+.action,
+.requested {
+  flex-shrink: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}

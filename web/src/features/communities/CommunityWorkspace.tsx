@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 import { textField, useOperation } from '@/features/accounts/AccountForm';
@@ -65,68 +65,72 @@ function CommunityRecovery({ operations }: { operations: CommunityOperations }) 
   );
 }
 
-/** Connect discovery, explicit admission, creation, and authorized community management. */
-export function CommunityWorkspace(props: {
+interface CommunityWorkspaceProps {
   session: SessionOwner;
   chat: ChatOwner;
+  view: 'discover' | 'invitations';
   initialId?: string;
   isAvatarAvailable?: boolean;
+  onShowInvitations: () => void;
+  onShowDiscovery: () => void;
   onOpen: (conversation: Conversation) => void;
-}) {
-  const [selectedId, setSelectedId] = useState(props.initialId);
-  const snapshot = useSyncExternalStore(props.chat.subscribe, props.chat.getSnapshot);
-  const communities = snapshot.conversations.filter(
-    (conversation) => conversation.kind === 'group' || conversation.kind === 'channel',
-  );
-  const admission = {
-    session: props.session,
-    chat: props.chat,
-    onAdmitted: (conversation: Conversation) => setSelectedId(conversation.id),
-  };
+}
+
+/** Keep discovery, invitations, and the kind-specific create flow in the chat sidebar. */
+export function CommunityWorkspace(props: CommunityWorkspaceProps) {
+  const { chat, session, view } = props;
+  const operations = chat.communities;
+  const admission = { session, chat, onAdmitted: props.onOpen };
+
+  if (props.initialId) {
+    return (
+      <div className={`${styles.panel} ${communityStyles.workspace}`}>
+        <CommunityDetails
+          key={props.initialId}
+          session={session}
+          chat={chat}
+          id={props.initialId}
+          isAvatarAvailable={props.isAvatarAvailable}
+          onBack={props.onShowDiscovery}
+          onOpen={props.onOpen}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`${styles.panel} ${communityStyles.workspace}`}>
-      {props.chat.communities && <CommunityRecovery operations={props.chat.communities} />}
-      {selectedId ? (
-        <CommunityDetails
-          key={selectedId}
-          session={props.session}
-          chat={props.chat}
-          id={selectedId}
-          isAvatarAvailable={props.isAvatarAvailable}
-          onBack={() => setSelectedId(undefined)}
-          onOpen={props.onOpen}
-        />
-      ) : (
-        <>
-          <section className={styles.card}>
-            <h1>Communities</h1>
-            <h2>Your groups and channels</h2>
-            {communities.length === 0 && <p>You have not joined any communities.</p>}
-            {communities.map((conversation) => (
-              <button key={conversation.id} onClick={() => setSelectedId(conversation.id)}>
-                {conversation.title} · {conversation.kind} · {conversation.role}
-              </button>
-            ))}
-          </section>
-          <CommunityDiscovery {...admission} />
-          <CommunityAdmission {...admission} />
-          <section className={styles.card}>
-            <h2>Create a group or channel</h2>
-            <CommunitySettingsForm
-              isCreating
-              onSubmit={async (fields) => {
-                const receipt = await props.chat.communities!.create({
-                  ...readCommunitySettings(fields),
-                  kind: textField(fields, 'kind'),
-                });
-                if (receipt.conversation) {
-                  setSelectedId(receipt.conversation.id);
-                }
-              }}
-            />
-          </section>
-        </>
+      {operations && <CommunityRecovery operations={operations} />}
+      <nav className={communityStyles.navigation} aria-label="Community pages">
+        <button type="button" aria-pressed={view === 'discover'} onClick={props.onShowDiscovery}>
+          Discover
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === 'invitations'}
+          onClick={props.onShowInvitations}
+        >
+          Invitations
+        </button>
+      </nav>
+      {view === 'discover' && <CommunityDiscovery {...admission} />}
+      {view === 'invitations' && <CommunityAdmission {...admission} />}
+      {view === 'discover' && operations && (
+        <section className={styles.card}>
+          <h2>Create a group or channel</h2>
+          <CommunitySettingsForm
+            isCreating
+            onSubmit={async (fields) => {
+              const receipt = await props.chat.communities!.create({
+                ...readCommunitySettings(fields),
+                kind: textField(fields, 'kind'),
+              });
+              if (receipt.conversation) {
+                props.onOpen(receipt.conversation);
+              }
+            }}
+          />
+        </section>
       )}
     </div>
   );

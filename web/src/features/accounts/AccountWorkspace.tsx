@@ -24,7 +24,6 @@ import { ActivityOwner } from '../chat/activity/ActivityOwner';
 import { CallPanel } from '../calls/CallPanel';
 import { createBrowserCallOwner } from '../calls/browserCallOwner';
 import { isCallSupported } from '../calls/callTabOwner';
-import { useOperation } from './AccountForm';
 import { AccountSettingsHome, type SettingsPage } from './AccountSettingsHome';
 import { ContactsPanel } from './ContactsPanel';
 import { PrivacyPanel } from './PrivacyPanel';
@@ -53,7 +52,13 @@ interface ChatConnection {
   retry: () => void;
 }
 
+type CommunityView = 'discover' | 'invitations';
 type ChatStartup = Pick<ChatSnapshot, 'isReady' | 'connectionStatus' | 'startupError'>;
+
+const COMMUNITY_PAGE_TITLES: Record<CommunityView, string> = {
+  discover: 'Communities',
+  invitations: 'Communities',
+};
 
 const READY_CHAT: ChatStartup = { isReady: true, connectionStatus: 'ready' };
 
@@ -100,7 +105,7 @@ const subscribeBeforeChat = () => () => undefined;
 export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) {
   const [page, setPage] = useState<Page>(() => initialPage(capabilities));
   const [conversationRequest, setConversationRequest] = useState(0);
-  const action = useOperation();
+  const [communityView, setCommunityView] = useState<CommunityView>('discover');
   const [communityId, setCommunityId] = useState<string>();
   const [chatConnection, setChatConnection] = useState<ChatConnection>();
   const [chatError, setChatError] = useState('');
@@ -219,19 +224,28 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     if (!chat) {
       return;
     }
-    void action.run({
-      operation: async () => {
-        await chat.select({
-          destination: conversationDestination(conversation),
-          title: conversation.title,
-        });
+    setChatError('');
+    void chat
+      .select({ destination: conversationDestination(conversation), title: conversation.title })
+      .then(() => {
         setPage('messages');
-      },
-    });
+        setConversationRequest((current) => current + 1);
+      })
+      .catch((error: unknown) => {
+        if (!isCancelled(error)) {
+          setChatError(error instanceof Error ? error.message : 'The community is unavailable.');
+        }
+      });
   }
 
-  function showCommunities(id?: string) {
+  function showCommunityDetails(id: string) {
     setCommunityId(id);
+    setPage('communities');
+  }
+
+  function showCommunities(view: CommunityView = 'discover') {
+    setCommunityId(undefined);
+    setCommunityView(view);
     setPage('communities');
   }
 
@@ -292,8 +306,11 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
         <CommunityWorkspace
           session={owner}
           chat={chat}
+          view={communityView}
           initialId={communityId}
           isAvatarAvailable={capabilities.avatars_available}
+          onShowInvitations={() => showCommunities('invitations')}
+          onShowDiscovery={() => showCommunities('discover')}
           onOpen={openCommunity}
         />
       ) : (
@@ -381,7 +398,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       )}
       {page === 'communities' && (
         <SettingsHeader
-          title="Community directory"
+          title={COMMUNITY_PAGE_TITLES[communityView]}
           backLabel="Back to chats"
           onBack={() => setPage('messages')}
         />
@@ -402,7 +419,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     <CommunityInviteLink session={owner} chat={chat} onAdmitted={openCommunity} />
   );
 
-  if (chat && page !== 'communities' && page !== 'operator') {
+  if (chat && page !== 'operator') {
     return (
       <>
         <ConnectedStickerPackScope packIds={preferences?.sticker_pack_ids}>
@@ -419,7 +436,8 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
             onSettings={() => setPage('settings')}
             onContacts={() => setPage('contacts')}
             onCommunities={() => showCommunities()}
-            onCommunityDetails={showCommunities}
+            onCommunityDetails={showCommunityDetails}
+            onOpenCommunity={openCommunity}
           />
           <ToastViewport />
         </ConnectedStickerPackScope>

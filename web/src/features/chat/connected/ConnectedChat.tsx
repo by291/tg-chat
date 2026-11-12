@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { Avatar } from '@/components/Avatar';
 import type { components } from '@/api/schema';
 import { conversationDestination } from '@/features/communities/communityModels';
+import { CommunityDiscovery } from '@/features/communities/CommunityDiscovery';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { CallOwner } from '@/features/calls/CallOwner';
@@ -116,6 +117,7 @@ interface ConnectedChatProps {
   conversationRequest: number;
   onCommunities: () => void;
   onCommunityDetails: (id: string) => void;
+  onOpenCommunity: (conversation: Conversation) => void;
 }
 
 function title(conversation: Conversation): string {
@@ -202,6 +204,7 @@ export function ConnectedChat({
   onContacts,
   onCommunities,
   onCommunityDetails,
+  onOpenCommunity,
 }: ConnectedChatProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const connectionLabel = connectionStatusLabel(snapshot.connectionStatus);
@@ -329,8 +332,13 @@ export function ConnectedChat({
     return message;
   });
   const normalizedDirectoryQuery = directoryQuery.trim().toLowerCase();
+  const isDiscovering = Boolean(normalizedDirectoryQuery && session && snapshot.isReady);
   const directory = snapshot.conversations.filter((entry) => {
     if (normalizedDirectoryQuery) {
+      const isCommunityMatch = entry.kind === 'group' || entry.kind === 'channel';
+      if (isDiscovering && isCommunityMatch) {
+        return false;
+      }
       const matchesTitle = title(entry).toLowerCase().includes(normalizedDirectoryQuery);
       return matchesTitle || entry.peer_username.toLowerCase().includes(normalizedDirectoryQuery);
     }
@@ -437,6 +445,11 @@ export function ConnectedChat({
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
     setIsDirectoryVisible(false);
+  }
+
+  function openDiscoveryResult(entry: Conversation) {
+    setDirectoryQuery('');
+    onOpenCommunity(entry);
   }
 
   function openFolder(nextFolder: typeof folder) {
@@ -988,6 +1001,14 @@ export function ConnectedChat({
               }}
             />
           ))}
+          {isDiscovering && session && (
+            <CommunityDiscovery
+              session={session}
+              chat={owner}
+              query={directoryQuery}
+              onAdmitted={openDiscoveryResult}
+            />
+          )}
           {snapshot.isReady && (
             <GlobalMessageSearch
               query={directoryQuery}

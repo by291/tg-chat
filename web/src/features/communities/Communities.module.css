@@ -2,7 +2,7 @@
   overflow-wrap: anywhere;
 }
 
-.workspace button:not([type='submit']) {
+.workspace :where(button:not([type='submit'])) {
   min-height: 40px;
   margin: 4px 8px 8px 0;
   padding: 8px 12px;
@@ -14,7 +14,7 @@
   cursor: pointer;
 }
 
-.workspace button:not([type='submit']):hover {
+.workspace :where(button:not([type='submit'])):hover {
   background: var(--hover-color);
 }
 
@@ -25,4 +25,19 @@
 
 .workspace button:disabled {
   cursor: default;
+}
+
+.navigation {
+  display: flex;
+  gap: 8px;
+}
+
+.navigation > button {
+  flex: 1;
+  margin: 0;
+}
+
+.navigation > button[aria-pressed='true'] {
+  color: var(--accent-color);
+  background: var(--hover-color);
 }
