@@ -152,17 +152,27 @@ export class ChatMediaQueue {
           });
         }
         item = persisted;
-        current = checkpoint;
-        this.options.onPending(checkpoint);
+        // A recovery checkpoint should not hide live progress while the item is still active.
+        current = {
+          ...checkpoint,
+          mediaProgress: persisted.fileId ? undefined : current.mediaProgress,
+        };
+        this.options.onPending(current);
       };
       const report = (progress: UploadProgress) => {
         if (this.isClosed || active.controller.signal.aborted) {
           return;
         }
-        this.options.onPending({
+        current = {
           ...current,
-          mediaProgress: { phase: progress.phase, bytes: completedBytes + progress.bytes },
-        });
+          mediaProgress: {
+            phase: progress.phase,
+            bytes: completedBytes + progress.bytes,
+            occurrenceId: original.occurrenceId,
+            occurrenceBytes: progress.bytes,
+          },
+        };
+        this.options.onPending(current);
       };
       const status = await resumeUpload({
         item,

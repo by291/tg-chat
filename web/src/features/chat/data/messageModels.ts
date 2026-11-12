@@ -1,6 +1,6 @@
 import type { components } from '@/api/schema';
 import type { ChecklistMedia, PollMedia } from '@/domain/messages/media';
-import type { Message } from '@/domain/messages/message';
+import type { Message, PendingMediaDisplay } from '@/domain/messages/message';
 import type { PendingMessage } from './pendingMessages';
 
 export type CanonicalMessage = components['schemas']['CanonicalMessage'];
@@ -9,6 +9,7 @@ export type Destination = components['schemas']['Destination'];
 export type MessageBodyInput = components['schemas']['MessageBodyInput'];
 
 const MUTE_DAY_MS = 24 * 60 * 60 * 1000;
+const PERCENTAGE_SCALE = 100;
 
 export const MAX_VISIBLE_MESSAGES = 200;
 
@@ -295,6 +296,66 @@ export function renderMessage(message: CanonicalMessage): Message {
   };
 }
 
+function uploadPercentage(bytes: number, totalBytes: number): number {
+  if (totalBytes <= 0) {
+    return 0;
+  }
+  const percentage = Math.round((bytes / totalBytes) * PERCENTAGE_SCALE);
+  return Math.max(0, Math.min(percentage, PERCENTAGE_SCALE));
+}
+
+function pendingUploadStatus(pending: PendingMessage, totalBytes: number): string {
+  const progress = pending.mediaProgress;
+  if (pending.status === 'failed') {
+    return 'Upload failed';
+  }
+  if (pending.request.attachments?.length) {
+    return 'Sending message';
+  }
+  if (progress?.phase === 'processing') {
+    return 'Processing attachments';
+  }
+  if (progress && totalBytes > 0) {
+    return `Uploading ${uploadPercentage(progress.bytes, totalBytes)}%`;
+  }
+  return 'Waiting to upload';
+}
+
+function pendingUploadDisplay(pending: PendingMessage): PendingMediaDisplay | undefined {
+  if (!pending.media?.length) {
+    return undefined;
+  }
+
+  const progress = pending.mediaProgress;
+  const totalBytes = pending.media.reduce((bytes, item) => bytes + item.sizeBytes, 0);
+  const activeItem = pending.media.find((item) => item.occurrenceId === progress?.occurrenceId);
+  const firstUnfinished = pending.media.find((item) => !item.fileId);
+  const controlItem = activeItem ?? firstUnfinished ?? pending.media[0];
+  const items = pending.media.map((item) => {
+    const hasLocalPreview = item.kind === 'image' || item.kind === 'video';
+    const itemProgress = item.occurrenceId === progress?.occurrenceId ? progress : undefined;
+    return {
+      occurrenceId: item.occurrenceId,
+      filename: item.filename,
+      kind: item.kind,
+      previewSource: hasLocalPreview ? item.blob : undefined,
+      isReady: Boolean(item.fileId),
+      progress: itemProgress && {
+        phase: itemProgress.phase,
+        percentage: uploadPercentage(itemProgress.occurrenceBytes, item.sizeBytes),
+      },
+    };
+  });
+
+  return {
+    status: pendingUploadStatus(pending, totalBytes),
+    canRestart: pending.canRestartMedia,
+    error: pending.error,
+    activeOccurrenceId: controlItem.occurrenceId,
+    items,
+  };
+}
+
 /** Render a durable local operation using the same row key it will have after acceptance. */
 export function renderPending(options: {
   pending: PendingMessage;
@@ -319,33 +380,6 @@ export function renderPending(options: {
     reactions: [],
   });
 
-  const totalBytes = pending.media?.reduce((bytes, item) => bytes + item.sizeBytes, 0) ?? 0;
-  const progress = pending.mediaProgress;
-  let status = 'Waiting to upload';
-  if (pending.request.attachments?.length) {
-    status = 'Sending message';
-  } else if (progress?.phase === 'processing') {
-    status = 'Processing attachments';
-  } else if (progress && totalBytes > 0) {
-    const percentage = Math.round((progress.bytes / totalBytes) * 100);
-    status = `Uploading ${Math.min(percentage, 100)}%`;
-  }
-  if (pending.status === 'failed') {
-    status = 'Upload failed';
-  }
-  const pendingMedia = pending.media
-    ? {
-        status,
-        canRestart: pending.canRestartMedia,
-        error: pending.error,
-        items: pending.media.map((item) => ({
-          occurrenceId: item.occurrenceId,
-          filename: item.filename,
-          isReady: Boolean(item.fileId),
-        })),
-      }
-    : undefined;
-
   let media = message.media;
   if (body?.kind === 'poll') {
     media = renderPendingPoll(body);
@@ -359,6 +393,6 @@ export function renderPending(options: {
     media,
     deliveryStatus: pending.status,
     deliveryError: pending.status === 'failed' ? pending.error : undefined,
-    pendingMedia,
+    pendingMedia: pendingUploadDisplay(pending),
   };
 }

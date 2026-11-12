@@ -10,6 +10,7 @@ import {
   type MediaVariant,
 } from '@/features/media/mediaAccess';
 import { useAuthorizedMediaUrl } from '@/features/media/useAuthorizedMediaUrl';
+import { PendingMessageMedia } from './PendingMessageMedia';
 import { VoiceMessage } from './VoiceMessage';
 import styles from './ConnectedMessageMedia.module.css';
 
@@ -185,43 +186,12 @@ export function ConnectedMessageMedia({ message }: { message: Message }) {
   const pending = message.pendingMedia;
   if (pending) {
     return (
-      <div className={styles.pending}>
-        <span>{pending.items.map((item) => item.filename).join(', ')}</span>
-        <span role="status">{pending.status}</span>
-        {pending.error && <span>{pending.error}</span>}
-        <div className={styles.pendingActions}>
-          {message.deliveryStatus === 'failed' && (
-            <button type="button" onClick={() => actions.retry(message.id)}>
-              {pending.canRestart ? 'Send again' : 'Retry upload'}
-            </button>
-          )}
-          <button type="button" onClick={() => actions.cancel(message.id)}>
-            Cancel upload
-          </button>
-        </div>
-        {message.deliveryStatus === 'failed' &&
-          pending.items
-            .filter((item) => !item.isReady)
-            .map((item) => (
-              <label key={item.occurrenceId}>
-                Select file for {item.filename}
-                <input
-                  type="file"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      actions.reselect({
-                        messageId: message.id,
-                        occurrenceId: item.occurrenceId,
-                        file,
-                      });
-                    }
-                    event.target.value = '';
-                  }}
-                />
-              </label>
-            ))}
-      </div>
+      <PendingMessageMedia
+        messageId={message.id}
+        pending={pending}
+        isFailed={message.deliveryStatus === 'failed'}
+        actions={actions}
+      />
     );
   }
 

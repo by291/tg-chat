@@ -50,11 +50,21 @@ export const messageSchema = z.object({
   isPinned: z.boolean().optional(),
 });
 
-interface PendingMediaDisplay {
+export interface PendingMediaDisplayItem {
+  occurrenceId: string;
+  filename: string;
+  kind: components['schemas']['UploadPurpose'];
+  previewSource?: Blob;
+  isReady: boolean;
+  progress?: { phase: 'uploading' | 'processing'; percentage: number };
+}
+
+export interface PendingMediaDisplay {
   status: string;
   canRestart?: boolean;
   error?: string;
-  items: Array<{ occurrenceId: string; filename: string; isReady: boolean }>;
+  activeOccurrenceId: string;
+  items: PendingMediaDisplayItem[];
 }
 
 export type Message = z.infer<typeof messageSchema> & {

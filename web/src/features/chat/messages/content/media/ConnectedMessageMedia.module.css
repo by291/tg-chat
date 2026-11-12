@@ -54,8 +54,160 @@
   padding: 0.5rem;
 }
 
-.pendingActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.pendingTile {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.pendingSurface {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 4rem;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.pendingSurface[data-visual='true'] {
+  aspect-ratio: 3 / 2;
+}
+
+.pendingSurface :is(img, video) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pendingPlaceholder {
+  width: 1.5rem;
+  height: 1.5rem;
+  opacity: 0.55;
+}
+
+.pendingName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pendingControl {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  transform: translate(-50%, -50%);
+  place-items: center;
+  border-radius: 50%;
+  background: #000a;
+  color: white;
+}
+
+.pendingSurface:not([data-visual='true']) .pendingPlaceholder {
+  justify-self: start;
+  margin-inline-start: 0.75rem;
+}
+
+.pendingButton {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  place-items: center;
+}
+
+.pendingButton:hover {
+  background: #ffffff26;
+}
+
+.pendingButton svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.progressRing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.progressRing svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.progressTrack {
+  opacity: 0.35;
+}
+
+.progressValue {
+  stroke-linecap: round;
+  transition: stroke-dasharray 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .progressRing[data-processing='true'] {
+    animation: pending-processing 900ms linear infinite;
+  }
+}
+
+@keyframes pending-processing {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressValue {
+    transition: none;
+  }
+}
+
+.readyMark {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  inset-inline-end: 0.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0.125rem;
+  border-radius: 50%;
+  background: #000a;
+  color: white;
+}
+
+.pendingCancel {
+  justify-self: start;
+}
+
+.pendingRecovery {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pendingRecovery input {
+  max-width: 100%;
+}
+
+.pendingStatus,
+.pendingError {
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
 }

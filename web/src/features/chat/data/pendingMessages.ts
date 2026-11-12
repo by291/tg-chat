@@ -11,6 +11,11 @@ const MAX_PENDING_MEDIA_BYTES = 512 * 1024 * 1024;
 const MEDIA_CLAIM_MS = 90_000;
 const MEDIA_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
+interface PendingUploadProgress extends UploadProgress {
+  occurrenceId: string;
+  occurrenceBytes: number;
+}
+
 export interface PendingMessage {
   request: components['schemas']['SendMessage'];
   createdAt: number;
@@ -21,7 +26,7 @@ export interface PendingMessage {
   error?: string;
   media?: PendingMedia[];
   mediaClaim?: { token: string; expiresAt: number };
-  mediaProgress?: UploadProgress;
+  mediaProgress?: PendingUploadProgress;
   canRestartMedia?: boolean;
 }
 

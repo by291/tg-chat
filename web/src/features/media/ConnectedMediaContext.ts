@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 
-interface ConnectedMediaActions {
+export interface ConnectedMediaActions {
   session: SessionOwner;
   retry: (messageId: string) => void;
   cancel: (messageId: string) => void;

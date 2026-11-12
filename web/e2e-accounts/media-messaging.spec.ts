@@ -124,11 +124,15 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
     await reopened.goto('/');
     const pending = reopened.getByRole('region', { name: 'Pending messages' });
     await pending.getByRole('button', { name: DOCUMENT_NAME, exact: true }).click();
-    mayResume.release();
-    await sendCommitted.ready;
     const recovered = reopened
       .locator('article[data-own="true"]')
       .filter({ hasText: DOCUMENT_NAME });
+    await expect(
+      recovered.getByRole('progressbar', { name: `Uploading ${DOCUMENT_NAME}` }),
+    ).toBeVisible();
+    await expect(recovered.getByRole('button', { name: 'Cancel upload' })).toBeVisible();
+    mayResume.release();
+    await sendCommitted.ready;
     await expect(recovered).toHaveCount(1);
     await expect(recovered).toHaveAttribute('id', bubbleId!);
     await expect(recovered.getByRole('img', { name: 'Stored on server' })).toBeVisible();
