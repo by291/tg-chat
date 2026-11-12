@@ -6,11 +6,17 @@ use super::{
 };
 use crate::{
     accounts::{AccountError, Actor},
-    conversations::{self, access::LockedConversation},
+    calls::history::CallRecord,
+    conversations::{
+        self,
+        access::{self, LockedConversation},
+    },
     jobs::link_previews::{self, PreviewIntent},
     media::references::{self, MessageReferences},
     sync::changes::{self, ChangeGroup},
 };
+
+const SERVICE_PAYLOAD_HASH: [u8; 32] = [0; 32];
 
 pub(crate) const MESSAGE_SELECT: &str =
     "SELECT message.id, message.conversation_id, message.author_id,
@@ -63,7 +69,7 @@ pub(crate) struct ForwardSource<'a> {
 struct Identity {
     id: Uuid,
     author_id: Uuid,
-    operation_id: Uuid,
+    operation_id: Option<Uuid>,
     payload_hash: Vec<u8>,
 }
 
@@ -88,7 +94,7 @@ pub(crate) async fn reconcile(
     let is_matching = identities.len() == 1
         && identity.id == check.input.message_id
         && identity.author_id == check.actor.user_id
-        && identity.operation_id == check.input.operation_id
+        && identity.operation_id == Some(check.input.operation_id)
         && identity.payload_hash == check.payload_hash;
     if !is_matching {
         return Err(AccountError::MessageConflict.into());
@@ -123,13 +129,7 @@ pub(crate) async fn insert(
     } else {
         text
     };
-    let sequence = sqlx::query_scalar(
-        "UPDATE conversations SET last_sequence = last_sequence + 1, version = version + 1,
-         summary_text = $2, updated_at = now() WHERE id = $1 RETURNING last_sequence",
-    )
-    .bind(message.conversation.id)
-    .bind(summary);
-    let sequence: i64 = sequence.fetch_one(&mut *connection).await?;
+    let sequence = allocate_sequence(connection, message.conversation.id, summary).await?;
 
     let body = message.body.map(sqlx::types::Json);
     let attribution = message.forward.as_ref().map(|source| source.attribution);
@@ -255,6 +255,76 @@ pub(crate) async fn insert(
             participants: &participants,
             conversation_id: message.conversation.id,
             message_id: Some(message.input.message_id),
+        },
+    )
+    .await?;
+
+    Ok(())
+}
+
+async fn allocate_sequence(
+    connection: &mut PgConnection,
+    conversation_id: Uuid,
+    summary: &str,
+) -> Result<i64, sqlx::Error> {
+    let sequence = sqlx::query_scalar(
+        "UPDATE conversations SET last_sequence = last_sequence + 1, version = version + 1,
+         summary_text = $2, updated_at = now() WHERE id = $1 RETURNING last_sequence",
+    )
+    .bind(conversation_id)
+    .bind(summary);
+
+    sequence.fetch_one(connection).await
+}
+
+/// Append the terminal call to ordinary conversation history without creating alerts.
+pub(crate) async fn write_call_record(
+    connection: &mut PgConnection,
+    record: &CallRecord,
+) -> Result<(), AccountError> {
+    // Lock conversation and participant accounts before the feed to match ordinary sends.
+    let select = sqlx::query_as(
+        "SELECT id, kind, participant_low, participant_high
+         FROM conversations WHERE id = $1 AND kind = 'direct' FOR UPDATE",
+    );
+    let conversation: LockedConversation =
+        select.bind(record.conversation_id).fetch_one(&mut *connection).await?;
+    access::lock_participants(connection, &conversation)
+        .await
+        .map_err(AcceptanceError::into_public)?;
+
+    let identity = sqlx::query(
+        "INSERT INTO message_identities (id, author_id, conversation_id, payload_hash)
+         VALUES ($1, $2, $3, $4)",
+    );
+    let identity = identity.bind(record.message_id).bind(record.caller_id);
+    let identity = identity.bind(record.conversation_id).bind(SERVICE_PAYLOAD_HASH.as_slice());
+    identity.execute(&mut *connection).await?;
+
+    let summary = record.summary();
+    let sequence = allocate_sequence(connection, conversation.id, &summary).await?;
+    let content = super::content::MessageContent {
+        schema_version: 1,
+        text: summary,
+        rich_text: None,
+        custom_emoji: Vec::new(),
+    };
+    let insert = sqlx::query(
+        "INSERT INTO messages
+             (id, conversation_id, author_id, sequence, content, service_kind)
+         VALUES ($1, $2, $3, $4, $5, 'call')",
+    );
+    let insert = insert.bind(record.message_id).bind(conversation.id);
+    let insert = insert.bind(record.caller_id).bind(sequence);
+    insert.bind(sqlx::types::Json(content)).execute(&mut *connection).await?;
+
+    let participants = access::participants(connection, &conversation).await?;
+    changes::append(
+        connection,
+        ChangeGroup {
+            participants: &participants,
+            conversation_id: conversation.id,
+            message_id: Some(record.message_id),
         },
     )
     .await?;

@@ -5,8 +5,11 @@ use serde_json::{Value, json};
 use sqlx::{FromRow, PgConnection};
 use uuid::Uuid;
 
-use super::model::{
-    CallAction, CallCommand, CallEndReason, CallPhase, CallRow, CallView, CallViewer, StartCall,
+use super::{
+    model::{
+        CallAction, CallCommand, CallEndReason, CallPhase, CallRow, CallView, CallViewer, StartCall,
+    },
+    termination::{FinishCall, TerminationCheck, finish_call, is_access_invalidated},
 };
 use crate::{
     accounts::{AccountError, AccountService, Actor, sessions::lock_actor},
@@ -298,16 +301,11 @@ impl CallService {
             return Ok(());
         }
 
-        let sessions = [Some(call.caller_session_id), call.accepting_session_id];
-        let session_ids: Vec<_> = sessions.into_iter().flatten().collect();
-        let query = sqlx::query_scalar::<_, i64>(
-            "SELECT count(*) FROM sessions WHERE id = ANY($1) AND revoked_at IS NULL
-             AND expires_at > clock_timestamp()
-             AND last_seen_at > clock_timestamp() - ($2::bigint * interval '1 day')",
-        );
-        let query = query.bind(&session_ids).bind(self.accounts.settings.idle_days);
-        let valid_count = query.fetch_one(connection).await?;
-        if valid_count != session_ids.len() as i64 {
+        let check = TerminationCheck {
+            call,
+            idle_days: self.accounts.settings.idle_days,
+        };
+        if is_access_invalidated(connection, check).await? {
             return Err(AccountError::CallNotAllowed);
         }
 
@@ -553,7 +551,12 @@ async fn apply_command(
             _ => CallEndReason::TransportFailed,
         };
 
-        return end_call(connection, &call, reason).await;
+        let input = FinishCall {
+            call_id: call.id,
+            reason,
+        };
+
+        return Ok(finish_call(connection, input).await?.unwrap_or(call));
     }
 
     let allowed_actions = call.allowed_actions(command.actor, command.now);
@@ -568,8 +571,12 @@ async fn apply_command(
         CallAction::Hangup => CallEndReason::Completed,
         CallAction::MediaPermissionDenied => CallEndReason::PermissionDenied,
     };
+    let input = FinishCall {
+        call_id: call.id,
+        reason,
+    };
 
-    end_call(connection, &call, reason).await
+    Ok(finish_call(connection, input).await?.unwrap_or(call))
 }
 
 async fn accept_call(
@@ -586,27 +593,6 @@ async fn accept_call(
     let query = query.bind(command.now).bind(command.now + SETUP_DURATION);
 
     Ok(query.fetch_one(connection).await?)
-}
-
-async fn end_call(
-    connection: &mut PgConnection,
-    call: &CallRow,
-    reason: CallEndReason,
-) -> Result<CallRow, AccountError> {
-    let query = sqlx::query_as(
-        "UPDATE calls SET phase = 'ended', ended_at = clock_timestamp(), end_reason = $2,
-            revision = revision + 1
-         WHERE id = $1 RETURNING *",
-    );
-    let query = query.bind(call.id).bind(reason);
-    let ended = query.fetch_one(&mut *connection).await?;
-
-    sqlx::query("DELETE FROM call_slots WHERE call_id = $1")
-        .bind(call.id)
-        .execute(connection)
-        .await?;
-
-    Ok(ended)
 }
 
 async fn receipt(

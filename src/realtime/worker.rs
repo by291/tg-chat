@@ -7,6 +7,10 @@ use uuid::Uuid;
 use super::RealtimeClient;
 use crate::{
     accounts::AccountError,
+    calls::{
+        history,
+        termination::{self, TerminationBatch},
+    },
     jobs::{
         maintenance,
         wakeups::{WakeupOutcome, WakeupQueue},
@@ -158,11 +162,58 @@ async fn disconnect_loop(services: &WorkerServices, stop: CancellationToken) {
     }
 }
 
+async fn call_termination_loop(services: &WorkerServices, stop: CancellationToken) {
+    let mut interval = tokio::time::interval(POLL_INTERVAL);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    loop {
+        tokio::select! {
+            _ = stop.cancelled() => break,
+            _ = interval.tick() => {
+                let batch = TerminationBatch {
+                    pool: &services.pool,
+                    client: services.client.as_ref(),
+                    idle_days: services.idle_days,
+                };
+                if termination::terminate_due_calls(batch).await.is_err() {
+                    tracing::warn!("call_termination_unavailable");
+                }
+            }
+        }
+    }
+}
+
+async fn call_history_batch(pool: &PgPool) -> Result<(), AccountError> {
+    for _ in 0..BATCH_SIZE {
+        if !history::publish_one(pool).await? {
+            break;
+        }
+    }
+
+    Ok(())
+}
+
+async fn call_history_loop(pool: &PgPool, stop: CancellationToken) {
+    let mut interval = tokio::time::interval(POLL_INTERVAL);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    loop {
+        tokio::select! {
+            _ = stop.cancelled() => break,
+            _ = interval.tick() => {
+                if call_history_batch(pool).await.is_err() {
+                    tracing::warn!("call_history_unavailable");
+                }
+            }
+        }
+    }
+}
+
 /// Run independent bounded budgets so a realtime outage cannot starve expiry or revocation work.
 pub async fn run(services: WorkerServices, stop: CancellationToken) {
     tokio::join!(
         publication_loop(&services, stop.clone()),
         maintenance_loop(&services.pool, stop.clone()),
-        disconnect_loop(&services, stop),
+        disconnect_loop(&services, stop.clone()),
+        call_termination_loop(&services, stop.clone()),
+        call_history_loop(&services.pool, stop),
     );
 }
