@@ -321,7 +321,7 @@ impl CallService {
         let occupied = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS (SELECT 1 FROM call_slots WHERE user_id = ANY($1))",
         );
-        if occupied.bind(&user_ids).fetch_one(&mut *connection).await? {
+        if occupied.bind(user_ids).fetch_one(&mut *connection).await? {
             return Err(AccountError::CallBusy);
         }
 

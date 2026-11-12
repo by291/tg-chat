@@ -135,7 +135,8 @@ pub(crate) async fn terminate_due_calls(batch: TerminationBatch<'_>) -> Result<(
          WHERE slot.user_id = call.caller_id AND call.phase <> 'ended'
            AND (call_access_invalidated(call.id, $1, now())
                 OR (call.phase = 'ringing' AND call.ringing_deadline <= now())
-                OR (call.phase = 'connecting' AND call.setup_deadline <= now()))
+                OR (call.phase = 'connecting' AND call.setup_deadline <= now())
+                OR (call.phase = 'active' AND call.reconnect_deadline <= now()))
          ORDER BY call.created_at, call.id LIMIT $2",
     );
     let query = query.bind(batch.idle_days).bind(BATCH_SIZE);

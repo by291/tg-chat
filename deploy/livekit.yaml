@@ -19,3 +19,7 @@ room:
   # Keep provider timers beyond the application setup and reconnect deadlines.
   empty_timeout: 60
   departure_timeout: 60
+
+webhook:
+  urls:
+    - http://api:8080/internal/livekit/webhook

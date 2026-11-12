@@ -1917,6 +1917,7 @@
           "peer_display_name": { "type": "string" },
           "peer_id": { "type": "string", "format": "uuid" },
           "phase": { "$ref": "#/components/schemas/CallPhase" },
+          "reconnect_deadline": { "type": ["string", "null"], "format": "date-time" },
           "revision": { "type": "string" }
         }
       },

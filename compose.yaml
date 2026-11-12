@@ -21,6 +21,7 @@ x-application: &application
     TG_CHAT_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
     TG_CHAT_S3_SECRET_KEY: ${TG_CHAT_S3_SECRET_KEY:?Generate .env first}
     TG_CHAT_CALLS_ENABLED: ${TG_CHAT_CALLS_ENABLED:-false}
+    TG_CHAT_CALL_CAPACITY: ${TG_CHAT_CALL_CAPACITY:-10}
     TG_CHAT_LIVEKIT_INTERNAL_URL: ${TG_CHAT_LIVEKIT_INTERNAL_URL:-http://livekit:7880}
     TG_CHAT_LIVEKIT_PUBLIC_URL: ${TG_CHAT_LIVEKIT_PUBLIC_URL:-}
     TG_CHAT_LIVEKIT_API_KEY: ${TG_CHAT_LIVEKIT_API_KEY:-}
@@ -241,6 +242,7 @@ services:
     command: [--config=/etc/livekit/config.yaml]
     environment:
       LIVEKIT_KEYS: "${TG_CHAT_LIVEKIT_API_KEY:-}: ${TG_CHAT_LIVEKIT_API_SECRET:-}"
+      LIVEKIT_WEBHOOK_API_KEY: ${TG_CHAT_LIVEKIT_API_KEY:-}
     volumes:
       - ./deploy/livekit.yaml:/etc/livekit/config.yaml:ro
     ports:

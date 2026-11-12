@@ -1198,6 +1198,8 @@ export interface components {
       /** Format: uuid */
       peer_id: string;
       phase: components['schemas']['CallPhase'];
+      /** Format: date-time */
+      reconnect_deadline?: string | null;
       revision: string;
     };
     CanonicalMessage: {

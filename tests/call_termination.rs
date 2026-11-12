@@ -392,3 +392,33 @@ async fn retrying_a_terminal_command_publishes_one_chat_record(pool: PgPool) {
 
     assert_eq!(call_message_ids(&pool, conversation_id).await, vec![message_id]);
 }
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn worker_expires_reconnect_without_a_media_provider(pool: PgPool) {
+    let (messages, caller, recipient) = support::messaging::fixture(pool.clone()).await;
+    let send = support::messaging::send_input(recipient.user_id);
+    let sent = messages.send(caller.clone(), send).await.unwrap();
+    let call_id = insert_ringing_call(
+        &pool,
+        PendingCall {
+            caller: &caller,
+            recipient: &recipient,
+            conversation_id: sent.conversation.id,
+        },
+    )
+    .await;
+
+    let depart = sqlx::query(
+        "UPDATE calls SET phase = 'active', accepting_session_id = $2, accepted_at = now(),
+             active_at = now(), setup_deadline = now(), reconnect_deadline = now()
+         WHERE id = $1",
+    );
+    depart.bind(call_id).bind(recipient.session_id).execute(&pool).await.unwrap();
+
+    let stop = CancellationToken::new();
+    let task = start_worker(&pool, stop.clone());
+    assert_eq!(wait_for_reason(&pool, call_id).await, "transport_failed");
+    stop.cancel();
+    task.await.unwrap();
+}

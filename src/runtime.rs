@@ -12,7 +12,14 @@ use crate::{
         http::{AccountHttpState, router as account_router},
         transport::HttpSettings,
     },
-    calls::{CallService, livekit::LiveKit, room_work::RoomWork, rooms::CallRooms, signaling},
+    calls::{
+        CallService,
+        livekit::LiveKit,
+        reconciliation::{Reconciliation, ReconciliationSettings},
+        room_work::RoomWork,
+        rooms::CallRooms,
+        signaling, webhook_http,
+    },
     config::{ServiceKind, Settings},
     database::connect_pool,
     http::{ApplicationState, router_with_api},
@@ -118,6 +125,14 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let rooms = livekit
             .clone()
             .map(|provider| RoomWork::new(pool.clone(), provider, realtime_client.clone()));
+        let reconcile = livekit.clone().map(|provider| {
+            Reconciliation::new(ReconciliationSettings {
+                pool: pool.clone(),
+                provider,
+                realtime: realtime_client.clone(),
+                idle_days: account_settings.idle_days,
+            })
+        });
         let previews =
             values.get("TG_CHAT_LINK_PREVIEW_ENDPOINT").filter(|value| !value.is_empty());
         let previews = previews.and_then(|endpoint| {
@@ -164,8 +179,8 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
                 }
             };
             let prepare_rooms = async {
-                if let Some(rooms) = rooms {
-                    rooms.run(stop.clone()).await;
+                if let (Some(rooms), Some(reconcile)) = (rooms, reconcile) {
+                    tokio::join!(rooms.run(stop.clone()), reconcile.run(stop.clone()));
                 }
             };
             tokio::join!(
@@ -184,8 +199,16 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let transport =
             HttpSettings::from_values(&values).map_err(|_| RuntimeError::AccountConfiguration)?;
         let accounts = AccountService::new(pool.clone(), account_settings);
-        let call_rooms = livekit.map(|provider| {
-            CallRooms::new(pool.clone(), CallService::new(accounts.clone()), provider)
+        let call_capacity = match CallService::capacity_from_values(&values) {
+            Ok(capacity) => Some(capacity),
+            Err(_) => {
+                tracing::warn!("call_capacity_configuration_unavailable");
+                None
+            }
+        };
+        let calls = call_capacity.map(|capacity| {
+            let service = CallService::new(accounts.clone()).with_capacity(capacity);
+            service.with_realtime(realtime_client.clone())
         });
         let notifications = NotificationService::from_values(accounts.clone(), &values);
         let state = AccountHttpState::new(accounts.clone(), transport, mail);
@@ -195,14 +218,14 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             let limits = MediaLimits::from_env().map_err(|_| RuntimeError::MediaConfiguration)?;
             state = state.with_media(UploadService::new(accounts.clone(), limits, media));
         }
-        let call_signaling = call_rooms.as_ref().map(|rooms| signaling::router(rooms.clone()));
-        if let Some(rooms) = call_rooms {
-            state = state.with_call_rooms(rooms);
+        let mut private_calls = axum::Router::new();
+        if let (Some(provider), Some(calls)) = (livekit, calls) {
+            let rooms = CallRooms::new(pool.clone(), calls.clone(), provider.clone());
+            private_calls = signaling::router(rooms.clone());
+            private_calls = private_calls.merge(webhook_http::router(pool.clone(), provider));
+            state = state.with_calls(calls).with_call_rooms(rooms);
         }
-        let mut routes = account_router(state);
-        if let Some(call_signaling) = call_signaling {
-            routes = routes.merge(call_signaling);
-        }
+        let routes = account_router(state).merge(private_calls);
         match realtime_settings {
             Some(settings) => routes.merge(realtime::router(accounts, settings)),
             None => routes,

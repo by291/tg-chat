@@ -9,6 +9,7 @@ use livekit_api::{
         ServerError, ServerErrorCode, ServiceError,
         room::{CreateRoomOptions, RoomClient},
     },
+    webhooks::WebhookReceiver,
 };
 use serde::Serialize;
 use url::{Host, Url};
@@ -55,9 +56,20 @@ impl RoomCredentials {
     }
 }
 
+pub(crate) struct RoomSnapshot {
+    pub sid: String,
+    pub connected_participants: Vec<Uuid>,
+}
+
 pub(crate) struct ProviderIdentity {
     pub room: String,
     pub participant: Uuid,
+}
+
+pub(crate) struct VerifiedRoomEvent {
+    pub id: String,
+    pub room: String,
+    pub sid: String,
 }
 
 fn required<'a>(values: &'a HashMap<String, String>, key: &str) -> Result<&'a str, AccountError> {
@@ -169,6 +181,28 @@ impl LiveKit {
         Ok(room.sid)
     }
 
+    /// Read the room's current media-active participant identities.
+    pub(crate) async fn inspect(&self, name: &str) -> Result<Option<RoomSnapshot>, AccountError> {
+        let rooms = self.client.list_rooms(vec![name.to_owned()]).await;
+        let rooms = rooms.map_err(|_| AccountError::Unavailable)?;
+        let Some(room) = rooms.into_iter().find(|room| room.name == name) else {
+            return Ok(None);
+        };
+
+        let participants = self.client.list_participants(name).await;
+        let participants = participants.map_err(|_| AccountError::Unavailable)?;
+        let connected_participants = participants
+            .into_iter()
+            .filter(|participant| participant.state().as_str_name() == "ACTIVE")
+            .filter_map(|participant| participant.identity.parse().ok());
+        let connected_participants = connected_participants.collect();
+
+        Ok(Some(RoomSnapshot {
+            sid: room.sid,
+            connected_participants,
+        }))
+    }
+
     /// Delete the call room, treating an already absent room as clean.
     pub(crate) async fn delete(&self, name: &str) -> Result<(), AccountError> {
         match self.client.delete_room(name).await {
@@ -223,6 +257,37 @@ impl LiveKit {
             room: claims.video.room,
             participant,
         })
+    }
+
+    /// Verify a provider webhook before returning its bounded room observation hint.
+    pub(crate) fn verify_webhook(
+        &self,
+        body: &str,
+        token: &str,
+    ) -> Result<Option<VerifiedRoomEvent>, AccountError> {
+        let receiver = WebhookReceiver::new(self.verifier.clone());
+        let event = receiver.receive(body, token).map_err(|_| AccountError::Forbidden)?;
+        if !matches!(
+            event.event.as_str(),
+            "participant_joined"
+                | "participant_left"
+                | "participant_connection_aborted"
+                | "room_finished"
+        ) {
+            return Ok(None);
+        }
+        let Some(room) = event.room else {
+            return Ok(None);
+        };
+        if event.id.is_empty() || event.id.len() > MAX_WEBHOOK_EVENT_ID_LENGTH {
+            return Err(AccountError::Validation("invalid room event"));
+        }
+
+        Ok(Some(VerifiedRoomEvent {
+            id: event.id,
+            room: room.name,
+            sid: room.sid,
+        }))
     }
 }
 
