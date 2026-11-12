@@ -13,6 +13,12 @@ const SEEK_STEP_SECONDS = 0.1;
 const FALLBACK_LINE_HEIGHT = 2;
 const PLAYBACK_ICON_SIZE = 24;
 const INACTIVE_WAVEFORM_OPACITY = 0.3;
+// prettier-ignore
+const VOICE_PLAYBACK_SPEEDS = [
+  1,
+  1.5,
+  2,
+] as const;
 
 interface VoiceWaveformProps {
   media: Extract<MessageMedia, { kind: 'voice' }>;
@@ -101,6 +107,8 @@ export function VoiceMessage({
   useVisiblePlayback(audioRef);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
+  const [speedIndex, setSpeedIndex] = useState(0);
+  const speed = VOICE_PLAYBACK_SPEEDS[speedIndex];
   const [error, setError] = useState('');
   const playback = usePlaybackRenewal({
     url: media.url,
@@ -130,6 +138,14 @@ export function VoiceMessage({
     }
   }
 
+  function cycleSpeed() {
+    const nextIndex = (speedIndex + 1) % VOICE_PLAYBACK_SPEEDS.length;
+    if (audioRef.current) {
+      audioRef.current.playbackRate = VOICE_PLAYBACK_SPEEDS[nextIndex];
+    }
+    setSpeedIndex(nextIndex);
+  }
+
   function seekTo(seconds: number) {
     if (audioRef.current) {
       audioRef.current.currentTime = seconds;
@@ -144,7 +160,10 @@ export function VoiceMessage({
         src={playback.src}
         crossOrigin={renewSource ? 'anonymous' : undefined}
         preload="none"
-        onLoadedMetadata={(event) => playback.restore(event.currentTarget)}
+        onLoadedMetadata={(event) => {
+          event.currentTarget.playbackRate = speed;
+          playback.restore(event.currentTarget);
+        }}
         onError={() => playback.onError({ position, shouldPlay: isPlaying })}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
@@ -177,6 +196,14 @@ export function VoiceMessage({
         </div>
         <div className={styles.durationRow}>
           <span className={styles.duration}>{formatMediaDuration(displayedDuration)}</span>
+          <button
+            className={styles.speedButton}
+            type="button"
+            aria-label={`Voice playback speed: ${speed}×`}
+            onClick={cycleSpeed}
+          >
+            {speed}×
+          </button>
           {metadata}
         </div>
         {error && (

@@ -174,6 +174,10 @@ test('records and plays a voice message and publishes a profile avatar', async (
   await expect(controls).toHaveCount(0);
   const play = page.getByRole('button', { name: 'Play voice message', exact: true });
   await expect(play).toBeVisible();
+  await page.getByRole('button', { name: 'Voice playback speed: 1×' }).click();
+  await expect(page.getByRole('button', { name: 'Voice playback speed: 1.5×' })).toBeVisible();
+  const audio = page.locator('article audio');
+  await expect(audio).toHaveJSProperty('playbackRate', 1.5);
   await play.click();
   await expect
     .poll(async () => {

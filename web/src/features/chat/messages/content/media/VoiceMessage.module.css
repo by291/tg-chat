@@ -111,3 +111,21 @@
   flex-shrink: 0;
   margin-inline-start: auto;
 }
+
+.speedButton {
+  min-width: 36px;
+  min-height: 26px;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.speedButton:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}

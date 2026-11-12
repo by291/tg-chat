@@ -53,6 +53,22 @@ describe('voice message playback', () => {
     expect(screen.getByText('0:00')).toBeTruthy();
   });
 
+  it('cycles audio speed and restores it when metadata loads', () => {
+    const { container } = render(<VoiceMessage media={voice} />);
+    const audio = container.querySelector('audio')!;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voice playback speed: 1×' }));
+    expect(audio.playbackRate).toBe(1.5);
+    audio.playbackRate = 1;
+    fireEvent.loadedMetadata(audio);
+    expect(audio.playbackRate).toBe(1.5);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voice playback speed: 1.5×' }));
+    expect(audio.playbackRate).toBe(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Voice playback speed: 2×' }));
+    expect(audio.playbackRate).toBe(1);
+  });
+
   it('reports a playback failure without switching to a pause control', async () => {
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('Playback denied'));
     render(<VoiceMessage media={voice} />);
