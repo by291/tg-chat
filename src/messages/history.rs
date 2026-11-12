@@ -9,11 +9,12 @@ use super::{
 };
 use crate::{
     accounts::{AccountError, Actor},
-    conversations,
+    conversations::{self, ConversationView},
 };
 
 const DEFAULT_PAGE_SIZE: u16 = 50;
 const MAX_PAGE_SIZE: u16 = 100;
+const ANCHOR_SELECT: &str = "SELECT message.id, message.sequence FROM messages message";
 
 #[derive(Default, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
@@ -26,6 +27,8 @@ pub struct HistoryQuery {
     pub after: Option<String>,
     pub limit: Option<u16>,
     pub around: Option<Uuid>,
+    /// Center on the first visible incoming unread message, or return the latest page.
+    pub unread: Option<bool>,
     pub pinned: Option<bool>,
     pub kind: Option<MessageKind>,
     pub date_at: Option<DateTime<Utc>>,
@@ -77,15 +80,21 @@ pub(crate) fn page_size(limit: Option<u16>) -> Result<i64, AccountError> {
 impl HistoryQuery {
     fn validate(&self) -> Result<(), AccountError> {
         let has_page_edge = self.before.is_some() || self.after.is_some();
-        let has_anchor = self.around.is_some() || self.date_at.is_some();
+        #[rustfmt::skip]
+        let anchors = [
+            self.around.is_some(),
+            self.date_at.is_some(),
+            self.unread == Some(true),
+        ];
+        let anchor_count = anchors.into_iter().filter(|is_enabled| *is_enabled).count();
         if self.before.is_some() && self.after.is_some() {
             return Err(AccountError::Validation("choose either before or after"));
         }
-        if has_anchor && has_page_edge {
+        if anchor_count > 0 && has_page_edge {
             return Err(AccountError::Validation("an anchor cannot be combined with a page edge"));
         }
-        if self.around.is_some() && self.date_at.is_some() {
-            return Err(AccountError::Validation("choose either a message or a date anchor"));
+        if anchor_count > 1 {
+            return Err(AccountError::Validation("choose a single history anchor"));
         }
         if let (Some(from), Some(to)) = (self.date_from, self.date_to)
             && from >= to
@@ -147,8 +156,12 @@ impl HistoryScope<'_> {
     async fn anchor(
         &self,
         connection: &mut PgConnection,
+        conversation: &ConversationView,
     ) -> Result<Option<HistoryAnchor>, AccountError> {
-        const ANCHOR_SELECT: &str = "SELECT message.id, message.sequence FROM messages message";
+        if self.query.unread == Some(true) {
+            return self.first_unread(connection, conversation).await;
+        }
+
         if let Some(target_id) = self.query.around {
             let mut statement = self.statement(ANCHOR_SELECT);
             statement.push(" AND message.id = ").push_bind(target_id);
@@ -174,6 +187,24 @@ impl HistoryScope<'_> {
         Ok(before.build_query_as().fetch_optional(connection).await?)
     }
 
+    async fn first_unread(
+        &self,
+        connection: &mut PgConnection,
+        conversation: &ConversationView,
+    ) -> Result<Option<HistoryAnchor>, AccountError> {
+        if conversation.kind == "saved" || conversation.unread_count == "0" {
+            return Ok(None);
+        }
+
+        // Match the directory's unread definition in the same authorized history snapshot.
+        let mut statement = self.statement(ANCHOR_SELECT);
+        let read_through = parse_sequence(&conversation.read_through)?;
+        statement.push(" AND message.sequence > ").push_bind(read_through);
+        statement.push(" AND message.author_id <> ").push_bind(self.user_id);
+        statement.push(" AND message.service_kind IS NULL ORDER BY message.sequence ASC LIMIT 1");
+        Ok(statement.build_query_as().fetch_optional(connection).await?)
+    }
+
     async fn preceding(
         &self,
         connection: &mut PgConnection,
@@ -191,7 +222,8 @@ impl HistoryScope<'_> {
         connection: &mut PgConnection,
         messages: &[CanonicalMessage],
     ) -> Result<bool, AccountError> {
-        let after = messages.last().map(|last| last.sequence.as_str()).unwrap_or("0");
+        let last_sequence = messages.last().map(|last| last.sequence.as_str());
+        let after = last_sequence.or(self.query.after.as_deref()).unwrap_or("0");
         let mut statement = self.statement("SELECT EXISTS (SELECT 1 FROM messages message");
         statement.push(" AND message.sequence > ").push_bind(parse_sequence(after)?);
         statement.push(")");
@@ -216,7 +248,7 @@ impl MessageService {
             user_id: actor.user_id,
             query: &query,
         };
-        let anchor = history.anchor(&mut transaction).await?;
+        let anchor = history.anchor(&mut transaction, &conversation).await?;
         let mut statement = history.page_statement(anchor, limit)?;
         let page = statement.build_query_as();
         let mut messages: Vec<CanonicalMessage> = page.fetch_all(&mut *transaction).await?;

@@ -1024,6 +1024,13 @@
             "required": false,
             "schema": { "type": "string", "format": "uuid" }
           },
+          {
+            "name": "unread",
+            "in": "query",
+            "description": "Center on the first visible incoming unread message, or return the latest page.",
+            "required": false,
+            "schema": { "type": "boolean" }
+          },
           { "name": "pinned", "in": "query", "required": false, "schema": { "type": "boolean" } },
           {
             "name": "kind",

@@ -3568,6 +3568,8 @@ export interface operations {
         after?: string;
         limit?: number;
         around?: string;
+        /** @description Center on the first visible incoming unread message, or return the latest page. */
+        unread?: boolean;
         pinned?: boolean;
         kind?: components['schemas']['MessageKind'];
         date_at?: string;

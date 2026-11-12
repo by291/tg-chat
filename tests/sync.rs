@@ -159,6 +159,19 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
         .unwrap();
     assert_eq!(after.messages[0].sequence, "2");
     assert!(after.has_newer);
+    let end = service
+        .history(
+            alice.clone(),
+            HistoryQuery {
+                conversation_id,
+                after: Some("3".to_owned()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert!(end.messages.is_empty());
+    assert!(!end.has_newer);
     assert!(matches!(
         service.message(carol.clone(), receipts[0].message.id).await,
         Err(AccountError::NotFound)

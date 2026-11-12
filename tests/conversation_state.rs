@@ -77,6 +77,7 @@ async fn reads_are_monotonic_and_close_reopens_with_the_personal_clear_cutoff(po
             bobby.clone(),
             HistoryQuery {
                 conversation_id: first.conversation.id,
+                unread: Some(true),
                 ..Default::default()
             },
         )
@@ -84,6 +85,7 @@ async fn reads_are_monotonic_and_close_reopens_with_the_personal_clear_cutoff(po
         .unwrap();
     assert_eq!(history.messages.len(), 1);
     assert_eq!(history.messages[0].id, reopened.message.id);
+    assert_eq!(history.anchor_id, Some(reopened.message.id));
     let own = service
         .history(
             alice,
@@ -95,6 +97,49 @@ async fn reads_are_monotonic_and_close_reopens_with_the_personal_clear_cutoff(po
         .await
         .unwrap();
     assert_eq!(own.messages.len(), 3);
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn unread_history_starts_at_the_first_visible_incoming_message(pool: PgPool) {
+    let (service, alice, bobby) = fixture(pool).await;
+    let read_message = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    let conversation_id = read_message.conversation.id;
+    let read = command(conversation_id, json!({"kind": "read", "through": "1"}));
+    service.command(bobby.clone(), read).await.unwrap();
+
+    let hidden = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    let hide =
+        command(conversation_id, json!({"kind": "hide_message", "message_id": hidden.message.id}));
+    service.command(bobby.clone(), hide).await.unwrap();
+    let expiry = command(conversation_id, json!({"kind": "expiry", "days": 1}));
+    service.command(bobby.clone(), expiry).await.unwrap();
+    service.send(bobby.clone(), send_input(alice.user_id)).await.unwrap();
+    let first_unread = service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    for _ in 0..4 {
+        service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
+    }
+
+    let unread_query = || HistoryQuery {
+        conversation_id,
+        unread: Some(true),
+        limit: Some(3),
+        ..Default::default()
+    };
+    let history = service.history(bobby.clone(), unread_query()).await.unwrap();
+    assert_eq!(history.anchor_id, Some(first_unread.message.id));
+    let sequences: Vec<_> =
+        history.messages.iter().map(|message| message.sequence.as_str()).collect();
+    assert_eq!(sequences, ["4", "5", "6"]);
+    assert!(history.has_older);
+    assert!(history.has_newer);
+
+    let read = command(conversation_id, json!({"kind": "read", "through": "9"}));
+    service.command(bobby.clone(), read).await.unwrap();
+    let history = service.history(bobby, unread_query()).await.unwrap();
+    assert_eq!(history.anchor_id, None);
+    assert_eq!(history.messages.last().unwrap().sequence, "9");
+    assert!(!history.has_newer);
 }
 
 #[sqlx::test]
