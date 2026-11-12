@@ -1,6 +1,8 @@
 import {
   Archive,
   ArrowLeft,
+  Bell,
+  BellOff,
   ContactRound,
   LoaderCircle,
   Phone,
@@ -50,6 +52,7 @@ import { pollInput } from '../data/pollInput';
 import { ChatOwner } from '../data/ChatOwner';
 import {
   compareCounter,
+  conversationMuteChange,
   destinationKey,
   isConversationMuted,
   type CanonicalMessage,
@@ -344,6 +347,8 @@ export function ConnectedChat({
   });
   const normalizedDirectoryQuery = directoryQuery.trim().toLowerCase();
   const isDiscovering = Boolean(normalizedDirectoryQuery && session && snapshot.isReady);
+  const isChannelMuted = isConversationMuted(conversation);
+  const shouldShowChannelMute = conversation?.kind === 'channel' && !canPost;
   const directory = snapshot.conversations.filter((entry) => {
     if (normalizedDirectoryQuery) {
       const isCommunityMatch = entry.kind === 'group' || entry.kind === 'channel';
@@ -470,6 +475,13 @@ export function ConnectedChat({
   function openDiscoveryResult(entry: Conversation) {
     setDirectoryQuery('');
     onOpenCommunity(entry);
+  }
+
+  function toggleChannelMute() {
+    if (conversation) {
+      const change = conversationMuteChange(conversation);
+      void owner.command({ kind: 'preferences', change }).catch(report);
+    }
   }
 
   function openFolder(nextFolder: typeof folder) {
@@ -1383,7 +1395,15 @@ export function ConnectedChat({
                       </div>
                     </details>
                   )}
-                {!canPost && <p role="status">You cannot post in this conversation.</p>}
+                {shouldShowChannelMute && (
+                  <button type="button" className={styles.channelMute} onClick={toggleChannelMute}>
+                    {isChannelMuted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+                    {isChannelMuted ? 'Unmute channel' : 'Mute channel for one day'}
+                  </button>
+                )}
+                {!canPost && !shouldShowChannelMute && (
+                  <p role="status">You cannot post in this conversation.</p>
+                )}
                 {canPost && (
                   <MessageComposer
                     key={selectedKey}

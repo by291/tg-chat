@@ -8,12 +8,23 @@ export type Conversation = components['schemas']['ConversationView'];
 export type Destination = components['schemas']['Destination'];
 export type MessageBodyInput = components['schemas']['MessageBodyInput'];
 
+const MUTE_DAY_MS = 24 * 60 * 60 * 1000;
+
 export const MAX_VISIBLE_MESSAGES = 200;
 
 /** Check the current deadline for the conversation's notification mute. */
 export function isConversationMuted(conversation?: Conversation): boolean {
   const deadline = conversation?.muted_until;
   return Boolean(deadline && Date.parse(deadline) > Date.now());
+}
+
+/** Toggle the default mute from both the conversation menu and the channel footer. */
+export function conversationMuteChange(
+  conversation: Conversation,
+): components['schemas']['PreferenceChange'] {
+  const isMuted = isConversationMuted(conversation);
+  const until = isMuted ? null : new Date(Date.now() + MUTE_DAY_MS).toISOString();
+  return { field: 'mute', until };
 }
 
 /** Compare authoritative decimal counters without browser integer precision loss. */

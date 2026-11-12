@@ -11,9 +11,11 @@ import {
 } from 'lucide-react';
 import type { components } from '@/api/schema';
 import overlays from '@/components/overlays/overlays.module.css';
-import { isConversationMuted, type Conversation } from '../data/messageModels';
-
-const MUTE_DAY_MS = 24 * 60 * 60 * 1000;
+import {
+  conversationMuteChange,
+  isConversationMuted,
+  type Conversation,
+} from '../data/messageModels';
 
 type CommandAction = components['schemas']['CommandAction'];
 
@@ -38,8 +40,7 @@ export function ConversationActions({ conversation, onCommand }: ConversationAct
   }
 
   function toggleMute() {
-    const until = isMuted ? null : new Date(Date.now() + MUTE_DAY_MS).toISOString();
-    onCommand({ kind: 'preferences', change: { field: 'mute', until } });
+    onCommand({ kind: 'preferences', change: conversationMuteChange(conversation) });
   }
 
   return (
