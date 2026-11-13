@@ -119,12 +119,19 @@ export function ConnectedAttachmentDialog({
       return;
     }
 
+    // Block a second click or dismissal before React renders the busy state.
     isSubmitting.current = true;
     setIsSending(true);
     setError('');
+
     try {
       const shouldSendFilesSeparately = hasMultipleFiles && (hasDocuments || !shouldSendAlbum);
-      const isAccepted = await onSubmit({ ...caption, files, shouldSendFilesSeparately });
+      const isAccepted = await onSubmit({
+        ...caption,
+        files,
+        shouldSendFilesSeparately,
+      });
+
       if (isAccepted) {
         setIsOpen(false);
       } else {

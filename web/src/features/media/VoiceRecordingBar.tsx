@@ -100,21 +100,30 @@ function RecordingPreview({ blob }: { blob: Blob }) {
   );
 }
 
+function recordingStatus(recorder: VoiceRecordingBarProps['recorder']): string {
+  if (recorder.isRequesting) {
+    return 'Starting microphone…';
+  }
+  if (recorder.isFinalizing) {
+    return 'Finishing recording…';
+  }
+  if (recorder.isSending) {
+    return 'Queuing voice message…';
+  }
+  if (recorder.isPaused) {
+    return 'Recording paused';
+  }
+  if (recorder.isRecording) {
+    return 'Recording…';
+  }
+
+  return 'Voice recording ready';
+}
+
 /** Replace the editor controls during voice capture and keep recording actions in one row. */
 export function VoiceRecordingBar({ recorder }: VoiceRecordingBarProps) {
   const isBusy = recorder.isFinalizing || recorder.isSending;
-  let status = 'Voice recording ready';
-  if (recorder.isRequesting) {
-    status = 'Starting microphone…';
-  } else if (recorder.isFinalizing) {
-    status = 'Finishing recording…';
-  } else if (recorder.isSending) {
-    status = 'Queuing voice message…';
-  } else if (recorder.isPaused) {
-    status = 'Recording paused';
-  } else if (recorder.isRecording) {
-    status = 'Recording…';
-  }
+  const status = recordingStatus(recorder);
   const shouldShowStatus = recorder.isRequesting || isBusy;
 
   return (

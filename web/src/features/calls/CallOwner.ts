@@ -592,6 +592,7 @@ export class CallOwner {
 
     scope.isJoining = true;
     let hasNewRevision = false;
+
     try {
       const credentials = await this.options.transport.credentials(
         call.id,
@@ -600,6 +601,8 @@ export class CallOwner {
       if (!this.ownsSession(session) || this.call !== scope || scope.media !== media) {
         return;
       }
+
+      // Credentials fetched for an older call revision cannot authorize this media attempt.
       hasNewRevision = this.snapshot.call?.revision !== call.revision;
       if (hasNewRevision) {
         return;
@@ -607,6 +610,7 @@ export class CallOwner {
 
       this.patch({ mediaStatus: 'joining', error: undefined });
       await media.join(credentials);
+
       if (this.call === scope && scope.media === media) {
         this.patch({ mediaStatus: 'connected' });
       }
@@ -614,6 +618,8 @@ export class CallOwner {
       if (this.call !== scope || scope.media !== media) {
         return;
       }
+
+      // A credential failure leaves prepared devices available for a later attempt.
       if (this.snapshot.mediaStatus === 'waiting') {
         this.reportCredentialFailure(error);
         return;
@@ -623,6 +629,8 @@ export class CallOwner {
       this.patch({ error: 'The media connection failed. Try joining the call again.' });
     } finally {
       scope.isJoining = false;
+
+      // A retry must run after releasing the guard or it will exit without requesting credentials.
       if (hasNewRevision && this.call === scope) {
         void this.joinMedia();
       }

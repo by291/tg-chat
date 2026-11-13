@@ -100,9 +100,12 @@ function RoundVideo({ media }: Pick<VideoFrameProps, 'media'>) {
         video.pause();
       }
     }
-    document.addEventListener('play', pauseForOtherMedia, true);
 
-    return () => document.removeEventListener('play', pauseForOtherMedia, true);
+    // Media play events do not bubble, so observe them during capture.
+    const listenerOptions = { capture: true };
+    document.addEventListener('play', pauseForOtherMedia, listenerOptions);
+
+    return () => document.removeEventListener('play', pauseForOtherMedia, listenerOptions);
   }, []);
 
   async function togglePlayback() {

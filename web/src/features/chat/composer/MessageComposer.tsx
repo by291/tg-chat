@@ -128,17 +128,20 @@ export function MessageComposer({
   };
   const value = editingMessage ? editValue : draftValue;
   const currentDraftIdentity = draftIdentity ?? JSON.stringify(draftValue);
+
   const recorder = useVoiceRecorder((selection) => {
     if (!onMediaSubmit || isDisabled || editingMessage) {
       return false;
     }
 
+    // Recording can finish after typing has already created a different draft.
     return onMediaSubmit({
       text: '',
       files: [selection],
       shouldPreserveDraft: recordingDraftIdentity.current !== currentDraftIdentity,
     });
   });
+
   const text = value.text;
   const previewUrl = useMemo(
     () => (isTextOnly ? findComposerLink({ text, richText: value.richText }) : undefined),
@@ -161,12 +164,14 @@ export function MessageComposer({
     scope: editingMessage?.id,
     onLoad: onLoadLinkPreview,
   });
+
   const didPreviewChange = Boolean(editingMessage?.disableLinkPreview) !== isPreviewDisabled;
   const hasContent =
     Boolean(forwardMessages?.length) ||
     text.trim().length > 0 ||
     Boolean(value.richText) ||
     Boolean(attachment || mediaAttachment || editingMessage?.attachment || editingMessage?.media);
+
   const contextMessage = editingMessage || replyMessage;
   const previousContextRef = useRef(contextMessage);
   const canSubmit = !isDisabled && !recorder.isActive && (Boolean(editingMessage) || hasContent);
@@ -267,10 +272,12 @@ export function MessageComposer({
       recorder.cancel();
       return;
     }
+
     if (isExpanded) {
       setIsExpanded(false);
       return;
     }
+
     if (contextMessage || forwardMessages?.length) {
       requestCancelContext();
       return;
@@ -486,12 +493,13 @@ export function MessageComposer({
         <ConnectedAttachmentDialog
           initialFiles={attachmentPreview.files}
           initialCaption={attachmentPreview.caption}
-          onSubmit={(submission) =>
-            onMediaSubmit({
+          onSubmit={(submission) => {
+            // The preview owns its captured caption. Keep any draft typed while it was open.
+            return onMediaSubmit({
               ...submission,
               shouldPreserveDraft: currentDraftIdentity !== attachmentPreview.draftIdentity,
-            })
-          }
+            });
+          }}
           onClose={() => setAttachmentPreview(undefined)}
           finalFocusEl={() => editorRef.current?.getElement() ?? null}
         />
