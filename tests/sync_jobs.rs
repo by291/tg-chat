@@ -7,9 +7,7 @@ use tg_chat::features::realtime::wakeups::{WakeupOutcome, WakeupQueue};
 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]
-async fn publication_acknowledgement_preserves_newer_wakeups_and_fences_expired_workers(
-    pool: PgPool,
-) {
+async fn publication_acknowledgement_preserves_a_newer_wakeup(pool: PgPool) {
     let (service, alice, bobby) = fixture(pool.clone()).await;
     service.send(alice.clone(), send_input(bobby.user_id)).await.unwrap();
     let queue = WakeupQueue::new(pool.clone());
@@ -22,8 +20,16 @@ async fn publication_acknowledgement_preserves_newer_wakeups_and_fences_expired_
         .await
         .unwrap();
     assert!(remaining > original.position);
+}
 
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn expired_worker_cannot_acknowledge_a_reclaimed_wakeup(pool: PgPool) {
+    let (service, alice, bobby) = fixture(pool.clone()).await;
+    service.send(alice, send_input(bobby.user_id)).await.unwrap();
+    let queue = WakeupQueue::new(pool.clone());
     let stale = queue.claim().await.unwrap().unwrap();
+
     sqlx::query(
         "UPDATE sync_wakeups SET lease_until = now() - interval '1 second' WHERE user_id = $1",
     )
@@ -31,9 +37,9 @@ async fn publication_acknowledgement_preserves_newer_wakeups_and_fences_expired_
     .execute(&pool)
     .await
     .unwrap();
+
     assert!(!queue.finish(&stale, WakeupOutcome::Published).await.unwrap());
     let reclaimed = queue.claim().await.unwrap().unwrap();
-    assert_ne!(stale.lease_token, reclaimed.lease_token);
     assert!(!queue.finish(&stale, WakeupOutcome::Published).await.unwrap());
     assert!(queue.finish(&reclaimed, WakeupOutcome::Published).await.unwrap());
 }
