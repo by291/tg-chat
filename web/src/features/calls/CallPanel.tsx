@@ -14,6 +14,11 @@ const MEDIA_STATUS: Record<MediaStatus, string> = {
   reconnecting: 'Reconnecting…',
 };
 
+const RINGTONE_SOURCE = {
+  incoming: '/assets/audio/call-incoming.wav',
+  outgoing: '/assets/audio/call-outgoing.wav',
+};
+
 type CallSnapshot = ReturnType<CallOwner['getSnapshot']>;
 
 interface CallPanelProps {
@@ -98,7 +103,22 @@ function DevicePicker({
 /** Keep the call accessible from any authenticated workspace page. */
 export function CallPanel({ owner, isChatOpen }: CallPanelProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
-  const { call, isBusy, error } = snapshot;
+  const { call, ownsTab, isBusy, error } = snapshot;
+  const ringingCall = ownsTab && !isBusy && call?.phase === 'ringing' ? call : undefined;
+  const ringingId = ringingCall?.id;
+  const ringingDirection = ringingCall?.direction;
+
+  useEffect(() => {
+    if (!ringingId || !ringingDirection) {
+      return;
+    }
+
+    const ringtone = new Audio(RINGTONE_SOURCE[ringingDirection]);
+    ringtone.loop = true;
+    // A browser may require prior user activation for audible playback.
+    void ringtone.play().catch(() => undefined);
+    return () => ringtone.pause();
+  }, [ringingId, ringingDirection]);
 
   if (!call && !error && !isBusy) {
     return null;

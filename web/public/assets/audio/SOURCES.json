@@ -1,0 +1,6 @@
+{
+  "source": "Original call tones synthesized for tg-chat with sine waves and short fades",
+  "format": "16-bit mono PCM WAV at 8000 Hz",
+  "license": "GPL-3.0-only",
+  "files": ["call-incoming.wav", "call-outgoing.wav"]
+}

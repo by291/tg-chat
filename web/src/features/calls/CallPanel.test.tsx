@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CallOwner } from './CallOwner';
 import { CallPanel } from './CallPanel';
 import type { CallMedia, CallTransport, CallView } from './callModels';
@@ -27,6 +27,7 @@ const connecting: CallView = {
 };
 
 const disconnects: (() => void)[] = [];
+const playing = new Set<HTMLMediaElement>();
 
 function setup(initialCall: CallView, options: { canOwnTab?: boolean } = {}) {
   let currentCall: CallView | null = initialCall;
@@ -80,11 +81,29 @@ function setup(initialCall: CallView, options: { canOwnTab?: boolean } = {}) {
   };
 }
 
+beforeEach(() => {
+  // jsdom does not decode audio. Track playback at the browser media boundary.
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (
+    this: HTMLMediaElement,
+  ) {
+    playing.add(this);
+    return Promise.resolve();
+  });
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(function (
+    this: HTMLMediaElement,
+  ) {
+    playing.delete(this);
+  });
+});
+
 afterEach(() => {
   cleanup();
   for (const disconnect of disconnects.splice(0)) {
     disconnect();
   }
+  playing.clear();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 it('preserves the video node and keyboard focus when collapsing and restoring', async () => {
@@ -109,4 +128,47 @@ it('preserves the video node and keyboard focus when collapsing and restoring', 
   expect(collapse.getAttribute('aria-expanded')).toBe('true');
   expect(screen.getByRole('button', { name: 'Mute' })).toBeTruthy();
   expect(screen.getByLabelText('Peer camera')).toBe(camera);
+});
+
+it('plays a ringtone only in the owning tab and silences it once ringing ends', async () => {
+  const waiting = setup(incoming, { canOwnTab: false });
+  await act(async () => waiting.owner.refresh());
+  expect(screen.getByText('Call is open in another tab.')).toBeTruthy();
+  expect(playing.size).toBe(0);
+
+  const ringing = setup(incoming);
+  await act(async () => ringing.owner.refresh());
+  expect(playing.size).toBe(1);
+  const [ringtone] = playing;
+  expect(ringtone.loop).toBe(true);
+
+  await ringing.updateCall(connecting);
+  expect(playing.size).toBe(0);
+
+  const outgoing: CallView = {
+    ...incoming,
+    id: 'outgoing-call',
+    direction: 'outgoing',
+    allowed_actions: ['cancel'],
+  };
+  await ringing.updateCall(outgoing);
+  expect(playing.size).toBe(1);
+  const [ringback] = playing;
+  expect(ringback.src).not.toBe(ringtone.src);
+
+  ringing.view.unmount();
+  expect(playing.size).toBe(0);
+});
+
+it('keeps the incoming controls available when the browser blocks the ringtone', async () => {
+  vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(
+    new DOMException('Autoplay is blocked.', 'NotAllowedError'),
+  );
+  const { owner } = setup(incoming);
+  await act(async () => owner.refresh());
+
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+  expect(screen.getByRole('button', { name: 'Answer' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
 });
