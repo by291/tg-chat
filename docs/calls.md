@@ -21,6 +21,9 @@ focus, or a polling fallback. A hint carries no media authority. Browser call co
 require a secure context, media capture, WebRTC, and Web Locks. Tabs sharing one session
 use a Web Lock to coordinate ownership of the call.
 
+The tab that owns the call shows the ringing window and plays the corresponding tone when
+browser playback is available. Other tabs can still show that a call is in progress.
+
 ## Media and reconnect
 
 The Worker creates a fresh two-participant room after acceptance. The API grants only the
@@ -29,10 +32,12 @@ microphone or camera tracks. The application gateway rechecks current authorizat
 every new signaling connection. Keep credentials out of durable browser storage, history,
 hints, and logs. See [deployment and network configuration](./operations.md#livekit-calls).
 
-The browser requests devices on explicit call actions. Voice starts with the camera off,
-and either participant can enable video during the call. Denial of required initial media
-ends setup. Failure to enable optional video leaves the audio session running. The browser
-releases devices when the call ends or it loses media ownership.
+Starting or answering supplies the user intent to prepare media once the call and tab are
+authorized. The session that loses an answer race does not prepare devices. A page reload
+or failed media join can still require an explicit rejoin. Voice starts with the camera
+off, and either participant can enable video during the call. Denial of required initial
+media ends setup. Failure to enable optional video leaves the audio session running.
+The browser releases devices when the call ends or it loses media ownership.
 
 The call moves from ringing through connecting to active after both participants have
 established media. Database deadlines bound ringing, setup, and reconnect. An authorized
@@ -40,6 +45,8 @@ session can resume after a refresh or brief interruption within the grace period
 observed recovery clears the departure deadline. The Worker verifies and deduplicates
 signed webhooks and reconciles missing or uncertain observations against current room state.
 Room and observation fences prevent a delayed leave from replacing a newer connection.
+The live timer uses the stored activation time, including after reopening. Collapsing the
+call window keeps the media mounted and leaves a control to restore it.
 
 ## Termination and history
 
@@ -52,7 +59,8 @@ The terminal transaction releases both slots and schedules independent room clea
 history work. Late room creation is cleaned up, and delayed observations cannot revive
 the call. The history job uses the call ID to deduplicate publication through ordinary
 message sync. One service record shows the outcome and, for an established call, its
-duration. An unanswered call appears as missed after the browser reopens. Incoming
+duration. A missed record identifies the direction and can start a new call of the same type
+in an eligible direct chat. An unanswered call appears as missed after the browser reopens. Incoming
 ringing is limited to connected sessions, and the history record does not trigger Push.
 
 See [call verification](./development.md#call-verification) for repeatable service checks

@@ -175,8 +175,9 @@ node scripts/check-runtime.mjs --calls
 ```
 
 The runner uses an isolated Compose project, Chromium with controlled media devices, and the
-real LiveKit media path. It checks competing accepts, voice and video, permission denial,
-refresh and reconnect, one missed record after reopening, and terminal signaling rejection.
+real LiveKit media path. It checks competing accepts, one-click media setup, voice and video,
+permission denial, collapse and restore, timer continuity after reopening, same-mode callback
+from a missed record, and terminal signaling rejection.
 It repeats the call flow after verifying that ordinary messaging works with LiveKit stopped.
 The default runtime check keeps calls disabled.
 
