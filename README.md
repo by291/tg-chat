@@ -11,6 +11,8 @@ pnpm install
 pnpm dev
 ```
 
+For connected development with Vite hot reload, use [Process Compose](./docs/development.md#start-development-with-process-compose).
+
 To start the integrated runtime with PostgreSQL, Valkey, Centrifugo, RustFS, and the frontend:
 
 ```sh

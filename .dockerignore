@@ -1,6 +1,7 @@
 .git
 .superpowers
 .env
+.env.dev
 .pnpm-store
 target
 web/node_modules

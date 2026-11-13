@@ -17,6 +17,24 @@ and Worker and coordinate work across features. Configuration, database setup, s
 handling, network address checks, and telemetry live alongside these runtime entry points.
 Integration tests remain in `tests/`, and SQL migrations remain in `migrations/`.
 
+## Start development with Process Compose
+
+Install [Process Compose](https://f1bonacc1.github.io/process-compose/) and the Docker prerequisites
+below. On macOS, `brew install process-compose` installs the CLI. Install frontend dependencies once
+with `pnpm install --frozen-lockfile` in `web/`, then run from the repository root:
+
+```sh
+process-compose -f process-compose.yaml --disable-dotenv --no-server up
+```
+
+Open `http://127.0.0.1:5173`. Vite reloads frontend changes and proxies API and realtime requests
+through the Docker gateway. Docker runs migrations, the API, Worker, and their dependencies in
+the `tg-chat-dev` project. Local media is enabled in `.env.dev` by default. Mailpit is available at
+`http://127.0.0.1:18025`. For Rust changes, restart `backend` in the TUI to rebuild its images.
+Quit the TUI to stop Vite and remove the development containers. Development volumes and `.env.dev`
+credentials persist across launches. The explicit `-f` selects Process Compose's file because
+both orchestrators can discover `compose.yaml` by default.
+
 ## Start the integrated environment
 
 Install Docker Engine 28.1 or later, Docker Compose 2.36 or later, and Node.js 24 or later.
@@ -123,6 +141,7 @@ cargo test --locked --all-targets -- --include-ignored \
 ```
 
 SQLx creates isolated databases for these tests. Do not point this command at a production server.
+
 For the complete container boundary check, run from the root:
 
 ```sh

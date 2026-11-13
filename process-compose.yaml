@@ -1,0 +1,57 @@
+ordered_shutdown: true
+
+processes:
+  credentials:
+    command: node scripts/create-local-env.mjs --dev
+    availability:
+      restart: exit_on_failure
+
+  backend:
+    # Keep the Compose topology and its private networks identical to deployment.
+    command: |
+      set -e
+      docker compose --env-file .env.dev --project-name tg-chat-dev --profile mail \
+        up --build --wait
+      echo TG_CHAT_BACKEND_READY
+      exec docker compose --env-file .env.dev --project-name tg-chat-dev --profile mail \
+        logs --follow --tail 30
+    depends_on:
+      credentials:
+        condition: process_completed_successfully
+    environment:
+      - TG_CHAT_HTTP_PORT=18080
+      - TG_CHAT_S3_PORT=18333
+      - TG_CHAT_S3_PUBLIC_ENDPOINT=http://127.0.0.1:18333
+      - TG_CHAT_MAILPIT_PORT=18025
+      - TG_CHAT_PUBLIC_ORIGIN=http://127.0.0.1:5173
+      - TG_CHAT_SMTP_HOST=mailpit
+      - TG_CHAT_SMTP_PORT=1025
+      - TG_CHAT_SMTP_MODE=plain
+      - TG_CHAT_MAIL_FROM=accounts@example.test
+    ready_log_line: TG_CHAT_BACKEND_READY
+    shutdown:
+      command: >-
+        docker compose --env-file .env.dev --project-name tg-chat-dev --profile mail down
+      timeout_seconds: 90
+    availability:
+      restart: exit_on_failure
+
+  web:
+    command: pnpm dev --port 5173 --strictPort
+    success_exit_codes: [143]
+    working_dir: ./web
+    depends_on:
+      backend:
+        condition: process_log_ready
+    environment:
+      - VITE_APP_MODE=connected
+      - TG_CHAT_DEV_API_ORIGIN=http://127.0.0.1:18080
+      - TG_CHAT_DEV_REALTIME_ORIGIN=http://127.0.0.1:18080
+    readiness_probe:
+      http_get:
+        host: 127.0.0.1
+        port: '5173'
+        path: /
+      period_seconds: 2
+    availability:
+      restart: exit_on_failure
