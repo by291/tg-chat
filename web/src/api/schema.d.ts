@@ -1234,6 +1234,8 @@ export interface components {
     /** @enum {string} */
     CallPhase: 'ringing' | 'connecting' | 'active' | 'ended';
     CallView: {
+      /** Format: date-time */
+      active_at?: string | null;
       allowed_actions: components['schemas']['CallAction'][];
       /** Format: uuid */
       conversation_id: string;

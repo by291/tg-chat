@@ -19,6 +19,11 @@ const RINGTONE_SOURCE = {
   outgoing: '/assets/audio/call-outgoing.wav',
 };
 
+const MILLISECONDS_PER_SECOND = 1_000;
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
+const SECONDS_PER_HOUR = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+
 type CallSnapshot = ReturnType<CallOwner['getSnapshot']>;
 
 interface CallPanelProps {
@@ -33,6 +38,27 @@ function callTitle(call: CallView): string {
       : `Outgoing ${call.mode} call`;
   }
   return call.mode === 'video' ? 'Video call' : 'Voice call';
+}
+
+function CallDuration({ startedAt }: { startedAt: number }) {
+  const [now, setNow] = useState(Date.now);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), MILLISECONDS_PER_SECOND);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const elapsed = Math.max(0, Math.floor((now - startedAt) / MILLISECONDS_PER_SECOND));
+  const hours = Math.floor(elapsed / SECONDS_PER_HOUR);
+  const minutes = Math.floor((elapsed % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+  const seconds = elapsed % SECONDS_PER_MINUTE;
+  const clock = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  return (
+    <span className={styles.duration} role="timer" aria-label="Call duration">
+      {hours > 0 ? `${hours}:${clock}` : clock}
+    </span>
+  );
 }
 
 function CallVideoTile({ video }: { video: CallVideo }) {
@@ -144,6 +170,8 @@ function CallPanelContents({
   const isIncoming = isRinging && call.direction === 'incoming';
   const canCollapse = ownsTab && Boolean(call?.allowed_actions.includes('hangup'));
   const isCollapsed = canCollapse && isMinimized;
+  const startedAt = call?.active_at ? Date.parse(call.active_at) : NaN;
+  const canShowDuration = ownsTab && call?.phase === 'active' && Number.isFinite(startedAt);
   const ToggleIcon = isCollapsed ? Maximize2 : Minimize2;
   const Icon = call?.mode === 'video' ? Video : Phone;
 
@@ -164,6 +192,7 @@ function CallPanelContents({
           <h2 aria-live="polite">{title}</h2>
           {call && <p>{call.peer_display_name}</p>}
         </div>
+        {canShowDuration && <CallDuration startedAt={startedAt} />}
         {canCollapse && (
           <button
             className={styles.toggle}

@@ -26,6 +26,13 @@ const connecting: CallView = {
   is_room_ready: true,
 };
 
+const activeCall = {
+  ...connecting,
+  phase: 'active' as const,
+  revision: '3',
+  active_at: '2026-11-13T10:00:00Z',
+};
+
 const disconnects: (() => void)[] = [];
 const playing = new Set<HTMLMediaElement>();
 
@@ -128,6 +135,24 @@ it('preserves the video node and keyboard focus when collapsing and restoring', 
   expect(collapse.getAttribute('aria-expanded')).toBe('true');
   expect(screen.getByRole('button', { name: 'Mute' })).toBeTruthy();
   expect(screen.getByLabelText('Peer camera')).toBe(camera);
+});
+
+it('counts from server activation in the compact panel and through reconnect', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-11-13T10:01:07Z'));
+  const { owner, updateCall } = setup(connecting);
+  await act(async () => owner.refresh());
+  expect(screen.queryByRole('timer')).toBeNull();
+
+  await updateCall(activeCall);
+  fireEvent.click(screen.getByRole('button', { name: 'Collapse call panel' }));
+  const timer = screen.getByRole('timer', { name: 'Call duration' });
+  expect(timer.textContent).toBe('01:07');
+
+  await updateCall({ ...activeCall, reconnect_deadline: '2026-11-13T10:01:30Z' });
+  await act(async () => vi.advanceTimersByTimeAsync(2_000));
+  expect(screen.getByText('Reconnecting…')).toBeTruthy();
+  expect(timer.textContent).toBe('01:09');
 });
 
 it('plays a ringtone only in the owning tab and silences it once ringing ends', async () => {

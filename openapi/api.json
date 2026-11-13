@@ -1990,6 +1990,7 @@
           "allowed_actions"
         ],
         "properties": {
+          "active_at": { "type": ["string", "null"], "format": "date-time" },
           "allowed_actions": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/CallAction" }

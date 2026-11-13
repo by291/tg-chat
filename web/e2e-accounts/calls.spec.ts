@@ -215,6 +215,7 @@ async function verifyFirstAnswer(input: { caller: Device; first: Device; second:
     secondAnswer.evaluate((element) => (element as HTMLButtonElement).click()),
   ]);
   const call = await waitForPhase(caller, 'active');
+  expect(call.active_at).toBeTruthy();
   const [firstGrant, secondGrant] = await Promise.all([
     getCredentials(first, call),
     getCredentials(second, call),
@@ -246,6 +247,10 @@ async function verifyVideo(input: { caller: Device; recipient: Device }) {
   await button(recipient.page, 'Answer').click();
   const call = await waitForPhase(caller, 'active');
   await Promise.all([expectRemoteVideo(caller.page), expectRemoteVideo(recipient.page)]);
+  const timer = caller.page.getByRole('timer', { name: 'Call duration' });
+  await expect(timer).toHaveText(/^\d+:\d{2}$/);
+  await expect(timer).not.toHaveText(await timer.innerText());
+
   const peerCamera = caller.page.locator('video[aria-label="Peer camera"]');
   await button(caller.page, 'Collapse call panel').click();
   await expect(peerCamera).toBeAttached();
@@ -258,6 +263,8 @@ async function verifyVideo(input: { caller: Device; recipient: Device }) {
   await recipient.page.reload();
   await button(recipient.page, 'Enable microphone and camera').click();
   await Promise.all([expectRemoteVideo(caller.page), expectRemoteVideo(recipient.page)]);
+  expect((await currentCall(recipient))?.active_at).toBe(call.active_at);
+  await expect(recipient.page.getByRole('timer', { name: 'Call duration' })).toBeVisible();
   await button(recipient.page, 'Hang up').click();
   await expectOneHistoryEntry({ device: caller, call, summary: 'Video call · completed' });
 }

@@ -81,6 +81,7 @@ pub struct CallView {
     pub revision: String,
     pub deadline: Option<DateTime<Utc>>,
     pub reconnect_deadline: Option<DateTime<Utc>>,
+    pub active_at: Option<DateTime<Utc>>,
     pub is_room_ready: bool,
     pub end_reason: Option<CallEndReason>,
     pub allowed_actions: Vec<CallAction>,
@@ -100,6 +101,7 @@ pub(crate) struct CallRow {
     pub ringing_deadline: DateTime<Utc>,
     pub setup_deadline: Option<DateTime<Utc>>,
     pub reconnect_deadline: Option<DateTime<Utc>>,
+    pub active_at: Option<DateTime<Utc>>,
     pub end_reason: Option<CallEndReason>,
 }
 
@@ -176,6 +178,7 @@ impl CallRow {
             revision: self.revision.to_string(),
             deadline: self.deadline(),
             reconnect_deadline: self.reconnect_deadline.filter(|_| self.phase == CallPhase::Active),
+            active_at: self.active_at,
             is_room_ready: viewer.is_room_ready,
             end_reason: self.end_reason,
             allowed_actions: self.allowed_actions(viewer.actor, viewer.now),
