@@ -207,6 +207,22 @@ function renderPendingChecklist(
   };
 }
 
+function getMissedCallMode(message: CanonicalMessage): Message['missedCallMode'] {
+  if (message.is_deleted || message.service_kind !== 'call') {
+    return undefined;
+  }
+
+  // Stored call history has only a service marker and a server-authored summary.
+  switch (message.content.text) {
+    case 'Voice call · missed':
+      return 'voice';
+    case 'Video call · missed':
+      return 'video';
+    default:
+      return undefined;
+  }
+}
+
 /** Adapt accepted transport content to the existing renderer without demo state. */
 export function renderMessage(message: CanonicalMessage): Message {
   const body = message.is_deleted ? undefined : message.body;
@@ -290,6 +306,7 @@ export function renderMessage(message: CanonicalMessage): Message {
     isPinned: message.is_pinned,
     isEdited: Boolean(message.edited_at),
     isService: Boolean(message.service_kind),
+    missedCallMode: getMissedCallMode(message),
     expiresAt: message.expires_at ? Date.parse(message.expires_at) : undefined,
     deliveryStatus: 'accepted',
     remoteAttachments: message.attachments,

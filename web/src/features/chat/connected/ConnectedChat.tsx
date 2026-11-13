@@ -24,6 +24,7 @@ import { CommunityProfile } from '@/features/communities/CommunityProfile';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { CallOwner } from '@/features/calls/CallOwner';
+import type { CallMode } from '@/features/calls/callModels';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
@@ -325,6 +326,7 @@ export function ConnectedChat({
     conversationStatus = 'Online';
   }
   const canPost = conversation?.can_post ?? selection?.destination.kind !== 'conversation';
+  const canStartCall = hasCallActions && Boolean(calls) && canPost && !isCallBusy;
   const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
   const canReportCommunity = Boolean(session && isCommunity && conversation.role !== 'owner');
   const reportableMessageIds = new Set(
@@ -454,6 +456,14 @@ export function ConnectedChat({
     if (!isCancelled(failure)) {
       setError(failure instanceof Error ? failure.message : 'The request could not be completed.');
     }
+  }
+
+  function startCall(mode: CallMode) {
+    if (!canStartCall || !calls || !conversation) {
+      return;
+    }
+
+    void calls.start({ conversationId: conversation.id, mode });
   }
 
   function retryCommand(operationId: string) {
@@ -1209,20 +1219,16 @@ export function ConnectedChat({
                 <button
                   type="button"
                   aria-label="Start voice call"
-                  disabled={!calls || !canPost || isCallBusy}
-                  onClick={() =>
-                    void calls?.start({ conversationId: conversation.id, mode: 'voice' })
-                  }
+                  disabled={!canStartCall}
+                  onClick={() => startCall('voice')}
                 >
                   <Phone />
                 </button>
                 <button
                   type="button"
                   aria-label="Start video call"
-                  disabled={!calls || !canPost || isCallBusy}
-                  onClick={() =>
-                    void calls?.start({ conversationId: conversation.id, mode: 'video' })
-                  }
+                  disabled={!canStartCall}
+                  onClick={() => startCall('video')}
                 >
                   <Video />
                 </button>
@@ -1416,6 +1422,7 @@ export function ConnectedChat({
                           onReact={react}
                           onInteract={interact}
                           onOpenMedia={() => undefined}
+                          onRedial={canStartCall ? startCall : undefined}
                           onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
                         />
                       </MessageRetryContext.Provider>

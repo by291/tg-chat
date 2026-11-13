@@ -15,7 +15,9 @@ import { describeMessage } from '../messageFormatting';
 import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { type Message } from '@/domain/messages/message';
 import type { MessageInteraction } from '@/domain/messages/interaction';
+import type { CallMode } from '@/features/calls/callModels';
 import type { OutgoingMessageMount } from './transitions/outgoingMessageTransition';
+import { MissedCallCard } from './MissedCallCard';
 import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
@@ -33,6 +35,7 @@ interface MessageBubbleProps {
   onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMedia: (message: Message) => void;
+  onRedial?: (mode: CallMode) => void;
   onJumpToMessage: (messageId: string) => void;
 }
 
@@ -71,6 +74,7 @@ export const MessageBubble = memo(function MessageBubble({
   onInteract,
   onReact,
   onOpenMedia,
+  onRedial,
   onJumpToMessage,
 }: MessageBubbleProps) {
   const shouldUseLargeEmoji = useAppPreferences((preferences) => preferences.shouldUseLargeEmoji);
@@ -131,6 +135,26 @@ export const MessageBubble = memo(function MessageBubble({
     : message.replyQuote?.text || describeMessage(replyMessage);
   const messageIdPrefix = idPrefix ?? (isPreview ? 'preview-message' : 'message');
   const elementId = `${messageIdPrefix}-${message.id}`;
+
+  if (message.isService && message.missedCallMode) {
+    const canRedial = !isPreview && !isSelecting;
+    return (
+      <div
+        id={elementId}
+        className={styles.messageRow}
+        data-own={isOwn}
+        data-group-end
+        data-highlighted={isHighlighted}
+      >
+        <MissedCallCard
+          mode={message.missedCallMode}
+          isOutgoing={isOwn}
+          createdAt={message.createdAt}
+          onRedial={canRedial ? onRedial : undefined}
+        />
+      </div>
+    );
+  }
 
   if (message.isService) {
     return (

@@ -10,6 +10,7 @@ const HORIZONTAL_GUTTER = 40;
 const TEXT_LINE_HEIGHT = 21;
 const AVERAGE_GLYPH_WIDTH = 8;
 const SERVICE_ROW_HEIGHT = 42;
+const MISSED_CALL_ROW_HEIGHT = 63;
 const UNREAD_ROW_HEIGHT = 38;
 const BASE_MESSAGE_HEIGHT = 28;
 const MESSAGE_GAP = 2;
@@ -49,7 +50,7 @@ export function estimateHistoryRow(row: HistoryRow, viewportWidth = DEFAULT_VIEW
 
   const message = row.message;
   if (message.isService) {
-    return SERVICE_ROW_HEIGHT;
+    return message.missedCallMode ? MISSED_CALL_ROW_HEIGHT : SERVICE_ROW_HEIGHT;
   }
 
   const bubbleWidth = Math.min(MAX_BUBBLE_WIDTH, viewportWidth * BUBBLE_WIDTH_RATIO);

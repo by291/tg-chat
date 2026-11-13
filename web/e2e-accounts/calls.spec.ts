@@ -291,22 +291,36 @@ async function verifyPermissionDenied(input: { caller: Device; recipient: Device
 
 async function verifyMissed(input: { caller: Device; recipient: Device; callerName: string }) {
   const { caller, recipient, callerName } = input;
-  await button(caller.page, 'Start voice call').click();
+  await button(caller.page, 'Start video call').click();
   const call = await waitForPhase(caller, 'ringing');
   await expect(button(recipient.page, 'Answer')).toBeVisible();
   await recipient.page.close();
   await expectOneHistoryEntry({
     device: caller,
     call,
-    summary: 'Voice call · missed',
+    summary: 'Video call · missed',
     timeout: MISSED_TIMEOUT_MS,
   });
+  await expect(caller.page.getByText('Missed outgoing video call', { exact: true })).toHaveCount(1);
 
   const reopened = await recipient.context.newPage();
+  reopened.setDefaultTimeout(MEDIA_TIMEOUT_MS);
   await reopened.goto('/');
   await reopened.getByRole('button', { name: new RegExp(`^${callerName}`) }).click();
   const chat = reopened.getByRole('region', { name: 'Chat', exact: true });
-  await expect(chat.getByText('Voice call · missed', { exact: true })).toHaveCount(1);
+  await expect(chat.getByText('Missed incoming video call', { exact: true })).toHaveCount(1);
+  await button(reopened, 'Redial video call').click();
+
+  const callback = await waitForPhase(recipient, 'ringing');
+  expect(callback.id).not.toBe(call.id);
+  expect(callback.mode).toBe('video');
+  await expect(button(caller.page, 'Answer')).toBeVisible();
+  await button(reopened, 'Cancel call').click();
+  await expectOneHistoryEntry({
+    device: caller,
+    call: callback,
+    summary: 'Video call · cancelled',
+  });
 }
 
 test('connected calls arbitrate answers, carry media, resume, and persist missed history', async ({

@@ -69,6 +69,7 @@ export interface PendingMediaDisplay {
 
 export type Message = z.infer<typeof messageSchema> & {
   disableLinkPreview?: boolean;
+  missedCallMode?: components['schemas']['CallMode'];
   linkPreview?: Extract<MessageMedia, { kind: 'link' }>;
   remoteAttachments?: components['schemas']['AttachmentView'][];
   pendingMedia?: PendingMediaDisplay;

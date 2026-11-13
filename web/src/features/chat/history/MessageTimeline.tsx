@@ -22,6 +22,7 @@ import { useMessageMenu } from '../messages/menu/useMessageMenu';
 import { findMessageRow } from '../messages/selection/messageRowTarget';
 import { describeMessage } from '../messageFormatting';
 import type { Message } from '@/domain/messages/message';
+import type { CallMode } from '@/features/calls/callModels';
 import type { MessageCommand } from '@/features/chat/messages/commands';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import { useHistoryWindow, type RemoteHistory } from './useHistoryWindow';
@@ -74,6 +75,7 @@ interface MessageTimelineProps {
   onReact: (messageId: string, emoji: string) => void;
   onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
   onOpenMedia: (message: Message) => void;
+  onRedial?: (mode: CallMode) => void;
   onJumpToMessage: (messageId: string) => void;
 }
 
@@ -110,9 +112,11 @@ function VirtualMessageHistory({
   onReact,
   onInteract,
   onOpenMedia,
+  onRedial,
   onJumpToMessage,
 }: VirtualMessageHistoryProps) {
   const currentUserId = useCurrentUserId();
+  const canRedial = !isPreview && canUseMessageActions && selectedIds === undefined;
   const unreadNavigationId = navigation?.kind === 'unread' ? navigation.messageId : undefined;
   const unreadId = unreadNavigationId ?? firstUnreadMessageId;
   const unreadMessage = unreadId ? messageById.get(unreadId) : undefined;
@@ -385,6 +389,7 @@ function VirtualMessageHistory({
                         onReact={onReact}
                         onInteract={onInteract}
                         onOpenMedia={onOpenMedia}
+                        onRedial={canRedial ? onRedial : undefined}
                         onJumpToMessage={onJumpToMessage}
                       />
                     )}

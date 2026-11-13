@@ -539,6 +539,44 @@
   line-height: 20px;
 }
 
+.missedCallCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 0;
+  text-align: start;
+}
+
+button.missedCallCard {
+  cursor: pointer;
+}
+
+button.missedCallCard:hover {
+  box-shadow: 0 0 0 2px var(--bubble-status-color);
+}
+
+button.missedCallCard:focus-visible {
+  outline: 2px solid var(--bubble-status-color);
+  outline-offset: 2px;
+}
+
+.missedCallIcon {
+  flex: none;
+  color: var(--danger-color, #c43745);
+}
+
+.missedCallDetails {
+  display: grid;
+  gap: 2px;
+}
+
+.missedCallDetails time {
+  font-size: 13px;
+  line-height: 18px;
+  opacity: 0.78;
+}
+
 @media (max-width: 760px) {
   .messageRow[data-own='true'] .bubble {
     max-width: calc(100% - 89px);

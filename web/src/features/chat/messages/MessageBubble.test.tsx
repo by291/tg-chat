@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../demo/fixtures';
 import { messageSchema, type Message } from '@/domain/messages/message';
 import { DEFAULT_APP_PREFERENCES, setAppPreferences } from '@/features/settings/appPreferences';
+import type { CallMode } from '@/features/calls/callModels';
+import { canonicalFixture } from '../data/messageFixtures.test-support';
+import { renderMessage } from '../data/messageModels';
 import { MessageBubble } from './MessageBubble';
 import { MessageRetryContext } from './messageRetryContext';
 
@@ -24,10 +27,12 @@ function renderTextBubble({
   shouldShowSender,
   bubbleMessage = message,
   onRetry,
+  onRedial,
 }: {
   shouldShowSender: boolean;
   bubbleMessage?: Message;
   onRetry?: (messageId: string) => void;
+  onRedial?: (mode: CallMode) => void;
 }) {
   return render(
     <MessageRetryContext.Provider value={onRetry}>
@@ -37,6 +42,7 @@ function renderTextBubble({
         isGroupStart
         isGroupEnd
         isHighlighted={false}
+        onRedial={onRedial}
         onInteract={() => {}}
         onReact={() => {}}
         onOpenMedia={() => {}}
@@ -76,6 +82,70 @@ function renderReplyBubble({
     />,
   );
 }
+
+describe('missed calls in history', () => {
+  const incomingVideo = canonicalFixture({ author_id: 'alex', service_kind: 'call' });
+  const videoContent = { ...incomingVideo.content, text: 'Video call · missed' };
+  const videoCall = { ...incomingVideo, content: videoContent };
+  const outgoingVoice = canonicalFixture({ author_id: 'you', service_kind: 'call' });
+  const voiceContent = { ...outgoingVoice.content, text: 'Voice call · missed' };
+  const voiceCall = { ...outgoingVoice, content: voiceContent };
+  const completedVideoContent = { ...videoContent, text: 'Video call · completed · 0:28' };
+
+  it.each([
+    {
+      record: videoCall,
+      label: 'Missed incoming video call',
+      action: 'Redial video call',
+      mode: 'video',
+    },
+    {
+      record: voiceCall,
+      label: 'Missed outgoing voice call',
+      action: 'Redial voice call',
+      mode: 'voice',
+    },
+  ])('offers keyboard redial in the original mode for $label', async (testCase) => {
+    const user = userEvent.setup();
+    const onRedial = vi.fn();
+    renderTextBubble({
+      shouldShowSender: false,
+      bubbleMessage: renderMessage(testCase.record),
+      onRedial,
+    });
+
+    expect(screen.getByText(testCase.label)).toBeTruthy();
+    const redial = screen.getByRole('button', { name: testCase.action });
+    await user.tab();
+    expect(document.activeElement).toBe(redial);
+    await user.keyboard('{Enter}');
+    expect(onRedial).toHaveBeenCalledExactlyOnceWith(testCase.mode);
+  });
+
+  it('keeps the missed call visible when the chat has no redial action', () => {
+    renderTextBubble({ shouldShowSender: false, bubbleMessage: renderMessage(videoCall) });
+
+    expect(screen.getByText('Missed incoming video call')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /redial/i })).toBeNull();
+  });
+
+  it.each([
+    { record: { ...videoCall, service_kind: null }, text: 'Video call · missed' },
+    {
+      record: { ...videoCall, content: completedVideoContent },
+      text: 'Video call · completed · 0:28',
+    },
+  ])('preserves $text as plain history when it is not a missed call record', ({ record, text }) => {
+    renderTextBubble({
+      shouldShowSender: false,
+      bubbleMessage: renderMessage(record),
+      onRedial: vi.fn(),
+    });
+
+    expect(screen.getByText(text)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /redial/i })).toBeNull();
+  });
+});
 
 describe('text message senders', () => {
   it('restores the ordinary bubble when large emoji is turned off', () => {
