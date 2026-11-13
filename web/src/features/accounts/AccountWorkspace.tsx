@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { UserPlus } from 'lucide-react';
 import { ToastViewport } from '@/components/Toast';
@@ -7,7 +7,6 @@ import { DevicesSettingsPage } from '@/features/settings/devices/DevicesSettings
 import { OperatorWorkspace } from '@/features/operator/OperatorWorkspace';
 import { AccountPreferencesPanel } from '@/features/settings/connected/AccountPreferencesPanel';
 import { ConnectedStickerPackScope } from '@/features/settings/connected/StickerPackScope';
-import { BrowserPushOwner } from '@/features/settings/notifications/BrowserPushOwner';
 import { BrowserPushSettings } from '@/features/settings/notifications/BrowserPushSettings';
 import {
   resolveNotificationTarget,
@@ -21,19 +20,18 @@ import {
   type CommunityKind,
   type Conversation,
 } from '../communities/communityModels';
-import { ChatOwner, type ChatSnapshot } from '../chat/data/ChatOwner';
 import { connectionStatusLabel } from '../chat/data/connectionStatus';
 import { ConnectedChat } from '../chat/connected/ConnectedChat';
-import { ActivityOwner } from '../chat/activity/ActivityOwner';
 import { CallPanel } from '../calls/CallPanel';
-import { createBrowserCallOwner } from '../calls/browserCallOwner';
-import { isCallSupported } from '../calls/callTabOwner';
 import { AccountSettingsHome, type SettingsPage } from './AccountSettingsHome';
 import { ContactsPanel } from './ContactsPanel';
 import { PrivacyPanel } from './PrivacyPanel';
 import { ProfilePanel } from './ProfilePanel';
 import { SecurityPanel } from './SecurityPanel';
+import { useWorkspaceConnections } from './useWorkspaceConnections';
 import styles from './Accounts.module.css';
+
+type CommunityView = 'discover' | 'invitations' | CommunityKind;
 
 type Page =
   | SettingsPage
@@ -51,22 +49,12 @@ interface WorkspaceProps {
   capabilities: components['schemas']['Capabilities'];
 }
 
-interface ChatConnection {
-  owner: ChatOwner;
-  retry: () => void;
-}
-
-type CommunityView = 'discover' | 'invitations' | CommunityKind;
-type ChatStartup = Pick<ChatSnapshot, 'isReady' | 'connectionStatus' | 'startupError'>;
-
 const COMMUNITY_PAGE_TITLES: Record<CommunityView, string> = {
   discover: 'Communities',
   invitations: 'Communities',
   group: 'New Group',
   channel: 'New Channel',
 };
-
-const READY_CHAT: ChatStartup = { isReady: true, connectionStatus: 'ready' };
 
 const SUBPAGE_NAVIGATION = {
   profile: {
@@ -105,45 +93,26 @@ function initialPage(capabilities: WorkspaceProps['capabilities']): Page {
   return capabilities.messaging_available ? 'messages' : 'settings';
 }
 
-const subscribeBeforeChat = () => () => undefined;
-
 /** Keep authenticated ownership separate from demo state and persistence. */
 export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) {
   const [page, setPage] = useState<Page>(() => initialPage(capabilities));
   const [conversationRequest, setConversationRequest] = useState(0);
   const [communityView, setCommunityView] = useState<CommunityView>('discover');
-  const [chatConnection, setChatConnection] = useState<ChatConnection>();
   const [chatError, setChatError] = useState('');
-  const getStartupSnapshot = useCallback((): ChatStartup | undefined => {
-    const snapshot = chatConnection?.owner.getSnapshot();
-    // The connected page subscribes directly once the account shell has finished bootstrapping.
-    return snapshot?.isReady ? READY_CHAT : snapshot;
-  }, [chatConnection]);
-  const startup = useSyncExternalStore(
-    chatConnection?.owner.subscribe ?? subscribeBeforeChat,
-    getStartupSnapshot,
-  );
-  const chat =
-    capabilities.messaging_available && startup?.isReady ? chatConnection?.owner : undefined;
   const { preferences, revision } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
-  const [activity] = useState(() => new ActivityOwner({ session: owner }));
-  const [push] = useState(() => new BrowserPushOwner({ session: owner }));
-  const [calls] = useState(() => createBrowserCallOwner(owner));
   const areCallsAvailable = capabilities.calls_available;
-  const canUseCalls = areCallsAvailable && isCallSupported();
-
-  useEffect(() => activity.connect(), [activity, revision]);
-  useEffect(() => push.connect(), [push, revision]);
-  useEffect(() => {
-    if (canUseCalls) {
-      return calls.connect();
-    }
-  }, [calls, canUseCalls, revision]);
+  const { activity, push, calls, canUseCalls, chat, startup, retryChat } = useWorkspaceConnections({
+    owner,
+    revision,
+    areCallsAvailable,
+    isMessagingAvailable: capabilities.messaging_available,
+  });
 
   useEffect(() => {
     if (!chat) {
       return;
     }
+
     let navigation = 0;
 
     async function openNotification() {
@@ -156,6 +125,8 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       chat.showInbox();
       setPage('messages');
       const conversation = await resolveNotificationTarget({ target, session: owner, chat });
+
+      // Leave a newer user selection in place if notification lookup finishes after navigation.
       const isCurrent = navigation === request && owner.getSnapshot().revision === revision;
       if (!isCurrent || !conversation || chat.getSnapshot().selection) {
         return;
@@ -188,24 +159,6 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       void owner.refreshAccountSettings().catch(() => undefined);
     }
   }, [owner, page, preferences]);
-
-  useEffect(() => {
-    if (!capabilities.messaging_available) {
-      return;
-    }
-
-    const connected = new ChatOwner({ session: owner });
-    const { disconnect, retry } = connected.connect({
-      onActivityHint: activity.refresh,
-      onCallHint: canUseCalls ? () => void calls.refresh() : undefined,
-    });
-    setChatConnection({ owner: connected, retry });
-
-    return () => {
-      disconnect();
-      connected.dispose();
-    };
-  }, [activity, owner, revision, capabilities.messaging_available, canUseCalls, calls]);
 
   function startChat(person: components['schemas']['PublicProfile']) {
     if (!chat) {
@@ -274,7 +227,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
               <p role="alert" className={styles.error}>
                 {startupError}
               </p>
-              <button type="button" onClick={chatConnection?.retry}>
+              <button type="button" onClick={retryChat}>
                 Retry loading chats
               </button>
             </>
