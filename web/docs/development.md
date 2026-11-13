@@ -70,6 +70,18 @@ assertions wait for sustained stability rather than a single matching frame, bec
 measurement can otherwise produce false passes. Production code and tests should share behavior
 contracts, not duplicate each other's algorithms.
 
+### Readability reviews
+
+Review authored code and tests by feature. Inspect startup markup, scripts, and configuration when
+they participate in the change. Keep generated contracts and vendored assets out of a style pass.
+Use static scans to find candidates and read the surrounding code before changing a branch,
+component, or state owner. Preserve the current storage keys and serialized shapes.
+
+Separate preparation, validation, and execution with logical blank lines. Document exported
+functions in English and explain ordering, ownership, and cancellation beside the decisions that
+depend on them. Preserve hook order, closure captures, editor selection, and scroll ownership.
+Use behavior tests to verify those boundaries after refactoring.
+
 ## Manual verification and limits
 
 Changes to startup, appearance, native file input, and multi-touch gestures also need focused
@@ -91,6 +103,11 @@ mixed lifecycle commands, read advancement, reply navigation, full reset preserv
 deletion without resurrection after reload. Its output directory is separate from the demo and
 account suites. Run it with independent admission fixtures; the root Compose runner resets only its
 own ephemeral Valkey between suites rather than weakening application registration limits.
+
+For connected workspace changes, use the account suite to switch between a direct chat and Saved
+Messages and confirm that each keeps its own draft. The interactions suite checks a search jump at
+a narrow viewport and returning to the results with the query intact. The synchronization suite
+checks shared-cache convergence and preserves local input across a full reset.
 
 ## Community acceptance
 

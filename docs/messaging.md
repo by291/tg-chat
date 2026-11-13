@@ -182,9 +182,10 @@ Publications contain only a schema version and cursor. The durable coalesced wak
 with a lease token, published outside the business transaction, and acknowledged only by its current
 owner. A newer position survives an older publication acknowledgement. Bounded attempts and backoff
 lead to an inspectable exhausted state; an admission budget prevents unbounded wakeup growth and
-rolls back the entire business transaction if no new row can be admitted. Publication, retention,
-expiry, disconnection, and email work have independent bounded loops. See
-[operations](./operations.md) for retry commands and configuration.
+rolls back the entire business transaction if no new row can be admitted. Publication and session
+disconnection run separately from maintenance. The maintenance loop gives each task a bounded
+batch and continues to the next task after a failure. See [operations](./operations.md) for retry
+commands and configuration.
 
 ## Live activity and notifications
 

@@ -204,11 +204,11 @@ cargo test --locked --test livekit_integration -- --include-ignored
 pnpm --dir web exec playwright test -c playwright.calls.config.ts livekit-contract.spec.ts
 ```
 
-The [cross-network acceptance plan][m9-network] tracks physical microphone, camera, and TURN
+The [cross-network acceptance checklist][m9-network] tracks physical microphone, camera, and TURN
 verification.
 
-[release-acceptance]: ./superpowers/plans/2026-11-08-product-milestones.md#m10-release-performance-and-recovery-acceptance
-[m9-network]: ./superpowers/plans/2026-11-12-m9-livekit-calls.md
+[release-acceptance]: ./release-acceptance.md#m10-release-performance-and-recovery-acceptance
+[m9-network]: ./release-acceptance.md#m9-cross-network-call-acceptance
 
 ## API contract ownership
 

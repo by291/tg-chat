@@ -96,6 +96,12 @@ settings are open. It supplies bounded canonical projections to the existing com
 it never mounts the demo reducer or demo conversation persistence. A React identity provider gives
 shared renderers the authenticated user while preserving the demo default outside connected mode.
 
+The account workspace owns navigation and starts its authenticated services through a
+session-scoped connection hook. The connected chat separates directory navigation, current-chat
+search, and message selection. A conversation change or a new membership generation clears
+selection and its report or forward dialogs. Narrow search and account-page transitions can
+keep the timeline and composer mounted to preserve reading position and unfinished input.
+
 Canonical projections and their checkpoint share an IndexedDB transaction, with epoch/cursor
 compare-and-set across tabs. Pending operations and drafts have separate transactional ownership, so
 a full canonical reset preserves unsent work. Versioned draft conflicts require an explicit choice

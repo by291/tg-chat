@@ -93,4 +93,4 @@ Run `pnpm --dir web test:communities` against a disposable runtime configured th
 runs this suite alongside account, message, synchronization, and service-recovery checks.
 Measured throughput is tracked under [release acceptance][release-acceptance].
 
-[release-acceptance]: ./superpowers/plans/2026-11-08-product-milestones.md#m10-release-performance-and-recovery-acceptance
+[release-acceptance]: ./release-acceptance.md#m10-release-performance-and-recovery-acceptance

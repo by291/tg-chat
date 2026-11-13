@@ -64,6 +64,6 @@ in an eligible direct chat. An unanswered call appears as missed after the brows
 ringing is limited to connected sessions, and the history record does not trigger Push.
 
 See [call verification](./development.md#call-verification) for repeatable service checks
-and the [cross-network acceptance plan][network-acceptance] for the remaining device work.
+and the [cross-network acceptance checklist][network-acceptance] for the remaining device work.
 
-[network-acceptance]: ./superpowers/plans/2026-11-12-m9-livekit-calls.md
+[network-acceptance]: ./release-acceptance.md#m9-cross-network-call-acceptance
