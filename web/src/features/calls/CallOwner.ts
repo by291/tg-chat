@@ -62,6 +62,7 @@ interface OutcomeLookup {
 interface CallScope {
   id: string;
   controller: AbortController;
+  hasMediaIntent: boolean;
   media?: CallMedia;
   isJoining: boolean;
 }
@@ -146,6 +147,7 @@ export class CallOwner {
       // A cached page may return, but must reacquire its call lease and media explicitly.
       session.isPageHidden = true;
       session.version += 1;
+      session.lastCallId = undefined;
       this.releaseCall();
       this.setSnapshot(EMPTY_SNAPSHOT);
     };
@@ -214,9 +216,15 @@ export class CallOwner {
 
     await this.mutate({
       key: `start:${input.conversationId}:${input.mode}`,
+      mediaIntent: 'outgoing',
       send: (operationId, signal) =>
         this.options.transport.start({ ...input, operationId }, signal),
     });
+  }
+
+  /** Answer the incoming call and activate media after the server grants this session access. */
+  async answer(): Promise<void> {
+    await this.command('accept');
   }
 
   /** Apply an allowed action from the tab holding the current call lease. */
@@ -229,9 +237,16 @@ export class CallOwner {
     const scope = this.call;
     await this.mutate({
       key: `${call.id}:${action}`,
+      mediaIntent: action === 'accept' ? 'incoming' : undefined,
       beforeSend: () => {
-        // End local capture even when the server acknowledgement is delayed.
-        if (action === 'hangup' && scope?.media) {
+        const shouldEndLocally = action === 'cancel' || action === 'hangup';
+        if (!scope || !shouldEndLocally) {
+          return;
+        }
+
+        // A peer may answer just before cancel arrives. Cancel still withdraws capture consent.
+        scope.hasMediaIntent = false;
+        if (scope.media) {
           this.resetMedia(scope);
         }
       },
@@ -241,7 +256,7 @@ export class CallOwner {
     });
   }
 
-  /** Request the required physical devices only after a button press. */
+  /** Request the required physical devices for an accepted call. */
   async activateMedia(): Promise<void> {
     const { call, ownsTab, mediaStatus } = this.snapshot;
     const scope = this.call;
@@ -250,6 +265,7 @@ export class CallOwner {
       return;
     }
 
+    scope.hasMediaIntent = false;
     const media = this.options.createMedia({
       onStatus: (status) => this.updateMediaStatus({ scope, status }),
       onVideo: (videos) => this.updateMedia({ scope, patch: { videos } }),
@@ -261,13 +277,13 @@ export class CallOwner {
     try {
       await media.prepare(call.mode);
     } catch (error) {
-      if (this.call === scope) {
+      if (this.call === scope && scope.media === media) {
         await this.failInitialMedia(error);
       }
       return;
     }
 
-    if (this.call !== scope) {
+    if (this.call !== scope || scope.media !== media) {
       return;
     }
     this.patch({ mediaStatus: 'waiting', isCameraOn: call.mode === 'video' });
@@ -360,6 +376,7 @@ export class CallOwner {
   private async mutate(input: {
     key: string;
     callId?: string;
+    mediaIntent?: CallView['direction'];
     beforeSend?: () => void;
     send: (operationId: string, signal: AbortSignal) => Promise<CallView>;
   }): Promise<void> {
@@ -376,9 +393,11 @@ export class CallOwner {
     try {
       input.beforeSend?.();
       const current = await input.send(operationId, session.controller.signal);
-      if (ownsMutation() && (!input.callId || this.call?.id === input.callId)) {
+      const isMatchingCall =
+        !input.callId || (this.call?.id === input.callId && current.id === input.callId);
+      if (ownsMutation() && isMatchingCall) {
         session.retry = undefined;
-        this.applyCall(current);
+        this.applyCall(current, input.mediaIntent);
       }
     } catch (error) {
       if (!ownsMutation()) {
@@ -397,13 +416,14 @@ export class CallOwner {
       if (ownsMutation()) {
         session.version += 1;
         this.patch({ isBusy: false });
+        this.advanceMedia();
         // A read started before this command cannot confirm the state after it.
         void Promise.resolve(session.refresh).then(this.wake);
       }
     }
   }
 
-  private applyCall(current: CallView | null): void {
+  private applyCall(current: CallView | null, mediaIntent?: CallView['direction']): void {
     const previous = this.snapshot.call;
     if (current && previous?.id === current.id) {
       if (BigInt(current.revision) < BigInt(previous.revision)) {
@@ -423,20 +443,33 @@ export class CallOwner {
       }
       return;
     }
+
+    // Keep consent tied to a successful local mutation and this call's tab lease.
+    const hasMediaIntent =
+      mediaIntent === current.direction &&
+      (current.direction === 'outgoing' || isMediaPhase(current));
     if (this.call?.id !== current.id) {
       this.releaseCall();
       if (this.session) {
         this.session.lastCallId = current.id;
       }
-      const scope = { id: current.id, controller: new AbortController(), isJoining: false };
+      const scope = {
+        id: current.id,
+        controller: new AbortController(),
+        hasMediaIntent,
+        isJoining: false,
+      };
       this.call = scope;
       this.setSnapshot({ ...EMPTY_SNAPSHOT, call: current, isBusy: this.snapshot.isBusy });
       this.acquireTab(scope);
       return;
     }
 
+    if (hasMediaIntent) {
+      this.call.hasMediaIntent = true;
+    }
     this.patch({ call: current });
-    void this.joinMedia();
+    this.advanceMedia();
   }
 
   private clearCurrent(previous: CallView): void {
@@ -517,6 +550,7 @@ export class CallOwner {
             signal.addEventListener('abort', () => resolve(), { once: true });
           });
           this.patch({ ownsTab: true });
+          this.advanceMedia();
           await released;
         },
       })
@@ -532,6 +566,16 @@ export class CallOwner {
     this.call = undefined;
     scope?.media?.dispose();
     scope?.controller.abort();
+  }
+
+  private advanceMedia(): void {
+    const { call } = this.snapshot;
+    if (call && this.call?.hasMediaIntent && isMediaPhase(call)) {
+      void this.activateMedia();
+      return;
+    }
+
+    void this.joinMedia();
   }
 
   private async joinMedia(): Promise<void> {
@@ -595,7 +639,8 @@ export class CallOwner {
 
   private async failInitialMedia(error: unknown): Promise<void> {
     const scope = this.call;
-    if (!scope) {
+    const session = this.session;
+    if (!scope || !session) {
       return;
     }
 
@@ -607,7 +652,11 @@ export class CallOwner {
     if (actions?.includes('media_permission_denied')) {
       await this.command('media_permission_denied');
     }
-    if (!this.call || this.call === scope) {
+    const canShowError =
+      this.ownsSession(session) &&
+      session.lastCallId === scope.id &&
+      (!this.call || this.call === scope);
+    if (canShowError) {
       this.patch({ error: message });
     }
   }

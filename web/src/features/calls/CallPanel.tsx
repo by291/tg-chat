@@ -159,7 +159,7 @@ export function CallPanel({ owner, isChatOpen }: { owner: CallOwner; isChatOpen:
               className={styles.primary}
               type="button"
               disabled={isBusy}
-              onClick={() => void owner.command('accept')}
+              onClick={() => void owner.answer()}
             >
               Answer
             </button>

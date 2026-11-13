@@ -49,6 +49,7 @@ async function signIn(input: {
   expect(response.status()).toBe(route === 'register' ? 201 : 200);
   const session: { csrf_token: string } = await response.json();
   const page = await context.newPage();
+  page.setDefaultTimeout(MEDIA_TIMEOUT_MS);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
 
@@ -68,7 +69,7 @@ async function addContact(page: Page, peer: Identity) {
 }
 
 async function openRecipient(page: Page, peer: Identity) {
-  await findPeer(page, peer);
+  await addContact(page, peer);
   await button(page, 'Message').click();
   await expect(page.getByRole('heading', { name: peer.displayName, exact: true })).toBeVisible();
 
@@ -213,12 +214,7 @@ async function verifyFirstAnswer(input: { caller: Device; first: Device; second:
     firstAnswer.evaluate((element) => (element as HTMLButtonElement).click()),
     secondAnswer.evaluate((element) => (element as HTMLButtonElement).click()),
   ]);
-  const call = await waitForPhase(caller, 'connecting');
-  await expect
-    .poll(async () => (await currentCall(caller))?.is_room_ready, {
-      timeout: MEDIA_TIMEOUT_MS,
-    })
-    .toBe(true);
+  const call = await waitForPhase(caller, 'active');
   const [firstGrant, secondGrant] = await Promise.all([
     getCredentials(first, call),
     getCredentials(second, call),
@@ -227,11 +223,6 @@ async function verifyFirstAnswer(input: { caller: Device; first: Device; second:
   expect(statuses.sort()).toEqual([200, 403]);
   const winner = firstGrant.ok() ? first : second;
   const loser = firstGrant.ok() ? second : first;
-  await Promise.all([
-    button(caller.page, 'Enable microphone').click(),
-    button(winner.page, 'Enable microphone').click(),
-  ]);
-  await waitForPhase(caller, 'active');
   const grant: Credentials = await (firstGrant.ok() ? firstGrant : secondGrant).json();
 
   await expect(button(loser.page, 'Answer')).toBeHidden();
@@ -253,13 +244,8 @@ async function verifyVideo(input: { caller: Device; recipient: Device }) {
   const { caller, recipient } = input;
   await button(caller.page, 'Start video call').click();
   await button(recipient.page, 'Answer').click();
-  await Promise.all([
-    button(caller.page, 'Enable microphone and camera').click(),
-    button(recipient.page, 'Enable microphone and camera').click(),
-  ]);
   const call = await waitForPhase(caller, 'active');
   await Promise.all([expectRemoteVideo(caller.page), expectRemoteVideo(recipient.page)]);
-
   // Reload replaces the owning tab's media resources. Rejoining requires a new user gesture.
   await recipient.page.reload();
   await button(recipient.page, 'Enable microphone and camera').click();
@@ -280,9 +266,8 @@ async function verifyPermissionDenied(input: { caller: Device; recipient: Device
   await session.send('Browser.setPermission', { ...permission, setting: 'denied' });
   try {
     await button(caller.page, 'Start voice call').click();
+    const call = await waitForPhase(caller, 'ringing');
     await button(recipient.page, 'Answer').click();
-    const call = await waitForPhase(caller, 'connecting');
-    await button(recipient.page, 'Enable microphone').click();
     const permissionMessage = recipient.page.getByRole('alert');
     await expect(permissionMessage).toContainText('Microphone or camera permission was denied.');
     await expectOneHistoryEntry({

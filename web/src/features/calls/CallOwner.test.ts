@@ -25,6 +25,17 @@ const connecting: CallView = {
   is_room_ready: true,
 };
 
+const outgoing: CallView = {
+  ...incoming,
+  direction: 'outgoing',
+  allowed_actions: ['cancel'],
+};
+
+const outgoingConnecting: CallView = {
+  ...connecting,
+  direction: 'outgoing',
+};
+
 const cleanups: (() => void)[] = [];
 
 function deferred<Value>() {
@@ -37,10 +48,16 @@ function deferred<Value>() {
   return { promise, resolve: finish };
 }
 
-function setup(options: { transport?: Partial<CallTransport>; tabGrant?: Promise<void> } = {}) {
+function setup(
+  options: {
+    transport?: Partial<CallTransport>;
+    tabGrant?: Promise<void>;
+    initialCall?: CallView | null;
+  } = {},
+) {
   let ownsSession = true;
   let onSessionChange = () => {};
-  let current: CallView | null = incoming;
+  let current = options.initialCall === undefined ? incoming : options.initialCall;
   const transport: CallTransport = {
     current: async () => current,
     start: async () => incoming,
@@ -54,9 +71,10 @@ function setup(options: { transport?: Partial<CallTransport>; tabGrant?: Promise
     ...options.transport,
   };
   const join = vi.fn<CallMedia['join']>().mockResolvedValue(undefined);
+  const prepare = vi.fn<CallMedia['prepare']>().mockResolvedValue(undefined);
   const dispose = vi.fn();
   const media: CallMedia = {
-    prepare: async () => {},
+    prepare,
     join,
     dispose,
     setCamera: async () => {
@@ -87,6 +105,7 @@ function setup(options: { transport?: Partial<CallTransport>; tabGrant?: Promise
 
   return {
     owner,
+    prepare,
     join,
     dispose,
     logout() {
@@ -106,6 +125,177 @@ afterEach(() => {
 });
 
 describe('browser call ownership', () => {
+  it('connects after answering once the server grants this session the call', async () => {
+    const result = deferred<CallView>();
+    const { owner, prepare, replaceCurrent } = setup({
+      transport: { command: () => result.promise },
+    });
+    await owner.refresh();
+
+    const answer = owner.answer();
+    expect(prepare).not.toHaveBeenCalled();
+
+    const preparingRoom = { ...connecting, is_room_ready: false };
+    replaceCurrent(preparingRoom);
+    result.resolve(preparingRoom);
+    await answer;
+    await vi.waitFor(() => expect(owner.getSnapshot().mediaStatus).toBe('waiting'));
+
+    replaceCurrent(connecting);
+    await vi.waitFor(async () => {
+      await owner.refresh();
+      expect(owner.getSnapshot().call?.is_room_ready).toBe(true);
+    });
+    await vi.waitFor(() => expect(owner.getSnapshot().mediaStatus).toBe('connected'));
+    expect(prepare).toHaveBeenCalledWith('voice');
+  });
+
+  it('never opens devices when another recipient session wins the answer', async () => {
+    const result = deferred<CallView>();
+    const { owner, prepare, replaceCurrent } = setup({
+      transport: { command: () => result.promise },
+    });
+    await owner.refresh();
+
+    const answer = owner.answer();
+    replaceCurrent(null);
+    result.resolve({ ...connecting, allowed_actions: [], is_room_ready: false });
+    await answer;
+
+    expect(owner.getSnapshot().call).toBeUndefined();
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('never opens devices when the answer result arrives after logout', async () => {
+    const result = deferred<CallView>();
+    const { owner, logout, prepare } = setup({
+      transport: { command: () => result.promise },
+    });
+    await owner.refresh();
+
+    const answer = owner.answer();
+    logout();
+    result.resolve(connecting);
+    await answer;
+
+    expect(owner.getSnapshot().call).toBeUndefined();
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('ignores an answer result for a different call', async () => {
+    const { owner, prepare } = setup({
+      transport: { command: async () => ({ ...connecting, id: 'different-call' }) },
+    });
+    await owner.refresh();
+
+    await owner.answer();
+
+    expect(owner.getSnapshot().call?.id).toBe(incoming.id);
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('connects an explicitly started call after acceptance and tab ownership', async () => {
+    const lease = deferred<void>();
+    const { owner, prepare, replaceCurrent } = setup({
+      transport: { start: async () => outgoing },
+      tabGrant: lease.promise,
+      initialCall: null,
+    });
+    await owner.refresh();
+
+    replaceCurrent(outgoing);
+    await owner.start({ conversationId: outgoing.conversation_id, mode: outgoing.mode });
+    expect(prepare).not.toHaveBeenCalled();
+
+    replaceCurrent(outgoingConnecting);
+    await vi.waitFor(async () => {
+      await owner.refresh();
+      expect(owner.getSnapshot().call?.phase).toBe('connecting');
+    });
+    expect(prepare).not.toHaveBeenCalled();
+
+    lease.resolve(undefined);
+    await vi.waitFor(() => expect(owner.getSnapshot().mediaStatus).toBe('connected'));
+    expect(prepare).toHaveBeenCalledOnce();
+  });
+
+  it('does not open devices if the peer answers while the caller is canceling', async () => {
+    const result = deferred<CallView>();
+    const { owner, prepare, replaceCurrent } = setup({
+      transport: { start: async () => outgoing, command: () => result.promise },
+      initialCall: null,
+    });
+    await owner.refresh();
+    replaceCurrent(outgoing);
+    await owner.start({ conversationId: outgoing.conversation_id, mode: outgoing.mode });
+    expect(owner.getSnapshot().ownsTab).toBe(true);
+
+    const cancel = owner.command('cancel');
+    replaceCurrent(outgoingConnecting);
+    result.resolve(outgoingConnecting);
+    await cancel;
+
+    expect(owner.getSnapshot().call?.phase).toBe('connecting');
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('requires explicit rejoin after an automatic media join fails', async () => {
+    const { owner, join, prepare, dispose, replaceCurrent } = setup();
+    join.mockRejectedValueOnce(new Error('The connection failed.'));
+    await owner.refresh();
+
+    replaceCurrent(connecting);
+    await owner.answer();
+    await vi.waitFor(() => expect(owner.getSnapshot().error).toMatch(/joining/i));
+    expect(dispose).toHaveBeenCalledOnce();
+
+    await owner.refresh();
+    expect(owner.getSnapshot().mediaStatus).toBe('idle');
+    expect(prepare).toHaveBeenCalledOnce();
+
+    await owner.activateMedia();
+    expect(owner.getSnapshot().mediaStatus).toBe('connected');
+  });
+
+  it('does not display a device error after logout during the failure report', async () => {
+    const result = deferred<CallView>();
+    const command = vi.fn<CallTransport['command']>();
+    command.mockResolvedValueOnce(connecting);
+    command.mockReturnValueOnce(result.promise);
+    const { owner, prepare, logout, replaceCurrent } = setup({ transport: { command } });
+    prepare.mockRejectedValueOnce(new DOMException('Permission denied.', 'NotAllowedError'));
+    await owner.refresh();
+
+    replaceCurrent(connecting);
+    await owner.answer();
+    await vi.waitFor(() => expect(command).toHaveBeenCalledTimes(2));
+    expect(command.mock.calls[1]?.[0].action).toBe('media_permission_denied');
+
+    logout();
+    result.resolve({
+      ...connecting,
+      phase: 'ended',
+      revision: '3',
+      allowed_actions: [],
+      end_reason: 'permission_denied',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(owner.getSnapshot().error).toBeUndefined();
+  });
+
+  it('requires explicit rejoin for an outgoing call restored from the server', async () => {
+    const { owner, prepare } = setup({
+      transport: { current: async () => outgoingConnecting },
+    });
+    await owner.refresh();
+
+    expect(owner.getSnapshot().mediaStatus).toBe('idle');
+    expect(prepare).not.toHaveBeenCalled();
+
+    await owner.activateMedia();
+    expect(owner.getSnapshot().mediaStatus).toBe('connected');
+  });
+
   it('dismisses ringing when a different recipient session wins', async () => {
     const { owner, replaceCurrent } = setup();
     await owner.refresh();
