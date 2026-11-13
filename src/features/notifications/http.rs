@@ -73,6 +73,7 @@ async fn unsubscribe(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Mount the notification capability and session subscription endpoints.
 pub(crate) fn routes() -> Router<AccountHttpState> {
     let router = Router::new().route("/notifications/capability", get(capability));
     router.route("/notifications/subscription", put(subscribe).delete(unsubscribe))

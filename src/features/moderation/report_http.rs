@@ -138,8 +138,8 @@ async fn case_original(
 
 /// Mount authenticated report admission and restricted operator evidence routes.
 pub(crate) fn router() -> Router<AccountHttpState> {
-    Router::new()
-        .route("/messages/{message_id}/reports", post(report_message))
+    let routes = Router::new().route("/messages/{message_id}/reports", post(report_message));
+    routes
         .route("/operator/cases", get(cases))
         .route("/operator/cases/{case_id}", get(case_detail))
         .route("/operator/cases/{case_id}/attachments/{occurrence_id}", get(case_original))

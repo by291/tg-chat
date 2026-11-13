@@ -417,12 +417,20 @@ async fn filtered_history_applies_kind_and_pin_visibility_to_both_edges(pool: Pg
     let newer = send_text(&service, outgoing("https://example.com/newer")).await;
     let unrelated = send_text(&service, outgoing("Pinned without a link")).await;
     send_text(&service, outgoing("https://example.com/unpinned")).await;
-    for (message_id, is_pinned) in
-        [(older.message.id, true), (newer.message.id, true), (unrelated.message.id, true)]
-    {
+    #[rustfmt::skip]
+    let pinned_messages = [
+        older.message.id,
+        newer.message.id,
+        unrelated.message.id,
+    ];
+    for message_id in pinned_messages {
         let pin = command(
             older.conversation.id,
-            json!({"kind": "pin", "message_id": message_id, "is_pinned": is_pinned}),
+            json!({
+                "kind": "pin",
+                "message_id": message_id,
+                "is_pinned": true,
+            }),
         );
         service.command(alice.clone(), pin).await.unwrap();
     }

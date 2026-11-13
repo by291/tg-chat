@@ -132,15 +132,16 @@ impl EmailService {
         let user = self.lock_user(&mut transaction, snapshot.user_id).await?;
         let challenge = self.lock_challenge(&mut transaction, snapshot.id).await?;
         ensure_challenge(&challenge, &user, "verification")?;
-        sqlx::query(
+
+        let update = sqlx::query(
             "UPDATE users SET verified_email = $1, email_version = email_version + 1,
              profile_version = profile_version + 1 WHERE id = $2",
         )
         .bind(&challenge.target_email)
-        .bind(user.id)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|error| {
+        .bind(user.id);
+        let result = update.execute(&mut *transaction).await;
+        // The unique constraint arbitrates accounts racing to verify the same address.
+        result.map_err(|error| {
             if error.as_database_error().is_some_and(|error| error.is_unique_violation()) {
                 return AccountError::EmailUnavailableForAccount;
             }
@@ -277,6 +278,8 @@ impl EmailService {
     ) -> Result<(), AccountError> {
         let token = random_token()?;
         let id = Uuid::new_v4();
+
+        // Only the latest link for this purpose may authorize an account change.
         sqlx::query(
             "UPDATE email_challenges SET consumed_at = now()
              WHERE user_id = $1 AND purpose = $2 AND consumed_at IS NULL",
@@ -285,6 +288,7 @@ impl EmailService {
         .bind(intent.purpose)
         .execute(&mut *connection)
         .await?;
+
         let insert = sqlx::query(
             "INSERT INTO email_challenges (id, user_id, purpose, target_email, token_hash,
              credential_version, email_version, expires_at)
@@ -295,18 +299,22 @@ impl EmailService {
         let insert = insert.bind(intent.purpose).bind(intent.email).bind(challenge_hash(&token));
         let insert = insert.bind(intent.user.credential_version).bind(intent.user.email_version);
         insert.bind(CHALLENGE_MINUTES).execute(&mut *connection).await?;
+
         let (route, subject) = match intent.purpose {
             "verification" => ("verify-email", "Verify your TG Chat email"),
             _ => ("reset-password", "Reset your TG Chat password"),
         };
         let link = format!("{}/account/{route}#token={token}", self.queue.origin);
+        let expires_in_minutes = CHALLENGE_MINUTES;
         let message = OutgoingMail {
             recipient: intent.email.to_owned(),
             subject: subject.to_owned(),
             body: format!(
-                "Open this link within 15 minutes:\n{link}\n\nIf you did not request it, ignore this message."
+                "Open this link within {expires_in_minutes} minutes:\n{link}\n\nIf you did not request it, ignore this message."
             ),
         };
+
+        // Use the same transaction so the Worker only sees mail with a committed challenge.
         self.queue
             .enqueue(
                 connection,

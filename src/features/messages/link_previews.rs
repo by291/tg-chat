@@ -116,14 +116,11 @@ fn plain_url(text: &str) -> Option<&str> {
         });
 
         // Remove matching prose wrappers while preserving balanced parentheses within a URL.
-        let candidate = if word.starts_with('(') {
-            candidate.strip_suffix(')').unwrap_or(candidate)
-        } else if word.starts_with('[') {
-            candidate.strip_suffix(']').unwrap_or(candidate)
-        } else if word.starts_with('{') {
-            candidate.strip_suffix('}').unwrap_or(candidate)
-        } else {
-            candidate
+        let candidate = match word.chars().next() {
+            Some('(') => candidate.strip_suffix(')').unwrap_or(candidate),
+            Some('[') => candidate.strip_suffix(']').unwrap_or(candidate),
+            Some('{') => candidate.strip_suffix('}').unwrap_or(candidate),
+            _ => candidate,
         };
 
         if let Some(url) = eligible_url(candidate) {

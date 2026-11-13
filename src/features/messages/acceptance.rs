@@ -103,7 +103,7 @@ pub(crate) async fn reconcile(
     Ok(Some(receipt(connection, check.actor.user_id, identity.id).await?))
 }
 
-/// Store identity, message, personal summary, receipt, and feed intent in the caller's transaction.
+/// Persist the accepted message and its derived state in the caller's transaction.
 pub(crate) async fn insert(
     connection: &mut PgConnection,
     message: NewMessage<'_>,

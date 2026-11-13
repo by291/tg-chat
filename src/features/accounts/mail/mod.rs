@@ -117,6 +117,7 @@ impl MailQueue {
         if !self.is_enabled() {
             return Ok(None);
         }
+
         // A crash during the final attempt must not create an unbounded sixth delivery attempt.
         sqlx::query(
             "UPDATE mail_jobs SET status = 'exhausted', finished_at = now(),
@@ -126,6 +127,7 @@ impl MailQueue {
         .bind(MAX_ATTEMPTS)
         .execute(&self.pool)
         .await?;
+
         let claim = sqlx::query_as::<_, MailClaim>(
             "WITH candidate AS (
                 SELECT id FROM mail_jobs

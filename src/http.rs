@@ -82,6 +82,7 @@ impl utoipa::Modify for AccountApi {
     }
 }
 
+/// Serialize error details using the shared HTTP error envelope.
 pub(crate) fn error_response(status: StatusCode, details: ErrorDetails) -> Response {
     (
         status,

@@ -202,6 +202,8 @@ impl AccountService {
         let mut transaction = self.pool.begin().await?;
         let operator = authorize_operator(&mut transaction, actor, &self.settings).await?;
         let case = lock_case(&mut transaction, case_id).await?;
+
+        // The case lock wait can outlast the session or its recent authentication window.
         authorize_operator(&mut transaction, actor, &self.settings).await?;
         let evidence = current_evidence(&mut transaction, case_id).await?;
 

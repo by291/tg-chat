@@ -73,11 +73,8 @@ pub(crate) struct VerifiedRoomEvent {
 }
 
 fn required<'a>(values: &'a HashMap<String, String>, key: &str) -> Result<&'a str, AccountError> {
-    values
-        .get(key)
-        .filter(|value| !value.is_empty())
-        .map(String::as_str)
-        .ok_or(INVALID_CONFIGURATION)
+    let value = values.get(key).filter(|value| !value.is_empty());
+    value.map(String::as_str).ok_or(INVALID_CONFIGURATION)
 }
 
 fn has_plain_origin(url: &Url) -> bool {
@@ -154,7 +151,11 @@ impl LiveKit {
             &settings.api_key,
             &settings.api_secret,
         );
-        let client = client.with_failover(false).with_request_timeout(PROVIDER_REQUEST_TIMEOUT);
+        // Room operations must stay on the configured provider endpoint.
+        let is_failover_enabled = false;
+        let client = client
+            .with_failover(is_failover_enabled)
+            .with_request_timeout(PROVIDER_REQUEST_TIMEOUT);
         let verifier = TokenVerifier::with_api_key(&settings.api_key, &settings.api_secret);
 
         Ok(Some(Self {

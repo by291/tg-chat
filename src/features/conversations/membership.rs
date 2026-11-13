@@ -27,7 +27,7 @@ pub(crate) async fn role(
     query.fetch_optional(connection).await?.ok_or(AccountError::NotFound.into())
 }
 
-/// Require an active owner or administrator after the conversation lock has serialized role changes.
+/// Require an active manager under the conversation lock that serializes role changes.
 pub(crate) async fn require_manager(
     connection: &mut PgConnection,
     context: &CommunityContext<'_>,
@@ -45,19 +45,18 @@ pub(crate) async fn admit(
     community: &CommunityRecord,
     user_id: Uuid,
 ) -> Result<(), AcceptanceError> {
-    let prohibited: bool = sqlx::query_scalar(
+    let query = sqlx::query_scalar(
         "SELECT is_suspended OR EXISTS (SELECT 1 FROM conversation_members
              WHERE conversation_id = $1 AND user_id = $2 AND is_banned)
          FROM users WHERE id = $2",
     )
     .bind(community.id)
-    .bind(user_id)
-    .fetch_optional(&mut *connection)
-    .await?
-    .unwrap_or(true);
-    if prohibited {
+    .bind(user_id);
+    let is_prohibited = query.fetch_optional(&mut *connection).await?.unwrap_or(true);
+    if is_prohibited {
         return Err(AccountError::ConversationUnavailable.into());
     }
+
     match role(connection, community.id, user_id).await {
         Ok(_) => return Ok(()),
         Err(AcceptanceError::Business(AccountError::NotFound)) => {}

@@ -60,6 +60,13 @@ struct DownloadObject {
     mime_type: String,
 }
 
+struct UploadObjectQuery<'a> {
+    connection: &'a mut PgConnection,
+    actor: &'a Actor,
+    upload_id: Uuid,
+    variant: MediaVariant,
+}
+
 fn disposition(file_name: &str, variant: MediaVariant) -> String {
     if variant != MediaVariant::Original {
         return "inline".to_owned();
@@ -137,22 +144,20 @@ async fn avatar_object(
 }
 
 async fn upload_object(
-    connection: &mut PgConnection,
-    actor: &Actor,
-    upload_id: Uuid,
-    variant: MediaVariant,
+    input: UploadObjectQuery<'_>,
 ) -> Result<Option<DownloadObject>, sqlx::Error> {
     let mut statement = QueryBuilder::new(DOWNLOAD_PREFIX);
     statement.push(" WHERE file.deleting_at IS NULL AND file.deleted_at IS NULL AND upload.id = ");
-    statement.push_bind(upload_id);
-    statement.push(" AND upload.owner_id = ").push_bind(actor.user_id);
-    statement.push(" AND upload.session_id = ").push_bind(actor.session_id);
+    statement.push_bind(input.upload_id);
+    statement.push(" AND upload.owner_id = ").push_bind(input.actor.user_id);
+    statement.push(" AND upload.session_id = ").push_bind(input.actor.session_id);
+
     // Once published, this file can be read only through its current live reference.
     statement.push(" AND upload.state = 'ready' AND file.ready_until > now()");
-    statement.push(" AND variant.kind = ").push_bind(variant);
+    statement.push(" AND variant.kind = ").push_bind(input.variant);
     statement.push(" AND (upload.purpose <> 'avatar' OR variant.kind = 'thumbnail')");
 
-    statement.build_query_as().fetch_optional(connection).await
+    statement.build_query_as().fetch_optional(input.connection).await
 }
 
 impl UploadService {
@@ -177,7 +182,13 @@ impl UploadService {
                 upload_id,
                 variant,
             } => {
-                let object = upload_object(&mut transaction, actor, upload_id, variant).await?;
+                let query = UploadObjectQuery {
+                    connection: &mut transaction,
+                    actor,
+                    upload_id,
+                    variant,
+                };
+                let object = upload_object(query).await?;
                 (object, variant)
             }
         };

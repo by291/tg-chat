@@ -191,10 +191,11 @@ async fn storage(
 
 /// Build the authenticated operator console routes inside the existing browser boundary.
 pub(crate) fn router() -> Router<AccountHttpState> {
-    Router::new()
+    let routes = Router::new()
         .route("/operator/commands", post(operator_command))
         .route("/operator/accounts", get(operator_accounts))
-        .route("/operator/communities", get(operator_communities))
+        .route("/operator/communities", get(operator_communities));
+    routes
         .route("/operator/jobs", get(operator_jobs))
         .route("/operator/storage/{user_id}", get(storage))
 }

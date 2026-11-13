@@ -45,6 +45,7 @@ pub(super) struct ProviderTransport {
     subject: String,
 }
 
+/// Validate a subscription's uncompressed P-256 public key.
 pub(super) fn valid_public_key(bytes: &[u8]) -> bool {
     bytes.len() == PUBLIC_KEY_BYTES && PublicKey::from_sec1_bytes(bytes).is_ok()
 }
@@ -54,14 +55,13 @@ fn invalid_endpoint() -> AccountError {
 }
 
 impl EndpointPolicy {
+    /// Load the configured provider hosts or use the built-in provider policy.
     pub(super) fn from_values(values: &HashMap<String, String>) -> Self {
         let configured =
             values.get("TG_CHAT_PUSH_PROVIDER_HOSTS").filter(|value| !value.trim().is_empty());
         let configured_hosts = configured.map(|value| {
-            value
-                .split(',')
-                .map(str::trim)
-                .map(str::to_ascii_lowercase)
+            let normalized_hosts = value.split(',').map(str::trim).map(str::to_ascii_lowercase);
+            normalized_hosts
                 .filter(|domain| is_public_host(&Host::Domain(domain.as_str())))
                 .collect()
         });
@@ -71,6 +71,7 @@ impl EndpointPolicy {
         }
     }
 
+    /// Accept a subscription endpoint only if it matches the provider and HTTPS policy.
     pub(super) fn parse(&self, endpoint: &str) -> Result<Url, AccountError> {
         if endpoint.len() > ENDPOINT_LENGTH {
             return Err(invalid_endpoint());
@@ -152,6 +153,7 @@ fn provider_outcome(status: reqwest::StatusCode) -> PushOutcome {
 }
 
 impl ProviderTransport {
+    /// Enable Web Push delivery when the configured VAPID key pair and subject are valid.
     pub(super) fn from_values(values: &HashMap<String, String>) -> Option<Self> {
         let public_key = values.get("TG_CHAT_PUSH_VAPID_PUBLIC_KEY")?;
         let private_key = values.get("TG_CHAT_PUSH_VAPID_PRIVATE_KEY")?;
@@ -162,10 +164,10 @@ impl ProviderTransport {
         let key_pair = ES256KeyPair::from_bytes(&private_key).ok()?;
         let derived_public = key_pair.public_key().to_bytes();
         let derived_public = PublicKey::from_sec1_bytes(&derived_public).ok()?;
-        let derived_public = derived_public.to_encoded_point(false);
-        if URL_SAFE_NO_PAD.encode(derived_public.as_bytes()) != *public_key
-            || !valid_subject(subject)
-        {
+        let is_compressed = false;
+        let derived_public = derived_public.to_encoded_point(is_compressed);
+        let is_matching_key = URL_SAFE_NO_PAD.encode(derived_public.as_bytes()) == *public_key;
+        if !is_matching_key || !valid_subject(subject) {
             return None;
         }
 

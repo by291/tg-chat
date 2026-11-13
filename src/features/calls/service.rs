@@ -187,6 +187,8 @@ impl CallService {
         .await?;
         let result = view(&mut transaction, actor, &call).await?;
         transaction.commit().await?;
+
+        // Clients may read the call as soon as they receive the hint.
         publish_hint(self.realtime.as_ref(), &call).await;
 
         Ok(result)
@@ -248,6 +250,8 @@ impl CallService {
         .await?;
         let result = view(&mut transaction, actor, &call).await?;
         transaction.commit().await?;
+
+        // Publish after commit so clients can read the announced revision immediately.
         if call.revision != original_revision {
             publish_hint(self.realtime.as_ref(), &call).await;
         }

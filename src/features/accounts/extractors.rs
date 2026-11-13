@@ -201,11 +201,9 @@ where
         request: Request,
         state: &AccountHttpState,
     ) -> Result<Self, Self::Rejection> {
-        let identifier = request
-            .extensions()
-            .get::<RequestId>()
-            .map(|identifier| identifier.0.clone())
-            .unwrap_or_default();
+        let request_id = request.extensions().get::<RequestId>();
+        let identifier = request_id.map(|identifier| identifier.0.clone()).unwrap_or_default();
+
         let parsed = Json::<T>::from_request(request, state).await;
         let Json(payload) = parsed.map_err(|_| ApiFailure {
             error: AccountError::Validation("a valid JSON request body is required"),

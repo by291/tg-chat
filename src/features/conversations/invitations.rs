@@ -92,6 +92,7 @@ async fn join(
     else {
         return Err(AccountError::Validation("expected a join action").into());
     };
+
     match membership::role(connection, context.community.id, context.actor.user_id).await {
         Ok(_) => return Ok(()),
         Err(AcceptanceError::Business(AccountError::NotFound)) => {}
@@ -108,31 +109,33 @@ async fn join(
     if is_banned || (token.is_some() && invitation_id.is_some()) {
         return Err(AccountError::NotFound.into());
     }
+
     let invitation_id = if let Some(token) = token {
         let query = sqlx::query_scalar::<_, Uuid>(
             "SELECT id FROM community_invitations WHERE conversation_id = $1 AND token_hash = $2",
-        )
-        .bind(context.community.id)
-        .bind(token_hash(token)?);
-        Some(query.fetch_optional(&mut *connection).await?.ok_or(AccountError::NotFound)?)
+        );
+        let query = query.bind(context.community.id).bind(token_hash(token)?);
+        let found = query.fetch_optional(&mut *connection).await?;
+
+        Some(found.ok_or(AccountError::NotFound)?)
     } else if let Some(invitation_id) = invitation_id {
         // A link identifier is not its bearer secret; only targeted invitations accept an ID.
-        let targeted: bool = sqlx::query_scalar(
+        let lookup = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM community_invitations WHERE id = $1
              AND conversation_id = $2 AND target_id = $3)",
-        )
-        .bind(invitation_id)
-        .bind(context.community.id)
-        .bind(context.actor.user_id)
-        .fetch_one(&mut *connection)
-        .await?;
-        if !targeted {
+        );
+        let lookup = lookup.bind(invitation_id).bind(context.community.id);
+        let lookup = lookup.bind(context.actor.user_id);
+        let is_targeted: bool = lookup.fetch_one(&mut *connection).await?;
+        if !is_targeted {
             return Err(AccountError::NotFound.into());
         }
+
         Some(*invitation_id)
     } else {
         None
     };
+
     let admission = Admission {
         community: context.community,
         user_id: context.actor.user_id,
@@ -140,9 +143,12 @@ async fn join(
     };
     let invitation = invitation(connection, &admission).await?;
     let is_direct_invitation = invitation.as_ref().is_some_and(|invite| invite.target_id.is_some());
+
+    // A targeted invitation is already an explicit approval for this account.
     if !context.community.requires_approval || is_direct_invitation {
         return admit(connection, &admission).await;
     }
+
     let count: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM community_join_requests request
          JOIN users account ON account.id = request.user_id
@@ -156,6 +162,7 @@ async fn join(
     if count >= MAX_PENDING_REQUESTS {
         return Err(AccountError::QuotaExceeded.into());
     }
+
     let request = sqlx::query(
         "INSERT INTO community_join_requests (conversation_id, user_id, invitation_id)
          VALUES ($1, $2, $3) ON CONFLICT (conversation_id, user_id)
@@ -165,6 +172,7 @@ async fn join(
     .bind(context.actor.user_id)
     .bind(invitation_id);
     request.execute(connection).await?;
+
     Ok(())
 }
 
@@ -192,20 +200,19 @@ async fn create(
         .into());
     }
     if let Some(target_id) = target_id {
-        let permitted: bool = sqlx::query_scalar(
+        let query = sqlx::query_scalar(
             "SELECT NOT is_suspended AND NOT EXISTS (SELECT 1 FROM blocks
                 WHERE (owner_id = $1 AND target_id = $2) OR (owner_id = $2 AND target_id = $1))
              FROM users WHERE id = $1",
         )
         .bind(target_id)
-        .bind(context.actor.user_id)
-        .fetch_optional(&mut *connection)
-        .await?
-        .unwrap_or(false);
-        if !permitted {
+        .bind(context.actor.user_id);
+        let is_permitted = query.fetch_optional(&mut *connection).await?.unwrap_or(false);
+        if !is_permitted {
             return Err(AccountError::ConversationUnavailable.into());
         }
     }
+
     let count: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM community_invitations invitation
          JOIN users creator ON creator.id = invitation.created_by

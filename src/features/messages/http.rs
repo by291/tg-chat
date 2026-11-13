@@ -325,13 +325,15 @@ pub(crate) fn router() -> Router<AccountHttpState> {
         Router::new().route("/chat/bootstrap", get(bootstrap)).route("/chat/sync", get(sync));
     let routes =
         routes.route("/messages", post(send)).route("/messages/{message_id}", get(message));
-    routes
+    let routes = routes
         .route("/chat/commands", post(command))
         .route("/chat/search", get(search))
-        .route("/chat/link-preview", post(link_preview))
+        .route("/chat/link-preview", post(link_preview));
+    let routes = routes
         .route("/messages/forward", post(forward))
         .route("/messages/{message_id}/read-time", get(read_time))
-        .route("/messages/{message_id}/poll/voters", get(poll_voters))
+        .route("/messages/{message_id}/poll/voters", get(poll_voters));
+    routes
         .route("/conversations/{conversation_id}/history", get(history))
         .layer(DefaultBodyLimit::max(MAX_MESSAGE_BODY_BYTES))
 }

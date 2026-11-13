@@ -37,7 +37,8 @@ async fn admit(
 fn signaling_token(headers: &HeaderMap) -> Option<String> {
     // Caddy supplies the original URI to its internal auth subrequest.
     let mut forwarded = headers.get_all(FORWARDED_URI).iter();
-    let original = forwarded.next()?.to_str().ok()?.parse::<Uri>().ok()?;
+    let header = forwarded.next()?.to_str().ok()?;
+    let original = header.parse::<Uri>().ok()?;
     if forwarded.next().is_some() || original.authority().is_some() {
         return None;
     }

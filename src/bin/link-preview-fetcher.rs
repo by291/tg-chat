@@ -119,7 +119,8 @@ mod tests {
         let response = send_preview(app, REQUEST).await;
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body = response.into_body().collect().await.unwrap();
+        let body = body.to_bytes();
         assert!(!String::from_utf8_lossy(&body).contains("127.0.0.1/private"));
     }
 

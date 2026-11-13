@@ -17,7 +17,7 @@ pub(crate) struct ReplySourceQuery {
     pub message_id: Uuid,
 }
 
-/// Resolve the currently visible source and deadline shared by message and draft reply projections.
+/// Resolve the visible reply source and deadline for message and draft projections.
 pub(crate) async fn reply_source(
     connection: &mut PgConnection,
     query: ReplySourceQuery,
