@@ -32,6 +32,10 @@ deployment with available registration rate budget. The root `node scripts/check
 command provisions that complete environment and runs account and messaging browser checks and
 committed-response-loss recovery; see [backend development](../../docs/development.md).
 
+The connected Playwright configuration exposes a project for each suite. Use the `pnpm test:*`
+commands to select one project at a time. The Compose runner resets the disposable admission budget
+and applies the service settings each phase needs before invoking its project.
+
 Use the existing Prettier configuration. Text files use LF on Windows, macOS, and Linux through
 Git attributes, EditorConfig, and Prettier; no global Git setting is needed. Binary assets are not
 normalized. Root Markdown can be checked from `web/` with:
