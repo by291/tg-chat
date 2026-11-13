@@ -1,4 +1,4 @@
-//! Bounded message expiry and scheduled poll closure.
+//! Bounded message expiry, scheduled poll closure, and command receipt retention.
 
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -14,6 +14,25 @@ use crate::features::{
     },
     sync::changes::{self, ChangeGroup},
 };
+
+const COMMAND_RECEIPT_RETENTION_DAYS: i32 = 7;
+
+/// Remove a bounded batch of old command receipts while preserving durable send identities.
+pub(crate) async fn prune_command_receipts(
+    pool: &PgPool,
+    limit: i64,
+) -> Result<bool, AccountError> {
+    let delete = sqlx::query(
+        "DELETE FROM command_receipts WHERE (actor_id, operation_id) IN (
+            SELECT actor_id, operation_id FROM command_receipts
+            WHERE created_at < now() - $1 * interval '1 day'
+            ORDER BY created_at LIMIT $2)",
+    );
+    let delete = delete.bind(COMMAND_RECEIPT_RETENTION_DAYS).bind(limit);
+    let deleted = delete.execute(pool).await?;
+
+    Ok(deleted.rows_affected() > 0)
+}
 
 /// Expire one message while preserving the conversation/account/feed lock order used by writes.
 pub async fn expire_one(pool: &PgPool) -> Result<bool, AccountError> {

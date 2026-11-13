@@ -1,6 +1,6 @@
 //! Schedule bounded work across backend features.
 
-use std::time::Duration;
+use std::{future::Future, time::Duration};
 
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
@@ -18,7 +18,7 @@ use crate::features::{
 };
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
-const BATCH_SIZE: usize = 8;
+const BATCH_SIZE: u32 = 8;
 
 pub struct WorkerServices {
     pub pool: PgPool,
@@ -26,39 +26,35 @@ pub struct WorkerServices {
     pub idle_days: i64,
 }
 
-async fn maintenance_batch(pool: &PgPool) -> Result<(), AccountError> {
-    for _ in 0..BATCH_SIZE {
-        if !maintenance::expire_one(pool).await? {
-            break;
+async fn run_maintenance_task<Step>(task: &'static str, budget: u32, mut step: impl FnMut() -> Step)
+where
+    Step: Future<Output = Result<bool, AccountError>>,
+{
+    for _ in 0..budget {
+        match step().await {
+            Ok(true) => {}
+            Ok(false) => break,
+            Err(_) => {
+                tracing::warn!(task, "maintenance_task_unavailable");
+                break;
+            }
         }
     }
-    for _ in 0..BATCH_SIZE {
-        if !maintenance::close_due_poll(pool).await? {
-            break;
-        }
-    }
-    for _ in 0..BATCH_SIZE {
-        if !evidence::expire_one(pool).await? {
-            break;
-        }
-    }
-    for _ in 0..BATCH_SIZE {
-        if !cleanup_deleted_account(pool).await? {
-            break;
-        }
-    }
-    retention::prune_one(pool).await?;
-    // General command receipts are bounded separately from permanent send identity bindings.
-    sqlx::query(
-        "DELETE FROM command_receipts WHERE (actor_id, operation_id) IN (
-            SELECT actor_id, operation_id FROM command_receipts
-            WHERE created_at < now() - interval '7 days' ORDER BY created_at LIMIT $1)",
-    )
-    .bind(BATCH_SIZE as i64)
-    .execute(pool)
-    .await?;
+}
 
-    Ok(())
+async fn maintenance_batch(pool: &PgPool) {
+    // A failing feature ends only its own batch so later retention work can still progress.
+    run_maintenance_task("message_expiry", BATCH_SIZE, || maintenance::expire_one(pool)).await;
+    run_maintenance_task("poll_closure", BATCH_SIZE, || maintenance::close_due_poll(pool)).await;
+
+    run_maintenance_task("evidence_expiry", BATCH_SIZE, || evidence::expire_one(pool)).await;
+    run_maintenance_task("account_cleanup", BATCH_SIZE, || cleanup_deleted_account(pool)).await;
+
+    run_maintenance_task("sync_retention", 1, || retention::prune_one(pool)).await;
+    run_maintenance_task("command_receipt_retention", 1, || {
+        maintenance::prune_command_receipts(pool, i64::from(BATCH_SIZE))
+    })
+    .await;
 }
 
 async fn maintenance_loop(pool: &PgPool, stop: CancellationToken) {
@@ -67,11 +63,7 @@ async fn maintenance_loop(pool: &PgPool, stop: CancellationToken) {
     loop {
         tokio::select! {
             _ = stop.cancelled() => break,
-            _ = interval.tick() => {
-                if maintenance_batch(pool).await.is_err() {
-                    tracing::warn!("message_maintenance_unavailable");
-                }
-            }
+            _ = interval.tick() => maintenance_batch(pool).await,
         }
     }
 }
