@@ -1,5 +1,6 @@
-import { Phone, PhoneOff, Video, X } from 'lucide-react';
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { Maximize2, Minimize2, Phone, PhoneOff, Video, X } from 'lucide-react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { Avatar } from '@/components/Avatar';
 import type { CallOwner } from './CallOwner';
 import type { CallVideo, CallView, DeviceKind, MediaStatus } from './callModels';
 import styles from './CallPanel.module.css';
@@ -12,6 +13,13 @@ const MEDIA_STATUS: Record<MediaStatus, string> = {
   connected: 'Connected',
   reconnecting: 'Reconnecting…',
 };
+
+type CallSnapshot = ReturnType<CallOwner['getSnapshot']>;
+
+interface CallPanelProps {
+  owner: CallOwner;
+  isChatOpen: boolean;
+}
 
 function callTitle(call: CallView): string {
   if (call.phase === 'ringing') {
@@ -41,6 +49,7 @@ function CallVideoTile({ video }: { video: CallVideo }) {
       ref={element}
       aria-label={video.isLocal ? 'Your camera' : 'Peer camera'}
       className={styles.video}
+      data-local={video.isLocal || undefined}
       autoPlay
       playsInline
       muted
@@ -87,30 +96,66 @@ function DevicePicker({
 }
 
 /** Keep the call accessible from any authenticated workspace page. */
-export function CallPanel({ owner, isChatOpen }: { owner: CallOwner; isChatOpen: boolean }) {
+export function CallPanel({ owner, isChatOpen }: CallPanelProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
-  const { call, ownsTab, isBusy, error, mediaStatus } = snapshot;
+  const { call, isBusy, error } = snapshot;
+
   if (!call && !error && !isBusy) {
     return null;
   }
 
+  return (
+    <CallPanelContents key={call?.id} snapshot={snapshot} owner={owner} isChatOpen={isChatOpen} />
+  );
+}
+
+function CallPanelContents({
+  snapshot,
+  owner,
+  isChatOpen,
+}: CallPanelProps & { snapshot: CallSnapshot }) {
+  const detailsId = useId();
+  const [isMinimized, setIsMinimized] = useState(false);
+  const { call, ownsTab, isBusy, error, mediaStatus } = snapshot;
   const isElsewhere = call && !ownsTab;
   const title = call && !isElsewhere ? callTitle(call) : 'Call';
   const status = call?.reconnect_deadline ? MEDIA_STATUS.reconnecting : MEDIA_STATUS[mediaStatus];
-  const canControlMedia = mediaStatus === 'connected' && !snapshot.isMediaControlBusy;
   const isRinging = call?.phase === 'ringing';
   const isIncoming = isRinging && call.direction === 'incoming';
-  const canJoin = ownsTab && !isRinging && call && mediaStatus === 'idle';
-  const canHangup = ownsTab && call?.allowed_actions.includes('hangup');
+  const canCollapse = ownsTab && Boolean(call?.allowed_actions.includes('hangup'));
+  const isCollapsed = canCollapse && isMinimized;
+  const ToggleIcon = isCollapsed ? Maximize2 : Minimize2;
   const Icon = call?.mode === 'video' ? Video : Phone;
+
   return (
-    <section className={styles.panel} aria-label="Call" data-chat-open={isChatOpen || undefined}>
+    <section
+      className={styles.panel}
+      aria-label="Call"
+      data-chat-open={isChatOpen || undefined}
+      data-collapsed={isCollapsed || undefined}
+    >
       <div className={styles.heading}>
-        <Icon size={20} aria-hidden="true" />
-        <div>
+        {call && !isCollapsed ? (
+          <Avatar initials={call.peer_display_name.slice(0, 2).toUpperCase()} />
+        ) : (
+          <Icon size={20} aria-hidden="true" />
+        )}
+        <div className={styles.identity}>
           <h2 aria-live="polite">{title}</h2>
           {call && <p>{call.peer_display_name}</p>}
         </div>
+        {canCollapse && (
+          <button
+            className={styles.toggle}
+            type="button"
+            aria-label={isCollapsed ? 'Restore call panel' : 'Collapse call panel'}
+            aria-controls={detailsId}
+            aria-expanded={!isCollapsed}
+            onClick={() => setIsMinimized(!isMinimized)}
+          >
+            <ToggleIcon size={18} aria-hidden="true" />
+          </button>
+        )}
         {!call && error && (
           <button
             className={styles.close}
@@ -125,10 +170,35 @@ export function CallPanel({ owner, isChatOpen }: { owner: CallOwner; isChatOpen:
       {!call && isBusy && <p role="status">Starting call…</p>}
       {isElsewhere && !error && <p role="status">Call is open in another tab.</p>}
       {ownsTab && isRinging && !isIncoming && <p role="status">Ringing…</p>}
-      {ownsTab && call && !isRinging && <p role="status">{status}</p>}
+      {ownsTab && call && !isRinging && (
+        <p className={styles.status} role="status">
+          {status}
+        </p>
+      )}
       {error && <p role="alert">{error}</p>}
+      {call && ownsTab && (
+        // Keeping the details mounted preserves attached video tracks during a collapse.
+        <div id={detailsId} className={styles.details} hidden={isCollapsed}>
+          <CallPanelDetails snapshot={snapshot} owner={owner} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CallPanelDetails({ snapshot, owner }: { snapshot: CallSnapshot; owner: CallOwner }) {
+  const { call, isBusy, mediaStatus } = snapshot;
+  const isRinging = call?.phase === 'ringing';
+  const isIncoming = isRinging && call.direction === 'incoming';
+  const canControlMedia = mediaStatus === 'connected' && !snapshot.isMediaControlBusy;
+  const canJoin = !isRinging && call && mediaStatus === 'idle';
+  const canHangup = call?.allowed_actions.includes('hangup');
+  const hasPeerVideo = snapshot.videos.some((video) => !video.isLocal);
+
+  return (
+    <>
       {snapshot.videos.length > 0 && (
-        <div className={styles.videos}>
+        <div className={styles.videos} data-has-peer={hasPeerVideo || undefined}>
           {snapshot.videos.map((video) => (
             <CallVideoTile key={video.id} video={video} />
           ))}
@@ -153,7 +223,7 @@ export function CallPanel({ owner, isChatOpen }: { owner: CallOwner; isChatOpen:
         </div>
       )}
       <div className={styles.actions}>
-        {isIncoming && ownsTab && (
+        {isIncoming && (
           <>
             <button
               className={styles.primary}
@@ -173,7 +243,7 @@ export function CallPanel({ owner, isChatOpen }: { owner: CallOwner; isChatOpen:
             </button>
           </>
         )}
-        {isRinging && !isIncoming && ownsTab && (
+        {isRinging && !isIncoming && (
           <button
             className={styles.danger}
             type="button"
@@ -231,6 +301,6 @@ export function CallPanel({ owner, isChatOpen }: { owner: CallOwner; isChatOpen:
           </button>
         )}
       </div>
-    </section>
+    </>
   );
 }

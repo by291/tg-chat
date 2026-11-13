@@ -246,6 +246,14 @@ async function verifyVideo(input: { caller: Device; recipient: Device }) {
   await button(recipient.page, 'Answer').click();
   const call = await waitForPhase(caller, 'active');
   await Promise.all([expectRemoteVideo(caller.page), expectRemoteVideo(recipient.page)]);
+  const peerCamera = caller.page.locator('video[aria-label="Peer camera"]');
+  await button(caller.page, 'Collapse call panel').click();
+  await expect(peerCamera).toBeAttached();
+  await expect(peerCamera).toBeHidden();
+  await expectRemoteVideo(recipient.page);
+  await button(caller.page, 'Restore call panel').click();
+  await expectRemoteVideo(caller.page);
+
   // Reload replaces the owning tab's media resources. Rejoining requires a new user gesture.
   await recipient.page.reload();
   await button(recipient.page, 'Enable microphone and camera').click();
