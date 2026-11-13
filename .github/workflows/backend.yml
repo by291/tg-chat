@@ -74,6 +74,12 @@ jobs:
         run: rustup override set 1.98.0
       - name: Install frontend tooling
         run: pnpm --dir web install --frozen-lockfile
+      - name: Check formatting
+        run: |
+          cargo fmt --all --check
+          pnpm --dir web exec prettier --check --config .prettierrc.json \
+            ../compose.yaml ../.github/workflows/backend.yml ../scripts/*.mjs \
+            ../docs/development.md ../docs/operations.md ../openapi/api.json
       - name: Install media processor prerequisites
         run: |
           sudo apt-get update
@@ -90,6 +96,11 @@ jobs:
           const environment = createRuntimeEnvironment();
           const path = process.env.RUNNER_TEMP + '/tg-chat-media.env';
           writeFileSync(path, serializeEnvironment(environment), { mode: 0o600 });
+
+          // GitHub prints job environment values in subsequent step logs.
+          console.log(`::add-mask::${environment.TG_CHAT_S3_ACCESS_KEY}`);
+          console.log(`::add-mask::${environment.TG_CHAT_S3_SECRET_KEY}`);
+
           const testSettings = {
             TG_CHAT_TEST_S3_ENDPOINT: environment.TG_CHAT_S3_PUBLIC_ENDPOINT,
             TG_CHAT_TEST_S3_ACCESS_KEY: environment.TG_CHAT_S3_ACCESS_KEY,
@@ -99,16 +110,13 @@ jobs:
           JS
           docker compose --env-file "$RUNNER_TEMP/tg-chat-media.env" \
             -p tg-chat-native-media up -d --wait media-origin
-      - name: Check formatting
-        run: |
-          cargo fmt --all --check
-          pnpm --dir web exec prettier --check --config .prettierrc.json \
-            ../compose.yaml ../.github/workflows/backend.yml ../scripts/*.mjs \
-            ../docs/development.md ../docs/operations.md ../openapi/api.json
       - name: Lint Rust
         run: cargo clippy --locked --all-targets -- -D warnings
       - name: Test accounts and jobs with real services
-        run: cargo test --locked --all-targets -- --include-ignored
+        # The LiveKit provider test requires the separate disposable calls runtime.
+        run: >-
+          cargo test --locked --all-targets -- --include-ignored
+          --skip explicitly_created_room_can_be_listed_and_deleted
       - name: Verify generated API contracts
         run: pnpm --dir web api:check
 
@@ -119,6 +127,25 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+      # The link preview fetcher binds its control listener to a named network interface.
+      - name: Set up Docker Engine
+        uses: docker/setup-docker-action@v5.4.0
+        with:
+          version: v29.9.3
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v2.4.0
+        with:
+          version: v5.7.0
+      - name: Check Docker network interface support
+        run: |
+          docker version
+          docker compose version
+
+          engine_api_version=$(docker version --format '{{.Server.APIVersion}}')
+          if ! dpkg --compare-versions "$engine_api_version" ge 1.49; then
+            echo '::error::The preview fetcher requires Docker Engine API 1.49 or later.'
+            exit 1
+          fi
       - uses: actions/setup-node@v6
         with:
           node-version: '24'

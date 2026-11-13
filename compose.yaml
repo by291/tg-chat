@@ -246,7 +246,7 @@ services:
     image: livekit/livekit-server:v1.13.11
     command: [--config=/etc/livekit/config.yaml]
     environment:
-      LIVEKIT_KEYS: "${TG_CHAT_LIVEKIT_API_KEY:-}: ${TG_CHAT_LIVEKIT_API_SECRET:-}"
+      LIVEKIT_KEYS: '${TG_CHAT_LIVEKIT_API_KEY:-}: ${TG_CHAT_LIVEKIT_API_SECRET:-}'
       LIVEKIT_WEBHOOK_API_KEY: ${TG_CHAT_LIVEKIT_API_KEY:-}
     volumes:
       - ./deploy/livekit.yaml:/etc/livekit/config.yaml:ro

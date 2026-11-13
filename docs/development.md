@@ -19,7 +19,8 @@ Integration tests remain in `tests/`, and SQL migrations remain in `migrations/`
 
 ## Start the integrated environment
 
-Install Docker with Compose v2 or later and Node.js 24 or later. From the repository root:
+Install Docker Engine 28.1 or later, Docker Compose 2.36 or later, and Node.js 24 or later.
+The preview fetcher requires Docker's support for named network interfaces. From the repository root:
 
 ```sh
 node scripts/create-local-env.mjs
