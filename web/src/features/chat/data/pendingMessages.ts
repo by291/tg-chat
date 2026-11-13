@@ -625,7 +625,7 @@ export class PendingMessages {
     });
   }
 
-  /** Scrub every draft for revoked destinations and fence writers that captured older reply access. */
+  /** Scrub drafts for revoked destinations and reject writers with stale reply access. */
   async redactConversationReplies(destinations: string[]): Promise<void> {
     await this.mutate((snapshot) => {
       for (const destination of destinations) {

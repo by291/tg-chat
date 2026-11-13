@@ -153,6 +153,8 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     expect((await history.json()).messages).toHaveLength(HISTORY_MESSAGES + 3);
 
     await page.setViewportSize({ width: 390, height: 844 });
+    const directDraft = 'Keep this draft when switching conversations';
+    await editor.fill(directDraft);
     await page.getByRole('button', { name: 'Back to conversations' }).click();
     await page.getByRole('button', { name: 'Account settings', exact: true }).click();
     await page.getByRole('button', { name: 'Privacy and Security', exact: true }).click();
@@ -166,6 +168,7 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     await page.getByRole('menuitem', { name: 'Saved Messages' }).click();
     const savedHeading = page.getByRole('heading', { name: 'Saved Messages', exact: true });
     await expect(savedHeading).toBeVisible();
+    await expect(editor).toHaveText('');
     expect(await savedHeading.evaluate((heading) => heading.scrollWidth)).toBeLessThanOrEqual(
       await savedHeading.evaluate((heading) => heading.clientWidth),
     );
@@ -179,6 +182,11 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     const saved = bootstrap.conversations.find((entry: { kind: string }) => entry.kind === 'saved');
     const forbidden = await peer.request.get(`/api/v1/conversations/${saved.id}/history`);
     expect(forbidden.status()).toBe(404);
+    await page.getByRole('button', { name: 'Back to conversations' }).click();
+    await row.click();
+    await expect(page.getByRole('heading', { name: bobby.displayName, exact: true })).toBeVisible();
+    await expect(editor).toHaveText(directDraft);
+
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width).toBeLessThanOrEqual(390);
   } finally {

@@ -4,7 +4,7 @@ import { ConnectedAlerts } from '@/features/settings/notifications/connectedAler
 import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
 import { CommunityOperations } from '@/features/communities/CommunityOperations';
 import type { components } from '@/api/schema';
-import { restoreServerDraft } from './draftModels';
+import { emptyDraft, restoreSelectionDraft, restoreServerDraft } from './draftModels';
 import { CanonicalCache, observedAtLeast, type CanonicalSnapshot } from './canonicalCache';
 import type { EmojiText } from '@/domain/messages/customEmoji';
 import { ApiError, isCancelled, requirePayload, SessionOwner } from '@/features/auth/SessionOwner';
@@ -109,10 +109,6 @@ export interface ChatSnapshot {
   connectionStatus: ConnectionStatus;
   startupError?: string;
   error: string;
-}
-
-function emptyDraft(): Draft {
-  return { id: crypto.randomUUID(), value: { text: '' } };
 }
 
 function initialSnapshot(): ChatSnapshot {
@@ -707,32 +703,26 @@ export class ChatOwner {
       }
       return;
     }
-    const key = destinationKey(selection.destination);
-    const canonicalDraft = this.selectedConversation()?.draft;
-    const remote = canonicalDraft ? restoreServerDraft(canonicalDraft) : emptyDraft();
-    remote.replyRevision = persisted.replyRevisions?.[key];
-    const storedDraft = persisted.drafts[key];
-    let draft = remote;
-    if (storedDraft && storedDraft.hasLocalChanges !== false) {
-      // Legacy local-only drafts have no dirty marker and must remain recoverable after upgrade.
-      draft = { ...storedDraft, hasLocalChanges: true };
-    }
-    const hasConflict =
-      draft.hasLocalChanges &&
-      canonicalDraft &&
-      (draft.serverVersion ?? '0') !== canonicalDraft.version;
+    // A draft edited while storage was opening already belongs to the current composer.
     if (this.snapshot.draft.id === initialDraftId) {
-      this.publish({
-        draft,
-        draftConflict: hasConflict ? remote : undefined,
-        draftAlternatives: persisted.draftAlternatives?.[key] ?? [],
-      });
+      this.publish(
+        restoreSelectionDraft({
+          key: destinationKey(selection.destination),
+          canonicalDraft: this.selectedConversation()?.draft,
+          persisted,
+        }),
+      );
     }
+
     if (messageId) {
       await this.jumpToMessage(messageId, { shouldRevalidate: true });
       return;
     }
 
+    await this.openInitialHistory(generation);
+  }
+
+  private async openInitialHistory(generation: number): Promise<void> {
     const conversation = this.selectedConversation();
     const cached = await this.requireCache().read();
     if (!this.isCurrentView(generation)) {
@@ -1080,28 +1070,40 @@ export class ChatOwner {
 
   /** Coalesce concurrent wakeups into one ordered cursor consumer. */
   catchUp(): Promise<void> {
-    this.syncPromise ??= this.readChanges()
-      .catch(async (error: unknown) => {
-        if (!(error instanceof ApiError) || error.code !== 'sync_reset_required') {
-          throw error;
-        }
-        this.setConnectionStatus('updating');
-        await this.resetCache();
-        await this.loadHistory('latest');
-      })
-      .then(() => this.setConnectionStatus('ready'))
-      .catch((error: unknown) => {
-        if (isConnectionFailure(error)) {
-          this.setConnectionStatus('reconnecting');
-        } else if (!isCancelled(error)) {
-          this.setConnectionStatus('ready');
-        }
-        throw error;
-      })
-      .finally(() => {
-        this.syncPromise = undefined;
-      });
+    this.syncPromise ??= this.syncChanges();
     return this.syncPromise;
+  }
+
+  private async syncChanges(): Promise<void> {
+    try {
+      await this.readChangesOrReset();
+      this.setConnectionStatus('ready');
+    } catch (error) {
+      if (isConnectionFailure(error)) {
+        this.setConnectionStatus('reconnecting');
+      } else if (!isCancelled(error)) {
+        this.setConnectionStatus('ready');
+      }
+
+      throw error;
+    } finally {
+      this.syncPromise = undefined;
+    }
+  }
+
+  private async readChangesOrReset(): Promise<void> {
+    try {
+      await this.readChanges();
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.code !== 'sync_reset_required') {
+        throw error;
+      }
+
+      // A reset replaces the canonical checkpoint before reloading the visible history.
+      this.setConnectionStatus('updating');
+      await this.resetCache();
+      await this.loadHistory('latest');
+    }
   }
 
   private async applyCommunityReceipt(input: {
@@ -1572,17 +1574,9 @@ export class ChatOwner {
           return;
         }
         if (shouldSupersede) {
-          const updated = this.selectedConversation();
-          const invalidation = this.cacheSnapshot?.invalidations[conversation.id];
-          const isUnavailable =
-            updated?.id !== conversation.id ||
-            updated.generation !== page.generation ||
-            (invalidation && !observedAtLeast(page.observation_cursor, invalidation));
-          if (isUnavailable) {
-            throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
-          }
-          throw new DOMException('History changed while loading.', 'AbortError');
+          throw this.historyConflict({ conversationId: conversation.id, page });
         }
+
         this.publish({ hasNewer: true });
         return;
       }
@@ -1620,6 +1614,23 @@ export class ChatOwner {
         this.publish({ isLoading: false });
       }
     }
+  }
+
+  private historyConflict(input: { conversationId: string; page: HistoryPage }): Error {
+    const { conversationId, page } = input;
+    const updated = this.selectedConversation();
+    const invalidation = this.cacheSnapshot?.invalidations[conversationId];
+
+    // Explicit jumps show access loss. A concurrent window update only cancels the older jump.
+    const isUnavailable =
+      updated?.id !== conversationId ||
+      updated.generation !== page.generation ||
+      (invalidation && !observedAtLeast(page.observation_cursor, invalidation));
+    if (isUnavailable) {
+      return new ApiError({ code: 'not_found', message: 'Message unavailable' });
+    }
+
+    return new DOMException('History changed while loading.', 'AbortError');
   }
 
   /** Resolve a recipient or Saved draft to its canonical directory entry once it exists. */
