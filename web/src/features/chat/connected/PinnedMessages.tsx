@@ -114,7 +114,7 @@ export function PinnedMessages(props: PinnedMessagesProps) {
   return (
     <>
       {preview && (
-        <div className={styles.pinPreview}>
+        <div className={styles.pinPreview} data-chat-controls>
           <button
             type="button"
             className={styles.pinJump}
@@ -133,7 +133,7 @@ export function PinnedMessages(props: PinnedMessagesProps) {
         </div>
       )}
       {props.isListOpen && (
-        <section className={styles.pins} aria-label="Pinned messages">
+        <section className={styles.pins} data-chat-controls aria-label="Pinned messages">
           <IconButton label="Close pins" onClick={props.onClose}>
             <X />
           </IconButton>

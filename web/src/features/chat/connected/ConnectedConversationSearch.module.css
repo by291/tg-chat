@@ -1,0 +1,16 @@
+.searchSlot {
+  position: relative;
+  z-index: 2;
+  min-height: 48px;
+  background: var(--surface-color);
+}
+
+@media (max-width: 760px) {
+  .searchSlot {
+    position: absolute;
+    inset: var(--mobile-search-inset) var(--mobile-search-inset) auto;
+    z-index: 6;
+    background: transparent;
+    pointer-events: none;
+  }
+}

@@ -11,7 +11,7 @@ import { useAppPreferences } from '@/features/settings/appPreferences';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 import { formatMessageTime } from '../messageFormatting';
 import { isConversationMuted, type Conversation } from '../data/messageModels';
-import styles from './ConnectedChat.module.css';
+import styles from './ConnectedDirectory.module.css';
 
 const DAYS_IN_WEEK = 7;
 const weekdayFormatter = new Intl.DateTimeFormat('en', { weekday: 'short' });

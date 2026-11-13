@@ -1,16 +1,4 @@
-import {
-  Archive,
-  ArrowLeft,
-  Bell,
-  BellOff,
-  ContactRound,
-  LoaderCircle,
-  Phone,
-  Search,
-  Settings,
-  Users,
-  Video,
-} from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, LoaderCircle, Phone, Search, Video } from 'lucide-react';
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Avatar } from '@/components/Avatar';
 import type { components } from '@/api/schema';
@@ -19,10 +7,9 @@ import {
   conversationDestination,
   type CommunityKind,
 } from '@/features/communities/communityModels';
-import { CommunityDiscovery } from '@/features/communities/CommunityDiscovery';
 import { CommunityProfile } from '@/features/communities/CommunityProfile';
 import { CurrentUserProvider } from '@/features/chat/CurrentUser';
-import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
+import { isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { CallOwner } from '@/features/calls/CallOwner';
 import type { CallMode } from '@/features/calls/callModels';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
@@ -40,8 +27,6 @@ import { connectionStatusLabel } from '../data/connectionStatus';
 import { MessageReadTimeScope } from '../messages/menu/MessageReadTimeScope';
 import { DraftRecovery } from './DraftRecovery';
 import { PendingConversationActions } from './PendingConversationActions';
-import { ConnectedChatMenu } from './ConnectedChatMenu';
-import { ConnectedConversationRow } from './ConnectedConversationRow';
 import { ConnectedPeerProfile } from './ConnectedPeerProfile';
 import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
@@ -65,17 +50,15 @@ import {
 } from '../data/messageModels';
 import { MessageComposer, type ComposedMessage } from '../composer/MessageComposer';
 import { MessageTimeline } from '../history/MessageTimeline';
-import { ChatSearch } from '../search/ChatSearch';
-import { GlobalMessageSearch } from '../search/GlobalMessageSearch';
 import { ShareContactDialog } from '../composer/ShareContactDialog';
 import { ContactLinkContext } from '../messages/content/contact/ContactActions';
-import {
-  ForwardMessageDialog,
-  type ForwardRecipients,
-} from '../messages/forwarding/ForwardMessageDialog';
+import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
 import { ReportMessageDialog } from './ReportMessageDialog';
 import type { ActivityOwner } from '../activity/ActivityOwner';
-import type { MessageSelectionChange } from '../messages/selection/useMessageSelectionGesture';
+import { useMessageSelection } from './useMessageSelection';
+import { ConnectedConversationSearch } from './ConnectedConversationSearch';
+import { ConnectedDirectory } from './ConnectedDirectory';
+import { conversationTitle as title } from './conversationTitle';
 import styles from './ConnectedChat.module.css';
 
 // prettier-ignore
@@ -94,7 +77,6 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'delete-selected',
   'clear-selection',
 ];
-const MAX_BATCH_MESSAGES = 20;
 const EMPTY_ACTIVITY = { isOnline: false, isTyping: false, view: undefined };
 const emptyActivity = () => EMPTY_ACTIVITY;
 const subscribeToNothing = () => () => undefined;
@@ -133,13 +115,6 @@ interface ConnectedChatProps {
   onOpenCommunity: (conversation: Conversation) => void;
 }
 
-function title(conversation: Conversation): string {
-  if (conversation.kind === 'saved') {
-    return 'Saved Messages';
-  }
-  return conversation.title || conversation.peer_name;
-}
-
 function ChatIdentityAvatar({
   name,
   conversation,
@@ -167,19 +142,6 @@ function ChatIdentityAvatar({
   );
 }
 
-function forwardDestinationTitle(destination: Destination, conversations: Conversation[]): string {
-  if (destination.kind === 'saved') {
-    return 'Saved Messages';
-  }
-
-  const conversation = conversations.find((entry) => {
-    return destination.kind === 'conversation'
-      ? entry.id === destination.conversation_id
-      : entry.kind === 'direct' && entry.peer_id === destination.user_id;
-  });
-  return conversation ? title(conversation) : 'Unavailable conversation';
-}
-
 function pickerConversation(conversation: Conversation): PickerConversation {
   const name = title(conversation);
   const kind = conversation.kind === 'direct' ? 'private' : conversation.kind;
@@ -196,6 +158,15 @@ function pickerConversation(conversation: Conversation): PickerConversation {
         ? kind
         : undefined,
   };
+}
+
+function profilePeer(input: { conversation?: Conversation; destination?: Destination }) {
+  const { conversation, destination } = input;
+  if (conversation?.kind === 'direct') {
+    return conversation.peer_id;
+  }
+
+  return destination?.kind === 'recipient' ? destination.user_id : undefined;
 }
 
 function canEditPoll(message: CanonicalMessage | undefined): boolean {
@@ -236,18 +207,12 @@ export function ConnectedChat({
   const [profilePeerId, setProfilePeerId] = useState<string>();
   const [profileCommunityId, setProfileCommunityId] = useState<string>();
   const [latestSendRequest, setLatestSendRequest] = useState(0);
-  const [folder, setFolder] = useState<'inbox' | 'archived' | 'hidden'>('inbox');
-  const [directoryQuery, setDirectoryQuery] = useState('');
   const [searchConversationId, setSearchConversationId] = useState<string>();
   const [editing, setEditing] = useState<CanonicalMessage>();
   const [editVersion, setEditVersion] = useState('');
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [isPinsOpen, setIsPinsOpen] = useState(false);
   const [contactDestination, setContactDestination] = useState<string>();
-  const [selectedIds, setSelectedIds] = useState<string[]>();
-  const [isChoosingReportMessages, setIsChoosingReportMessages] = useState(false);
-  const [forwardIds, setForwardIds] = useState<string[]>();
-  const [reportedMessageIds, setReportedMessageIds] = useState<string[]>();
   const [voterMessageId, setVoterMessageId] = useState<string>();
   const [checklistEditor, setChecklistEditor] = useState<{
     messageId: string;
@@ -282,15 +247,10 @@ export function ConnectedChat({
   const chatCommands = snapshot.pendingCommands.filter((entry) => {
     return entry.request.conversation_id === conversation?.id;
   });
-  const directoryCommands = snapshot.pendingCommands.filter((entry) => {
-    return isDirectoryVisible || entry.request.conversation_id !== conversation?.id;
+  const peerIdForProfile = profilePeer({
+    conversation,
+    destination: selection?.destination,
   });
-  const peerIdForProfile =
-    conversation?.kind === 'direct'
-      ? conversation.peer_id
-      : selection?.destination.kind === 'recipient'
-        ? selection.destination.user_id
-        : undefined;
   const conversationName = conversation
     ? title(conversation)
     : (selection?.title ?? 'Your messages');
@@ -329,12 +289,35 @@ export function ConnectedChat({
   const canStartCall = hasCallActions && Boolean(calls) && canPost && !isCallBusy;
   const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
   const canReportCommunity = Boolean(session && isCommunity && conversation.role !== 'owner');
-  const reportableMessageIds = new Set(
-    snapshot.messages.filter(canReportMessage).map((message) => message.id),
-  );
-  const canReportSelection = Boolean(
-    session && selectedIds?.length && selectedIds.every((id) => reportableMessageIds.has(id)),
-  );
+  const selectedKey = selection ? destinationKey(selection.destination) : '';
+
+  const {
+    selectedIds,
+    forwardIds,
+    reportedMessageIds,
+    isChoosingReportMessages,
+    reportableMessageIds,
+    canReportSelection,
+    canReportMessage,
+    startReportSelection,
+    cancelMessageSelection,
+    reportSelectedMessages,
+    setMessageSelection,
+    toggleSelection,
+    setForwardIds,
+    setReportedMessageIds,
+    clearSelectedMessages,
+    forwardTo,
+  } = useMessageSelection({
+    owner,
+    messages: snapshot.messages,
+    authorId: user.id,
+    canReport: Boolean(session),
+    selectedKey,
+    generation: conversation?.generation,
+    onError: setError,
+  });
+
   const allowedActions = CONNECTED_ACTIONS.filter((action) => {
     if (isChoosingReportMessages) {
       return action === 'clear-selection';
@@ -361,28 +344,8 @@ export function ConnectedChat({
       compareCounter(canonical.sequence, conversation.peer_read_through) <= 0;
     return message;
   });
-  const normalizedDirectoryQuery = directoryQuery.trim().toLowerCase();
-  const isDiscovering = Boolean(normalizedDirectoryQuery && session && snapshot.isReady);
   const isChannelMuted = isConversationMuted(conversation);
   const shouldShowChannelMute = conversation?.kind === 'channel' && !canPost;
-  const directory = snapshot.conversations.filter((entry) => {
-    if (normalizedDirectoryQuery) {
-      const isCommunityMatch = entry.kind === 'group' || entry.kind === 'channel';
-      if (isDiscovering && isCommunityMatch) {
-        return false;
-      }
-      const matchesTitle = title(entry).toLowerCase().includes(normalizedDirectoryQuery);
-      return matchesTitle || entry.peer_username.toLowerCase().includes(normalizedDirectoryQuery);
-    }
-    if (folder === 'hidden') {
-      return entry.is_hidden;
-    }
-    return !entry.is_hidden && entry.is_archived === (folder === 'archived');
-  });
-  directory.sort((first, second) => {
-    const pinDifference = (first.pin_rank ?? Infinity) - (second.pin_rank ?? Infinity);
-    return pinDifference || Date.parse(second.updated_at) - Date.parse(first.updated_at);
-  });
   const reply = snapshot.draft.reply;
   let replyMessage: Message | undefined = messages.find(
     (message) => message.id === reply?.message_id,
@@ -401,11 +364,11 @@ export function ConnectedChat({
     };
   }
   const acceptedIds = new Set(messages.map((message) => message.id));
-  const selectedKey = selection ? destinationKey(selection.destination) : '';
   useEffect(() => {
     setIsDirectoryVisible(!selectedKey);
   }, [selectedKey, conversationRequest]);
   useEffect(() => {
+    // An updated membership can revoke access even when the conversation ID is unchanged.
     setEditing(undefined);
     setIsPinsOpen(false);
     setSearchConversationId(undefined);
@@ -416,10 +379,6 @@ export function ConnectedChat({
     setVoterMessageId(undefined);
     setPollEditor(undefined);
     setChecklistEditor(undefined);
-    setSelectedIds(undefined);
-    setIsChoosingReportMessages(false);
-    setForwardIds(undefined);
-    setReportedMessageIds(undefined);
   }, [selectedKey, conversation?.generation]);
   useEffect(() => {
     if (!canPost) {
@@ -474,16 +433,10 @@ export function ConnectedChat({
     void owner.discardCommand(operationId).catch(report);
   }
 
-  function conversationNameForId(id: string) {
-    const entry = snapshot.conversations.find((candidate) => candidate.id === id);
-    return entry ? title(entry) : 'Unavailable conversation';
-  }
-
   function openConversation(entry: Conversation) {
     setEditing(undefined);
     setIsPinsOpen(false);
     setError('');
-    setDirectoryQuery('');
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
     setIsDirectoryVisible(false);
@@ -497,27 +450,10 @@ export function ConnectedChat({
     setProfilePeerId(peerIdForProfile);
   }
 
-  function openDiscoveryResult(entry: Conversation) {
-    setDirectoryQuery('');
-    onOpenCommunity(entry);
-  }
-
   function toggleChannelMute() {
     if (conversation) {
       const change = conversationMuteChange(conversation);
       void owner.command({ kind: 'preferences', change }).catch(report);
-    }
-  }
-
-  function openFolder(nextFolder: typeof folder) {
-    setDirectoryQuery('');
-    setFolder(nextFolder);
-  }
-
-  function openSavedMessages() {
-    const saved = snapshot.conversations.find((entry) => entry.kind === 'saved');
-    if (saved) {
-      openConversation(saved);
     }
   }
 
@@ -534,50 +470,59 @@ export function ConnectedChat({
     void owner.retry(messageId).catch(report);
   }
 
-  async function openGlobalResult(result: { conversationId: string; messageId: string }) {
-    const conversations = owner.getSnapshot().conversations;
-    const entry = conversations.find((candidate) => candidate.id === result.conversationId);
-    if (!entry) {
-      throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
-    }
-    const destination = conversationDestination(entry);
-    await owner.select({ destination, title: title(entry) }, { messageId: result.messageId });
-    setDirectoryQuery('');
+  async function openGlobalResult(input: { conversation: Conversation; messageId: string }) {
+    const { conversation, messageId } = input;
+    const destination = conversationDestination(conversation);
+    await owner.select({ destination, title: title(conversation) }, { messageId });
     setIsDirectoryVisible(false);
+  }
+
+  async function persistComposition(message: ComposedMessage) {
+    if (editing) {
+      await owner.command({
+        kind: 'edit',
+        message_id: editing.id,
+        expected_version: editVersion,
+        disable_link_preview: message.disableLinkPreview,
+        content: canonicalMessageContent(message, {
+          isCaption: Boolean(editing.attachments?.length),
+        }),
+      });
+      setEditing(undefined);
+      return;
+    }
+
+    if (message.sticker) {
+      await owner.queueBody({ kind: 'sticker', sticker_id: message.sticker });
+      return;
+    }
+
+    if (message.files?.length) {
+      await owner.enqueueMedia({
+        value: message,
+        files: message.files,
+        shouldSendFilesSeparately: message.shouldSendFilesSeparately,
+        shouldPreserveDraft: message.shouldPreserveDraft,
+        disableLinkPreview: message.disableLinkPreview,
+      });
+      return;
+    }
+
+    await owner.queueSend(message);
   }
 
   async function submit(message: ComposedMessage): Promise<boolean> {
     if (isPersisting) {
       return false;
     }
+
     activity?.recordComposerChange({ isTyping: false });
     setIsPersisting(true);
     setError('');
+
     try {
-      if (editing) {
-        await owner.command({
-          kind: 'edit',
-          message_id: editing.id,
-          expected_version: editVersion,
-          disable_link_preview: message.disableLinkPreview,
-          content: canonicalMessageContent(message, {
-            isCaption: Boolean(editing.attachments?.length),
-          }),
-        });
-        setEditing(undefined);
-      } else if (message.sticker) {
-        await owner.queueBody({ kind: 'sticker', sticker_id: message.sticker });
-      } else if (message.files?.length) {
-        await owner.enqueueMedia({
-          value: message,
-          files: message.files,
-          shouldSendFilesSeparately: message.shouldSendFilesSeparately,
-          shouldPreserveDraft: message.shouldPreserveDraft,
-          disableLinkPreview: message.disableLinkPreview,
-        });
-      } else {
-        await owner.queueSend(message);
-      }
+      await persistComposition(message);
+
       if (!editing && snapshot.hasNewer) {
         setLatestSendRequest((current) => current + 1);
       }
@@ -836,61 +781,6 @@ export function ConnectedChat({
     }
   }
 
-  function canReportMessage(message: CanonicalMessage) {
-    return message.author_id !== user.id && !message.is_deleted && !message.service_kind;
-  }
-
-  function startReportSelection() {
-    setIsChoosingReportMessages(true);
-    setSelectedIds([]);
-  }
-
-  function cancelMessageSelection() {
-    setIsChoosingReportMessages(false);
-    setSelectedIds(undefined);
-  }
-
-  function reportSelectedMessages() {
-    if (!canReportSelection || !selectedIds) {
-      return;
-    }
-
-    setReportedMessageIds(selectedIds);
-  }
-
-  function toggleSelection(messageId: string) {
-    const current = selectedIds ?? [];
-    setMessageSelection({ messageIds: [messageId], shouldSelect: !current.includes(messageId) });
-  }
-
-  function setMessageSelection({ messageIds, shouldSelect }: MessageSelectionChange) {
-    if (!shouldSelect) {
-      setSelectedIds((current) => current?.filter((id) => !messageIds.includes(id)));
-      return;
-    }
-
-    const eligibleMessages = snapshot.messages.filter((message) => {
-      if (message.is_deleted || message.service_kind || !messageIds.includes(message.id)) {
-        return false;
-      }
-
-      return !isChoosingReportMessages || reportableMessageIds.has(message.id);
-    });
-    if (eligibleMessages.length === 0) {
-      return;
-    }
-
-    const eligibleIds = eligibleMessages.map((message) => message.id);
-    const selected = new Set([...(selectedIds ?? []), ...eligibleIds]);
-    if (selected.size > MAX_BATCH_MESSAGES) {
-      setError(`You can select up to ${MAX_BATCH_MESSAGES} messages.`);
-    }
-    setSelectedIds((current) => {
-      const ids = new Set([...(current ?? []), ...eligibleIds]);
-      return Array.from(ids).slice(0, MAX_BATCH_MESSAGES);
-    });
-  }
-
   function confirmSelectedRemoval() {
     if (!selectedIds?.length) {
       return;
@@ -920,34 +810,7 @@ export function ConnectedChat({
 
   async function removeSelected(input: { ids: string[]; kind: 'batch_hide' | 'batch_delete' }) {
     await owner.command({ kind: input.kind, message_ids: input.ids });
-    setSelectedIds(undefined);
-  }
-
-  async function forwardTo({ recipients, caption, customEmoji, richText }: ForwardRecipients) {
-    if (!forwardIds?.length) {
-      return false;
-    }
-    // A changed conversation must not submit picks from the previous history.
-    const current = owner.getSnapshot().selection;
-    if (!current || destinationKey(current.destination) !== selectedKey) {
-      return false;
-    }
-    const ids = new Set(forwardIds);
-    const ordered = snapshot.messages.filter((message) => ids.has(message.id));
-    if (ordered.length !== ids.size) {
-      throw new Error('Some selected messages are no longer available.');
-    }
-    const destinations = recipients.map((recipient) => ({
-      kind: 'conversation' as const,
-      conversation_id: recipient.id,
-    }));
-    await owner.queueForwards({
-      destinations,
-      messageIds: ordered.map((message) => message.id),
-      comment: { text: caption, customEmoji, richText },
-    });
-    setSelectedIds(undefined);
-    return true;
+    clearSelectedMessages();
   }
 
   function react(messageId: string, emoji: string) {
@@ -998,190 +861,32 @@ export function ConnectedChat({
         className={styles.workspace}
         data-directory-visible={isDirectoryVisible || Boolean(accountPage)}
       >
-        <aside
-          className={styles.directory}
-          aria-label="Conversations"
-          hidden={Boolean(accountPage)}
-        >
-          <header className={styles.directoryHeader}>
-            {folder === 'inbox' ? (
-              <ConnectedChatMenu
-                onOpenSaved={openSavedMessages}
-                onOpenArchived={() => openFolder('archived')}
-                onOpenHidden={() => openFolder('hidden')}
-                onCreate={onCreateCommunity}
-              />
-            ) : (
-              <button type="button" aria-label="Back to inbox" onClick={() => openFolder('inbox')}>
-                <ArrowLeft />
-              </button>
-            )}
-            <h1>
-              {folder === 'archived' && 'Archived Chats'}
-              {folder === 'hidden' && 'Hidden Chats'}
-              {folder === 'inbox' && 'Messages'}
-            </h1>
-            <button type="button" aria-label="Account settings" onClick={onSettings}>
-              <Settings />
-            </button>
-            <button type="button" aria-label="Contacts" onClick={onContacts}>
-              <ContactRound />
-            </button>
-            <button type="button" aria-label="Communities" onClick={onCommunities}>
-              <Users />
-            </button>
-          </header>
-          {!snapshot.isReady && <p role="status">Loading conversations…</p>}
-          <div className={styles.directorySearch}>
-            {connectionLabel ? (
-              <LoaderCircle size={18} className={styles.connectionSpinner} aria-hidden="true" />
-            ) : (
-              <Search size={18} aria-hidden="true" />
-            )}
-            <input
-              type="text"
-              aria-label="Search chats and messages"
-              placeholder={connectionLabel ?? 'Search'}
-              value={directoryQuery}
-              onChange={(event) => setDirectoryQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape' && !event.nativeEvent.isComposing) {
-                  setDirectoryQuery('');
-                }
-              }}
-            />
-          </div>
-          {connectionLabel && (
-            <p
-              className={styles.directoryConnection}
-              data-has-query={Boolean(directoryQuery)}
-              role="status"
-            >
-              {connectionLabel}
-            </p>
-          )}
-          {!normalizedDirectoryQuery &&
-            folder === 'inbox' &&
-            snapshot.conversations.some((entry) => entry.is_archived && !entry.is_hidden) && (
-              <button
-                type="button"
-                className={styles.archiveEntry}
-                onClick={() => openFolder('archived')}
-              >
-                <Archive aria-hidden="true" /> Archived Chats
-              </button>
-            )}
-          {directory.map((entry) => (
-            <ConnectedConversationRow
-              key={entry.id}
-              conversation={entry}
-              name={title(entry)}
-              session={session}
-              isSelected={conversation?.id === entry.id}
-              onOpen={() => openConversation(entry)}
-              onCommand={(action) => {
-                void owner
-                  .commandForConversation({ conversationId: entry.id, action })
-                  .catch(report);
-              }}
-            />
-          ))}
-          {isDiscovering && session && (
-            <CommunityDiscovery
-              session={session}
-              chat={owner}
-              query={directoryQuery}
-              onAdmitted={openDiscoveryResult}
-            />
-          )}
-          {snapshot.isReady && (
-            <GlobalMessageSearch
-              query={directoryQuery}
-              visibilityKey={owner.searchVisibilityKey()}
-              loadPage={owner.searchMessages}
-              onSelect={openGlobalResult}
-            />
-          )}
-          <PendingConversationActions
-            commands={directoryCommands}
-            conversationName={conversationNameForId}
-            onRetry={retryCommand}
-            onDismiss={dismissCommand}
-          />
-          {outbox.length > 0 && (
-            <section className={styles.pending} aria-label="Pending messages">
-              <h2>Pending messages</h2>
-              {outbox.map((entry) => (
-                <div className={styles.pendingItem} key={entry.request.message_id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void owner
-                        .select({
-                          destination: entry.request.destination,
-                          title: entry.title ?? 'Pending conversation',
-                        })
-                        .catch(report);
-                      setIsDirectoryVisible(false);
-                    }}
-                  >
-                    {entry.request.content.text ||
-                      entry.media?.map((item) => item.filename).join(', ') ||
-                      'Pending message'}
-                  </button>
-                  <p>{entry.error || 'Waiting for server confirmation'}</p>
-                  <div className={styles.actions}>
-                    <button
-                      type="button"
-                      onClick={() => void owner.retry(entry.request.message_id).catch(report)}
-                    >
-                      Retry
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void owner.discard(entry.request.message_id).catch(report)}
-                    >
-                      Remove from outbox
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <p>
-                Removing an unconfirmed item does not delete a message already saved by the server.
-              </p>
-            </section>
-          )}
-          {snapshot.pendingForwards.length > 0 && (
-            <section className={styles.pending} aria-label="Pending forwards">
-              <h2>Pending forwards</h2>
-              {snapshot.pendingForwards.map((entry) => (
-                <div className={styles.pendingItem} key={entry.request.operation_id}>
-                  <strong>
-                    {forwardDestinationTitle(entry.request.destination, snapshot.conversations)}
-                  </strong>
-                  <p>{entry.error ?? 'Waiting for server confirmation'}</p>
-                  {entry.error && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void owner.dismissForward(entry.request.operation_id).catch(report)
-                      }
-                    >
-                      Dismiss forward
-                    </button>
-                  )}
-                </div>
-              ))}
-            </section>
-          )}
-        </aside>
+        <ConnectedDirectory
+          owner={owner}
+          session={session}
+          snapshot={snapshot}
+          conversationId={conversation?.id}
+          connectionLabel={connectionLabel}
+          outbox={outbox}
+          isVisible={isDirectoryVisible}
+          isHidden={Boolean(accountPage)}
+          onOpen={openConversation}
+          onOpenMessage={openGlobalResult}
+          onOpenPending={() => setIsDirectoryVisible(false)}
+          onSettings={onSettings}
+          onContacts={onContacts}
+          onCommunities={onCommunities}
+          onCreateCommunity={onCreateCommunity}
+          onOpenCommunity={onOpenCommunity}
+          onError={report}
+        />
         {accountPage && (
           <aside className={styles.accountSidebar} aria-label="Account pages">
             {accountPage}
           </aside>
         )}
         <section className={styles.chat} aria-label="Chat">
-          <header className={styles.chatHeader}>
+          <header className={styles.chatHeader} data-chat-controls>
             <button
               type="button"
               aria-label="Back to conversations"
@@ -1272,32 +977,13 @@ export function ConnectedChat({
             </p>
           )}
           {conversation && searchConversationId === conversation.id && (
-            <div className={styles.conversationSearch}>
-              <ChatSearch
-                key={conversation.id}
-                messages={messages}
-                canFilterSender={conversation.kind !== 'saved'}
-                onClose={() => setSearchConversationId(undefined)}
-                onJump={(messageId) => owner.jumpToMessage(messageId, { shouldRevalidate: true })}
-                source={{
-                  conversationId: conversation.id,
-                  visibilityKey: owner.searchVisibilityKey(conversation.id),
-                  loadPage: owner.searchMessages,
-                  onJumpToDate: (timestamp) => owner.jumpToDate(timestamp),
-                  senderRoster:
-                    conversation.kind === 'group'
-                      ? { revision: conversation.generation, loadPage: owner.loadSearchSenders }
-                      : undefined,
-                  senders:
-                    conversation.kind === 'direct'
-                      ? [
-                          { id: user.id, name: user.display_name },
-                          { id: conversation.peer_id, name: conversation.peer_name },
-                        ]
-                      : undefined,
-                }}
-              />
-            </div>
+            <ConnectedConversationSearch
+              owner={owner}
+              conversation={conversation}
+              messages={messages}
+              user={user}
+              onClose={() => setSearchConversationId(undefined)}
+            />
           )}
           {conversation && searchConversationId !== conversation.id && (
             <PinnedMessages
@@ -1320,6 +1006,7 @@ export function ConnectedChat({
               {selectedIds && (
                 <div
                   className={styles.historyControls}
+                  data-chat-controls
                   role="region"
                   aria-label="Message selection"
                 >

@@ -98,7 +98,6 @@ export function ChatSearch(props: ChatSearchProps) {
   const isNarrow = useSyncExternalStore(subscribeToSearchViewport, isNarrowSearchViewport);
   const [query, setQuery] = useState('');
   const [sender, setSender] = useState<SearchSender>();
-  const senderId = sender?.id ?? '';
   const [kind, setKind] = useState<SearchMessageKind>();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -109,6 +108,8 @@ export function ChatSearch(props: ChatSearchProps) {
   const [isShowingMobileTimeline, setIsShowingMobileTimeline] = useState(false);
   const [activeId, setActiveId] = useState('');
   const [locatedId, setLocatedId] = useState('');
+
+  const senderId = sender?.id ?? '';
   const senders = useMemo(() => {
     const names = new Map<string, string>();
     for (const message of messages) {
@@ -141,6 +142,7 @@ export function ChatSearch(props: ChatSearchProps) {
       source,
     ],
   );
+
   const text = query.trim().normalize('NFC');
   const visibilityKey = source?.visibilityKey ?? '';
   const requestKey = JSON.stringify({
@@ -168,12 +170,15 @@ export function ChatSearch(props: ChatSearchProps) {
     loadPage: source?.loadPage,
     visibilityKey,
   });
+
   const results = source ? (remote.page?.hits.map(renderMessage) ?? []) : localResults;
   const activeIndex = results.findIndex((message) => message.id === activeId);
   const hasQuery = Boolean(text || kind || senderId);
+
   const isResultListOpen = isNarrow ? !isShowingMobileTimeline : isFocused;
   const shouldShowResults = isResultListOpen && (hasQuery || isChoosingSender || Boolean(error));
   const shouldShowFilters = isNarrow ? isResultListOpen : isFocused;
+
   const closeSearch = useCallback(() => {
     // AnimatePresence keeps this mounted during exit; repeated Escape must not toggle it open.
     if (hasClosedRef.current) {
@@ -231,7 +236,9 @@ export function ChatSearch(props: ChatSearchProps) {
     setLocatedId(message.id);
     setIsFocused(false);
     inputRef.current?.blur();
+
     if (isNarrow) {
+      // Keep keyboard focus on a visible control as the result list is hidden.
       setIsShowingMobileTimeline(true);
       if (!isShowingMobileTimeline) {
         mobileToggleRef.current?.focus({ preventScroll: true });
