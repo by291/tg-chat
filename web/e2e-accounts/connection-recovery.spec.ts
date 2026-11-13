@@ -8,9 +8,31 @@ test('retries first load in place and preserves the open mobile draft during rec
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route('**/api/v1/chat/bootstrap', (route) =>
-    route.fulfill({ status: 502, contentType: 'text/plain', body: 'Gateway unavailable' }),
-  );
+  // Mark the click before React can send the retry request.
+  await page.addInitScript(() => {
+    document.addEventListener(
+      'click',
+      (event) => {
+        if (
+          event.target instanceof HTMLButtonElement &&
+          event.target.textContent === 'Retry loading chats'
+        ) {
+          document.documentElement.dataset.testRetryClicked = 'true';
+        }
+      },
+      true,
+    );
+  });
+  await page.route('**/api/v1/chat/bootstrap', async (route) => {
+    const hasClickedRetry = await page.evaluate(
+      () => document.documentElement.dataset.testRetryClicked === 'true',
+    );
+    if (hasClickedRetry) {
+      return route.continue();
+    }
+
+    return route.fulfill({ status: 502, contentType: 'text/plain', body: 'Gateway unavailable' });
+  });
   await page.goto('/');
   await page.getByRole('button', { name: 'Create an account', exact: true }).click();
   await page.getByLabel('Username', { exact: true }).fill(`recovery_${randomUUID().slice(0, 8)}`);
@@ -22,7 +44,6 @@ test('retries first load in place and preserves the open mobile draft during rec
   await expect(retry).toBeVisible();
   const reconnecting = page.getByRole('status').filter({ hasText: 'Reconnecting…' });
   await expect(reconnecting).toBeVisible();
-  await page.unroute('**/api/v1/chat/bootstrap');
   await retry.click();
   await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
   await expect(retry).toHaveCount(0);

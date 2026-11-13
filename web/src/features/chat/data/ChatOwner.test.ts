@@ -1011,7 +1011,8 @@ it('full reset fences an old page and preserves text typed before the reset', as
   });
   await owner.start();
   const selecting = owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  // IndexedDB must finish opening the selection before the reset can fence its history request.
+  await vi.waitFor(() => expect(historyRequests).toBe(1));
   await owner.setDraft({ text: 'Keep my unsent text' });
   await owner.catchUp();
   delayed.release(historyPage({ first: 1, last: 1 }));

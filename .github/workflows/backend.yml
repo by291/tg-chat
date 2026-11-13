@@ -49,6 +49,10 @@ jobs:
           --health-timeout 3s
           --health-retries 30
     env:
+      # Full debuginfo and incremental state can exhaust the runner while linking test binaries.
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
       TG_CHAT_TEST_VALKEY_URL: redis://localhost:6379
       TG_CHAT_TEST_SMTP_HOST: localhost
       TG_CHAT_TEST_SMTP_PORT: '1025'
@@ -122,6 +126,9 @@ jobs:
           --skip explicitly_created_room_can_be_listed_and_deleted
       - name: Verify generated API contracts
         run: pnpm --dir web api:check
+      - name: Report disk usage
+        if: always()
+        run: df -h .
 
   compose:
     runs-on: ubuntu-24.04
@@ -171,3 +178,11 @@ jobs:
         env:
           BUILDX_BUILDER: ${{ steps.buildx.outputs.name }}
         run: node scripts/check-runtime.mjs --github-build-cache
+      - name: Save browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: runtime-browser-failures-${{ github.run_attempt }}
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
