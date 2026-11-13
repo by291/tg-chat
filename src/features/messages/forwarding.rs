@@ -12,7 +12,7 @@ use super::{
     commands::CommandContext,
     content::{MessageContent, validate_content},
     projection,
-    service::AcceptanceError,
+    service::{AcceptanceError, retry_transaction},
 };
 use crate::features::{
     accounts::{AccountError, Actor, sessions::lock_actor},
@@ -22,7 +22,6 @@ use crate::features::{
 };
 
 const MAX_BATCH_MESSAGES: usize = 20;
-const TRANSACTION_ATTEMPTS: usize = 3;
 
 #[derive(Clone, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -363,17 +362,7 @@ impl MessageService {
             hash: hash.as_slice(),
         };
 
-        for attempt in 0..TRANSACTION_ATTEMPTS {
-            match self.accept_forward(&request).await {
-                Ok(receipt) => return Ok(receipt),
-                Err(error) if error.is_retryable() && attempt + 1 < TRANSACTION_ATTEMPTS => {
-                    continue;
-                }
-                Err(error) => return Err(error.into_public()),
-            }
-        }
-
-        Err(AccountError::Unavailable)
+        retry_transaction(|| self.accept_forward(&request)).await
     }
 
     async fn accept_forward(

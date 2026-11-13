@@ -11,7 +11,7 @@ use super::{
     history::parse_sequence,
     link_previews::{self, PreviewIntent},
     projection,
-    service::AcceptanceError,
+    service::{AcceptanceError, retry_transaction},
 };
 use crate::features::{
     accounts::{AccountError, Actor, sessions::lock_actor},
@@ -20,7 +20,6 @@ use crate::features::{
     sync::changes::{self, ChangeGroup},
 };
 
-const TRANSACTION_ATTEMPTS: usize = 3;
 const MAX_REACTIONS_PER_ACCOUNT: i64 = 3;
 #[rustfmt::skip]
 const ALLOWED_REACTIONS: &[&str] = &[
@@ -550,6 +549,90 @@ pub(crate) async fn advance_interaction(
     Ok(())
 }
 
+async fn apply_new_command(
+    connection: &mut PgConnection,
+    context: &CommandContext<'_>,
+    hash: &[u8],
+) -> Result<Option<Uuid>, AcceptanceError> {
+    let CommandContext {
+        actor,
+        input,
+        conversation,
+    } = *context;
+
+    conversations::view(connection, actor.user_id, conversation.id).await?;
+    let is_send_identity: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM message_identities
+         WHERE author_id = $1 AND operation_id = $2)",
+    )
+    .bind(actor.user_id)
+    .bind(input.operation_id)
+    .fetch_one(&mut *connection)
+    .await?;
+    let is_forward_identity =
+        super::forwarding::operation_exists(connection, actor.user_id, input.operation_id).await?;
+    if is_send_identity || is_forward_identity {
+        return Err(AccountError::MessageConflict.into());
+    }
+
+    let batch_ids = apply_batch(connection, context).await?;
+    let message_id = if batch_ids.is_some() {
+        None
+    } else if let Some(target) = input.action.message_id() {
+        apply(connection, context, target).await?;
+        Some(target)
+    } else {
+        conversations::state::apply(connection, context).await?
+    };
+
+    repair_unread(connection, conversation.id).await?;
+    sqlx::query("UPDATE conversations SET version = version + 1 WHERE id = $1")
+        .bind(conversation.id)
+        .execute(&mut *connection)
+        .await?;
+
+    // Personal changes belong only in the actor's feed because peers cannot observe them.
+    let is_personal = matches!(
+        input.action,
+        CommandAction::HideMessage { .. }
+            | CommandAction::BatchHide { .. }
+            | CommandAction::Draft { .. }
+            | CommandAction::Preferences { .. }
+            | CommandAction::Clear
+            | CommandAction::Close
+    );
+    let participants = if is_personal {
+        vec![actor.user_id]
+    } else {
+        access::participants(connection, conversation).await?
+    };
+    let changed: Vec<Option<Uuid>> = match batch_ids {
+        Some(ids) => ids.into_iter().map(Some).collect(),
+        None => vec![message_id],
+    };
+    for id in changed {
+        let group = ChangeGroup {
+            participants: &participants,
+            conversation_id: conversation.id,
+            message_id: id,
+        };
+        changes::append(connection, group).await?;
+    }
+
+    // Store the receipt with the changes so replay cannot apply the command twice.
+    let insert = sqlx::query(
+        "INSERT INTO command_receipts
+             (actor_id, operation_id, payload_hash, conversation_id, message_id)
+             VALUES ($1, $2, $3, $4, $5)",
+    )
+    .bind(actor.user_id)
+    .bind(input.operation_id);
+    let insert = insert.bind(hash).bind(conversation.id).bind(message_id);
+    insert.execute(&mut *connection).await?;
+
+    Ok(message_id)
+}
+
 impl MessageService {
     /// Read the current authorized command resources for an explicit conflict response.
     pub(crate) async fn command_snapshot(
@@ -614,16 +697,7 @@ impl MessageService {
             _ => {}
         }
 
-        for attempt in 0..TRANSACTION_ATTEMPTS {
-            match self.accept_command(&actor, &input).await {
-                Ok(receipt) => return Ok(receipt),
-                Err(error) if error.is_retryable() && attempt + 1 < TRANSACTION_ATTEMPTS => {
-                    continue;
-                }
-                Err(error) => return Err(error.into_public()),
-            }
-        }
-        Err(AccountError::Unavailable)
+        retry_transaction(|| self.accept_command(&actor, &input)).await
     }
 
     async fn accept_command(
@@ -633,6 +707,7 @@ impl MessageService {
     ) -> Result<CommandReceipt, AcceptanceError> {
         let encoded = serde_json::to_vec(input).map_err(|_| AccountError::Unavailable)?;
         let hash = Sha256::digest(encoded).to_vec();
+
         let mut transaction = self.accounts.pool.begin().await?;
         let destination = Destination::Conversation {
             conversation_id: input.conversation_id,
@@ -642,92 +717,30 @@ impl MessageService {
         lock_actor(&mut transaction, actor, &self.accounts.settings).await?;
 
         let previous = sqlx::query_as::<_, (Vec<u8>, Option<Uuid>)>(
-            "SELECT payload_hash, message_id FROM command_receipts WHERE actor_id = $1 AND operation_id = $2",
+            "SELECT payload_hash, message_id FROM command_receipts
+             WHERE actor_id = $1 AND operation_id = $2",
         )
         .bind(actor.user_id)
         .bind(input.operation_id)
         .fetch_optional(&mut *transaction)
         .await?;
-        let message_id;
-        if let Some((previous, previous_message_id)) = previous {
+
+        // An existing receipt reconciles the committed result without reapplying the action.
+        let message_id = if let Some((previous, previous_message_id)) = previous {
             if previous != hash {
                 return Err(AccountError::MessageConflict.into());
             }
-            message_id = previous_message_id;
+
+            previous_message_id
         } else {
-            conversations::view(&mut transaction, actor.user_id, conversation.id).await?;
-            let is_send_identity: bool = sqlx::query_scalar(
-                "SELECT EXISTS (SELECT 1 FROM message_identities
-                 WHERE author_id = $1 AND operation_id = $2)",
-            )
-            .bind(actor.user_id)
-            .bind(input.operation_id)
-            .fetch_one(&mut *transaction)
-            .await?;
-            let is_forward_identity = super::forwarding::operation_exists(
-                &mut transaction,
-                actor.user_id,
-                input.operation_id,
-            )
-            .await?;
-            if is_send_identity || is_forward_identity {
-                return Err(AccountError::MessageConflict.into());
-            }
             let context = CommandContext {
                 actor,
                 input,
                 conversation: &conversation,
             };
-            let batch_ids = apply_batch(&mut transaction, &context).await?;
-            message_id = if batch_ids.is_some() {
-                None
-            } else if let Some(target) = input.action.message_id() {
-                apply(&mut transaction, &context, target).await?;
-                Some(target)
-            } else {
-                conversations::state::apply(&mut transaction, &context).await?
-            };
-            repair_unread(&mut transaction, conversation.id).await?;
-            sqlx::query("UPDATE conversations SET version = version + 1 WHERE id = $1")
-                .bind(conversation.id)
-                .execute(&mut *transaction)
-                .await?;
-            let is_personal = matches!(
-                input.action,
-                CommandAction::HideMessage { .. }
-                    | CommandAction::BatchHide { .. }
-                    | CommandAction::Draft { .. }
-                    | CommandAction::Preferences { .. }
-                    | CommandAction::Clear
-                    | CommandAction::Close
-            );
-            let participants = if is_personal {
-                vec![actor.user_id]
-            } else {
-                access::participants(&mut transaction, &conversation).await?
-            };
-            let changed: Vec<Option<Uuid>> = match batch_ids {
-                Some(ids) => ids.into_iter().map(Some).collect(),
-                None => vec![message_id],
-            };
-            for id in changed {
-                let group = ChangeGroup {
-                    participants: &participants,
-                    conversation_id: conversation.id,
-                    message_id: id,
-                };
-                changes::append(&mut transaction, group).await?;
-            }
-            let insert = sqlx::query(
-                "INSERT INTO command_receipts
-                 (actor_id, operation_id, payload_hash, conversation_id, message_id)
-                 VALUES ($1, $2, $3, $4, $5)",
-            )
-            .bind(actor.user_id)
-            .bind(input.operation_id);
-            let insert = insert.bind(hash).bind(conversation.id).bind(message_id);
-            insert.execute(&mut *transaction).await?;
-        }
+            apply_new_command(&mut transaction, &context, &hash).await?
+        };
+
         let conversation =
             match conversations::view(&mut transaction, actor.user_id, conversation.id).await {
                 Ok(conversation) => Some(conversation),

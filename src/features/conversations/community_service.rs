@@ -13,14 +13,16 @@ use super::{
 };
 use crate::features::{
     accounts::{AccountError, Actor, sessions::lock_actor},
-    messages::{CommandReceipt, MessageService, service::AcceptanceError},
+    messages::{
+        CommandReceipt, MessageService,
+        service::{AcceptanceError, retry_transaction},
+    },
     sync::{
         changes::{self, ChangeGroup},
         cursor::CursorScope,
     },
 };
 
-const TRANSACTION_ATTEMPTS: usize = 3;
 const MAX_TITLE_CHARACTERS: usize = 128;
 const MAX_DESCRIPTION_CHARACTERS: usize = 2000;
 const MIN_HANDLE_LENGTH: usize = 3;
@@ -262,16 +264,7 @@ impl MessageService {
             return Err(AccountError::Validation("expected group or channel"));
         }
         input.settings = normalize_settings(input.settings)?;
-        for attempt in 0..TRANSACTION_ATTEMPTS {
-            match self.accept_community_creation(&actor, &input).await {
-                Ok(receipt) => return Ok(receipt),
-                Err(error) if error.is_retryable() && attempt + 1 < TRANSACTION_ATTEMPTS => {
-                    continue;
-                }
-                Err(error) => return Err(error.into_public()),
-            }
-        }
-        Err(AccountError::Unavailable)
+        retry_transaction(|| self.accept_community_creation(&actor, &input)).await
     }
 
     async fn accept_community_creation(
@@ -338,16 +331,7 @@ impl MessageService {
         actor: Actor,
         input: CommunityCommand,
     ) -> Result<CommandReceipt, AccountError> {
-        for attempt in 0..TRANSACTION_ATTEMPTS {
-            match self.accept_community_command(&actor, &input).await {
-                Ok(receipt) => return Ok(receipt),
-                Err(error) if error.is_retryable() && attempt + 1 < TRANSACTION_ATTEMPTS => {
-                    continue;
-                }
-                Err(error) => return Err(error.into_public()),
-            }
-        }
-        Err(AccountError::Unavailable)
+        retry_transaction(|| self.accept_community_command(&actor, &input)).await
     }
 
     async fn accept_community_command(

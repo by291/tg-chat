@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use sha2::{Digest, Sha256};
 use sqlx::{PgConnection, Postgres, Transaction};
 
@@ -25,6 +27,7 @@ pub(crate) enum AcceptanceError {
 }
 
 impl AcceptanceError {
+    /// Identify PostgreSQL failures that require restarting the whole transaction.
     pub(crate) fn is_retryable(&self) -> bool {
         let Self::Database(error) = self else {
             return false;
@@ -36,6 +39,7 @@ impl AcceptanceError {
         matches!(database_error.code().as_deref(), Some("40001" | "40P01"))
     }
 
+    /// Convert acceptance failures to the errors exposed by message and community commands.
     pub(crate) fn into_public(self) -> AccountError {
         match self {
             Self::Business(error) => error,
@@ -50,6 +54,25 @@ impl AcceptanceError {
             }
         }
     }
+}
+
+/// Retry an operation that opens a fresh transaction on each attempt.
+pub(crate) async fn retry_transaction<Output, Attempt>(
+    mut operation: impl FnMut() -> Attempt,
+) -> Result<Output, AccountError>
+where
+    Attempt: Future<Output = Result<Output, AcceptanceError>>,
+{
+    for _ in 1..TRANSACTION_ATTEMPTS {
+        match operation().await {
+            Ok(output) => return Ok(output),
+            // Serialization failures and deadlocks invalidate the entire transaction.
+            Err(error) if error.is_retryable() => continue,
+            Err(error) => return Err(error.into_public()),
+        }
+    }
+
+    operation().await.map_err(AcceptanceError::into_public)
 }
 
 impl MessageService {
@@ -83,34 +106,12 @@ impl MessageService {
         let serialized = serde_json::to_vec(&input).map_err(|_| AccountError::Unavailable)?;
         let payload_hash = Sha256::digest(serialized).to_vec();
 
-        for attempt in 0..TRANSACTION_ATTEMPTS {
-            let result = self.accept(&actor, &input, &payload_hash).await;
-            match result {
-                Ok(receipt) => return Ok(receipt),
-                Err(error) if error.is_retryable() && attempt + 1 < TRANSACTION_ATTEMPTS => {
-                    continue;
-                }
-                Err(error) => return Err(error.into_public()),
-            }
-        }
-
-        Err(AccountError::Unavailable)
+        retry_transaction(|| self.accept(&actor, &input, &payload_hash)).await
     }
 
     /// Create the account's reserved private conversation without consuming directory capacity.
     pub async fn ensure_saved(&self, actor: Actor) -> Result<ConversationView, AccountError> {
-        for attempt in 0..TRANSACTION_ATTEMPTS {
-            let result = self.create_saved(&actor).await;
-            match result {
-                Ok(conversation) => return Ok(conversation),
-                Err(error) if error.is_retryable() && attempt + 1 < TRANSACTION_ATTEMPTS => {
-                    continue;
-                }
-                Err(error) => return Err(error.into_public()),
-            }
-        }
-
-        Err(AccountError::Unavailable)
+        retry_transaction(|| self.create_saved(&actor)).await
     }
 
     async fn accept(
