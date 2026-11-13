@@ -3,7 +3,7 @@ import type { components } from '@/api/schema';
 
 const DIRECTORY_PAGE_LIMIT = 50;
 
-/** Resolve an exact username across bounded fuzzy-search pages without accepting a display-name match. */
+/** Find an exact username across bounded search pages. */
 export async function findInvitee(
   session: SessionOwner,
   username: string,

@@ -230,13 +230,16 @@ export class BrowserPushOwner {
           isBusy: false,
           error: capability.available ? undefined : 'Web Push is unavailable on this deployment.',
         });
-      } else if (Notification.permission === 'denied') {
-        this.publish({ status: 'denied', isBusy: false });
-      } else if (!capability.available || !this.vapidKey) {
-        this.publish({ status: 'unavailable', isBusy: false });
-      } else {
-        this.publish({ status: 'disabled', isBusy: false });
+        return;
       }
+
+      if (Notification.permission === 'denied') {
+        this.publish({ status: 'denied', isBusy: false });
+        return;
+      }
+
+      const status = capability.available && this.vapidKey ? 'disabled' : 'unavailable';
+      this.publish({ status, isBusy: false });
     } catch {
       if (this.isCurrent(scope) && sequence === this.refreshSequence) {
         if (this.snapshot.status === 'enabled') {

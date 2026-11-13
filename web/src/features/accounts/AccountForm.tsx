@@ -15,7 +15,7 @@ interface AccountFormProps {
   shouldReset?: boolean;
 }
 
-/** Report safe action failures while suppressing responses cancelled by account ownership changes. */
+/** Report action failures while ignoring responses cancelled by account changes. */
 export function useOperation() {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState('');

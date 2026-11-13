@@ -81,7 +81,7 @@ export function NewPasswordFields() {
   );
 }
 
-/** Manage password rotation and optional verified recovery email with explicit recent-auth support. */
+/** Manage passwords and recovery email with explicit recent authentication. */
 export function SecurityPanel({
   owner,
   profile,

@@ -118,7 +118,7 @@ export class CommunityOperations {
       }
       throw error;
     }
-    // Commit access removal before forgetting an acknowledged operation, just like message commands.
+    // Commit access removal before discarding the acknowledged operation.
     await this.options.applyReceipt({
       conversationId: operation.request.conversation_id,
       receipt,

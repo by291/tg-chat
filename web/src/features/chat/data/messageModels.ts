@@ -223,46 +223,52 @@ function getMissedCallMode(message: CanonicalMessage): Message['missedCallMode']
   }
 }
 
+function renderBodyMedia(body: CanonicalMessage['body'] | undefined): Message['media'] {
+  switch (body?.kind) {
+    case 'poll':
+      return renderPoll(body);
+    case 'poll_snapshot':
+      return {
+        kind: 'poll',
+        question: body.question,
+        options: body.options.map((option) => ({ ...option, votes: 0 })),
+        canVote: false,
+        hasVisibleResults: false,
+        isSnapshot: true,
+      };
+    case 'checklist':
+      return renderChecklist(body);
+    case 'checklist_snapshot':
+      return {
+        kind: 'checklist',
+        title: body.title,
+        canOthersComplete: false,
+        canOthersAppend: false,
+        canComplete: false,
+        canAppend: false,
+        items: body.tasks.map((task) => ({
+          id: task.id,
+          text: task.text,
+          isCompleted: task.is_complete,
+        })),
+      };
+    case 'contact':
+      return {
+        kind: 'contact',
+        name: body.display_name,
+        userId: body.account_id ?? undefined,
+        phone: body.phone ?? '',
+        initials: '',
+      };
+    default:
+      return undefined;
+  }
+}
+
 /** Adapt accepted transport content to the existing renderer without demo state. */
 export function renderMessage(message: CanonicalMessage): Message {
   const body = message.is_deleted ? undefined : message.body;
-  let media: Message['media'];
-  if (body?.kind === 'poll') {
-    media = renderPoll(body);
-  } else if (body?.kind === 'poll_snapshot') {
-    media = {
-      kind: 'poll',
-      question: body.question,
-      options: body.options.map((option) => ({ ...option, votes: 0 })),
-      canVote: false,
-      hasVisibleResults: false,
-      isSnapshot: true,
-    };
-  } else if (body?.kind === 'checklist') {
-    media = renderChecklist(body);
-  } else if (body?.kind === 'checklist_snapshot') {
-    media = {
-      kind: 'checklist',
-      title: body.title,
-      canOthersComplete: false,
-      canOthersAppend: false,
-      canComplete: false,
-      canAppend: false,
-      items: body.tasks.map((task) => ({
-        id: task.id,
-        text: task.text,
-        isCompleted: task.is_complete,
-      })),
-    };
-  } else if (body?.kind === 'contact') {
-    media = {
-      kind: 'contact',
-      name: body.display_name,
-      userId: body.account_id ?? undefined,
-      phone: body.phone ?? '',
-      initials: '',
-    };
-  }
+  const media = renderBodyMedia(body);
 
   return {
     id: message.id,

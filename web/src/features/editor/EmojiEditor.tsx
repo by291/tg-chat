@@ -137,7 +137,7 @@ export function EmojiEditor(props: EmojiEditorProps) {
         },
       }}
     >
-      {/* Keep measurement observers in the same lifecycle as the editable DOM during hot updates. */}
+      {/* Keep observers attached to the editable DOM across hot updates. */}
       <EditorSurface {...props} />
       <HistoryPlugin />
       <RichEditorPlugins />

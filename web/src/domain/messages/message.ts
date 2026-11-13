@@ -5,6 +5,14 @@ import { attachmentSchema, messageMediaSchema, type MessageMedia } from './media
 import { sanitizeRichText } from './richText';
 
 // tweb groups adjacent messages through the inclusive 121-second boundary.
+// prettier-ignore
+const DELIVERY_STATUSES = [
+  'queued',
+  'sending',
+  'accepted',
+  'failed',
+] as const;
+
 export const MESSAGE_GROUP_INTERVAL = 121_000;
 const MAX_DATE_TIMESTAMP = 8_640_000_000_000_000;
 
@@ -45,7 +53,7 @@ export const messageSchema = z.object({
     .optional(),
   // prettier-ignore
   deliveryError: z.string().optional(),
-  deliveryStatus: z.enum(['queued', 'sending', 'accepted', 'failed']).optional(),
+  deliveryStatus: z.enum(DELIVERY_STATUSES).optional(),
   isEdited: z.boolean().optional(),
   isPinned: z.boolean().optional(),
 });

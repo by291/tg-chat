@@ -67,8 +67,8 @@ function matchesJoinedCommunity(conversation: Conversation, filter: Filter, quer
     return Boolean(conversation.public_handle?.toLowerCase().includes(query.slice(1)));
   }
   const title = conversation.title.toLowerCase();
-  const handle = conversation.public_handle?.toLowerCase();
-  return title.includes(query) || Boolean(handle?.includes(query));
+  const publicHandle = conversation.public_handle?.toLowerCase();
+  return title.includes(query) || Boolean(publicHandle?.includes(query));
 }
 
 function admissionLabel(result: CommunitySummary): string {
@@ -84,7 +84,8 @@ function CommunityResult({ session, result, action }: CommunityResultProps) {
     memberCount: result.member_count,
   });
   const metadata = [result.public_handle && `@${result.public_handle}`, audience];
-  const initials = Array.from(result.title).slice(0, 2).join('').toUpperCase();
+  const firstCharacters = Array.from(result.title).slice(0, 2);
+  const initials = firstCharacters.join('').toUpperCase();
 
   return (
     <article aria-label={result.title} className={styles.result}>

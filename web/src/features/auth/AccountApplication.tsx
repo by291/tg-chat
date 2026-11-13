@@ -8,7 +8,7 @@ import { ApiError, SessionOwner, isCancelled, requirePayload } from './SessionOw
 
 const SESSION_REFRESH_INTERVAL_MS = 60_000;
 
-/** Bootstrap only server-owned accounts and tear down the entire private subtree on session changes. */
+/** Load server-owned accounts and unmount private views when the session changes. */
 export function AccountApplication() {
   const [owner] = useState(() => new SessionOwner({ baseUrl: window.location.origin }));
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);

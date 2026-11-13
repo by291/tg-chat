@@ -133,7 +133,7 @@ export function ForwardRecipientSearch({
       transition={{ duration: shouldReduceMotion ? 0 : TRANSITION_SECONDS, ease: SELECTOR_EASING }}
     >
       <div ref={contentRef} className={styles.content}>
-        {/* Departing chips leave flex flow immediately; their neighbors can move while they shrink. */}
+        {/* Remove departing chips from flex flow so their neighbors can move during exit. */}
         <AnimatePresence initial={false} mode="popLayout">
           {recipients.map((recipient) => (
             <RecipientChip key={recipient.id} recipient={recipient} onRemove={onRemove} />
