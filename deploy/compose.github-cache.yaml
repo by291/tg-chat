@@ -1,0 +1,23 @@
+services:
+  migrate:
+    build:
+      cache_from: &rust-cache
+        - type=gha,scope=tg-chat-runtime-rust
+  api:
+    build:
+      cache_from: *rust-cache
+  worker:
+    build:
+      cache_from: *rust-cache
+      # The worker inherits the API build stages, so one export covers their shared layers.
+      cache_to:
+        - type=gha,scope=tg-chat-runtime-rust,mode=max,ignore-error=true,timeout=3m
+  link-preview-fetcher:
+    build:
+      cache_from: *rust-cache
+  gateway:
+    build:
+      cache_from:
+        - type=gha,scope=tg-chat-runtime-gateway
+      cache_to:
+        - type=gha,scope=tg-chat-runtime-gateway,mode=max,ignore-error=true,timeout=3m

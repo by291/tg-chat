@@ -72,13 +72,16 @@ jobs:
           --component rustfmt --component clippy
       - name: Select Rust toolchain
         run: rustup override set 1.98.0
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2.9.3
       - name: Install frontend tooling
         run: pnpm --dir web install --frozen-lockfile
       - name: Check formatting
         run: |
           cargo fmt --all --check
           pnpm --dir web exec prettier --check --config .prettierrc.json \
-            ../compose.yaml ../.github/workflows/backend.yml ../scripts/*.mjs \
+            ../compose.yaml ../deploy/compose.github-cache.yaml \
+            ../.github/workflows/backend.yml ../scripts/*.mjs \
             ../docs/development.md ../docs/operations.md ../openapi/api.json
       - name: Install media processor prerequisites
         run: |
@@ -146,16 +149,25 @@ jobs:
             echo '::error::The preview fetcher requires Docker Engine API 1.49 or later.'
             exit 1
           fi
+      - name: Set up Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v4.4.1
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: web/package.json
+          cache: true
+          cache_dependency_path: web/pnpm-lock.yaml
           run_install: false
       - name: Install account browser tooling
         run: |
           pnpm --dir web install --frozen-lockfile
           pnpm --dir web exec playwright install --with-deps chromium
+      - name: Expose the GitHub Actions cache to BuildKit
+        uses: crazy-max/ghaction-github-runtime@v4.0.0
       - name: Verify the integrated runtime and persistent storage
-        run: node scripts/check-runtime.mjs
+        env:
+          BUILDX_BUILDER: ${{ steps.buildx.outputs.name }}
+        run: node scripts/check-runtime.mjs --github-build-cache

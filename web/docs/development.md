@@ -29,7 +29,7 @@ plus Centrifugo for realtime acceptance. Set `TG_CHAT_ACCOUNT_TEST_URL` and
 exercise private profiles, contacts, device revocation, cross-tab logout, verification, single-use
 recovery, direct/Saved rich messaging, pending reload, and history paging. Use a disposable
 deployment with available registration rate budget. The root `node scripts/check-runtime.mjs`
-command provisions that complete environment and runs Rust, account/messaging browser checks, and
+command provisions that complete environment and runs account and messaging browser checks and
 committed-response-loss recovery; see [backend development](../../docs/development.md).
 
 Use the existing Prettier configuration. Text files use LF on Windows, macOS, and Linux through
@@ -46,9 +46,10 @@ pnpm exec prettier --check ../README.md ../AGENTS.md
 the frontend or its shared engineering configuration. It can also be started manually. New runs
 cancel older work for the same branch or pull request.
 
-Linux and Windows both install the locked dependencies and run unit/component tests. Windows runs
-the type check and production build directly. Linux checks formatting and runs Chromium against a
-production preview; that browser command already includes type checking and the build.
+Linux and Windows both install the locked dependencies and run unit and component tests. Windows
+runs the type check and production build directly. On Linux, formatting and unit tests run in
+parallel with a separate Chromium job. Chromium uses a production preview built by the browser
+command, which includes type checking.
 
 Node.js uses the supported 22 release line, while pnpm follows the version in `package.json`.
 The dependency cache is keyed by the frontend lockfile. Browser failures retain screenshots and

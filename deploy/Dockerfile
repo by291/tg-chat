@@ -1,34 +1,29 @@
-FROM rust:1.98.0-bookworm AS build
+FROM rust:1.98.0-bookworm AS chef
 WORKDIR /app
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y libseccomp-dev \
     && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-chef --version 0.1.78 --locked
 
+FROM chef AS recipe
+COPY Cargo.toml Cargo.lock build.rs ./
+COPY src ./src
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS build
+COPY --from=recipe /app/recipe.json ./recipe.json
+# Export a dependency layer that stays reusable when application files change.
+RUN cargo chef cook --release --locked --bins --recipe-path recipe.json
+
+# Replace Cargo Chef's generated targets with the real sources and embedded assets.
 COPY Cargo.toml Cargo.lock rustfmt.toml build.rs ./
 COPY src ./src
 COPY migrations ./migrations
-COPY tests ./tests
 COPY contracts ./contracts
 COPY web/src/features/emoji/publicEmojiPacks.json ./web/src/features/emoji/publicEmojiPacks.json
 COPY web/src/features/stickers/publicStickerPacks.json ./web/src/features/stickers/
 RUN cargo build --locked --release --bins
-
-FROM build AS verification
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y ffmpeg util-linux \
-    && rm -rf /var/lib/apt/lists/*
-CMD [ \
-    "cargo", \
-    "test", \
-    "--locked", \
-    "--release", \
-    "--all-targets", \
-    "--", \
-    "--include-ignored", \
-    "--skip", \
-    "explicitly_created_room_can_be_listed_and_deleted" \
-]
 
 FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS runtime-base
 

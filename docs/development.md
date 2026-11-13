@@ -129,10 +129,10 @@ For the complete container boundary check, run from the root:
 node scripts/check-runtime.mjs
 ```
 
-This runner builds images, generates ephemeral credentials and a unique Compose project, runs the
-real Rust tests inside a Linux container, and runs account/messaging browsers against the built
-frontend and Mailpit. It drops a real committed message response, restarts API, and verifies replay
-and recipient visibility. It interrupts Worker/Centrifugo, clears Valkey, checks retention-floor
+This runner builds images, generates ephemeral credentials and a unique Compose project, applies
+migrations, and runs account and messaging browsers against the built frontend and Mailpit. It drops
+a real committed message response, restarts API, and verifies replay and recipient visibility.
+It interrupts Worker/Centrifugo, clears Valkey, checks retention-floor
 rebootstrap, and runs the four-session synchronization browser suite. The paired restore drill
 checks an existing attachment after restoring PostgreSQL and RustFS inside the test project.
 Off-host recovery and recovery objectives belong to [release acceptance][release-acceptance].
@@ -229,9 +229,10 @@ The OpenAPI generator uses TypeScript 5's compiler API through the scoped `.pnpm
 hook; the frontend still compiles with TypeScript 7. Keep that hook until the generator supports the newer
 compiler API, and update the lockfile alongside dependency changes.
 
-Frontend unit, formatting, build, and browser checks remain documented in
-[frontend development](../web/docs/development.md). Backend CI checks Rust and contracts separately
-from the existing frontend workflow and runs the same isolated Compose acceptance command.
+The native Backend CI job runs the Rust suite with real dependencies, checks generated contracts,
+and caches Cargo dependencies and compiled dependency artifacts. The Compose job runs the isolated
+deployment and recovery checks with GitHub Actions BuildKit caches for the Rust and gateway images.
+See [frontend development](../web/docs/development.md) for Web CI.
 
 The isolated runtime check also runs `test:communities` with five account contexts, covering public
 admission, approvals, private invitations, member removal, and channel subscriber permissions.

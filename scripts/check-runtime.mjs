@@ -22,7 +22,16 @@ const COMMAND_TIMEOUT_MS = 1_200_000;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const SECRET_MARKER = `private-request-${randomUUID()}`;
 const OBJECT_CONTENT = 'Object storage survives service restarts.\n';
+// prettier-ignore
+const RUNTIME_BUILD_SERVICES = [
+  'migrate',
+  'api',
+  'worker',
+  'gateway',
+  'link-preview-fetcher',
+];
 const isCallsRun = process.argv.includes('--calls');
+const usesGitHubBuildCache = process.argv.includes('--github-build-cache');
 const environment = createRuntimeEnvironment({ httpPort: '0', s3Port: '0' });
 Object.assign(environment, isCallsRun ? callsEnvironment : { TG_CHAT_CALLS_ENABLED: 'false' });
 environment.TG_CHAT_MAILPIT_PORT = '0';
@@ -52,6 +61,10 @@ const composeArguments = [
   '--file',
   join(ROOT, 'compose.yaml'),
 ];
+
+if (usesGitHubBuildCache) {
+  composeArguments.push('--file', join(ROOT, 'deploy/compose.github-cache.yaml'));
+}
 
 if (isCallsRun) {
   const callsOverridePath = join(temporaryDirectory, 'compose.calls.yaml');
@@ -606,16 +619,6 @@ async function verifyPersistence({ origin, storageOrigin }) {
 }
 
 async function verifyCallsRuntime() {
-  console.log('Building the isolated calls runtime.');
-  // prettier-ignore
-  compose([
-    'build',
-    'migrate',
-    'api',
-    'worker',
-    'gateway',
-    'link-preview-fetcher',
-  ]);
   compose(['up', '-d', '--wait']);
   console.log('Checking connected calls with Chromium fake media devices.');
   verifyCallBrowsers({ compose, execute, root: ROOT });
@@ -649,23 +652,16 @@ async function main() {
   });
 
   try {
+    console.log('Building isolated runtime images.');
+    // Stream build progress so cache hits and slow stages are visible in CI.
+    compose(['build', ...RUNTIME_BUILD_SERVICES], { stdio: 'inherit' });
+
     if (isCallsRun) {
       await verifyCallsRuntime();
       console.log('Calls runtime acceptance passed.');
       return;
     }
 
-    console.log('Building isolated runtime images.');
-    // prettier-ignore
-    compose([
-      'build',
-      'migrate',
-      'api',
-      'worker',
-      'gateway',
-      'link-preview-fetcher',
-      'verification',
-    ]);
     console.log('Starting real dependencies and application processes.');
     // prettier-ignore
     compose([
@@ -685,15 +681,6 @@ async function main() {
     await verifyRealtimeAuthentication(origin);
     verifyPrivateServices();
     await expectStatus(`${storageOrigin}/rustfs/admin/v3/info`, 404);
-    console.log('Checking migrations against real PostgreSQL.');
-    // prettier-ignore
-    compose([
-      '--profile',
-      'verification',
-      'run',
-      '--rm',
-      'verification',
-    ]);
     console.log('Checking committed-response loss and message replay across API restart.');
     await verifyMessageRecovery({
       origin,

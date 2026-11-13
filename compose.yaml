@@ -266,26 +266,6 @@ services:
       timeout: 3s
       retries: 30
 
-  verification:
-    profiles: [verification]
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile
-      target: verification
-    environment:
-      TG_CHAT_TEST_VALKEY_URL: redis://valkey:6379
-      TG_CHAT_TEST_SMTP_HOST: mailpit
-      TG_CHAT_TEST_SMTP_PORT: '1025'
-      TG_CHAT_TEST_S3_ENDPOINT: http://rustfs:9000
-      TG_CHAT_TEST_S3_PUBLIC_ENDPOINT: http://media-origin:8333
-      TG_CHAT_TEST_S3_ACCESS_KEY: ${TG_CHAT_S3_ACCESS_KEY:?Generate .env first}
-      TG_CHAT_TEST_S3_SECRET_KEY: ${TG_CHAT_S3_SECRET_KEY:?Generate .env first}
-      DATABASE_URL: >-
-        postgres://tg_chat:${TG_CHAT_DATABASE_PASSWORD:?Generate .env first}@postgres:5432/tg_chat
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 networks:
   preview-control:
     internal: true
