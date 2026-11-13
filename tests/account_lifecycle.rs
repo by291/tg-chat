@@ -9,7 +9,8 @@ use axum::{
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
+    accounts::cleanup::cleanup_deleted_account,
     accounts::{
         AccountDeletionOutcome, AccountError, AccountService, DeleteAccount, Registration,
         SessionGrant,
@@ -19,7 +20,6 @@ use tg_chat::{
     },
     contacts::RelationshipChange,
     conversations::{CommunityAction, CommunityCommand, CommunitySettings, CreateCommunity},
-    jobs::account_cleanup::cleanup_deleted_account,
     media::AttachmentInput,
     messages::{Destination, MessageService},
     moderation::reports::ReportMessage,

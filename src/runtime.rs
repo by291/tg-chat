@@ -1,5 +1,7 @@
 //! Shared API and Worker startup and bounded shutdown.
 
+pub mod worker;
+
 use std::{collections::HashMap, future::IntoFuture, net::SocketAddr, time::Duration};
 
 use thiserror::Error;
@@ -7,32 +9,35 @@ use tokio::{net::TcpListener, time::timeout};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    accounts::{
-        AccountService, AccountSettings,
-        http::{AccountHttpState, router as account_router},
-        transport::HttpSettings,
-    },
-    calls::{
-        CallService,
-        livekit::LiveKit,
-        reconciliation::{Reconciliation, ReconciliationSettings},
-        room_work::RoomWork,
-        rooms::CallRooms,
-        signaling, webhook_http,
-    },
     config::{ServiceKind, Settings},
     database::connect_pool,
+    features::{
+        accounts::{
+            AccountService, AccountSettings,
+            http::{AccountHttpState, router as account_router},
+            mail::{MailQueue, MailSettings},
+            transport::HttpSettings,
+        },
+        calls::{
+            CallService,
+            livekit::LiveKit,
+            reconciliation::{Reconciliation, ReconciliationSettings},
+            room_work::RoomWork,
+            rooms::CallRooms,
+            signaling, webhook_http,
+        },
+        media::{
+            MediaCleanup, MediaLimits, MediaStorageSettings, MediaWorker, MediaWorkerSettings,
+            UploadService,
+        },
+        messages::link_previews::LinkPreviews,
+        notifications::{
+            NotificationService,
+            delivery::{PushRuntime, PushWorker},
+        },
+        realtime::{self, RealtimeClient, RealtimeSettings},
+    },
     http::{ApplicationState, router_with_api},
-    jobs::{MailQueue, MailSettings, link_previews::LinkPreviews},
-    media::{
-        MediaCleanup, MediaLimits, MediaStorageSettings, MediaWorker, MediaWorkerSettings,
-        UploadService,
-    },
-    notifications::{
-        NotificationService,
-        delivery::{PushRuntime, PushWorker},
-    },
-    realtime::{self, RealtimeClient, RealtimeSettings, WorkerServices},
 };
 
 const GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
@@ -138,7 +143,7 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
         let previews = previews.clone();
         let queue = mail.clone();
         let stop = shutdown.clone();
-        let services = WorkerServices {
+        let services = worker::WorkerServices {
             pool: pool.clone(),
             client: realtime_client.clone(),
             idle_days: account_settings.idle_days,
@@ -191,7 +196,7 @@ pub async fn serve(settings: Settings, service: ServiceKind) -> Result<(), Runti
             };
             tokio::join!(
                 queue.run(stop.clone()),
-                realtime::run(services, stop.clone()),
+                worker::run(services, stop.clone()),
                 prepare_media,
                 prepare_previews,
                 push.run(stop.clone()),

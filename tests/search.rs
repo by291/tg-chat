@@ -5,7 +5,7 @@ use chrono::{Days, Utc};
 use serde_json::json;
 use sqlx::PgPool;
 use support::messaging::{command, fixture, send_input};
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, Actor},
     messages::{
         HistoryQuery, MessageKind, MessageService, SearchQuery, SendReceipt,

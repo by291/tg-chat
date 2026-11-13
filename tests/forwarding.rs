@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use serde_json::json;
 use sqlx::{PgPool, Postgres, Transaction};
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, AccountService, AccountSettings},
     messages::{ForwardBatch, MessageService},
 };
@@ -18,10 +18,10 @@ const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
 struct ForwardFixture {
     service: MessageService,
-    sender: tg_chat::accounts::Actor,
-    forwarder: tg_chat::accounts::Actor,
-    receiver: tg_chat::accounts::Actor,
-    source: tg_chat::messages::SendReceipt,
+    sender: tg_chat::features::accounts::Actor,
+    forwarder: tg_chat::features::accounts::Actor,
+    receiver: tg_chat::features::accounts::Actor,
+    source: tg_chat::features::messages::SendReceipt,
 }
 
 async fn forward_fixture(pool: PgPool) -> ForwardFixture {
@@ -133,7 +133,7 @@ async fn protected_source_rejects_the_entire_destination_batch(pool: PgPool) {
     let mut request = batch(&fixture);
     request.items.insert(
         0,
-        tg_chat::messages::ForwardItem {
+        tg_chat::features::messages::ForwardItem {
             source_message_id: allowed.message.id,
             message_id: Uuid::new_v4(),
         },
@@ -149,7 +149,7 @@ async fn protected_source_rejects_the_entire_destination_batch(pool: PgPool) {
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn forwarded_file_survives_source_deletion_and_collection(pool: PgPool) {
-    use tg_chat::media::{
+    use tg_chat::features::media::{
         AttachmentInput, DownloadReference, MediaCleanup, MediaVariant, MessageDownload,
     };
 
@@ -305,7 +305,7 @@ async fn a_command_cannot_react_to_a_message_that_expires_while_waiting(pool: Pg
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn batch_delete_waits_for_the_lower_file_before_locking_the_higher_file(pool: PgPool) {
-    use tg_chat::media::AttachmentInput;
+    use tg_chat::features::media::AttachmentInput;
 
     let fixture = forward_fixture(pool.clone()).await;
     let first = support::media::prepared_document(&pool, &fixture.sender).await;

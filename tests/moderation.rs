@@ -11,7 +11,7 @@ use axum::{
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{
         AccountError, AccountService, AccountSettings, Login, Registration, SessionGrant,
         email::PasswordReset,
@@ -54,7 +54,7 @@ async fn login_operator(accounts: &AccountService) -> SessionGrant {
 fn application(accounts: AccountService, pool: PgPool) -> Router {
     let settings = HttpSettings::from_values(&HashMap::new()).unwrap();
     let mail = support::mail_queue(pool);
-    tg_chat::accounts::http::router(AccountHttpState::new(accounts, settings, mail))
+    tg_chat::features::accounts::http::router(AccountHttpState::new(accounts, settings, mail))
 }
 
 async fn command(

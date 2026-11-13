@@ -4,7 +4,7 @@ mod support;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use support::media::{put, storage_settings, test_upload_service};
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountService, AccountSettings, Actor},
     media::{MediaWorker, MediaWorkerSettings, ReserveUpload, SignedUpload, UploadPurpose},
     media::{UploadService, UploadState},
@@ -245,7 +245,7 @@ async fn processor_rejects_images_over_the_pixel_budget(pool: PgPool) {
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn collector_preserves_a_file_with_a_live_message_reference(pool: PgPool) {
-    use tg_chat::{
+    use tg_chat::features::{
         media::{AttachmentInput, DownloadReference, MediaCleanup, MediaVariant, MessageDownload},
         messages::MessageService,
     };
@@ -285,7 +285,7 @@ async fn collector_preserves_a_file_with_a_live_message_reference(pool: PgPool) 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn staging_cleanup_waits_for_a_signed_write_to_expire(pool: PgPool) {
-    use tg_chat::media::MediaCleanup;
+    use tg_chat::features::media::MediaCleanup;
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "file_owner").await;
@@ -318,7 +318,7 @@ async fn staging_cleanup_waits_for_a_signed_write_to_expire(pool: PgPool) {
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn retry_waits_for_the_previous_candidate_to_release_its_bytes(pool: PgPool) {
-    use tg_chat::media::MediaCleanup;
+    use tg_chat::features::media::MediaCleanup;
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let actor = support::account(&accounts, "file_owner").await;

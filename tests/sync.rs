@@ -1,5 +1,5 @@
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, AccountService, AccountSettings, Actor, Registration},
     messages::{Destination, HistoryQuery, MessageService, SendMessage, content::MessageContent},
     sync::SyncQuery,

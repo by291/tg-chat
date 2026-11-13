@@ -8,7 +8,7 @@ use reqwest::{
 use serde::Serialize;
 use url::Host;
 
-use crate::link_preview_address::{is_public_host, is_public_ip};
+use crate::public_address::{is_public_host, is_public_ip};
 
 #[path = "metadata.rs"]
 mod metadata;

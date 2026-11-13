@@ -6,14 +6,14 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use tg_chat::{
-    accounts::{
+    config::{ServiceKind, Settings},
+    database::{MIGRATOR, connect_pool, migrate},
+    features::accounts::{
         AccountService, AccountSettings,
         operator::{
             OperatorCreation, PolicyChange, RegistrationPolicy, SuspensionChange, UserStatus,
         },
     },
-    config::{ServiceKind, Settings},
-    database::{MIGRATOR, connect_pool, migrate},
     http::ApiDocument,
     runtime, telemetry,
 };
@@ -198,7 +198,7 @@ async fn execute(command: Command) -> Result<(), Box<dyn std::error::Error>> {
     } = command
     {
         let pool = connect_pool(&settings.database);
-        let queue = tg_chat::jobs::wakeups::WakeupQueue::new(pool.clone());
+        let queue = tg_chat::features::realtime::wakeups::WakeupQueue::new(pool.clone());
         match operation {
             WakeupCommand::List => {
                 println!("{}", serde_json::to_string_pretty(&queue.exhausted().await?)?)

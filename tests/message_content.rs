@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use tg_chat::messages::content::{CustomEmoji, MessageContent, validate_content};
+use tg_chat::features::messages::content::{CustomEmoji, MessageContent, validate_content};
 
 const EMOJI_ID: &str = "5249007745805328497";
 

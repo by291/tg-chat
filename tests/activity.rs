@@ -12,16 +12,18 @@ use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use tg_chat::{
-    accounts::{
-        AccountService, AccountSettings, Actor, Login, Registration, SessionGrant,
-        http::AccountHttpState, transport::HttpSettings,
-    },
     config::ServiceKind,
-    contacts::{Audience, PrivacySettings, RelationshipChange},
+    features::{
+        accounts::mail::{MailQueue, MailSettings},
+        accounts::{
+            AccountService, AccountSettings, Actor, Login, Registration, SessionGrant,
+            http::AccountHttpState, transport::HttpSettings,
+        },
+        contacts::{Audience, PrivacySettings, RelationshipChange},
+        messages::MessageService,
+        realtime::Activity,
+    },
     http::{ApplicationState, router_with_api},
-    jobs::{MailQueue, MailSettings},
-    messages::MessageService,
-    realtime::Activity,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -80,7 +82,8 @@ fn application(pool: PgPool, values: &HashMap<String, String>) -> Router {
     let transport = HttpSettings::from_values(values).unwrap();
     let mail_settings = MailSettings::from_values(values).unwrap();
     let mail = MailQueue::new(pool.clone(), mail_settings).unwrap();
-    let routes = tg_chat::accounts::http::router(AccountHttpState::new(accounts, transport, mail));
+    let routes =
+        tg_chat::features::accounts::http::router(AccountHttpState::new(accounts, transport, mail));
 
     router_with_api(
         ApplicationState {
@@ -236,7 +239,7 @@ async fn activity_expires_and_is_fenced_by_current_audience_and_membership(pool:
     assert!(presence["online_for_ms"].as_u64().unwrap() > 0);
 
     accounts
-        .revoke_session(tg_chat::accounts::RevokeSession {
+        .revoke_session(tg_chat::features::accounts::RevokeSession {
             actor: alice.clone(),
             session_id: alice.session_id,
         })

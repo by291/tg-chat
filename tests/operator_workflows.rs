@@ -3,7 +3,7 @@ mod support;
 
 use serde_json::json;
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, AccountService, AccountSettings, Actor},
     media::{MediaLimits, ReserveUpload, UploadPurpose, UploadReservations},
     messages::{HistoryQuery, MessageService},

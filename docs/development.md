@@ -5,6 +5,18 @@ Connected mode uses real account APIs, durable messaging, authenticated realtime
 groups and channels. `/demo` keeps local sample conversations separate. See the
 [documentation index](../README.md#documentation) for the implemented boundaries.
 
+## Backend source layout
+
+Business modules live in `src/features/`. Each feature keeps its service, HTTP handlers,
+storage queries, and background operations together. For example, account cleanup and email
+delivery live with accounts, while scheduled poll closure and link previews live with messages.
+Realtime owns wakeup delivery. Sync owns the retained change feed and its pruning.
+
+`src/bin/` contains the executable entry points. `src/runtime.rs` and `src/runtime/` wire the API
+and Worker and coordinate work across features. Configuration, database setup, shared HTTP
+handling, network address checks, and telemetry live alongside these runtime entry points.
+Integration tests remain in `tests/`, and SQL migrations remain in `migrations/`.
+
 ## Start the integrated environment
 
 Install Docker with Compose v2 or later and Node.js 24 or later. From the repository root:

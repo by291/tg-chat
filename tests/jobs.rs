@@ -2,7 +2,7 @@ mod support;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use sqlx::PgPool;
-use tg_chat::{accounts::AccountError, jobs::DeliveryOutcome};
+use tg_chat::features::accounts::{AccountError, mail::DeliveryOutcome};
 
 const VALID_MAIL_KEY: [u8; 32] = [37; 32];
 
@@ -169,7 +169,7 @@ async fn consumed_challenges_are_discarded_and_final_crashed_attempts_are_not_re
 fn smtp_settings_reject_missing_keys_and_unencrypted_remote_delivery() {
     use std::collections::HashMap;
 
-    use tg_chat::jobs::MailSettings;
+    use tg_chat::features::accounts::mail::MailSettings;
 
     let mut values = HashMap::new();
     values.insert("TG_CHAT_SMTP_HOST".to_owned(), "smtp.example.test".to_owned());

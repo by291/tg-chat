@@ -4,7 +4,7 @@ mod support;
 use std::time::Duration;
 
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{
         AccountService, AccountSettings, Actor, DeleteAccount,
         operator::{SuspensionChange, UserStatus},
@@ -12,8 +12,8 @@ use tg_chat::{
     calls::{CallAction, CallCommand, CallEndReason, CallService},
     contacts::{Audience, PrivacySettings, RelationshipChange},
     messages::HistoryQuery,
-    realtime::{self, WorkerServices},
 };
+use tg_chat::runtime::worker::{self, WorkerServices};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -42,7 +42,7 @@ async fn wait_for_reason(pool: &PgPool, call_id: Uuid) -> String {
 }
 
 fn start_worker(pool: &PgPool, stop: CancellationToken) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(realtime::run(
+    tokio::spawn(worker::run(
         WorkerServices {
             pool: pool.clone(),
             client: None,
@@ -214,7 +214,7 @@ async fn policy_mutation_fences_calls_and_spares_unrelated_sessions(pool: PgPool
     accept.bind(call_id).bind(recipient.session_id).execute(&pool).await.unwrap();
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let revoke = tg_chat::accounts::RevokeSession {
+    let revoke = tg_chat::features::accounts::RevokeSession {
         actor: recipient.clone(),
         session_id: unrelated_session_id,
     };
@@ -237,7 +237,7 @@ async fn policy_mutation_fences_calls_and_spares_unrelated_sessions(pool: PgPool
         .unwrap();
     assert_eq!(slots, 2);
 
-    let revoke = tg_chat::accounts::RevokeSession {
+    let revoke = tg_chat::features::accounts::RevokeSession {
         actor: recipient.clone(),
         session_id: recipient.session_id,
     };

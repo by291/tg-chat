@@ -4,7 +4,7 @@ mod support;
 use serde_json::json;
 use sqlx::PgPool;
 use support::messaging::{command, fixture, send_input};
-use tg_chat::{accounts::AccountError, messages::HistoryQuery};
+use tg_chat::features::{accounts::AccountError, messages::HistoryQuery};
 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]

@@ -3,7 +3,7 @@ mod support;
 
 use sqlx::PgPool;
 use support::messaging::{fixture, send_input};
-use tg_chat::jobs::wakeups::{WakeupOutcome, WakeupQueue};
+use tg_chat::features::realtime::wakeups::{WakeupOutcome, WakeupQueue};
 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]
@@ -65,11 +65,11 @@ async fn retention_requires_reset_and_expiry_cleanup_emits_a_removal(pool: PgPoo
         .execute(&pool)
         .await
         .unwrap();
-    assert!(tg_chat::jobs::maintenance::expire_one(&pool).await.unwrap());
+    assert!(tg_chat::features::messages::maintenance::expire_one(&pool).await.unwrap());
     let changes = service
         .sync(
             bobby.clone(),
-            tg_chat::sync::SyncQuery {
+            tg_chat::features::sync::SyncQuery {
                 cursor: bootstrap.cursor.clone(),
                 limit: None,
             },
@@ -82,19 +82,19 @@ async fn retention_requires_reset_and_expiry_cleanup_emits_a_removal(pool: PgPoo
         .execute(&pool)
         .await
         .unwrap();
-    tg_chat::jobs::maintenance::prune_one(&pool).await.unwrap();
-    tg_chat::jobs::maintenance::prune_one(&pool).await.unwrap();
+    tg_chat::features::sync::retention::prune_one(&pool).await.unwrap();
+    tg_chat::features::sync::retention::prune_one(&pool).await.unwrap();
     assert!(matches!(
         service
             .sync(
                 bobby,
-                tg_chat::sync::SyncQuery {
+                tg_chat::features::sync::SyncQuery {
                     cursor: bootstrap.cursor,
                     limit: None
                 }
             )
             .await,
-        Err(tg_chat::accounts::AccountError::SyncResetRequired)
+        Err(tg_chat::features::accounts::AccountError::SyncResetRequired)
     ));
 }
 

@@ -1,5 +1,5 @@
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountService, AccountSettings},
     media::{MediaLimits, MediaStorageSettings, SignedUpload, UploadService},
 };
@@ -53,9 +53,11 @@ pub async fn put(request: &SignedUpload, bytes: Vec<u8>) -> reqwest::Response {
 }
 
 /// Prepare a small document through the real upload and Worker paths.
-pub async fn prepared_document(pool: &PgPool, actor: &tg_chat::accounts::Actor) -> Uuid {
+pub async fn prepared_document(pool: &PgPool, actor: &tg_chat::features::accounts::Actor) -> Uuid {
     use sha2::{Digest, Sha256};
-    use tg_chat::media::{MediaWorker, MediaWorkerSettings, ReserveUpload, UploadPurpose};
+    use tg_chat::features::media::{
+        MediaWorker, MediaWorkerSettings, ReserveUpload, UploadPurpose,
+    };
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let uploads = test_upload_service(accounts);

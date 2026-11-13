@@ -1,25 +1,9 @@
 //! Shared runtime boundaries for the API and Worker processes.
 
-pub mod accounts;
-pub mod calls;
 pub mod config;
 pub mod database;
+pub mod features;
 pub mod http;
+mod network;
 pub mod runtime;
 pub mod telemetry;
-
-pub mod contacts;
-
-pub mod jobs;
-mod link_preview_address;
-mod sticker_catalog;
-
-pub mod media;
-pub mod messages;
-pub mod moderation;
-pub mod notifications;
-
-pub mod conversations;
-pub mod sync;
-
-pub mod realtime;

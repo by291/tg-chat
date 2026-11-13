@@ -14,7 +14,7 @@ use axum::{
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{
         AccountError, AccountService, Actor, Login, Registration, RevokeSession, SessionGrant,
         http::{self, AccountHttpState},

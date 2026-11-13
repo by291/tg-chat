@@ -11,7 +11,7 @@ use axum::{
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{
         AccountService, Actor, Registration, SessionGrant,
         http::{self, AccountHttpState},
@@ -218,7 +218,7 @@ async fn original_fixture(pool: &PgPool) -> OriginalFixture {
     }
 }
 
-fn source_removal(sent: &SendReceipt) -> tg_chat::messages::MessageCommand {
+fn source_removal(sent: &SendReceipt) -> tg_chat::features::messages::MessageCommand {
     support::messaging::command(
         sent.conversation.id,
         json!({"kind": "delete", "message_id": sent.message.id}),
@@ -350,7 +350,7 @@ async fn expired_case_releases_only_its_own_references(pool: PgPool) {
     );
     expire.bind(case_uuid).execute(&pool).await.unwrap();
     assert_eq!(fixture.operator.get(&path).await.status(), StatusCode::NOT_FOUND);
-    assert!(tg_chat::moderation::evidence::expire_one(&pool).await.unwrap());
+    assert!(tg_chat::features::moderation::evidence::expire_one(&pool).await.unwrap());
     let remains = sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS (SELECT 1 FROM media_evidence_references WHERE case_id = $1)",
     );

@@ -5,9 +5,9 @@ use std::collections::HashMap;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
+    accounts::mail::{DeliveryOutcome, MailQueue, MailSettings},
     accounts::{AccountService, AccountSettings, Actor, Registration, email::EmailService},
-    jobs::{DeliveryOutcome, MailQueue, MailSettings},
 };
 
 const TEST_KEY: [u8; 32] = [37; 32];

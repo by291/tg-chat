@@ -4,7 +4,7 @@ use axum::{body::Body, http::Request};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountService, AccountSettings, Registration},
     realtime::{RealtimeSettings, router},
 };

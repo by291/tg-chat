@@ -65,20 +65,20 @@ struct AccountApi;
 
 impl utoipa::Modify for AccountApi {
     fn modify(&self, document: &mut utoipa::openapi::OpenApi) {
-        document.merge(crate::accounts::http::AccountDocument::openapi());
-        document.merge(crate::calls::http::CallDocument::openapi());
-        document.merge(crate::calls::credential_http::CredentialDocument::openapi());
-        document.merge(crate::messages::http::MessageDocument::openapi());
-        document.merge(crate::conversations::http::CommunityDocument::openapi());
-        document.merge(crate::contacts::http::ContactDocument::openapi());
-        document.merge(crate::media::http::MediaDocument::openapi());
-        document.merge(crate::moderation::http::ModerationDocument::openapi());
-        document.merge(crate::moderation::report_http::ReportDocument::openapi());
-        document.merge(crate::accounts::email_http::EmailDocument::openapi());
-        document.merge(crate::accounts::lifecycle_http::LifecycleDocument::openapi());
-        document.merge(crate::accounts::preferences_http::PreferencesDocument::openapi());
-        document.merge(crate::realtime::activity_http::ActivityDocument::openapi());
-        document.merge(crate::notifications::http::NotificationDocument::openapi());
+        document.merge(crate::features::accounts::http::AccountDocument::openapi());
+        document.merge(crate::features::calls::http::CallDocument::openapi());
+        document.merge(crate::features::calls::credential_http::CredentialDocument::openapi());
+        document.merge(crate::features::messages::http::MessageDocument::openapi());
+        document.merge(crate::features::conversations::http::CommunityDocument::openapi());
+        document.merge(crate::features::contacts::http::ContactDocument::openapi());
+        document.merge(crate::features::media::http::MediaDocument::openapi());
+        document.merge(crate::features::moderation::http::ModerationDocument::openapi());
+        document.merge(crate::features::moderation::report_http::ReportDocument::openapi());
+        document.merge(crate::features::accounts::email_http::EmailDocument::openapi());
+        document.merge(crate::features::accounts::lifecycle_http::LifecycleDocument::openapi());
+        document.merge(crate::features::accounts::preferences_http::PreferencesDocument::openapi());
+        document.merge(crate::features::realtime::activity_http::ActivityDocument::openapi());
+        document.merge(crate::features::notifications::http::NotificationDocument::openapi());
     }
 }
 

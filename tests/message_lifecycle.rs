@@ -4,7 +4,7 @@ mod support;
 use serde_json::json;
 use sqlx::PgPool;
 use support::messaging::{command, fixture, send_input};
-use tg_chat::accounts::AccountError;
+use tg_chat::features::accounts::AccountError;
 use uuid::Uuid;
 
 #[sqlx::test]
@@ -116,7 +116,7 @@ async fn personal_hides_and_expiry_remove_content_before_cleanup(pool: PgPool) {
     let changes = service
         .sync(
             bobby.clone(),
-            tg_chat::sync::SyncQuery {
+            tg_chat::features::sync::SyncQuery {
                 cursor: before.cursor,
                 limit: None,
             },
@@ -135,7 +135,7 @@ async fn personal_hides_and_expiry_remove_content_before_cleanup(pool: PgPool) {
     let history = service
         .history(
             bobby,
-            tg_chat::messages::HistoryQuery {
+            tg_chat::features::messages::HistoryQuery {
                 conversation_id: sent.conversation.id,
                 ..Default::default()
             },
@@ -232,7 +232,7 @@ async fn reply_targets_and_neighborhoods_require_visible_same_conversation_conte
     let page = service
         .history(
             bobby.clone(),
-            tg_chat::messages::HistoryQuery {
+            tg_chat::features::messages::HistoryQuery {
                 conversation_id: first.conversation.id,
                 around: Some(second.message.id),
                 limit: Some(3),
@@ -270,7 +270,7 @@ async fn reply_targets_and_neighborhoods_require_visible_same_conversation_conte
         service
             .history(
                 bobby,
-                tg_chat::messages::HistoryQuery {
+                tg_chat::features::messages::HistoryQuery {
                     conversation_id: first.conversation.id,
                     around: Some(second.message.id),
                     ..Default::default()
@@ -301,7 +301,7 @@ async fn pinned_history_uses_personal_visibility_and_pagination(pool: PgPool) {
         )
         .await
         .unwrap();
-    let query = || tg_chat::messages::HistoryQuery {
+    let query = || tg_chat::features::messages::HistoryQuery {
         conversation_id: first.conversation.id,
         pinned: Some(true),
         ..Default::default()

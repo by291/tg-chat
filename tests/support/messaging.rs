@@ -1,6 +1,6 @@
 use serde_json::json;
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountService, AccountSettings, Actor},
     messages::{MessageCommand, MessageService, SendMessage},
 };

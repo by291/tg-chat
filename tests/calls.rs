@@ -10,14 +10,18 @@ use axum::{
 use serde_json::json;
 use sqlx::PgPool;
 use tg_chat::{
-    accounts::{
-        AccountError, AccountService, AccountSettings, Actor, Login, Registration,
-        http::AccountHttpState, transport::HttpSettings,
-    },
-    calls::{CallAction, CallCommand, CallEndReason, CallMode, CallPhase, CallService, StartCall},
     config::ServiceKind,
+    features::{
+        accounts::{
+            AccountError, AccountService, AccountSettings, Actor, Login, Registration,
+            http::AccountHttpState, transport::HttpSettings,
+        },
+        calls::{
+            CallAction, CallCommand, CallEndReason, CallMode, CallPhase, CallService, StartCall,
+        },
+        messages::Destination,
+    },
     http::{ApplicationState, router_with_api},
-    messages::Destination,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -45,7 +49,7 @@ async fn disabled_runtime_returns_no_current_call(pool: PgPool) {
             pool,
             service: ServiceKind::Api,
         },
-        tg_chat::accounts::http::router(account_state),
+        tg_chat::features::accounts::http::router(account_state),
     );
     let request = Request::builder().uri("/api/v1/calls/current").header(header::COOKIE, cookie);
     let request = request.body(Body::empty()).unwrap();
@@ -327,7 +331,7 @@ async fn independent_pairs_share_the_deployment_capacity(pool: PgPool) {
     let other_caller = support::account(&fixture.accounts, "chris").await;
     let other_recipient = support::account(&fixture.accounts, "donna").await;
     save_contact(&pool, &other_recipient, &other_caller).await;
-    let messages = tg_chat::messages::MessageService::new(fixture.accounts);
+    let messages = tg_chat::features::messages::MessageService::new(fixture.accounts);
     let input = support::messaging::send_input(other_recipient.user_id);
     let other_chat = messages.send(other_caller.clone(), input).await.unwrap();
 
@@ -445,7 +449,7 @@ async fn only_the_designated_session_reads_the_private_call_outcome(pool: PgPool
     let winning_cookie = settings.session_cookie(&designated.token);
     let losing_cookie = settings.session_cookie(&other.token);
     let state = AccountHttpState::new(fixture.accounts, settings, support::mail_queue(pool));
-    let application = tg_chat::accounts::http::router(state.with_calls(fixture.service));
+    let application = tg_chat::features::accounts::http::router(state.with_calls(fixture.service));
 
     let path = format!("/api/v1/calls/{}/outcome", call.id);
     let read = |cookie: &str| {

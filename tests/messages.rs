@@ -1,5 +1,5 @@
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, AccountService, AccountSettings, Actor, Registration},
     messages::{Destination, MessageService, SendMessage, content::MessageContent},
 };
@@ -310,7 +310,7 @@ async fn legacy_text_replay_keeps_its_identity_with_typed_bodies(pool: PgPool) {
 #[ignore = "requires PostgreSQL"]
 async fn sticker_and_contact_bodies_round_trip_through_history_and_sync(pool: PgPool) {
     use serde_json::json;
-    use tg_chat::{messages::HistoryQuery, sync::SyncQuery};
+    use tg_chat::features::{messages::HistoryQuery, sync::SyncQuery};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let alice = register(&accounts, "alice").await;

@@ -3,12 +3,12 @@ mod support;
 use std::collections::HashMap;
 
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
+    accounts::mail::{MailQueue, MailSettings},
     accounts::{
         AccountError, AccountService, AccountSettings, Login, PasswordChange,
         email::{EmailService, PasswordReset},
     },
-    jobs::{MailQueue, MailSettings},
 };
 
 #[sqlx::test]

@@ -5,10 +5,14 @@ use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use tg_chat::{
-    accounts::{AccountService, AccountSettings, http::AccountHttpState, transport::HttpSettings},
     config::ServiceKind,
+    features::{
+        accounts::mail::{MailQueue, MailSettings},
+        accounts::{
+            AccountService, AccountSettings, http::AccountHttpState, transport::HttpSettings,
+        },
+    },
     http::{ApplicationState, router_with_api},
-    jobs::{MailQueue, MailSettings},
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -37,7 +41,7 @@ fn application(pool: PgPool, valkey_url: &str) -> Router {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let mail = MailQueue::new(pool.clone(), MailSettings::from_values(&values).unwrap()).unwrap();
     let account_routes =
-        tg_chat::accounts::http::router(AccountHttpState::new(accounts, settings, mail));
+        tg_chat::features::accounts::http::router(AccountHttpState::new(accounts, settings, mail));
 
     router_with_api(
         ApplicationState {

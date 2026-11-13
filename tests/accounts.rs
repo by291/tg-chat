@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use sqlx::PgPool;
-use tg_chat::accounts::{
+use tg_chat::features::accounts::{
     AccountError, AccountService, AccountSettings, Login, PasswordChange, Registration,
     RevokeSession,
 };

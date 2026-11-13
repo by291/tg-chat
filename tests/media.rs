@@ -3,7 +3,7 @@ mod support;
 
 use sqlx::PgPool;
 use support::media::{prepared_document, put, test_upload_service};
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, AccountService, AccountSettings},
     media::{MediaLimits, ReserveUpload, UploadPurpose, UploadReservations},
 };
@@ -76,7 +76,7 @@ async fn cancelled_reservation_does_not_reopen_on_replay(pool: PgPool) {
 
     let replay = reservations.reserve(&actor, request).await.unwrap();
     assert_eq!(cancelled, replay);
-    assert_ne!(replay.state, tg_chat::media::UploadState::Reserved);
+    assert_ne!(replay.state, tg_chat::features::media::UploadState::Reserved);
 }
 
 #[sqlx::test]
@@ -107,7 +107,7 @@ async fn transfer_reconciles_lost_part_and_completion_responses(pool: PgPool) {
 
     let accepted = service.complete(&actor, upload_id).await.unwrap();
     let replay = service.complete(&actor, upload_id).await.unwrap();
-    assert_eq!(accepted.state, tg_chat::media::UploadState::Uploaded);
+    assert_eq!(accepted.state, tg_chat::features::media::UploadState::Uploaded);
     assert_eq!(accepted, replay);
 }
 
@@ -133,7 +133,7 @@ async fn signed_single_put_rejects_bytes_beyond_the_reservation(pool: PgPool) {
     assert!(recovered.single_put_complete);
     assert!(recovered.requests.is_empty());
     let accepted = service.complete(&actor, upload_id).await.unwrap();
-    assert_eq!(accepted.state, tg_chat::media::UploadState::Uploaded);
+    assert_eq!(accepted.state, tg_chat::features::media::UploadState::Uploaded);
 }
 
 #[sqlx::test]
@@ -193,7 +193,7 @@ async fn transfer_adopts_multipart_after_create_succeeds_before_recording(pool: 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn an_owned_ready_file_can_be_sent_without_a_caption(pool: PgPool) {
-    use tg_chat::{media::AttachmentInput, messages::MessageService};
+    use tg_chat::features::{media::AttachmentInput, messages::MessageService};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let sender = support::account(&accounts, "sender").await;
@@ -219,7 +219,7 @@ async fn an_owned_ready_file_can_be_sent_without_a_caption(pool: PgPool) {
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn sending_a_foreign_ready_file_leaves_no_message(pool: PgPool) {
-    use tg_chat::{media::AttachmentInput, messages::MessageService};
+    use tg_chat::features::{media::AttachmentInput, messages::MessageService};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let owner = support::account(&accounts, "file_owner").await;
@@ -243,7 +243,7 @@ async fn sending_a_foreign_ready_file_leaves_no_message(pool: PgPool) {
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn accepted_media_replays_after_its_file_is_collected(pool: PgPool) {
     use serde_json::json;
-    use tg_chat::{media::AttachmentInput, messages::MessageService};
+    use tg_chat::features::{media::AttachmentInput, messages::MessageService};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let sender = support::account(&accounts, "sender").await;
@@ -279,7 +279,7 @@ async fn accepted_media_replays_after_its_file_is_collected(pool: PgPool) {
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn download_checks_reference_visibility_and_supports_range(pool: PgPool) {
     use serde_json::json;
-    use tg_chat::{
+    use tg_chat::features::{
         media::{AttachmentInput, DownloadReference, MediaVariant, MessageDownload},
         messages::MessageService,
     };
@@ -327,7 +327,9 @@ async fn download_checks_reference_visibility_and_supports_range(pool: PgPool) {
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn profile_avatar_does_not_authorize_the_original(pool: PgPool) {
-    use tg_chat::media::{AvatarDownload, AvatarOwner, DownloadReference, MediaVariant, SetAvatar};
+    use tg_chat::features::media::{
+        AvatarDownload, AvatarOwner, DownloadReference, MediaVariant, SetAvatar,
+    };
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let owner = support::account(&accounts, "avatar_owner").await;
@@ -376,7 +378,7 @@ async fn profile_avatar_does_not_authorize_the_original(pool: PgPool) {
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn album_preserves_repeated_file_occurrences_after_caption_edit(pool: PgPool) {
     use serde_json::json;
-    use tg_chat::{media::AttachmentInput, messages::MessageService};
+    use tg_chat::features::{media::AttachmentInput, messages::MessageService};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let sender = support::account(&accounts, "sender").await;
@@ -418,7 +420,7 @@ async fn album_preserves_repeated_file_occurrences_after_caption_edit(pool: PgPo
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn publishing_consumes_the_upload_preview_authority(pool: PgPool) {
-    use tg_chat::{
+    use tg_chat::features::{
         media::{AttachmentInput, DownloadReference, MediaVariant},
         messages::MessageService,
     };
@@ -454,7 +456,7 @@ async fn publishing_consumes_the_upload_preview_authority(pool: PgPool) {
 #[ignore = "requires PostgreSQL and S3 storage"]
 async fn case_hold_preserves_only_the_original_until_release(pool: PgPool) {
     use serde_json::json;
-    use tg_chat::{
+    use tg_chat::features::{
         media::{AttachmentInput, MediaCleanup},
         messages::MessageService,
     };

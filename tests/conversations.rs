@@ -3,7 +3,7 @@ mod support;
 
 use serde_json::json;
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountService, AccountSettings, Actor},
     messages::{HistoryQuery, MessageService, SendMessage},
 };
@@ -159,7 +159,7 @@ async fn community_moderation_requires_a_manager_without_granting_author_edit_ri
     assert!(service.command(owner, delete).await.is_ok());
 }
 
-fn create_input() -> tg_chat::conversations::CreateCommunity {
+fn create_input() -> tg_chat::features::conversations::CreateCommunity {
     serde_json::from_value(json!({
         "operation_id": Uuid::new_v4(),
         "conversation_id": Uuid::new_v4(),
@@ -176,7 +176,7 @@ fn create_input() -> tg_chat::conversations::CreateCommunity {
 fn community_command(
     id: Uuid,
     action: serde_json::Value,
-) -> tg_chat::conversations::CommunityCommand {
+) -> tg_chat::features::conversations::CommunityCommand {
     serde_json::from_value(json!({
         "operation_id": Uuid::new_v4(),
         "conversation_id": id,
@@ -244,7 +244,7 @@ async fn public_handles_are_normalized_and_removed_members_receive_access_remova
     let changes = service
         .sync(
             member,
-            tg_chat::sync::SyncQuery {
+            tg_chat::features::sync::SyncQuery {
                 cursor: before.cursor,
                 limit: None,
             },
@@ -448,7 +448,10 @@ async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalida
     let join = community_command(id, json!({"kind": "join"}));
     service.community_command(member.clone(), join).await.unwrap();
     let visible = service
-        .community_members(member.clone(), tg_chat::conversations::CommunityPageQuery::new(id))
+        .community_members(
+            member.clone(),
+            tg_chat::features::conversations::CommunityPageQuery::new(id),
+        )
         .await
         .unwrap();
     assert_eq!(visible.items.len(), 1);
@@ -458,22 +461,22 @@ async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalida
         service
             .community_members(
                 outsider.clone(),
-                tg_chat::conversations::CommunityPageQuery::new(id)
+                tg_chat::features::conversations::CommunityPageQuery::new(id)
             )
             .await
             .is_err()
     );
-    let search = tg_chat::conversations::CommunityDiscoveryQuery {
+    let search = tg_chat::features::conversations::CommunityDiscoveryQuery {
         search: Some("@book_club".to_owned()),
-        kind: Some(tg_chat::conversations::CommunityDiscoveryKind::Channel),
+        kind: Some(tg_chat::features::conversations::CommunityDiscoveryKind::Channel),
         ..Default::default()
     };
     let found = service.discover_communities(outsider.clone(), search).await.unwrap();
     assert_eq!(found.items.len(), 1);
     assert_eq!(found.items[0].member_count, "2");
     assert!(!found.items[0].has_pending_request);
-    let groups = tg_chat::conversations::CommunityDiscoveryQuery {
-        kind: Some(tg_chat::conversations::CommunityDiscoveryKind::Group),
+    let groups = tg_chat::features::conversations::CommunityDiscoveryQuery {
+        kind: Some(tg_chat::features::conversations::CommunityDiscoveryKind::Group),
         ..Default::default()
     };
     let found = service.discover_communities(outsider.clone(), groups).await.unwrap();
@@ -500,7 +503,7 @@ async fn discovery_and_subscriber_lists_obey_privacy_and_public_request_invalida
     let found = service.discover_communities(outsider, Default::default()).await.unwrap();
     assert!(found.items.is_empty());
     let requests = service
-        .community_requests(owner, tg_chat::conversations::CommunityPageQuery::new(id))
+        .community_requests(owner, tg_chat::features::conversations::CommunityPageQuery::new(id))
         .await
         .unwrap();
     assert!(requests.items.is_empty());
@@ -658,7 +661,7 @@ async fn demoting_channel_admin_invalidates_history_with_completion_attribution(
     let changes = service
         .sync(
             admin,
-            tg_chat::sync::SyncQuery {
+            tg_chat::features::sync::SyncQuery {
                 cursor: before.observation_cursor,
                 limit: None,
             },

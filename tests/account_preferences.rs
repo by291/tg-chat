@@ -11,14 +11,14 @@ use axum::{
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
+    accounts::cleanup::cleanup_deleted_account,
     accounts::{
         AccountDeletionOutcome, AccountError, AccountService, DeleteAccount, Login, SessionGrant,
         http::AccountHttpState, preferences::AccountPreferenceChanges, profile::ProfileUpdate,
         transport::HttpSettings,
     },
     contacts::{Audience, DirectoryQuery, PrivacySettings},
-    jobs::account_cleanup::cleanup_deleted_account,
     messages::MessageService,
     sync::SyncQuery,
 };
@@ -83,7 +83,7 @@ async fn settings_refresh_across_sessions_without_overwriting_local_device_prefe
 
     let settings = HttpSettings::from_values(&HashMap::new()).unwrap();
     let state = AccountHttpState::new(accounts.clone(), settings, queue.clone());
-    let application = tg_chat::accounts::http::router(state);
+    let application = tg_chat::features::accounts::http::router(state);
     let messages = MessageService::new(accounts.clone());
     let own_bootstrap = messages.bootstrap(other_session.clone()).await.unwrap();
     let peer_bootstrap = messages.bootstrap(peer.clone()).await.unwrap();

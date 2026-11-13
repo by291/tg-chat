@@ -10,9 +10,9 @@ use axum::{
 };
 use serde_json::{Value, json};
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, Actor},
-    jobs::link_previews::LinkPreviews,
+    messages::link_previews::LinkPreviews,
     messages::{MessageService, SendReceipt},
 };
 use tokio::{net::TcpListener, sync::mpsc, task::JoinHandle};

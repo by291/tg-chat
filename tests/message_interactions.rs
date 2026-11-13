@@ -3,7 +3,7 @@ mod support;
 
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use tg_chat::{
+use tg_chat::features::{
     accounts::{AccountError, Actor},
     messages::{MessageService, SendMessage},
 };
@@ -41,7 +41,7 @@ async fn send_poll(service: &MessageService, sender: Actor, recipient: Uuid) -> 
     }
 }
 
-fn vote(poll: &PollFixture, option: Uuid) -> tg_chat::messages::MessageCommand {
+fn vote(poll: &PollFixture, option: Uuid) -> tg_chat::features::messages::MessageCommand {
     command(
         poll.conversation,
         json!({
@@ -231,7 +231,10 @@ async fn send_checklist(
     }
 }
 
-fn complete_task(checklist: &ChecklistFixture, task_id: Uuid) -> tg_chat::messages::MessageCommand {
+fn complete_task(
+    checklist: &ChecklistFixture,
+    task_id: Uuid,
+) -> tg_chat::features::messages::MessageCommand {
     command(
         checklist.conversation,
         json!({
@@ -328,7 +331,7 @@ async fn permission_revocation_blocks_pending_checklist_completion(pool: PgPool)
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]
 async fn channel_subscribers_cannot_read_other_completers(pool: PgPool) {
-    use tg_chat::accounts::{AccountService, AccountSettings};
+    use tg_chat::features::accounts::{AccountService, AccountSettings};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
     let owner = support::account(&accounts, "owner").await;
