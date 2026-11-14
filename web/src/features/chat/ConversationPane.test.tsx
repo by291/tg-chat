@@ -507,6 +507,39 @@ describe('conversation interaction', () => {
     expect(screen.queryByRole('group', { name: `Message: ${originalText}` })).toBeNull();
   });
 
+  it('keeps the message menu open until scrolling moves its message on screen', async () => {
+    render(<ConversationTestScreen />);
+    await waitForInitialHistoryPosition();
+
+    const history = screen.getByLabelText('Message history');
+    const row = screen.getByRole('group', { name: 'Message: This feels familiar ✨' });
+    const menu = { name: 'Message actions' };
+    const initialOffset = 37;
+    const initialRowTop = 140;
+    const rowTopAfterScrolling = 100;
+    let rowTop = initialRowTop;
+    vi.spyOn(row, 'getBoundingClientRect').mockImplementation(() => {
+      return new DOMRect(0, rowTop, row.clientWidth, row.clientHeight);
+    });
+
+    history.scrollTop = initialOffset;
+    fireEvent.contextMenu(row);
+    await screen.findByRole('menu', menu);
+
+    // A shorter scroll canvas can clamp scrollTop while preserving the row's screen position.
+    history.scrollTop = 0;
+    fireEvent.scroll(history);
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    expect(screen.getByRole('menu', menu).getAttribute('data-state')).toBe('open');
+
+    rowTop = rowTopAfterScrolling;
+    history.scrollTop = initialOffset;
+    fireEvent.scroll(history);
+    await waitFor(() => expect(screen.queryByRole('menu', menu)).toBeNull());
+  });
+
   it('lets a keyboard user select a quick reaction from the message menu', async () => {
     const user = userEvent.setup();
     render(<ConversationTestScreen />);

@@ -15,6 +15,7 @@ import type { MessageMenuTarget } from './MessageMenu';
 
 const LONG_PRESS_DURATION_MS = 700;
 const LONG_PRESS_MOVE_TOLERANCE = 10;
+const MENU_ANCHOR_TOLERANCE_PX = 1;
 
 interface MessageMenuOptions {
   viewportRef: RefObject<HTMLDivElement | null>;
@@ -54,6 +55,7 @@ export function useMessageMenu({
   const contentId = useId();
   const [target, setTarget] = useState<MessageMenuTarget>();
   const [isOpen, setIsOpen] = useState(false);
+  const anchorRef = useRef<{ row: HTMLElement; rectangle: DOMRect } | undefined>(undefined);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pointerStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const hasLongPressedRef = useRef(false);
@@ -66,6 +68,7 @@ export function useMessageMenu({
   }, []);
 
   const closeMenu = useCallback(() => {
+    anchorRef.current = undefined;
     setIsOpen(false);
     cancelLongPress();
   }, [cancelLongPress]);
@@ -80,6 +83,10 @@ export function useMessageMenu({
     if (isDisabled) {
       return;
     }
+
+    const rectangle = nextTarget.row.getBoundingClientRect();
+    anchorRef.current = { row: nextTarget.row, rectangle };
+
     // Freeze the menu mode through its exit animation when Select changes the timeline state.
     setTarget({ ...nextTarget, selectedIds });
     setIsOpen(true);
@@ -192,12 +199,29 @@ export function useMessageMenu({
       if (!viewport) {
         return;
       }
-      // A point-anchored menu must close as the underlying messages move, including programmatic
-      // jumps.
-      viewport.addEventListener('scroll', closeMenu, { passive: true });
+
+      function onHistoryScroll() {
+        cancelLongPress();
+
+        const anchor = anchorRef.current;
+        if (!anchor) {
+          return;
+        }
+
+        // Shrinking the virtual canvas can clamp scrollTop while the row stays in place.
+        const rectangle = anchor.row.getBoundingClientRect();
+        const hasMoved =
+          Math.abs(rectangle.top - anchor.rectangle.top) > MENU_ANCHOR_TOLERANCE_PX ||
+          Math.abs(rectangle.left - anchor.rectangle.left) > MENU_ANCHOR_TOLERANCE_PX;
+        if (!anchor.row.isConnected || hasMoved) {
+          closeMenu();
+        }
+      }
+
+      viewport.addEventListener('scroll', onHistoryScroll, { passive: true });
 
       return () => {
-        viewport.removeEventListener('scroll', closeMenu);
+        viewport.removeEventListener('scroll', onHistoryScroll);
         cancelLongPress();
       };
     },

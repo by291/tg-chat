@@ -34,7 +34,7 @@ chrono = { version = "=0.4.45", features = ["serde"] }
 cookie = "=0.18.2"
 getrandom = "=0.4.3"
 futures-util = { version = "=0.3.34", default-features = false, features = ["std"] }
-redis = { version = "=0.32.7", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "=1.8.1", features = ["tokio-comp", "connection-manager"] }
 sha2 = "=0.11.1"
 subtle = "=2.6.1"
 url = "=2.5.8"
