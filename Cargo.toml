@@ -68,8 +68,8 @@ tokio-util = { version = "=0.7.20", features = ["io"] }
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["json", "env-filter"] }
 utoipa = { version = "=5.5.0", features = ["uuid", "chrono"] }
-uuid = { version = "=1.29.0", features = ["v4", "serde"] }
-ammonia = "=4.2.3"
+uuid = { version = "=1.29.2", features = ["v4", "serde"] }
+ammonia = "=4.2.4"
 scraper = "=0.27.0"
 
 reqwest = { version = "=0.13.5", default-features = false, features = ["json", "rustls"] }

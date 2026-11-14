@@ -515,6 +515,10 @@ export class ChatOwner {
   showInbox(): void {
     this.ensureCurrent();
     void this.flushDraft().catch((error) => this.report(error));
+    this.clearSelection();
+  }
+
+  private clearSelection(): void {
     this.viewGeneration += 1;
     this.historyLoad = undefined;
     this.publish({
@@ -2097,19 +2101,24 @@ export class ChatOwner {
 
     if (this.selectedConversation()?.id === conversationId) {
       this.redactAccessReplies();
-      this.viewGeneration += 1;
-      this.historyLoad = undefined;
-      const destination = destinationKey(this.snapshot.selection!.destination);
-      this.publish({
-        messages: [],
-        precedingMessage: undefined,
-        navigation: undefined,
-        firstUnreadMessageId: undefined,
-        draft: persisted.drafts[destination] ?? this.snapshot.draft,
-        draftConflict: undefined,
-        draftAlternatives: persisted.draftAlternatives?.[destination] ?? [],
-        isLoading: false,
-      });
+      if (conversation?.kind === 'group' || conversation?.kind === 'channel') {
+        // A revoked membership cannot keep a draft chat open or send a final draft update.
+        this.clearSelection();
+      } else {
+        this.viewGeneration += 1;
+        this.historyLoad = undefined;
+        const destination = destinationKey(this.snapshot.selection!.destination);
+        this.publish({
+          messages: [],
+          precedingMessage: undefined,
+          navigation: undefined,
+          firstUnreadMessageId: undefined,
+          draft: persisted.drafts[destination] ?? this.snapshot.draft,
+          draftConflict: undefined,
+          draftAlternatives: persisted.draftAlternatives?.[destination] ?? [],
+          isLoading: false,
+        });
+      }
     }
     const editConflict =
       this.snapshot.editConflict?.conversation_id === conversationId
