@@ -1618,6 +1618,34 @@ it('purges a selected conversation after another tab consumed its access-removal
   }
 });
 
+it('returns to the inbox when leaving the selected private group', async () => {
+  const group: components['schemas']['ConversationView'] = {
+    ...DIRECT,
+    kind: 'group',
+    title: 'Private group',
+  };
+  const owner = fixture({
+    conversation: group,
+    commands: async () => {
+      return Response.json({ observation_cursor: cursorFixture(2), conversation: null });
+    },
+    transport: syncTransport(changePage({ position: 2, conversation: null })),
+  }).owner;
+
+  try {
+    await owner.start();
+    await owner.select({ ...SELECTION, title: group.title });
+    expect(owner.selectedConversation()?.id).toBe(group.id);
+
+    await owner.communities!.command({ conversationId: group.id, action: { kind: 'leave' } });
+
+    expect(owner.getSnapshot().selection).toBeUndefined();
+    expect(owner.selectedConversation()).toBeUndefined();
+  } finally {
+    owner.dispose();
+  }
+});
+
 it('persists an offline send even when draft synchronization cannot reach the server', async () => {
   const owner = fixture({
     conversation: DIRECT,
@@ -1794,11 +1822,13 @@ it.each([200, 409])(
             };
       delayed.release(Response.json(body, { status }));
       await saving;
+
       expect(owner.getSnapshot().conversations).toEqual([]);
-      expect(owner.getSnapshot().draft.value.text).toBe('My independent draft');
-      expect(owner.getSnapshot().draft.reply?.quote).toBeNull();
+      expect(owner.getSnapshot().selection).toBeUndefined();
       const persisted = await store.read();
-      expect(persisted.drafts[`conversation:${conversation.id}`].reply?.quote).toBeNull();
+      const retainedDraft = persisted.drafts[`conversation:${conversation.id}`];
+      expect(retainedDraft.value.text).toBe('My independent draft');
+      expect(retainedDraft.reply?.quote).toBeNull();
     } finally {
       owner.dispose();
     }
