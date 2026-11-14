@@ -1109,17 +1109,23 @@ it('marks only a reached visible message read while the document is foreground',
       });
     },
   });
-  await owner.start();
-  await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
-  await owner.markReached('message-2');
-  expect(actions).toEqual([]);
-  Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => true });
-  await owner.markReached('not-loaded');
-  await owner.markReached('message-2');
-  await owner.markReached('message-1');
-  expect(actions).toEqual([{ kind: 'read', through: '2' }]);
-  Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => false });
-  owner.dispose();
+  // The DOM emulator's initial focus differs between jsdom versions.
+  const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+  try {
+    await owner.start();
+    await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+    await owner.markReached('message-2');
+    expect(actions).toEqual([]);
+
+    focus.mockReturnValue(true);
+    await owner.markReached('not-loaded');
+    await owner.markReached('message-2');
+    await owner.markReached('message-1');
+    expect(actions).toEqual([{ kind: 'read', through: '2' }]);
+  } finally {
+    focus.mockRestore();
+    owner.dispose();
+  }
 });
 
 it('advances to the greatest sequence reached while a read command is pending', async () => {

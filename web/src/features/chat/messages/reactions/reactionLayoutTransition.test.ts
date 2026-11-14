@@ -237,7 +237,7 @@ describe('reaction layout transition', () => {
 
     expect(previousAnimations.every((animation) => animation.isCancelled)).toBe(true);
     expect(history.bubble.querySelectorAll('[data-reaction-layout-shell]')).toHaveLength(1);
-    expect(history.bubble.style.background).toBe('transparent');
+    expect(history.bubble.style.backgroundColor).toBe('transparent');
     history.dispose();
     expect(history.bubble.style.background).toBe('white');
   });
