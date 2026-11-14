@@ -58,7 +58,7 @@ jobs:
       TG_CHAT_TEST_SMTP_PORT: '1025'
       DATABASE_URL: postgres://postgres:isolated-ci-password@localhost:5432/postgres
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v6
@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       # The link preview fetcher binds its control listener to a named network interface.
