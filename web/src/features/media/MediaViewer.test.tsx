@@ -289,7 +289,10 @@ it('pauses unrelated chat videos until the photo viewer finishes its exit animat
 
     rerender(<BackgroundVideoScreen />);
     await waitFor(() => expect(dialog.dataset.state).toBe('closed'));
-    act(() => vi.runOnlyPendingTimers());
+    // Flush the exit frame and the effects that subscribe to its animation events.
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
     expect(dialog.isConnected).toBe(true);
     expect(backgroundVideo.paused).toBe(true);
 

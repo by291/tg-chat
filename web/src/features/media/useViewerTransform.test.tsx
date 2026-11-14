@@ -4,6 +4,9 @@ import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useViewerTransform } from './useViewerTransform';
 
+const VIEWPORT_WIDTH = 1000;
+const CSS_SCALE_DECIMAL_PLACES = 5;
+
 vi.hoisted(() => {
   window.PointerEvent = MouseEvent as typeof PointerEvent;
 });
@@ -107,7 +110,7 @@ beforeEach(() => {
   Element.prototype.setPointerCapture = () => {};
   Element.prototype.releasePointerCapture = () => {};
   Element.prototype.hasPointerCapture = () => false;
-  vi.stubGlobal('innerWidth', 1000);
+  vi.stubGlobal('innerWidth', VIEWPORT_WIDTH);
   vi.stubGlobal('innerHeight', 800);
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(
     DOMRect.fromRect({
@@ -455,6 +458,7 @@ describe('viewer gesture controls', () => {
   });
 
   it('refits rotation to layout dimensions refreshed after a gallery transition', () => {
+    const refreshedMediaHeight = 600;
     render(<TransformScreen />);
     fireEvent.click(screen.getByText('Rotate'));
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(
@@ -462,13 +466,18 @@ describe('viewer gesture controls', () => {
         x: 300,
         y: 100,
         width: 400,
-        height: 600,
+        height: refreshedMediaHeight,
       }),
     );
     fireEvent.click(screen.getByText('Refresh geometry'));
 
     expect(readTransform().rotation).toBe(-90);
-    expect(screen.getByTestId('surface').style.transform).toContain('scale(1.6666666666666667)');
+
+    const transform = screen.getByTestId('surface').style.transform;
+    const rotationScale = transform.match(/rotate\(-90deg\) scale\(([^)]+)\)/)?.[1];
+    // CSS serialization may round the scale without changing the rendered fit.
+    const expectedScale = VIEWPORT_WIDTH / refreshedMediaHeight;
+    expect(Number(rotationScale)).toBeCloseTo(expectedScale, CSS_SCALE_DECIMAL_PLACES);
   });
 
   it('pans with the pointer and suppresses its generated click', () => {
