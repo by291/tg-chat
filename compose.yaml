@@ -115,7 +115,7 @@ services:
       retries: 40
 
   media-origin:
-    image: caddy:2.11.7-alpine
+    image: caddy:2.11.8-alpine
     volumes:
       - ./deploy/MediaCaddyfile:/etc/caddy/Caddyfile:ro
     ports:
