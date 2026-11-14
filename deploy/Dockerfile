@@ -54,7 +54,7 @@ COPY --from=build /app/target/release/link-preview-fetcher /usr/local/bin/link-p
 USER 10001:10001
 CMD ["link-preview-fetcher"]
 
-FROM node:24.15.0-bookworm-slim AS frontend
+FROM node:26.13.0-bookworm-slim AS frontend
 WORKDIR /app/web
 RUN npm install --global pnpm@11.28.0
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml web/.pnpmfile.cjs ./
