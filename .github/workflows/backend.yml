@@ -139,7 +139,7 @@ jobs:
           persist-credentials: false
       # The link preview fetcher binds its control listener to a named network interface.
       - name: Set up Docker Engine
-        uses: docker/setup-docker-action@v5.4.0
+        uses: docker/setup-docker-action@v5.7.0
         with:
           version: v29.9.3
       - name: Set up Docker Compose
