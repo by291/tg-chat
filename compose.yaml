@@ -55,7 +55,7 @@ services:
       retries: 30
 
   valkey:
-    image: valkey/valkey:9.1.2-alpine
+    image: valkey/valkey:9.1.3-alpine
     command:
       - valkey-server
       - --appendonly
@@ -72,7 +72,7 @@ services:
       retries: 30
 
   centrifugo:
-    image: centrifugo/centrifugo:v6.10.2
+    image: centrifugo/centrifugo:v6.10.3
     command: [centrifugo, --config=/etc/centrifugo/config.json]
     environment:
       CENTRIFUGO_HTTP_API_KEY: ${TG_CHAT_CENTRIFUGO_API_KEY:?Generate .env first}
@@ -115,7 +115,7 @@ services:
       retries: 40
 
   media-origin:
-    image: caddy:2.11.7-alpine
+    image: caddy:2.11.8-alpine
     volumes:
       - ./deploy/MediaCaddyfile:/etc/caddy/Caddyfile:ro
     ports:
