@@ -119,6 +119,8 @@ jobs:
             -p tg-chat-native-media up -d --wait media-origin
       - name: Lint Rust
         run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Test runtime runner failure handling
+        run: node --test scripts/*.test.mjs
       - name: Test accounts and jobs with real services
         # The LiveKit provider test requires the separate disposable calls runtime.
         run: >-
@@ -131,8 +133,17 @@ jobs:
         run: df -h .
 
   compose:
+    name: Integrated runtime (${{ matrix.runtime }})
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: standard
+            arguments: ''
+          - runtime: calls
+            arguments: --calls
     steps:
       - uses: actions/checkout@v7
         with:
@@ -177,12 +188,12 @@ jobs:
       - name: Verify the integrated runtime and persistent storage
         env:
           BUILDX_BUILDER: ${{ steps.buildx.outputs.name }}
-        run: node scripts/check-runtime.mjs --github-build-cache
+        run: node scripts/check-runtime.mjs --github-build-cache ${{ matrix.arguments }}
       - name: Save browser failure artifacts
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: runtime-browser-failures-${{ github.run_attempt }}
+          name: runtime-browser-failures-${{ matrix.runtime }}-${{ github.run_attempt }}
           path: web/test-results/
           retention-days: 7
           if-no-files-found: ignore

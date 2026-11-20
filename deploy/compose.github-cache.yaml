@@ -15,6 +15,9 @@ services:
   link-preview-fetcher:
     build:
       cache_from: *rust-cache
+  livekit-contract:
+    build:
+      cache_from: *rust-cache
   gateway:
     build:
       cache_from:

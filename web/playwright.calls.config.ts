@@ -12,6 +12,8 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: process.env.TG_CHAT_ACCOUNT_TEST_URL ?? 'http://127.0.0.1:65413',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [
     {

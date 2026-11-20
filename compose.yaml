@@ -255,6 +255,19 @@ services:
       - '127.0.0.1:7882:7882/udp'
       - '127.0.0.1:3478:3478/udp'
 
+  livekit-contract:
+    profiles: [call-contract]
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: provider-contract
+    network_mode: service:livekit
+    environment:
+      TG_CHAT_LIVEKIT_INTERNAL_URL: http://127.0.0.1:7880
+      TG_CHAT_LIVEKIT_API_KEY: ${TG_CHAT_LIVEKIT_API_KEY:-}
+      TG_CHAT_LIVEKIT_API_SECRET: ${TG_CHAT_LIVEKIT_API_SECRET:-}
+    init: true
+
   mailpit:
     profiles: [mail]
     image: axllent/mailpit:v1.33.1

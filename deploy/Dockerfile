@@ -25,6 +25,13 @@ COPY web/src/features/emoji/publicEmojiPacks.json ./web/src/features/emoji/publi
 COPY web/src/features/stickers/publicStickerPacks.json ./web/src/features/stickers/
 RUN cargo build --locked --release --bins
 
+FROM build AS provider-contract-build
+COPY tests/livekit_integration.rs ./tests/livekit_integration.rs
+RUN cargo test --locked --release --test livekit_integration --no-run \
+    && find target/release/deps -maxdepth 1 -type f \
+        -name 'livekit_integration-*' -executable \
+        -exec cp '{}' /livekit-provider-contract ';'
+
 FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS runtime-base
 
 FROM runtime-base AS runtime
@@ -36,6 +43,13 @@ COPY --from=build /app/target/release/api /usr/local/bin/api
 COPY --from=build /app/target/release/worker /usr/local/bin/worker
 USER app
 CMD ["api", "serve"]
+
+FROM runtime AS provider-contract
+COPY --from=provider-contract-build \
+    /livekit-provider-contract \
+    /usr/local/bin/livekit-provider-contract
+ENTRYPOINT ["livekit-provider-contract"]
+CMD ["--include-ignored"]
 
 FROM runtime AS media-worker
 USER root
