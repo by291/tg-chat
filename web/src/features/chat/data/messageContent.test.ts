@@ -20,8 +20,18 @@ describe('canonical message transport', () => {
 
       expect(canonical.text).toBe(input.text);
       expect(canonical.custom_emoji).toEqual(input.custom_emoji);
-      expect(canonical.rich_text ?? '').not.toContain('onclick');
-      expect(canonical.rich_text ?? '').not.toContain('javascript:');
+      if (input.rich_text === null) {
+        expect(canonical.rich_text).toBeNull();
+        return;
+      }
+
+      expect(canonical.rich_text).toBeTypeOf('string');
+      const document = new DOMParser().parseFromString(canonical.rich_text!, 'text/html');
+      for (const selector of fixture.expected_selectors) {
+        expect(document.querySelector(selector), selector).not.toBeNull();
+      }
+      expect(document.querySelector('script, img, [onclick], [onerror], [style]')).toBeNull();
+      expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
     });
   }
 

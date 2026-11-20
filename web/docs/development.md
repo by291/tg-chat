@@ -75,6 +75,12 @@ assertions wait for sustained stability rather than a single matching frame, bec
 measurement can otherwise produce false passes. Production code and tests should share behavior
 contracts, not duplicate each other's algorithms.
 
+The shared message-content vectors specify supported HTML semantics with CSS selectors.
+Both wire-format implementations check those selectors as well as canonical text, emoji ranges,
+and removal of executable markup. Preserve these positive expectations when extending sanitization.
+Wallpaper browser checks exercise actual image decoding, bounded JPEG preparation, failed replacement,
+and restoration from IndexedDB after reload.
+
 ### Readability reviews
 
 Review authored code and tests by feature. Inspect startup markup, scripts, and configuration when

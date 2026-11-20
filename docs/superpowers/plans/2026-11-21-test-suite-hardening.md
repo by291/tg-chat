@@ -48,11 +48,11 @@ wallpaper preparation/settings tests, and a browser wallpaper spec.
 
 **Interfaces:** Shared fixture expectations are consumed by Rust and TypeScript tests.
 
-- [ ] Specify expected supported semantic HTML independently of either implementation.
-- [ ] Assert positive preservation and negative sanitization in both contract consumers.
-- [ ] Add explicit decoder, encoding, resource-release, and storage-failure coverage.
-- [ ] Add real browser upload, preparation, persistence, and reload verification.
-- [ ] Verify realistic mutations fail, restore production code, and run both contract suites.
+- [x] Specify expected supported semantic HTML independently of either implementation.
+- [x] Assert positive preservation and negative sanitization in both contract consumers.
+- [x] Add explicit decoder, encoding, resource-release, and storage-failure coverage.
+- [x] Add real browser upload, preparation, persistence, and reload verification.
+- [x] Verify realistic mutations fail, restore production code, and run both contract suites.
       Expected: mutations fail the intended assertions; restored implementations pass.
 
 ### Task 3: Backend race and lease contracts

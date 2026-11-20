@@ -6,7 +6,8 @@
       "text": "Hello 🌍",
       "rich_text": null,
       "custom_emoji": []
-    }
+    },
+    "expected_selectors": []
   },
   {
     "name": "lists and spoilers",
@@ -15,7 +16,12 @@
       "text": "First\nSecond\nSecret",
       "rich_text": "<ol start=3><li>First</li><li>Second</li></ol><p><span data-spoiler=true>Secret</span></p>",
       "custom_emoji": []
-    }
+    },
+    "expected_selectors": [
+      "ol[start=\"3\"] > li:first-child",
+      "ol[start=\"3\"] > li:nth-child(2)",
+      "span[data-spoiler=\"true\"]"
+    ]
   },
   {
     "name": "table cells and rows",
@@ -24,7 +30,11 @@
       "text": "Name\tValue\nEarth\t🌍",
       "rich_text": "<table><tr><th><p>Name</p></th><th><p>Value</p></th></tr><tr><td><p>Earth</p></td><td><p>🌍</p></td></tr></table>",
       "custom_emoji": []
-    }
+    },
+    "expected_selectors": [
+      "table tr:first-child > th:nth-child(2)",
+      "table tr:nth-child(2) > td:nth-child(2)"
+    ]
   },
   {
     "name": "formulas and dates",
@@ -33,7 +43,11 @@
       "text": "x^2 Tomorrow",
       "rich_text": "<p><span data-math=\"x^2\" data-math-display=inline>x^2</span> <time data-message-date=1794268800000 datetime=\"2026-11-10T00:00:00.000Z\">Tomorrow</time></p>",
       "custom_emoji": []
-    }
+    },
+    "expected_selectors": [
+      "span[data-math=\"x^2\"][data-math-display=\"inline\"]",
+      "time[data-message-date=\"1794268800000\"][datetime=\"2026-11-10T00:00:00.000Z\"]"
+    ]
   },
   {
     "name": "quotes code and safe links",
@@ -42,7 +56,12 @@
       "text": "Quoted\nlet answer = 42;\nWebsite",
       "rich_text": "<blockquote data-collapsed=true>Quoted</blockquote><pre data-code-language=rust><code>let answer = 42;</code></pre><p><a href=\"https://example.test/path\">Website</a></p>",
       "custom_emoji": []
-    }
+    },
+    "expected_selectors": [
+      "blockquote[data-collapsed=\"true\"]",
+      "pre[data-code-language=\"rust\"] > code",
+      "a[href=\"https://example.test/path\"]"
+    ]
   },
   {
     "name": "executable markup is removed",
@@ -51,7 +70,8 @@
       "text": "Safe Bad link",
       "rich_text": "<p onclick=alert(1) style=color:red>Safe<script>alert(2)</script><img src=x onerror=alert(3)> <a href=javascript:alert(4)>Bad link</a></p>",
       "custom_emoji": []
-    }
+    },
+    "expected_selectors": ["p"]
   },
   {
     "name": "custom emoji after an astral prefix",
@@ -66,6 +86,7 @@
           "length": 2
         }
       ]
-    }
+    },
+    "expected_selectors": ["span[data-custom-emoji=\"5249007745805328497\"]"]
   }
 ]

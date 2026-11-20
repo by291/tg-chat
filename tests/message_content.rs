@@ -1,3 +1,4 @@
+use scraper::{Html, Selector};
 use serde::Deserialize;
 use tg_chat::features::messages::content::{CustomEmoji, MessageContent, validate_content};
 
@@ -7,6 +8,7 @@ const EMOJI_ID: &str = "5249007745805328497";
 struct Fixture {
     name: String,
     input: MessageContent,
+    expected_selectors: Vec<String>,
 }
 
 fn plain(text: &str) -> MessageContent {
@@ -23,19 +25,31 @@ fn shared_semantic_fixtures_keep_canonical_text_and_utf16_ranges() {
     let fixtures: Vec<Fixture> =
         serde_json::from_str(include_str!("../contracts/message-content.json")).unwrap();
     for fixture in fixtures {
-        let expected = fixture.input.clone();
-        let canonical = validate_content(fixture.input).expect(&fixture.name);
+        let expected = &fixture.input;
+        let canonical = validate_content(fixture.input.clone()).expect(&fixture.name);
         assert_eq!(canonical.text, expected.text, "{}", fixture.name);
         assert_eq!(canonical.custom_emoji, expected.custom_emoji, "{}", fixture.name);
         assert_eq!(validate_content(canonical.clone()).unwrap(), canonical);
-        if let Some(html) = canonical.rich_text {
-            assert!(!html.contains("onclick"));
-            assert!(!html.contains("javascript:"));
-            assert!(!html.contains("<script"));
-            assert!(!html.contains("<img"));
-            assert!(!html.contains("style="));
-        }
+        assert_canonical_markup(&fixture, &canonical);
     }
+}
+
+fn assert_canonical_markup(fixture: &Fixture, canonical: &MessageContent) {
+    let name = &fixture.name;
+    if fixture.input.rich_text.is_none() {
+        assert!(canonical.rich_text.is_none(), "{name}");
+        return;
+    }
+
+    let html = canonical.rich_text.as_ref().expect(name);
+    let document = Html::parse_fragment(html);
+    for selector in &fixture.expected_selectors {
+        let query = Selector::parse(selector).unwrap();
+        assert!(document.select(&query).next().is_some(), "{name}: missing {selector}");
+    }
+    let executable = Selector::parse("script, img, [onclick], [onerror], [style]").unwrap();
+    assert!(document.select(&executable).next().is_none(), "{name}");
+    assert!(!html.contains("javascript:"), "{name}");
 }
 
 #[test]
