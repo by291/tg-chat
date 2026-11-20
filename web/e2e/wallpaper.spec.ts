@@ -4,6 +4,14 @@ const SOURCE_WIDTH = 5120;
 const SOURCE_HEIGHT = 2560;
 const PREPARED_WIDTH = 2560;
 const PREPARED_HEIGHT = 1280;
+const JPEG_COLOR_TOLERANCE = 4;
+// prettier-ignore
+const EXPECTED_PIXEL = [
+  25,
+  118,
+  210,
+  255,
+];
 
 async function openWallpaperSettings(page: Page) {
   await page.getByRole('button', { name: 'Main menu', exact: true }).click();
@@ -19,12 +27,34 @@ async function readWallpaper(page: Page) {
     await element.decode();
     const response = await fetch(element.src);
     const blob = await response.blob();
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('The browser cannot inspect the prepared wallpaper.');
+    }
+    context.drawImage(element, 0, 0, 1, 1);
     return {
       width: element.naturalWidth,
       height: element.naturalHeight,
       type: blob.type,
+      pixel: Array.from(context.getImageData(0, 0, 1, 1).data),
     };
   });
+}
+
+async function expectPreparedWallpaper(page: Page) {
+  const { pixel, ...metadata } = await readWallpaper(page);
+  expect(metadata).toEqual({
+    width: PREPARED_WIDTH,
+    height: PREPARED_HEIGHT,
+    type: 'image/jpeg',
+  });
+  for (let index = 0; index < EXPECTED_PIXEL.length; index += 1) {
+    const difference = Math.abs(pixel[index] - EXPECTED_PIXEL[index]);
+    expect(difference).toBeLessThanOrEqual(JPEG_COLOR_TOLERANCE);
+  }
 }
 
 test('prepares an uploaded wallpaper and restores its encoded image after reload', async ({
@@ -61,12 +91,7 @@ test('prepares an uploaded wallpaper and restores its encoded image after reload
     mimeType: 'image/png',
     buffer: Buffer.from(pixels),
   });
-  const prepared = {
-    width: PREPARED_WIDTH,
-    height: PREPARED_HEIGHT,
-    type: 'image/jpeg',
-  };
-  await expect.poll(() => readWallpaper(page)).toEqual(prepared);
+  await expectPreparedWallpaper(page);
 
   await page.getByLabel('Upload wallpaper image').setInputFiles({
     name: 'broken.png',
@@ -74,9 +99,9 @@ test('prepares an uploaded wallpaper and restores its encoded image after reload
     buffer: Buffer.from('not an image'),
   });
   await expect(page.getByText('This image could not be opened.', { exact: true })).toBeVisible();
-  expect(await readWallpaper(page)).toEqual(prepared);
+  await expectPreparedWallpaper(page);
 
   await page.reload();
 
-  expect(await readWallpaper(page)).toEqual(prepared);
+  await expectPreparedWallpaper(page);
 });
