@@ -22,7 +22,7 @@ function createState(): ChatState {
   return {
     version: 1,
     activeChatId: 'dev',
-    messages: [ownMessage],
+    messages: [structuredClone(ownMessage)],
     drafts: {
       dev: 'A draft',
       design: 'Another draft',

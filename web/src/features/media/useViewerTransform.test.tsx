@@ -450,11 +450,26 @@ describe('viewer gesture controls', () => {
   it('rechecks the viewport on resize without discarding rotation', () => {
     render(<TransformScreen />);
     fireEvent.click(screen.getByText('Rotate'));
+    const surface = screen.getByTestId('surface');
+    const originalStyle = surface.style.transform;
+
+    vi.stubGlobal('innerWidth', 600);
+    vi.stubGlobal('innerHeight', 500);
+    vi.mocked(Element.prototype.getBoundingClientRect).mockReturnValue(
+      DOMRect.fromRect({
+        x: 100,
+        y: 100,
+        width: 400,
+        height: 300,
+      }),
+    );
     act(() => {
       window.dispatchEvent(new Event('resize'));
     });
 
     expect(readTransform().rotation).toBe(-90);
+    expect(surface.style.transform).not.toBe(originalStyle);
+    expect(surface.style.transform).toContain('rotate(-90deg)');
   });
 
   it('refits rotation to layout dimensions refreshed after a gallery transition', () => {

@@ -122,10 +122,41 @@ describe('atomic canonical checkpoints', () => {
 
 it('retains removal fences even when the affected history page has been evicted', async () => {
   const cache = new CanonicalCache({ key: crypto.randomUUID() });
-  const initial = await cache.open(bootstrap());
+  const otherConversations = Array.from({ length: 8 }, (_, index) =>
+    conversationFixture({ id: `other-chat-${index}` }),
+  );
+  const initial = await cache.open({
+    ...bootstrap(),
+    conversations: [conversationFixture(), ...otherConversations],
+  });
+  await cache.saveHistory({
+    expected: initial,
+    conversationId: 'conversation',
+    page: history(),
+  });
   await cache.applySync({ expected: initial, page: deletion() });
+  const deleted = await cache.read();
+  expect(deleted.pages.conversation.messages).toEqual([]);
+
+  for (const conversation of otherConversations) {
+    const page = history();
+    page.messages = [canonicalFixture({ conversation_id: conversation.id })];
+    await cache.saveHistory({
+      expected: deleted,
+      conversationId: conversation.id,
+      page,
+    });
+  }
   const current = await cache.read();
+  expect(current.pages.conversation).toBeUndefined();
   expect(current.removedMessages['message-1']).toBe('conversation');
+  expect(
+    await cache.saveHistory({
+      expected: current,
+      conversationId: 'conversation',
+      page: history(),
+    }),
+  ).toBe(false);
 });
 
 it('leaves sibling tabs asleep when an empty sync page keeps the same checkpoint', async () => {

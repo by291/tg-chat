@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { Centrifuge } from 'centrifuge';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { SessionOwner } from '@/features/auth/SessionOwner';
 import type { UploadTransport } from '@/features/media/uploadTransfer';
@@ -9,6 +9,18 @@ import { ChatOwner } from './ChatOwner';
 import { PendingMessages } from './pendingMessages';
 import { CanonicalCache } from './canonicalCache';
 import { cursorFixture } from './messageFixtures.test-support';
+
+const EXPIRY_DELAY_MS = 10_000;
+const BEFORE_EXPIRY_MS = EXPIRY_DELAY_MS - 1;
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function useExpiryClock() {
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+  vi.setSystemTime(new Date('2026-11-20T00:00:00Z'));
+}
 
 const USER = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -1382,8 +1394,9 @@ it('conditionally clears a matching reply draft when the server normalizes an ab
 it.each([true, false])(
   'expires reply context without Worker delivery when the source is in the window: %s',
   async (isSourceInWindow) => {
+    useExpiryClock();
     const expiring = historyMessage(1);
-    expiring.expires_at = new Date(Date.now() + 150).toISOString();
+    expiring.expires_at = new Date(Date.now() + EXPIRY_DELAY_MS).toISOString();
     const reply = historyMessage(2);
     reply.reply = {
       message_id: expiring.id,
@@ -1401,13 +1414,21 @@ it.each([true, false])(
           has_newer: false,
         }),
     });
-    await owner.start();
-    await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(owner.getSnapshot().messages.map((message) => message.id)).toEqual([reply.id]);
-    expect(owner.getSnapshot().messages[0].reply?.is_unavailable).toBe(true);
-    expect(owner.getSnapshot().messages[0].reply?.quote).toBeNull();
-    owner.dispose();
+    try {
+      await owner.start();
+      await owner.select({ destination: { kind: 'saved' }, title: 'Saved' });
+      await vi.advanceTimersByTimeAsync(BEFORE_EXPIRY_MS);
+      const before = owner.getSnapshot().messages.find((message) => message.id === reply.id);
+      expect(before?.reply?.is_unavailable).toBe(false);
+      expect(before?.reply?.quote).toBe(expiring.content.text);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(owner.getSnapshot().messages.map((message) => message.id)).toEqual([reply.id]);
+      expect(owner.getSnapshot().messages[0].reply?.is_unavailable).toBe(true);
+      expect(owner.getSnapshot().messages[0].reply?.quote).toBeNull();
+    } finally {
+      owner.dispose();
+    }
   },
 );
 
@@ -1718,8 +1739,9 @@ it('fences old history as soon as deletion is acknowledged even while sync is de
 });
 
 it('expires a directory excerpt after leaving the conversation while the worker is unavailable', async () => {
+  useExpiryClock();
   const expiring = historyMessage(1);
-  expiring.expires_at = new Date(Date.now() + 150).toISOString();
+  expiring.expires_at = new Date(Date.now() + EXPIRY_DELAY_MS).toISOString();
   const page = changePage({
     position: 1,
     conversation: {
@@ -1750,7 +1772,10 @@ it('expires a directory excerpt after leaving the conversation while the worker 
       destination: { kind: 'recipient', user_id: 'another-contact' },
       title: 'Another chat',
     });
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await vi.advanceTimersByTimeAsync(BEFORE_EXPIRY_MS);
+    expect(owner.getSnapshot().conversations[0].summary_text).toBe(expiring.content.text);
+
+    await vi.advanceTimersByTimeAsync(1);
     await owner.catchUp();
     expect(owner.getSnapshot().conversations[0].summary_text).toBe('');
   } finally {
@@ -1929,11 +1954,12 @@ it('scrubs inactive community draft quotes and recovered alternatives on removal
 });
 
 it('restores group posting at its deadline even when synchronization has no new groups', async () => {
+  useExpiryClock();
   const conversation = {
     ...DIRECT,
     kind: 'group',
     can_post: false,
-    posting_muted_until: new Date(Date.now() + 150).toISOString(),
+    posting_muted_until: new Date(Date.now() + EXPIRY_DELAY_MS).toISOString(),
   };
   const owner = fixture({
     conversation,
@@ -1948,7 +1974,10 @@ it('restores group posting at its deadline even when synchronization has no new 
   try {
     await owner.start();
     expect(owner.getSnapshot().conversations[0].can_post).toBe(false);
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await vi.advanceTimersByTimeAsync(BEFORE_EXPIRY_MS);
+    expect(owner.getSnapshot().conversations[0].can_post).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
     await owner.catchUp();
     expect(owner.getSnapshot().conversations[0].can_post).toBe(true);
   } finally {

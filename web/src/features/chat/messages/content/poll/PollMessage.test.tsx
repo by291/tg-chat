@@ -4,10 +4,16 @@ import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PollMedia } from '@/domain/messages/media';
 import { PollMessage } from './PollMessage';
+import { createPollAnimationClock } from './pollAnimationClock.test-support';
 import {
   StructuredMessageActionsProvider,
   useStructuredMessageActions,
 } from '../../StructuredMessageActions';
+
+const RESULT_SETTLE_MS = 1600;
+const POLL_CLOSE_DELAY_MS = 2000;
+
+let animationClock: ReturnType<typeof createPollAnimationClock>;
 
 const poll: PollMedia = {
   kind: 'poll',
@@ -69,12 +75,13 @@ function ChangeVoteButton() {
 }
 
 beforeEach(() => {
+  animationClock = createPollAnimationClock();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
 });
 
 afterEach(() => {
   cleanup();
-  vi.useRealTimers();
+  animationClock.restore();
   vi.unstubAllGlobals();
 });
 
@@ -115,7 +122,8 @@ describe('poll result transitions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     expect(screen.queryByText('100%')).toBeNull();
 
-    expect(await screen.findByText('100%', {}, { timeout: 2000 })).toBeTruthy();
+    await animationClock.advance(RESULT_SETTLE_MS);
+    expect(screen.getByText('100%')).toBeTruthy();
     expect(screen.getByText('0%')).toBeTruthy();
     expect(screen.getByText('1 member voted')).toBeTruthy();
     view.unmount();
@@ -236,7 +244,7 @@ describe('poll result transitions', () => {
           poll={{
             ...poll,
             selectedOptionIds: ['layout'],
-            closesAt: Date.now() + 2000,
+            closesAt: Date.now() + POLL_CLOSE_DELAY_MS,
             options: [
               {
                 id: 'layout',
@@ -258,7 +266,13 @@ describe('poll result transitions', () => {
     expect(screen.queryByText('100%')).toBeNull();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Layout' }).disabled).toBe(false);
 
-    expect(await screen.findByText('100%', {}, { timeout: 4000 })).toBeTruthy();
+    await animationClock.advance(POLL_CLOSE_DELAY_MS - 1);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Layout' }).disabled).toBe(false);
+
+    await animationClock.advance(1);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: /^Layout,/ }).disabled).toBe(true);
+    await animationClock.advance(RESULT_SETTLE_MS);
+    expect(screen.getByText('100%')).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: /^Layout,/ }).disabled).toBe(true);
   });
 });
