@@ -36,6 +36,16 @@ The connected Playwright configuration exposes a project for each suite. Use the
 commands to select one project at a time. The Compose runner resets the disposable admission budget
 and applies the service settings each phase needs before invoking its project.
 
+Community workflows reuse worker-owned account identities to stay within the real registration
+budget. Each case restores those sessions into fresh browser contexts and creates its own community.
+Group moderation and channel publication run independently. The mute check first observes a stable
+server projection, then advances only the member browser's clock to verify local deadline restoration.
+Backend integration tests separately verify server time and authorization.
+
+The synchronization reset case keeps rejecting the old cursor until a fresh bootstrap is used.
+It must obtain previously absent canonical state and preserve local typing; observing an injected
+HTTP error alone is not evidence of recovery.
+
 Use the existing Prettier configuration. Text files use LF on Windows, macOS, and Linux through
 Git attributes, EditorConfig, and Prettier; no global Git setting is needed. Binary assets are not
 normalized. Root Markdown can be checked from `web/` with:

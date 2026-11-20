@@ -76,10 +76,10 @@ and connected test support where genuine preparation is shared.
 
 **Interfaces:** Existing API routes and browser fixtures.
 
-- [ ] Reject the old cursor until fresh bootstrap and verify changed canonical state.
-- [ ] Separate stable mute observation from controlled expiry restoration.
-- [ ] Split independent scenarios and share meaningful account/context preparation.
-- [ ] Run connected projects through the disposable runtime.
+- [x] Reject the old cursor until fresh bootstrap and verify changed canonical state.
+- [x] Separate stable mute observation from controlled expiry restoration.
+- [x] Split independent scenarios and share meaningful account/context preparation.
+- [x] Run connected projects through the disposable runtime.
       Expected: required recovery, moderation, and independent workflows pass.
 
 ### Task 5: Calls CI and retained diagnostics

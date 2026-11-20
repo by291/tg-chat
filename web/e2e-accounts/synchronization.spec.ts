@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import type { components } from '../src/api/schema';
+import { closeContexts, mutationHeaders, registerAccount } from './accountFixtures';
 
 const PASSWORD = 'a complete synchronization password phrase';
 const CONVERGENCE_TIMEOUT_MS = 15_000;
@@ -16,7 +17,18 @@ async function authenticate(options: {
   account: Account;
   isRegistration: boolean;
 }) {
-  const path = options.isRegistration ? 'register' : 'login';
+  if (options.isRegistration) {
+    return registerAccount({
+      context: options.context,
+      origin: options.origin,
+      username: options.account.username,
+      displayName: options.account.displayName,
+      password: PASSWORD,
+      deviceName: 'Synchronization browser',
+    });
+  }
+
+  const path = 'login';
   const response = await options.context.request.post(`/api/v1/auth/${path}`, {
     headers: {
       origin: options.origin,
@@ -53,7 +65,7 @@ async function visibleEverywhere(pages: Page[], text: string) {
   }
 }
 
-test('four sessions and a shared-cache tab converge after edits, replies, reset, and deletion', async ({
+test('four sessions and a shared-cache tab converge after edits, replies, and deletion', async ({
   browser,
   baseURL,
 }) => {
@@ -175,36 +187,6 @@ test('four sessions and a shared-cache tab converge after edits, replies, reset,
       pages[0].getByRole('group', { name: 'Message: Edited across devices', exact: true }),
     ).toBeInViewport();
 
-    // A retained-cursor rejection replaces canonical state while preserving local typing.
-    await sibling
-      .getByRole('textbox', { name: 'Message', exact: true })
-      .fill('Draft survives full reset');
-    let didReset = false;
-    await sibling.route('**/api/v1/chat/sync?*', async (route) => {
-      if (didReset) {
-        await route.continue();
-        return;
-      }
-      didReset = true;
-      await route.fulfill({
-        status: 409,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          error: {
-            code: 'sync_reset_required',
-            message: 'A fresh bootstrap is required.',
-            request_id: 'browser-reset',
-          },
-        }),
-      });
-    });
-    await sibling.bringToFront();
-    await expect.poll(() => didReset).toBe(true);
-    await expect(sibling.getByRole('textbox', { name: 'Message', exact: true })).toHaveText(
-      'Draft survives full reset',
-    );
-    await visibleEverywhere([sibling], 'Edited across devices');
-
     await menuAction({
       page: pages[2],
       text: 'Edited across devices',
@@ -251,8 +233,98 @@ test('four sessions and a shared-cache tab converge after edits, replies, reset,
     await expect(peerRow).toBeVisible();
     await expect(activeDraft).toHaveText('Keep my draft when archiving another chat');
   } finally {
-    for (const context of contexts) {
-      await context.close();
+    await closeContexts(contexts);
+  }
+});
+
+test('replaces a rejected cursor from a fresh bootstrap while preserving local typing', async ({
+  browser,
+  baseURL,
+}) => {
+  const contexts: BrowserContext[] = [];
+  let releaseServerState!: () => void;
+  const serverStateReady = new Promise<void>((resolve) => {
+    releaseServerState = resolve;
+  });
+  try {
+    const alice = { username: `reseta_${randomUUID().slice(0, 8)}`, displayName: 'Alice Reset' };
+    const bobby = { username: `resetb_${randomUUID().slice(0, 8)}`, displayName: 'Bobby Reset' };
+    const grants: components['schemas']['AuthResponse'][] = [];
+    for (const account of [alice, bobby]) {
+      const context = await browser.newContext({ baseURL });
+      contexts.push(context);
+      grants.push(
+        await authenticate({
+          context,
+          origin: baseURL!,
+          account,
+          isRegistration: true,
+        }),
+      );
     }
+    const sent = await contexts[0].request.post('/api/v1/messages', {
+      headers: mutationHeaders({ origin: baseURL!, grant: grants[0] }),
+      data: {
+        operation_id: randomUUID(),
+        message_id: randomUUID(),
+        destination: { kind: 'recipient', user_id: grants[1].user.id },
+        content: { schema_version: 1, text: 'Before the reset', custom_emoji: [] },
+      },
+    });
+    expect(sent.status()).toBe(200);
+    const page = await contexts[0].newPage();
+    await openChat(page, bobby);
+    await visibleEverywhere([page], 'Before the reset');
+    const editor = page.getByRole('textbox', { name: 'Message', exact: true });
+    await editor.fill('Draft survives full reset');
+    let rejectedCursor: string | undefined;
+    let hasFreshBootstrap = false;
+    await page.route('**/api/v1/chat/bootstrap', async (route) => {
+      await serverStateReady;
+      const response = await route.fetch();
+      expect(response.status()).toBe(200);
+      hasFreshBootstrap = true;
+      await route.fulfill({ response });
+    });
+    await page.route('**/api/v1/chat/sync?*', async (route) => {
+      const cursor = new URL(route.request().url()).searchParams.get('cursor');
+      expect(cursor).not.toBeNull();
+      rejectedCursor ??= cursor!;
+      if (hasFreshBootstrap && cursor !== rejectedCursor) {
+        await route.continue();
+        return;
+      }
+      // An expired cursor stays unusable; ordinary retry cannot repair canonical state.
+      await route.fulfill({
+        status: 409,
+        json: {
+          error: {
+            code: 'sync_reset_required',
+            message: 'A fresh bootstrap is required.',
+            request_id: 'browser-reset',
+          },
+        },
+      });
+    });
+    const replacement = await contexts[1].request.post('/api/v1/messages', {
+      headers: mutationHeaders({ origin: baseURL!, grant: grants[1] }),
+      data: {
+        operation_id: randomUUID(),
+        message_id: randomUUID(),
+        destination: { kind: 'recipient', user_id: grants[0].user.id },
+        content: { schema_version: 1, text: 'Only visible after rebootstrap', custom_emoji: [] },
+      },
+    });
+    expect(replacement.status()).toBe(200);
+    releaseServerState();
+    await page.bringToFront();
+
+    await expect.poll(() => rejectedCursor, { timeout: CONVERGENCE_TIMEOUT_MS }).toBeTruthy();
+    await expect.poll(() => hasFreshBootstrap, { timeout: CONVERGENCE_TIMEOUT_MS }).toBe(true);
+    await visibleEverywhere([page], 'Only visible after rebootstrap');
+    await expect(editor).toHaveText('Draft survives full reset');
+  } finally {
+    releaseServerState();
+    await closeContexts(contexts);
   }
 });
