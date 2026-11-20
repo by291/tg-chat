@@ -1,9 +1,14 @@
 use std::time::Duration;
 
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 
 const LOCK_WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
+/// Identify the backend that owns a test transaction's lock barrier.
+pub async fn backend_pid(connection: &mut PgConnection) -> i32 {
+    sqlx::query_scalar("SELECT pg_backend_pid()").fetch_one(connection).await.unwrap()
+}
 
 /// Wait until a competing backend reaches the lock held by the specified transaction.
 pub async fn blocked_backend(pool: &PgPool, blocker: i32) -> i32 {

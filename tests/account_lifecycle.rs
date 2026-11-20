@@ -31,6 +31,11 @@ use uuid::Uuid;
 const PASSWORD: &str = "a complete password phrase";
 const MAX_CLEANUP_ITERATIONS: usize = 25;
 
+struct CreationDeletionRace<'a> {
+    pool: &'a PgPool,
+    is_creation_first: bool,
+}
+
 async fn register(accounts: &AccountService, username: &str) -> SessionGrant {
     let input = Registration {
         username: username.to_owned(),
@@ -83,37 +88,81 @@ fn community_input() -> CreateCommunity {
     }
 }
 
-#[sqlx::test]
-#[ignore = "requires PostgreSQL"]
-async fn community_creation_and_account_deletion_cannot_orphan_a_community(pool: PgPool) {
+async fn assert_creation_deletion_race(options: CreationDeletionRace<'_>) {
+    let pool = options.pool;
     let (accounts, _, _) = support::services(pool.clone());
     let owner_grant = register(&accounts, "owner").await;
     let owner = accounts.authenticate(&owner_grant.token).await.unwrap();
+    let owner_id = owner.user_id;
+    let owner_token = owner_grant.token.clone();
     let service = MessageService::new(accounts.clone());
     let application = router(accounts.clone(), pool.clone());
-
     let input = community_input();
     let conversation_id = input.conversation_id;
-    let creation = service.create_community(owner.clone(), input);
-    let deletion = delete_account(application.clone(), &owner_grant);
-    let (creation, (status, response)) = tokio::join!(creation, deletion);
-    if status == StatusCode::OK {
-        assert!(matches!(creation, Err(AccountError::Unauthenticated)));
+    let mut barrier = pool.begin().await.unwrap();
+    let blocker = support::database::backend_pid(&mut barrier).await;
+    // Permit the foreign-key check while serializing both operations' identity admission.
+    let lock = sqlx::query("SELECT id FROM users WHERE id = $1 FOR NO KEY UPDATE");
+    lock.bind(owner_id).execute(&mut *barrier).await.unwrap();
+    let creation = async move { service.create_community(owner, input).await };
+    let deletion = async move { delete_account(application, &owner_grant).await };
+
+    let (creation, deletion) = if options.is_creation_first {
+        let creation = tokio::spawn(creation);
+        let first = support::database::blocked_backend(pool, blocker).await;
+        let deletion = tokio::spawn(deletion);
+        support::database::blocked_backend(pool, first).await;
+        (creation, deletion)
     } else {
-        assert_eq!(status, StatusCode::CONFLICT, "{response}");
+        let deletion = tokio::spawn(deletion);
+        let first = support::database::blocked_backend(pool, blocker).await;
+        let creation = tokio::spawn(creation);
+        support::database::blocked_backend(pool, first).await;
+        (creation, deletion)
+    };
+    assert!(!creation.is_finished());
+    assert!(!deletion.is_finished());
+    barrier.commit().await.unwrap();
+    let creation = creation.await.unwrap();
+    let (status, response) = deletion.await.unwrap();
+    if options.is_creation_first {
         creation.unwrap();
+        assert_eq!(status, StatusCode::CONFLICT, "{response}");
         assert_eq!(
             response["current"]["communities"][0]["conversation_id"],
             conversation_id.to_string()
         );
-        assert!(accounts.authenticate(&owner_grant.token).await.is_ok());
+        assert!(accounts.authenticate(&owner_token).await.is_ok());
+    } else {
+        assert_eq!(status, StatusCode::OK, "{response}");
+        assert!(matches!(creation, Err(AccountError::Unauthenticated)));
     }
 
     let orphaned = sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS (SELECT 1 FROM conversations community JOIN users owner
          ON owner.id = community.owner_id WHERE community.id = $1 AND owner.deleted_at IS NOT NULL)",
     );
-    assert!(!orphaned.bind(conversation_id).fetch_one(&pool).await.unwrap());
+    assert!(!orphaned.bind(conversation_id).fetch_one(pool).await.unwrap());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn creation_admitted_first_prevents_concurrent_owner_deletion(pool: PgPool) {
+    assert_creation_deletion_race(CreationDeletionRace {
+        pool: &pool,
+        is_creation_first: true,
+    })
+    .await;
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn deletion_admitted_first_prevents_concurrent_community_creation(pool: PgPool) {
+    assert_creation_deletion_race(CreationDeletionRace {
+        pool: &pool,
+        is_creation_first: false,
+    })
+    .await;
 }
 
 #[sqlx::test]
