@@ -123,6 +123,7 @@ Never edit applied SQL.
 cargo fmt --all --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
+node --test scripts/*.test.mjs
 ```
 
 The default tests run without PostgreSQL and report the real database tests as ignored. To include
@@ -220,6 +221,14 @@ from a missed record, and terminal signaling rejection.
 It repeats the call flow after verifying that ordinary messaging works with LiveKit stopped.
 The default runtime check keeps calls disabled.
 
+Backend CI runs the ordinary runtime and calls-enabled acceptance in separate matrix jobs.
+The calls runner executes the Rust provider room lifecycle contract in LiveKit's network namespace
+and both browser contracts, including explicit two-participant admission. Its writable browser
+result directory is mounted separately from the read-only checkout. Failure traces and screenshots
+remain under `web/test-results/calls/` after disposable containers are removed and are uploaded by CI.
+The runtime-runner unit check verifies artifact retention and private provider-settings cleanup
+when the external browser command fails.
+
 The provider contract fixtures exercise explicit room creation and deletion and
 two-participant admission. Use a disposable LiveKit instance and set
 `TG_CHAT_LIVEKIT_API_KEY`, `TG_CHAT_LIVEKIT_API_SECRET`, and
@@ -230,6 +239,10 @@ a loopback `TG_CHAT_LIVEKIT_PUBLIC_URL` with the `ws` scheme. Run from the repos
 cargo test --locked --test livekit_integration -- --include-ignored
 pnpm --dir web exec playwright test -c playwright.calls.config.ts livekit-contract.spec.ts
 ```
+
+`pnpm --dir web test:calls` selects both the application workflow and provider browser contract.
+Use `node scripts/check-runtime.mjs --calls` to provision their credentials and private network
+automatically; the standalone package command requires the same disposable provider settings.
 
 The [cross-network acceptance checklist][m9-network] tracks physical microphone, camera, and TURN
 verification.

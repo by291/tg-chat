@@ -36,15 +36,18 @@ The connected Playwright configuration exposes a project for each suite. Use the
 commands to select one project at a time. The Compose runner resets the disposable admission budget
 and applies the service settings each phase needs before invoking its project.
 
-Community workflows reuse worker-owned account identities to stay within the real registration
-budget. Each case restores those sessions into fresh browser contexts and creates its own community.
-Group moderation and channel publication run independently. The mute check first observes a stable
-server projection, then advances only the member browser's clock to verify local deadline restoration.
-Backend integration tests separately verify server time and authorization.
+Group moderation and channel publication use independent projects, account identities, browser
+contexts, and communities. Run them with `pnpm test:communities` and `pnpm test:channels`.
+The disposable runner resets admission between those phases so a failed test worker cannot consume the
+next scenario's registration budget. The mute check first observes a stable server projection, then
+advances only the member browser's clock to verify local deadline restoration. Backend integration
+tests separately verify server time and authorization.
 
 The synchronization reset case keeps rejecting the old cursor until a fresh bootstrap is used.
 It must obtain previously absent canonical state and preserve local typing; observing an injected
 HTTP error alone is not evidence of recovery.
+Run it with `pnpm test:reset`. It has its own project so the disposable runner can reset admission
+between ordinary synchronization and reset recovery without bypassing registration limits.
 
 Use the existing Prettier configuration. Text files use LF on Windows, macOS, and Linux through
 Git attributes, EditorConfig, and Prettier; no global Git setting is needed. Binary assets are not
@@ -85,8 +88,9 @@ assertions wait for sustained stability rather than a single matching frame, bec
 measurement can otherwise produce false passes. Production code and tests should share behavior
 contracts, not duplicate each other's algorithms.
 
-The shared message-content vectors specify supported HTML semantics with CSS selectors.
-Both wire-format implementations check those selectors as well as canonical text, emoji ranges,
+The shared message-content vectors specify supported HTML semantics with CSS selectors and the
+text belonging to each selected node. Both wire-format implementations check those expectations,
+canonical text, emoji ranges,
 and removal of executable markup. Preserve these positive expectations when extending sanitization.
 Wallpaper browser checks exercise actual image decoding, bounded JPEG preparation, failed replacement,
 and restoration from IndexedDB after reload.
@@ -120,24 +124,25 @@ validation, and `git diff --check`; they do not require rerunning runtime suites
 actually run and their limits rather than retaining historical passing counts as guarantees.
 
 `pnpm test:sync` exercises four sessions across two accounts plus a shared-cache tab. It checks
-mixed lifecycle commands, read advancement, reply navigation, full reset preserving local input, and
+mixed lifecycle commands, read advancement, reply navigation, and
 deletion without resurrection after reload. Its output directory is separate from the demo and
 account suites. Run it with independent admission fixtures; the root Compose runner resets only its
 own ephemeral Valkey between suites rather than weakening application registration limits.
+`pnpm test:reset` independently checks adopting a replacement checkpoint while preserving local input.
 
 For connected workspace changes, use the account suite to switch between a direct chat and Saved
 Messages and confirm that each keeps its own draft. The interactions suite checks a search jump at
 a narrow viewport and returning to the results with the query intact. The synchronization suite
-checks shared-cache convergence and preserves local input across a full reset.
+checks shared-cache convergence; the reset project checks recovery without losing local input.
 
 ## Community acceptance
 
 `pnpm test:communities` uses a disposable connected runtime from `TG_CHAT_ACCOUNT_TEST_URL`. Five
 separate account contexts exercise public creation and discovery, administrator approval, retained
-history, bans and access removal, private links, direct invitations, and read-only channel subscribers.
-The suite records desktop and narrow-screen screenshots in its own artifact directory. The root
-`node scripts/check-runtime.mjs` includes it after the account and synchronization suites, resetting
-only that disposable project's admission fixtures between suites.
+history, bans and access removal, and private links. `pnpm test:channels` uses its own three accounts
+for direct invitations, publication, and subscriber privacy, and records desktop and narrow-screen
+screenshots. The root `node scripts/check-runtime.mjs` includes both projects after synchronization
+and reset recovery, resetting only that disposable project's admission fixtures between phases.
 
 ## Connected media capability checks
 

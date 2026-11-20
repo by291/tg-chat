@@ -84,16 +84,17 @@ and connected test support where genuine preparation is shared.
 
 ### Task 5: Calls CI and retained diagnostics
 
-**Files:** `.github/workflows/backend.yml`, `scripts/check-calls-runtime.mjs`,
+**Files:** `.github/workflows/backend.yml`, `deploy/Dockerfile`, `compose.yaml`,
+`scripts/check-calls-runtime.mjs`,
 `scripts/check-runtime.mjs`, calls Playwright config, package scripts, and development guides.
 
 **Interfaces:** Existing `check-runtime.mjs --calls` entry point.
 
-- [ ] Include app calls and both provider contracts in the calls-enabled verification.
-- [ ] Mount a dedicated writable result directory and retain failure traces/screenshots.
-- [ ] Add a separate calls CI job and preserve its artifacts on failure.
-- [ ] Run calls acceptance and verify actual discovery and artifact persistence.
-      Expected: app and provider contracts pass; outputs survive container cleanup.
+- [x] Include app calls and both provider contracts in the calls-enabled verification.
+- [x] Mount a dedicated writable result directory and retain failure traces/screenshots.
+- [x] Add a separate calls CI job and preserve its artifacts on failure.
+- [x] Verify real provider contracts, test discovery, and artifact persistence; record full-runtime limits.
+      Expected: provider contracts pass; both browser cases are selected; outputs survive container cleanup.
 
 ### Task 6: Final verification and review
 
@@ -101,8 +102,19 @@ and connected test support where genuine preparation is shared.
 
 **Interfaces:** Existing developer commands remain usable.
 
-- [ ] Run formatting, frontend build, normal and shuffled Vitest, and demo browsers.
-- [ ] Run Rust checks and all supported integration cases with isolated services.
-- [ ] Review the full uncommitted diff in a fresh reviewer context and fix material findings.
-- [ ] Record completed checks and any physical/platform acceptance limits.
+- [x] Run formatting, frontend build, normal and shuffled Vitest, and demo browsers.
+- [x] Run Rust checks and all supported integration cases with isolated services.
+- [x] Review the full change set in a fresh reviewer context and fix material findings.
+- [x] Record completed checks and any physical/platform acceptance limits.
       Expected: automated checks pass and no material review findings remain.
+
+## Verification limits
+
+The native suite ran with real isolated PostgreSQL, Valkey, SMTP, S3, and LiveKit. Connected
+synchronization, reset, group, and channel workflows ran against native API/Worker processes with
+HTTP catch-up. The provider browser contract also ran inside LiveKit's Linux network namespace.
+A forced provider rejection left its trace and screenshot on the host after container removal.
+
+Full application Compose acceptance was not run locally: this host uses Docker Engine 27.5.1,
+while the named fetcher interfaces require Engine 28.1 or newer. The CI matrix now includes both
+ordinary and calls-enabled acceptance on its explicitly configured supported Docker version.
