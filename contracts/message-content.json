@@ -7,7 +7,7 @@
       "rich_text": null,
       "custom_emoji": []
     },
-    "expected_selectors": []
+    "expected_elements": []
   },
   {
     "name": "lists and spoilers",
@@ -17,10 +17,19 @@
       "rich_text": "<ol start=3><li>First</li><li>Second</li></ol><p><span data-spoiler=true>Secret</span></p>",
       "custom_emoji": []
     },
-    "expected_selectors": [
-      "ol[start=\"3\"] > li:first-child",
-      "ol[start=\"3\"] > li:nth-child(2)",
-      "span[data-spoiler=\"true\"]"
+    "expected_elements": [
+      {
+        "selector": "ol[start=\"3\"] > li:first-child",
+        "text": "First"
+      },
+      {
+        "selector": "ol[start=\"3\"] > li:nth-child(2)",
+        "text": "Second"
+      },
+      {
+        "selector": "span[data-spoiler=\"true\"]",
+        "text": "Secret"
+      }
     ]
   },
   {
@@ -31,9 +40,23 @@
       "rich_text": "<table><tr><th><p>Name</p></th><th><p>Value</p></th></tr><tr><td><p>Earth</p></td><td><p>🌍</p></td></tr></table>",
       "custom_emoji": []
     },
-    "expected_selectors": [
-      "table tr:first-child > th:nth-child(2)",
-      "table tr:nth-child(2) > td:nth-child(2)"
+    "expected_elements": [
+      {
+        "selector": "table tr:first-child > th:first-child",
+        "text": "Name"
+      },
+      {
+        "selector": "table tr:first-child > th:nth-child(2)",
+        "text": "Value"
+      },
+      {
+        "selector": "table tr:nth-child(2) > td:first-child",
+        "text": "Earth"
+      },
+      {
+        "selector": "table tr:nth-child(2) > td:nth-child(2)",
+        "text": "🌍"
+      }
     ]
   },
   {
@@ -44,9 +67,15 @@
       "rich_text": "<p><span data-math=\"x^2\" data-math-display=inline>x^2</span> <time data-message-date=1794268800000 datetime=\"2026-11-10T00:00:00.000Z\">Tomorrow</time></p>",
       "custom_emoji": []
     },
-    "expected_selectors": [
-      "span[data-math=\"x^2\"][data-math-display=\"inline\"]",
-      "time[data-message-date=\"1794268800000\"][datetime=\"2026-11-10T00:00:00.000Z\"]"
+    "expected_elements": [
+      {
+        "selector": "span[data-math=\"x^2\"][data-math-display=\"inline\"]",
+        "text": "x^2"
+      },
+      {
+        "selector": "time[data-message-date=\"1794268800000\"][datetime=\"2026-11-10T00:00:00.000Z\"]",
+        "text": "Tomorrow"
+      }
     ]
   },
   {
@@ -57,10 +86,19 @@
       "rich_text": "<blockquote data-collapsed=true>Quoted</blockquote><pre data-code-language=rust><code>let answer = 42;</code></pre><p><a href=\"https://example.test/path\">Website</a></p>",
       "custom_emoji": []
     },
-    "expected_selectors": [
-      "blockquote[data-collapsed=\"true\"]",
-      "pre[data-code-language=\"rust\"] > code",
-      "a[href=\"https://example.test/path\"]"
+    "expected_elements": [
+      {
+        "selector": "blockquote[data-collapsed=\"true\"]",
+        "text": "Quoted"
+      },
+      {
+        "selector": "pre[data-code-language=\"rust\"] > code",
+        "text": "let answer = 42;"
+      },
+      {
+        "selector": "a[href=\"https://example.test/path\"]",
+        "text": "Website"
+      }
     ]
   },
   {
@@ -71,7 +109,12 @@
       "rich_text": "<p onclick=alert(1) style=color:red>Safe<script>alert(2)</script><img src=x onerror=alert(3)> <a href=javascript:alert(4)>Bad link</a></p>",
       "custom_emoji": []
     },
-    "expected_selectors": ["p"]
+    "expected_elements": [
+      {
+        "selector": "p",
+        "text": "Safe Bad link"
+      }
+    ]
   },
   {
     "name": "custom emoji after an astral prefix",
@@ -87,6 +130,11 @@
         }
       ]
     },
-    "expected_selectors": ["span[data-custom-emoji=\"5249007745805328497\"]"]
+    "expected_elements": [
+      {
+        "selector": "span[data-custom-emoji=\"5249007745805328497\"]",
+        "text": "😂"
+      }
+    ]
   }
 ]

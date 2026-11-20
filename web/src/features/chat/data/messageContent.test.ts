@@ -27,8 +27,10 @@ describe('canonical message transport', () => {
 
       expect(canonical.rich_text).toBeTypeOf('string');
       const document = new DOMParser().parseFromString(canonical.rich_text!, 'text/html');
-      for (const selector of fixture.expected_selectors) {
-        expect(document.querySelector(selector), selector).not.toBeNull();
+      expect(fixture.expected_elements.length).toBeGreaterThan(0);
+      for (const expected of fixture.expected_elements) {
+        const element = document.querySelector(expected.selector);
+        expect(element?.textContent, expected.selector).toBe(expected.text);
       }
       expect(document.querySelector('script, img, [onclick], [onerror], [style]')).toBeNull();
       expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
