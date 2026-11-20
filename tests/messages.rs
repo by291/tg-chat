@@ -1,23 +1,12 @@
+#[allow(dead_code)]
+mod support;
+
 use sqlx::PgPool;
 use tg_chat::features::{
-    accounts::{AccountError, AccountService, AccountSettings, Actor, Registration},
+    accounts::{AccountError, AccountService, AccountSettings},
     messages::{Destination, MessageService, SendMessage, content::MessageContent},
 };
 use uuid::Uuid;
-
-async fn register(accounts: &AccountService, username: &str) -> Actor {
-    let grant = accounts
-        .register(Registration {
-            username: username.to_owned(),
-            password: "a complete password phrase".to_owned(),
-            display_name: username.to_owned(),
-            device_name: "Browser".to_owned(),
-        })
-        .await
-        .unwrap();
-
-    accounts.authenticate(&grant.token).await.unwrap()
-}
 
 fn message(destination: Destination) -> SendMessage {
     SendMessage {
@@ -42,8 +31,8 @@ fn message(destination: Destination) -> SendMessage {
 #[ignore = "requires PostgreSQL"]
 async fn concurrent_replays_and_reciprocal_sends_share_one_conversation(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let service = MessageService::new(accounts);
     let outgoing = message(Destination::Recipient {
         user_id: bobby.user_id,
@@ -96,8 +85,8 @@ async fn concurrent_replays_and_reciprocal_sends_share_one_conversation(pool: Pg
 #[ignore = "requires PostgreSQL"]
 async fn recipient_policy_and_blocks_reject_without_partial_effects(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let service = MessageService::new(accounts);
     let outgoing = message(Destination::Recipient {
         user_id: bobby.user_id,
@@ -161,9 +150,9 @@ async fn recipient_policy_and_blocks_reject_without_partial_effects(pool: PgPool
 #[ignore = "requires PostgreSQL"]
 async fn concurrent_admission_respects_both_directory_capacities(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
-    let carol = register(&accounts, "carol").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
+    let carol = support::account(&accounts, "carol").await;
     // Fixture members exercise the same locked capacity count without hashing 199 passwords.
     sqlx::query(
         "WITH peers AS (
@@ -207,8 +196,8 @@ async fn concurrent_admission_respects_both_directory_capacities(pool: PgPool) {
 #[ignore = "requires PostgreSQL"]
 async fn rejected_policy_or_failed_feed_rolls_back_the_entire_send(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let service = MessageService::new(accounts);
     let outgoing = message(Destination::Recipient {
         user_id: bobby.user_id,
@@ -282,7 +271,7 @@ async fn legacy_text_replay_keeps_its_identity_with_typed_bodies(pool: PgPool) {
     use sha2::{Digest, Sha256};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
+    let alice = support::account(&accounts, "alice").await;
     let service = MessageService::new(accounts);
     let request = message(Destination::Saved);
     let legacy_payload = format!(
@@ -313,8 +302,8 @@ async fn sticker_and_contact_bodies_round_trip_through_history_and_sync(pool: Pg
     use tg_chat::features::{messages::HistoryQuery, sync::SyncQuery};
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let private_fields = sqlx::query(
         "UPDATE users SET phone = '+1 555 0199', verified_email = 'private@example.test'
          WHERE id = $1",
@@ -384,8 +373,8 @@ async fn unknown_stickers_and_inaccessible_contact_accounts_are_rejected(pool: P
     use serde_json::json;
 
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let suspend =
         sqlx::query("UPDATE users SET is_suspended = true WHERE id = $1").bind(bobby.user_id);
     suspend.execute(&pool).await.unwrap();

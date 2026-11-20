@@ -85,11 +85,10 @@ fn community_input() -> CreateCommunity {
 
 #[sqlx::test]
 #[ignore = "requires PostgreSQL"]
-async fn deletion_and_ownership_changes_cannot_orphan_a_community(pool: PgPool) {
+async fn community_creation_and_account_deletion_cannot_orphan_a_community(pool: PgPool) {
     let (accounts, _, _) = support::services(pool.clone());
     let owner_grant = register(&accounts, "owner").await;
     let owner = accounts.authenticate(&owner_grant.token).await.unwrap();
-    let member = support::account(&accounts, "member").await;
     let service = MessageService::new(accounts.clone());
     let application = router(accounts.clone(), pool.clone());
 
@@ -100,15 +99,35 @@ async fn deletion_and_ownership_changes_cannot_orphan_a_community(pool: PgPool) 
     let (creation, (status, response)) = tokio::join!(creation, deletion);
     if status == StatusCode::OK {
         assert!(matches!(creation, Err(AccountError::Unauthenticated)));
-        return;
+    } else {
+        assert_eq!(status, StatusCode::CONFLICT, "{response}");
+        creation.unwrap();
+        assert_eq!(
+            response["current"]["communities"][0]["conversation_id"],
+            conversation_id.to_string()
+        );
+        assert!(accounts.authenticate(&owner_grant.token).await.is_ok());
     }
-    assert_eq!(status, StatusCode::CONFLICT, "{response}");
-    creation.unwrap();
-    assert_eq!(
-        response["current"]["communities"][0]["conversation_id"],
-        conversation_id.to_string()
+
+    let orphaned = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM conversations community JOIN users owner
+         ON owner.id = community.owner_id WHERE community.id = $1 AND owner.deleted_at IS NOT NULL)",
     );
-    assert!(accounts.authenticate(&owner_grant.token).await.is_ok());
+    assert!(!orphaned.bind(conversation_id).fetch_one(&pool).await.unwrap());
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn pending_ownership_transfer_blocks_deletion_until_the_new_owner_is_committed(pool: PgPool) {
+    let (accounts, _, _) = support::services(pool.clone());
+    let owner_grant = register(&accounts, "owner").await;
+    let owner = accounts.authenticate(&owner_grant.token).await.unwrap();
+    let member = support::account(&accounts, "member").await;
+    let service = MessageService::new(accounts.clone());
+    let application = router(accounts.clone(), pool.clone());
+    let input = community_input();
+    let conversation_id = input.conversation_id;
+    service.create_community(owner.clone(), input).await.unwrap();
 
     let join = CommunityCommand {
         operation_id: Uuid::new_v4(),
@@ -126,16 +145,23 @@ async fn deletion_and_ownership_changes_cannot_orphan_a_community(pool: PgPool) 
             user_id: member.user_id,
         },
     };
-    let transfer = service.community_command(owner, transfer);
-    let deletion = delete_account(application.clone(), &owner_grant);
-    let (transfer, (status, response)) = tokio::join!(transfer, deletion);
-    transfer.unwrap();
-    assert!(matches!(status, StatusCode::OK | StatusCode::CONFLICT), "{status} {response}");
-    if status == StatusCode::CONFLICT {
-        assert!(accounts.authenticate(&owner_grant.token).await.is_ok());
-        let (status, response) = delete_account(application, &owner_grant).await;
-        assert_eq!(status, StatusCode::OK, "{response}");
-    }
+    let mut barrier = pool.begin().await.unwrap();
+    let blocker: i32 =
+        sqlx::query_scalar("SELECT pg_backend_pid()").fetch_one(&mut *barrier).await.unwrap();
+    let lock = sqlx::query("SELECT id FROM conversations WHERE id = $1 FOR UPDATE");
+    lock.bind(conversation_id).execute(&mut *barrier).await.unwrap();
+    let transfer = tokio::spawn(async move { service.community_command(owner, transfer).await });
+    support::database::blocked_backend(&pool, blocker).await;
+
+    // Deletion must inspect committed ownership while the transfer is still waiting.
+    let (status, response) = delete_account(application.clone(), &owner_grant).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{response}");
+    assert!(accounts.authenticate(&owner_grant.token).await.is_ok());
+    barrier.commit().await.unwrap();
+    transfer.await.unwrap().unwrap();
+
+    let (status, response) = delete_account(application, &owner_grant).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
     let owner: Uuid = sqlx::query_scalar("SELECT owner_id FROM conversations WHERE id = $1")
         .bind(conversation_id)
         .fetch_one(&pool)

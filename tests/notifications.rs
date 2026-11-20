@@ -5,6 +5,7 @@ use std::{
     collections::{HashMap, VecDeque},
     pin::Pin,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use axum::{
@@ -31,6 +32,7 @@ use tg_chat::features::{
     realtime::Activity,
     sync::SyncQuery,
 };
+use tokio::sync::{Notify, oneshot};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -39,11 +41,30 @@ const CLIENT_PUBLIC_KEY: &str =
 const CLIENT_AUTH: &str = "_ordMnz7uTCmrpBTeUV4Bw";
 const PASSWORD: &str = "a complete password phrase";
 const TEST_IDLE_DAYS: i64 = 30;
+const DISPATCH_WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Default)]
 struct RecordingTransport {
     outcomes: Mutex<VecDeque<PushOutcome>>,
     delivered: Mutex<Vec<(NotificationIdentity, Value)>>,
+}
+
+struct DelayedTransport {
+    started: Notify,
+    completion: Mutex<Option<oneshot::Receiver<PushOutcome>>>,
+}
+
+impl PushTransport for DelayedTransport {
+    fn send<'a>(
+        &'a self,
+        _attempt: PushAttempt<'a>,
+    ) -> Pin<Box<dyn Future<Output = PushOutcome> + Send + 'a>> {
+        Box::pin(async move {
+            let completion = self.completion.lock().unwrap().take().unwrap();
+            self.started.notify_one();
+            completion.await.unwrap()
+        })
+    }
 }
 
 impl PushTransport for RecordingTransport {
@@ -115,6 +136,77 @@ async fn accept_and_claim(fixture: &Fixture, worker: &PushWorker) -> (SendReceip
     let claim = worker.claim().await.unwrap().unwrap();
 
     (sent, claim)
+}
+
+async fn assert_stale_completion_is_fenced(pool: &PgPool, outcome: PushOutcome) {
+    let fixture = fixture(pool).await;
+    let input = subscription("https://fcm.googleapis.com/fcm/send/takeover".to_owned());
+    fixture.subscriptions.subscribe(&fixture.recipient, input).await.unwrap();
+    let (complete, completion) = oneshot::channel();
+    let delayed = Arc::new(DelayedTransport {
+        started: Notify::new(),
+        completion: Mutex::new(Some(completion)),
+    });
+    let old_worker = PushWorker::new(PushWorkerSettings {
+        pool: pool.clone(),
+        activity: None,
+        idle_days: TEST_IDLE_DAYS,
+        transport: Some(delayed.clone()),
+    });
+    let (_, old_claim) = accept_and_claim(&fixture, &old_worker).await;
+    let old_dispatch = tokio::spawn(async move { old_worker.dispatch(old_claim).await });
+    tokio::time::timeout(DISPATCH_WAIT_TIMEOUT, delayed.started.notified())
+        .await
+        .expect("the old worker reaches the provider before its lease expires");
+
+    let expire = sqlx::query(
+        "UPDATE push_deliveries SET lease_until = clock_timestamp() - interval '1 second'
+         WHERE status = 'running'",
+    );
+    expire.execute(pool).await.unwrap();
+    let transport = Arc::new(RecordingTransport::default());
+    let new_worker = PushWorker::new(PushWorkerSettings {
+        pool: pool.clone(),
+        activity: None,
+        idle_days: TEST_IDLE_DAYS,
+        transport: Some(transport.clone()),
+    });
+    let new_claim = new_worker.claim().await.unwrap().unwrap();
+    let active_lease: Uuid =
+        sqlx::query_scalar("SELECT lease_id FROM push_deliveries").fetch_one(pool).await.unwrap();
+
+    // The first provider response arrives only after a different worker owns completion.
+    assert!(complete.send(outcome).is_ok());
+    old_dispatch.await.unwrap().unwrap();
+    let current: (String, Option<Uuid>, i32) =
+        sqlx::query_as("SELECT status, lease_id, attempts FROM push_deliveries")
+            .fetch_one(pool)
+            .await
+            .unwrap();
+    assert_eq!(current, ("running".to_owned(), Some(active_lease), 2));
+    let subscriptions: i64 = sqlx::query_scalar("SELECT count(*) FROM push_subscriptions")
+        .fetch_one(pool)
+        .await
+        .unwrap();
+    assert_eq!(subscriptions, 1);
+
+    new_worker.dispatch(new_claim).await.unwrap();
+    let status: String =
+        sqlx::query_scalar("SELECT status FROM push_deliveries").fetch_one(pool).await.unwrap();
+    assert_eq!(status, "sent");
+    assert_eq!(transport.delivered.lock().unwrap().len(), 1);
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn stale_push_success_cannot_complete_a_reclaimed_lease(pool: PgPool) {
+    assert_stale_completion_is_fenced(&pool, PushOutcome::Sent).await;
+}
+
+#[sqlx::test]
+#[ignore = "requires PostgreSQL"]
+async fn stale_endpoint_failure_cannot_remove_a_reclaimed_subscription(pool: PgPool) {
+    assert_stale_completion_is_fenced(&pool, PushOutcome::EndpointGone).await;
 }
 
 #[sqlx::test]

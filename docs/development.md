@@ -142,6 +142,13 @@ cargo test --locked --all-targets -- --include-ignored \
 
 SQLx creates isolated databases for these tests. Do not point this command at a production server.
 
+Transaction race tests observe the competing PostgreSQL backend waiting on the fixture's lock
+before releasing it. Keep that observation when changing transaction boundaries; spawning a task
+alone does not establish that the race occurred. Push takeover tests pause the provider response
+until a replacement lease exists, then verify the stale response cannot complete work or retire
+the subscription. Activity expiry tests retain real Valkey time because advancing a Tokio clock
+does not advance the server's TTLs.
+
 For the complete container boundary check, run from the root:
 
 ```sh

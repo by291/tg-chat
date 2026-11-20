@@ -1,8 +1,6 @@
 #[allow(dead_code)]
 mod support;
 
-use std::time::Duration;
-
 use axum::{
     Router,
     body::Body,
@@ -20,10 +18,7 @@ use tg_chat::features::{
     media::{AttachmentInput, MediaCleanup},
     messages::{MessageService, SendReceipt},
 };
-use tokio::{
-    sync::oneshot,
-    time::{sleep, timeout},
-};
+use tokio::sync::oneshot;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -241,26 +236,6 @@ impl OriginalFixture {
     }
 }
 
-async fn blocked_backend(pool: &PgPool, blocker: i32) -> i32 {
-    const LOCK_WAIT_TIMEOUT: Duration = Duration::from_secs(10);
-    const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(10);
-
-    timeout(LOCK_WAIT_TIMEOUT, async {
-        loop {
-            let query = sqlx::query_scalar(
-                "SELECT pid FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))",
-            );
-            if let Some(waiter) = query.bind(blocker).fetch_optional(pool).await.unwrap() {
-                return waiter;
-            }
-
-            sleep(LOCK_POLL_INTERVAL).await;
-        }
-    })
-    .await
-    .expect("the competing database operation did not block")
-}
-
 #[sqlx::test]
 #[ignore = "requires PostgreSQL and RustFS"]
 async fn report_and_source_removal_resolve_under_the_same_file_locks(pool: PgPool) {
@@ -280,9 +255,9 @@ async fn report_and_source_removal_resolve_under_the_same_file_locks(pool: PgPoo
     };
     let release = async {
         // The report holds the source conversation while it waits for the original file.
-        let reporting_backend = blocked_backend(&pool, blocker).await;
+        let reporting_backend = support::database::blocked_backend(&pool, blocker).await;
         start_removal.send(()).unwrap();
-        blocked_backend(&pool, reporting_backend).await;
+        support::database::blocked_backend(&pool, reporting_backend).await;
         file_lock.commit().await.unwrap();
     };
     let ((status, receipt), removed, ()) = tokio::join!(admission, removal, release);

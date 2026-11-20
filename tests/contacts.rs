@@ -1,25 +1,12 @@
+#[allow(dead_code)]
+mod support;
+
 use sqlx::PgPool;
 use tg_chat::features::{
-    accounts::{
-        AccountError, AccountService, AccountSettings, Actor, Registration, profile::ProfileUpdate,
-    },
+    accounts::{AccountError, AccountService, AccountSettings, profile::ProfileUpdate},
     contacts::{Audience, DirectoryQuery, PrivacySettings, RelationshipChange},
 };
 use uuid::Uuid;
-
-async fn register(accounts: &AccountService, username: &str) -> Actor {
-    let grant = accounts
-        .register(Registration {
-            username: username.to_owned(),
-            password: "a complete password phrase".to_owned(),
-            display_name: username.to_owned(),
-            device_name: "Browser".to_owned(),
-        })
-        .await
-        .unwrap();
-
-    accounts.authenticate(&grant.token).await.unwrap()
-}
 
 fn first_page() -> DirectoryQuery {
     DirectoryQuery {
@@ -34,8 +21,8 @@ fn first_page() -> DirectoryQuery {
 #[ignore = "requires PostgreSQL"]
 async fn directory_filters_suspensions_and_exposes_only_public_profile_fields(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let profile = accounts
         .update_profile(
             &alice,
@@ -115,8 +102,8 @@ async fn directory_filters_suspensions_and_exposes_only_public_profile_fields(po
 #[ignore = "requires PostgreSQL"]
 async fn contacts_are_directional_and_blocks_prevent_new_direct_relationships(pool: PgPool) {
     let accounts = AccountService::new(pool, AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     accounts
         .add_contact(RelationshipChange {
             actor: alice.clone(),
@@ -175,8 +162,8 @@ async fn contacts_are_directional_and_blocks_prevent_new_direct_relationships(po
 #[ignore = "requires PostgreSQL"]
 async fn suspended_saved_targets_remain_listed_until_the_owner_removes_them(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     accounts
         .add_contact(RelationshipChange {
             actor: alice.clone(),
@@ -226,9 +213,9 @@ async fn suspended_saved_targets_remain_listed_until_the_owner_removes_them(pool
 #[ignore = "requires PostgreSQL"]
 async fn concurrent_contact_admission_preserves_the_capacity_boundary(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
-    let carol = register(&accounts, "carol").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
+    let carol = support::account(&accounts, "carol").await;
     // Seed unrelated existing contacts without paying password-hash costs for directory fixtures.
     let owners: Vec<Uuid> = sqlx::query_scalar(
         "INSERT INTO users (id, username, password_hash, display_name)
@@ -289,8 +276,8 @@ async fn concurrent_contact_admission_preserves_the_capacity_boundary(pool: PgPo
 #[ignore = "requires PostgreSQL"]
 async fn privacy_defaults_and_updates_remain_owned_by_each_account(pool: PgPool) {
     let accounts = AccountService::new(pool, AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let defaults = accounts.privacy(&alice).await.unwrap();
     assert_eq!(defaults.direct_messages, Audience::Everyone);
     assert_eq!(defaults.calls, Audience::Contacts);
@@ -314,8 +301,8 @@ async fn privacy_defaults_and_updates_remain_owned_by_each_account(pool: PgPool)
 #[ignore = "requires PostgreSQL"]
 async fn reciprocal_contact_updates_finish_without_deadlocks(pool: PgPool) {
     let accounts = AccountService::new(pool, AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let (first, second) = tokio::join!(
         accounts.add_contact(RelationshipChange {
             actor: alice.clone(),
@@ -336,10 +323,10 @@ async fn linkable_discovery_excludes_accounts_blocked_in_either_direction(pool: 
     use serde_json::{from_value, json};
 
     let accounts = AccountService::new(pool, AccountSettings::default());
-    let reader = register(&accounts, "reader").await;
-    let incoming_block = register(&accounts, "contact_incoming").await;
-    let outgoing_block = register(&accounts, "contact_outgoing").await;
-    let available = register(&accounts, "contact_available").await;
+    let reader = support::account(&accounts, "reader").await;
+    let incoming_block = support::account(&accounts, "contact_incoming").await;
+    let outgoing_block = support::account(&accounts, "contact_outgoing").await;
+    let available = support::account(&accounts, "contact_available").await;
 
     accounts
         .add_block(RelationshipChange {

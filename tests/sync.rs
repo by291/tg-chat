@@ -1,24 +1,13 @@
+#[allow(dead_code)]
+mod support;
+
 use sqlx::PgPool;
 use tg_chat::features::{
-    accounts::{AccountError, AccountService, AccountSettings, Actor, Registration},
+    accounts::{AccountError, AccountService, AccountSettings},
     messages::{Destination, HistoryQuery, MessageService, SendMessage, content::MessageContent},
     sync::SyncQuery,
 };
 use uuid::Uuid;
-
-async fn register(accounts: &AccountService, username: &str) -> Actor {
-    let grant = accounts
-        .register(Registration {
-            username: username.to_owned(),
-            password: "a complete password phrase".to_owned(),
-            display_name: username.to_owned(),
-            device_name: "Browser".to_owned(),
-        })
-        .await
-        .unwrap();
-
-    accounts.authenticate(&grant.token).await.unwrap()
-}
 
 fn outgoing(destination: Destination) -> SendMessage {
     SendMessage {
@@ -43,9 +32,9 @@ fn outgoing(destination: Destination) -> SendMessage {
 #[ignore = "requires PostgreSQL"]
 async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_groups(pool: PgPool) {
     let accounts = AccountService::new(pool, AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
-    let carol = register(&accounts, "carol").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
+    let carol = support::account(&accounts, "carol").await;
     let service = MessageService::new(accounts);
     let initial = service.bootstrap(alice.clone()).await.unwrap();
     assert_eq!(initial.conversations.len(), 1);
@@ -195,12 +184,14 @@ async fn bounded_sync_and_keyset_history_preserve_authorization_and_complete_gro
 #[ignore = "requires PostgreSQL"]
 async fn stalled_feed_allocation_cannot_be_skipped_by_another_commit(pool: PgPool) {
     let accounts = AccountService::new(pool.clone(), AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
-    let bobby = register(&accounts, "bobby").await;
+    let alice = support::account(&accounts, "alice").await;
+    let bobby = support::account(&accounts, "bobby").await;
     let service = MessageService::new(accounts);
     let initial = service.bootstrap(alice.clone()).await.unwrap();
     let saved_id = initial.conversations[0].id;
     let mut stalled = pool.begin().await.unwrap();
+    let blocker: i32 =
+        sqlx::query_scalar("SELECT pg_backend_pid()").fetch_one(&mut *stalled).await.unwrap();
     let position: i64 = sqlx::query_scalar(
         "UPDATE sync_heads SET position = position + 1 WHERE user_id = $1 RETURNING position",
     )
@@ -227,6 +218,9 @@ async fn stalled_feed_allocation_cannot_be_skipped_by_another_commit(pool: PgPoo
             )
             .await
     });
+    // Observe admission before releasing the head so sequential scheduling cannot pass the race.
+    support::database::blocked_backend(&pool, blocker).await;
+    assert!(!send.is_finished());
     let current = service
         .sync(
             alice.clone(),
@@ -263,7 +257,7 @@ async fn cursor_rejects_future_and_foreign_deployment_positions_and_oversized_pa
     use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 
     let accounts = AccountService::new(pool, AccountSettings::default());
-    let alice = register(&accounts, "alice").await;
+    let alice = support::account(&accounts, "alice").await;
     let service = MessageService::new(accounts);
     let bootstrap = service.bootstrap(alice.clone()).await.unwrap();
     let decoded = URL_SAFE_NO_PAD.decode(&bootstrap.cursor).unwrap();

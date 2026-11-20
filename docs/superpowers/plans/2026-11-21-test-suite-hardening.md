@@ -62,11 +62,11 @@ shared support and repeated account fixtures, and activity expiry tests.
 
 **Interfaces:** Shared test helpers only; production changes require a failing behavior test.
 
-- [ ] Observe database lock waits before checking competing transaction results.
-- [ ] Separate account creation/deletion from ownership-transfer/deletion races.
-- [ ] Add controlled Push transport completions around lease expiry and takeover.
-- [ ] Reuse existing account helpers and retain real Valkey TTL acceptance.
-- [ ] Run the changed tests against disposable PostgreSQL and Valkey.
+- [x] Observe database lock waits before checking competing transaction results.
+- [x] Separate account creation/deletion from ownership-transfer/deletion races.
+- [x] Add controlled Push transport completions around lease expiry and takeover.
+- [x] Reuse existing account helpers and retain real Valkey TTL acceptance.
+- [x] Run the changed tests against disposable PostgreSQL and Valkey.
       Expected: all changed integration cases pass without scheduling-dependent skips.
 
 ### Task 4: Connected browser recovery and workflow isolation

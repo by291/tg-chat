@@ -1,4 +1,7 @@
 #[allow(dead_code)]
+pub mod database;
+
+#[allow(dead_code)]
 pub mod messaging;
 
 use std::collections::HashMap;
@@ -11,7 +14,6 @@ use tg_chat::features::{
 };
 
 const TEST_KEY: [u8; 32] = [37; 32];
-
 /// Create real SMTP and encrypted-queue settings for isolated integration tests.
 pub fn mail_queue(pool: PgPool) -> MailQueue {
     let mut values = HashMap::new();
