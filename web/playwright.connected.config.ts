@@ -36,10 +36,23 @@ export default defineConfig({
       use: { actionTimeout: ACTION_TIMEOUT_MS },
     },
     {
+      name: 'reset',
+      testMatch: 'synchronization-reset.spec.ts',
+      outputDir: './test-results/synchronization-reset',
+      use: { actionTimeout: ACTION_TIMEOUT_MS },
+    },
+    {
       name: 'communities',
       testMatch: 'communities.spec.ts',
       outputDir: './test-results/communities',
       timeout: EXTENDED_TEST_TIMEOUT_MS,
+    },
+    {
+      name: 'channels',
+      testMatch: 'channels.spec.ts',
+      outputDir: './test-results/channels',
+      timeout: EXTENDED_TEST_TIMEOUT_MS,
+      use: { actionTimeout: ACTION_TIMEOUT_MS },
     },
     {
       name: 'media',

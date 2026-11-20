@@ -704,8 +704,14 @@ async function main() {
     console.log('Checking four-session browser convergence and full reset.');
     verifyAccountBrowsers(origin, 'test:sync');
     resetAdmissionFixtures();
+    console.log('Checking rejected-cursor recovery with an independent admission budget.');
+    verifyAccountBrowsers(origin, 'test:reset');
+    resetAdmissionFixtures();
     console.log('Checking real community admission, moderation, and subscriber privacy.');
     verifyAccountBrowsers(origin, 'test:communities');
+    resetAdmissionFixtures();
+    console.log('Checking channel publication and subscriber privacy with independent fixtures.');
+    verifyAccountBrowsers(origin, 'test:channels');
     resetAdmissionFixtures();
     console.log('Checking fail-closed admission and surviving reads during Valkey outage.');
     await verifyValkeyOutage(origin);
