@@ -18,7 +18,14 @@ afterEach(() => {
 });
 
 function useExpiryClock() {
-  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+  vi.useFakeTimers({
+    // prettier-ignore
+    toFake: [
+      'Date',
+      'setTimeout',
+      'clearTimeout',
+    ],
+  });
   vi.setSystemTime(new Date('2026-11-20T00:00:00Z'));
 }
 
@@ -1776,6 +1783,7 @@ it('expires a directory excerpt after leaving the conversation while the worker 
     expect(owner.getSnapshot().conversations[0].summary_text).toBe(expiring.content.text);
 
     await vi.advanceTimersByTimeAsync(1);
+    expect(owner.getSnapshot().conversations[0].summary_text).toBe('');
     await owner.catchUp();
     expect(owner.getSnapshot().conversations[0].summary_text).toBe('');
   } finally {
@@ -1978,6 +1986,7 @@ it('restores group posting at its deadline even when synchronization has no new 
     expect(owner.getSnapshot().conversations[0].can_post).toBe(false);
 
     await vi.advanceTimersByTimeAsync(1);
+    expect(owner.getSnapshot().conversations[0].can_post).toBe(true);
     await owner.catchUp();
     expect(owner.getSnapshot().conversations[0].can_post).toBe(true);
   } finally {
