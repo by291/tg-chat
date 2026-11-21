@@ -36,12 +36,21 @@ const activeCall = {
 const disconnects: (() => void)[] = [];
 const playing = new Set<HTMLMediaElement>();
 
-function setup(initialCall: CallView, options: { canOwnTab?: boolean } = {}) {
+interface PanelTestOptions {
+  canOwnTab?: boolean;
+  devices?: MediaDeviceInfo[];
+  selectDevice?: CallMedia['selectDevice'];
+}
+
+function setup(initialCall: CallView, options: PanelTestOptions = {}) {
   let currentCall: CallView | null = initialCall;
   const transport: CallTransport = {
     current: async () => currentCall,
     start: async () => incoming,
-    command: async () => connecting,
+    command: async ({ action }) => {
+      currentCall = action === 'hangup' ? { ...connecting, phase: 'ended' } : connecting;
+      return currentCall;
+    },
     outcome: async () => null,
     credentials: async () => ({
       url: 'wss://call.test',
@@ -75,14 +84,14 @@ function setup(initialCall: CallView, options: { canOwnTab?: boolean } = {}) {
       dispose: () => undefined,
       setCamera: async () => undefined,
       setMuted: async () => undefined,
-      selectDevice: async () => undefined,
-      listDevices: async () => [],
+      selectDevice: options.selectDevice ?? (async () => undefined),
+      listDevices: async () => options.devices ?? [],
       playAudio: async () => undefined,
     }),
   });
 
   disconnects.push(owner.connect());
-  const view = render(<CallPanel owner={owner} isChatOpen />);
+  const view = render(<CallPanel owner={owner} />);
 
   return {
     view,
@@ -133,15 +142,22 @@ it('preserves the video node and keyboard focus when collapsing and restoring', 
   const restore = screen.getByRole('button', { name: 'Restore call panel' });
   expect(restore).toBe(document.activeElement);
   expect(restore.getAttribute('aria-expanded')).toBe('false');
-  expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Mute' }));
+  expect(await screen.findByRole('button', { name: 'Unmute' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Hang up' })).toBeTruthy();
   expect(view.container.querySelector('video')).toBe(camera);
   expect(camera.srcObject).toBe(cameraStream);
 
   fireEvent.click(restore);
   expect(document.activeElement).toBe(collapse);
   expect(collapse.getAttribute('aria-expanded')).toBe('true');
-  expect(screen.getByRole('button', { name: 'Mute' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Unmute' })).toBeTruthy();
   expect(screen.getByLabelText('Peer camera')).toBe(camera);
+
+  fireEvent.click(collapse);
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Hang up' })));
+  expect(screen.queryByRole('region', { name: 'Call' })).toBeNull();
+  expect(camera.srcObject).toBeNull();
 });
 
 it('counts from server activation in the compact panel and through reconnect', async () => {
@@ -203,4 +219,79 @@ it('keeps the incoming controls available when the browser blocks the ringtone',
   expect(screen.getByRole('button', { name: 'Answer' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+it('withdraws a ringing action immediately when its server permission changes', async () => {
+  const { owner, updateCall } = setup(incoming);
+  await act(async () => owner.refresh());
+  expect(screen.getByRole('button', { name: 'Answer' })).toBeTruthy();
+
+  await updateCall({
+    ...incoming,
+    revision: '2',
+    allowed_actions: ['decline'],
+  });
+  expect(screen.queryByRole('button', { name: 'Answer' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
+});
+
+it('restores compact chrome after leaving the call fullscreen', async () => {
+  Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });
+  const { owner } = setup(connecting);
+  await act(async () => owner.refresh());
+  const panel = screen.getByRole('region', { name: 'Call' });
+  let fullscreenElement: Element | null = null;
+
+  function changeFullscreen(element: Element | null) {
+    fullscreenElement = element;
+    document.dispatchEvent(new Event('fullscreenchange'));
+  }
+
+  Object.defineProperty(document, 'fullscreenElement', {
+    configurable: true,
+    get: () => fullscreenElement,
+  });
+  panel.requestFullscreen = async () => changeFullscreen(panel);
+  const previousExit = document.exitFullscreen;
+  document.exitFullscreen = async () => changeFullscreen(null);
+
+  try {
+    fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
+    expect(await screen.findByRole('button', { name: 'Exit fullscreen' })).toBeTruthy();
+    await act(async () => changeFullscreen(null));
+    fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
+    await screen.findByRole('button', { name: 'Exit fullscreen' });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse call panel' }));
+    expect(await screen.findByRole('button', { name: 'Restore call panel' })).toBeTruthy();
+    expect(document.fullscreenElement).toBeNull();
+  } finally {
+    Reflect.deleteProperty(document, 'fullscreenElement');
+    Reflect.deleteProperty(document, 'fullscreenEnabled');
+    document.exitFullscreen = previousExit;
+  }
+});
+
+it('keeps the current input and reports a refused switch from device settings', async () => {
+  const { owner } = setup(connecting, {
+    devices: [
+      {
+        deviceId: 'rear',
+        label: 'Rear camera',
+        kind: 'videoinput',
+      } as MediaDeviceInfo,
+    ],
+    selectDevice: async () => {
+      throw new DOMException('Permission denied.', 'NotAllowedError');
+    },
+  });
+  await act(async () => owner.refresh());
+  fireEvent.click(screen.getByRole('button', { name: 'Enable microphone and camera' }));
+  await screen.findByLabelText('Peer camera');
+  expect(screen.queryByRole('combobox', { name: 'Camera' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Device settings' }));
+  const camera = screen.getByLabelText<HTMLSelectElement>('Camera');
+  fireEvent.change(camera, { target: { value: 'rear' } });
+  expect((await screen.findByRole('alert')).textContent).toContain('could not be used');
+  expect(camera.value).toBe('');
 });

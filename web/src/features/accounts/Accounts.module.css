@@ -143,10 +143,25 @@
   text-align: center;
 }
 
-.standaloneAccount {
+.workspace {
   display: flex;
   flex-direction: column;
   height: 100dvh;
+}
+
+.chatSlot {
+  --chat-layout-height: 100%;
+}
+
+.chatSlot,
+.standaloneAccount {
+  flex: 1;
+  min-height: 0;
+}
+
+.standaloneAccount {
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   background: var(--panel-color);
   color: var(--text-color);

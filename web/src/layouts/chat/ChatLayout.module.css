@@ -5,7 +5,7 @@
   --panel-duration: 250ms;
   --panel-easing: cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
-  height: 100dvh;
+  height: var(--chat-layout-height, 100dvh);
   padding: 16px 0 16px 16px;
   /* Offscreen panels must be clipped without making the application a scroll container. */
   overflow: clip;

@@ -385,19 +385,18 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       renderPage={(entry) => (entry === 'operator' && chat ? null : renderPage(entry))}
     />
   );
-  const callPanel = canUseCalls ? (
-    <CallPanel key="call-panel" owner={calls} isChatOpen={page === 'messages' && Boolean(chat)} />
-  ) : null;
+  const callPanel = canUseCalls && <CallPanel owner={calls} />;
 
   const inviteLink = chat && (
     <CommunityInviteLink session={owner} chat={chat} onAdmitted={openCommunity} />
   );
 
-  if (chat) {
-    return (
-      <>
+  return (
+    <div className={styles.workspace}>
+      {callPanel}
+      {chat ? (
         <ConnectedStickerPackScope packIds={preferences?.sticker_pack_ids}>
-          <div hidden={isOperatorOpen}>
+          <div className={styles.chatSlot} hidden={isOperatorOpen}>
             <ConnectedChat
               owner={chat}
               session={owner}
@@ -426,18 +425,13 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
           )}
           <ToastViewport />
         </ConnectedStickerPackScope>
-        {callPanel}
-        {inviteLink}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <main className={styles.standaloneAccount}>{accountPage}</main>
-      <ToastViewport />
-      {callPanel}
+      ) : (
+        <>
+          <main className={styles.standaloneAccount}>{accountPage}</main>
+          <ToastViewport />
+        </>
+      )}
       {inviteLink}
-    </>
+    </div>
   );
 }
