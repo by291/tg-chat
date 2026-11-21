@@ -126,6 +126,7 @@ it('refreshes a rejected version while preserving independent edits for retry', 
       return Response.json({
         ...latest,
         ...changes,
+        biography: changes.biography.trim(),
         version: '3',
       });
     }
@@ -148,13 +149,14 @@ it('refreshes a rejected version while preserving independent edits for retry', 
   }
 
   render(<ProfileScreen />);
-  fireEvent.change(biography(), { target: { value: 'Unsaved biography' } });
+  fireEvent.change(biography(), { target: { value: ' Unsaved biography ' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
   await screen.findByRole('alert');
   expect(screen.getByLabelText<HTMLInputElement>('Display name').value).toBe('Alice Updated');
-  expect(biography().value).toBe('Unsaved biography');
+  expect(biography().value).toBe(' Unsaved biography ');
 
   fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
   await screen.findByText('Profile saved.');
+  expect(biography().value).toBe('Unsaved biography');
   expect(owner.getSnapshot().auth?.user.biography).toBe('Unsaved biography');
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { components } from '@/api/schema';
 import { SessionOwner } from './SessionOwner';
 
@@ -39,10 +39,20 @@ describe('SessionOwner', () => {
     const pending = new Promise<Response>((resolve) => {
       releaseBootstrap = resolve;
     });
+    let rejectRemoval!: (response: Response) => void;
+    const removal = new Promise<Response>((resolve) => {
+      rejectRemoval = resolve;
+    });
+    const methods: string[] = [];
     const owner = new SessionOwner({
       baseUrl: ORIGIN,
       fetch: async (request) => {
-        return request.url.endsWith('/bootstrap') ? pending : new Response(null, { status: 204 });
+        if (request.url.endsWith('/bootstrap')) {
+          return pending;
+        }
+        methods.push(request.method);
+        const isFirstRemoval = request.method === 'DELETE' && methods.length === 2;
+        return isFirstRemoval ? removal : new Response(null, { status: 204 });
       },
     });
     owner.accept(SESSION, { shouldBroadcast: false });
@@ -61,11 +71,23 @@ describe('SessionOwner', () => {
     );
 
     // prettier-ignore
-    await owner.setRelationship({
-      kind: 'contacts',
+    const remove = {
+      kind: 'contacts' as const,
       id: 'new-peer',
       shouldInclude: false,
-    });
+    };
+    const removalRejected = expect(owner.setRelationship(remove)).rejects.toThrow();
+    const retry = owner.setRelationship(remove);
+    await vi.waitFor(() => expect(methods).toEqual(['PUT', 'DELETE']));
+    rejectRemoval(Response.json({ error: { message: 'Rejected' } }, { status: 403 }));
+    await removalRejected;
+    await retry;
+    // prettier-ignore
+    expect(methods).toEqual([
+      'PUT',
+      'DELETE',
+      'DELETE',
+    ]);
     expect(owner.getSnapshot().relationships?.contacts).toEqual(new Set(['earlier-peer']));
     owner.invalidate({ shouldBroadcast: false });
     expect(owner.getSnapshot().relationships).toBeUndefined();
