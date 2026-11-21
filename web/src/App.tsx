@@ -14,7 +14,7 @@ const ChatPage = lazy(async () => {
 export function App() {
   useInputModality();
 
-  if (isConnectedAccountEntry()) {
+  if (import.meta.env.VITE_APP_MODE === 'connected' && isConnectedAccountEntry()) {
     return (
       <BrowserRouter>
         <AccountApplication />

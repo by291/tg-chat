@@ -18,6 +18,9 @@ The cover never blocks ready controls, and reduced motion skips the decorative m
 
 ## Loading follows interaction expectations
 
+The standalone demo build excludes the connected account workspace. The connected build selects
+between the authenticated entry and its local demo route before restoring the corresponding appearance.
+
 First-screen UI and ordinary actions should be available as soon as the workspace is ready.
 Conversation selection, settings, composition, and the media viewer use static component imports;
 opening them should not introduce a first-click loading screen merely to reduce a bundle.
