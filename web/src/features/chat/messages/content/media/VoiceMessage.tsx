@@ -117,7 +117,7 @@ export function VoiceMessage({
   });
   const shouldShowElapsedTime = isPlaying || position > 0;
   const displayedDuration = shouldShowElapsedTime ? position : media.duration;
-  const progress = Math.min(1, Math.max(0, position / media.duration));
+  const progress = media.duration > 0 ? Math.min(1, Math.max(0, position / media.duration)) : 0;
 
   async function togglePlayback() {
     const audio = audioRef.current;
@@ -157,7 +157,7 @@ export function VoiceMessage({
     <div className={styles.voice}>
       <audio
         ref={audioRef}
-        src={playback.src}
+        src={playback.src || undefined}
         crossOrigin={renewSource ? 'anonymous' : undefined}
         preload="none"
         onLoadedMetadata={(event) => {
@@ -174,6 +174,7 @@ export function VoiceMessage({
         className={styles.playButton}
         type="button"
         aria-label={isPlaying ? 'Pause voice message' : 'Play voice message'}
+        disabled={!media.url}
         onClick={() => void togglePlayback()}
       >
         {isPlaying ? <Pause size={PLAYBACK_ICON_SIZE} /> : <Play size={PLAYBACK_ICON_SIZE} />}
@@ -183,6 +184,7 @@ export function VoiceMessage({
           <VoiceWaveform media={media} progress={progress} isMobile={false} />
           <VoiceWaveform media={media} progress={progress} isMobile={true} />
           <input
+            disabled={!media.url}
             className={styles.seekControl}
             type="range"
             min={0}
@@ -197,6 +199,7 @@ export function VoiceMessage({
         <div className={styles.durationRow}>
           <span className={styles.duration}>{formatMediaDuration(displayedDuration)}</span>
           <button
+            disabled={!media.url}
             className={styles.speedButton}
             type="button"
             aria-label={`Voice playback speed: ${speed}×`}

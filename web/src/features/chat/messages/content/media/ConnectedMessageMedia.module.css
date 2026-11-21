@@ -1,85 +1,46 @@
-.grid {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 12rem;
-  max-width: 24rem;
-}
-
-.grid[data-album='true'] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.tile {
-  display: grid;
-  min-width: 0;
-}
-
-.visual {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  border: 0;
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  color: inherit;
-  cursor: pointer;
-}
-
-.visual img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .play {
   position: absolute;
-  inset: 50% auto auto 50%;
-  padding: 0.35rem 0.55rem;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-  background: #0009;
+  inset: 0;
+  width: 42px;
+  height: 42px;
+  margin: auto;
+  padding: 9px;
+  border-radius: 50%;
+  background: #0008;
   color: white;
-}
-
-.document,
-.original {
-  padding: 0.25rem 0.5rem;
-  overflow-wrap: anywhere;
+  fill: currentColor;
 }
 
 .pending {
-  display: grid;
-  gap: 0.25rem;
-  padding: 0.5rem;
+  position: relative;
+  border-radius: inherit;
 }
 
 .pendingTile {
-  display: grid;
-  gap: 0.25rem;
+  position: relative;
   min-width: 0;
 }
 
-.pendingSurface {
-  position: relative;
+.pendingTile[data-visual='true'] {
   display: grid;
-  min-width: 0;
-  min-height: 4rem;
   overflow: hidden;
   place-items: center;
-  border-radius: 8px;
-  background: color-mix(in srgb, currentColor 10%, transparent);
+  background: var(--input-color);
+  cursor: default;
 }
 
-.pendingSurface[data-visual='true'] {
-  aspect-ratio: 3 / 2;
-}
-
-.pendingSurface :is(img, video) {
-  position: absolute;
-  inset: 0;
+.pendingTile[data-album='true'] {
   width: 100%;
   height: 100%;
+}
+
+.pendingTile :is(img, video) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pendingTile[data-album='true'] :is(img, video) {
   object-fit: cover;
 }
 
@@ -87,12 +48,6 @@
   width: 1.5rem;
   height: 1.5rem;
   opacity: 0.55;
-}
-
-.pendingName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pendingControl {
@@ -108,9 +63,8 @@
   color: white;
 }
 
-.pendingSurface:not([data-visual='true']) .pendingPlaceholder {
-  justify-self: start;
-  margin-inline-start: 0.75rem;
+.pendingTile[data-visual='false'] .pendingControl {
+  inset-inline-start: 24px;
 }
 
 .pendingButton {
@@ -192,22 +146,56 @@
 }
 
 .pendingCancel {
-  justify-self: start;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  padding: 4px;
+  border-radius: 50%;
+  background: #000a;
+  color: white;
+  cursor: pointer;
 }
 
 .pendingRecovery {
+  position: absolute;
+  top: 4px;
+  left: 4px;
   display: grid;
-  gap: 0.25rem;
-  min-width: 0;
-  overflow-wrap: anywhere;
+  padding: 4px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  color: white;
+  background: #000a;
 }
 
 .pendingRecovery input {
-  max-width: 100%;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pendingRecovery:focus-within {
+  outline: 2px solid var(--accent-color);
 }
 
 .pendingStatus,
 .pendingError {
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
+}
+
+.pending[data-visual='true'] .pendingStatus {
+  position: absolute;
+  inset: auto auto 4px 4px;
+  max-width: calc(100% - 70px);
+  padding: 1px 5px;
+  border-radius: 8px;
+  color: white;
+  background: #0009;
+  pointer-events: none;
 }

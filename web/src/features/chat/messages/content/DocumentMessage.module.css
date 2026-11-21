@@ -8,6 +8,10 @@
   min-height: 70px;
   color: inherit;
   text-decoration: none;
+  background: transparent;
+  padding: 0;
+  border: 0;
+  text-align: start;
 }
 
 .document[data-extension='pdf'] {

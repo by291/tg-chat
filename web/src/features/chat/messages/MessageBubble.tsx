@@ -1,6 +1,7 @@
 import { Check, Quote } from 'lucide-react';
 import { memo, useContext, useLayoutEffect, useRef } from 'react';
 import { useAppPreferences } from '@/features/settings/appPreferences';
+import { isVisualKind } from '@/features/media/connectedMediaReference';
 import { getLargeEmojiSize } from './content/largeEmoji';
 import { Ripple } from '@/components/Ripple';
 import { MessageBody, MessageText } from './content/MessageBody';
@@ -110,8 +111,17 @@ export const MessageBubble = memo(function MessageBubble({
   const metadata = <MessageMetadata message={message} onRetry={onRetry} />;
   const isRoundVideo = message.media?.kind === 'video' && message.media.isRound;
   const isStandalone = Boolean(message.sticker || isRoundVideo || largeEmojiSize);
+  const connectedKinds =
+    message.pendingMedia?.items.map((item) => item.kind) ??
+    message.remoteAttachments?.map((item) => item.file.kind) ??
+    [];
+  const hasVisualAttachments = connectedKinds.length > 0 && connectedKinds.every(isVisualKind);
+  const structuredKind = message.media?.kind ?? connectedKinds.at(-1);
   const hasVisualMedia = Boolean(
-    message.attachment || message.media?.kind === 'album' || message.media?.kind === 'video',
+    hasVisualAttachments ||
+    message.attachment ||
+    message.media?.kind === 'album' ||
+    message.media?.kind === 'video',
   );
   const isMediaOnly = hasVisualMedia && !message.text;
   const hasOverlayTime = isMediaOnly && !isStandalone;
@@ -123,9 +133,7 @@ export const MessageBubble = memo(function MessageBubble({
   const hasHeader = Boolean(hasAuthor || message.forwardedFrom || message.replyToId);
   const hasCaption = Boolean(message.text);
   const hasInlineMediaMetadata =
-    !hasCaption &&
-    !hasReactions &&
-    (message.media?.kind === 'voice' || message.media?.kind === 'document');
+    !hasCaption && !hasReactions && (structuredKind === 'voice' || structuredKind === 'document');
   const isLinkPreview = message.media?.kind === 'link';
   const replyThumbnailUrl = getReplyThumbnailUrl(replyMessage);
   const hasReplyQuote = Boolean(message.replyQuote?.text);
@@ -198,7 +206,7 @@ export const MessageBubble = memo(function MessageBubble({
         data-has-tail={canHaveTail && isGroupEnd}
         data-has-header={hasHeader}
         data-has-caption={hasCaption}
-        data-structured={message.media?.kind}
+        data-structured={structuredKind}
       >
         {canHaveTail && isGroupEnd && <MessageTail />}
         {hasAuthor && (

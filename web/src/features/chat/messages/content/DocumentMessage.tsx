@@ -45,20 +45,16 @@ function getDocumentExtension(name: string) {
 export function DocumentMessage({
   media,
   metadata,
+  onDownload,
 }: {
-  media: DocumentMedia;
+  media: Pick<DocumentMedia, 'name' | 'size'> & { url?: string };
+  onDownload?: () => void;
   metadata?: ReactNode;
 }) {
   const extension = getDocumentExtension(media.name);
 
-  return (
-    <a
-      className={styles.document}
-      data-extension={extension}
-      href={media.url}
-      download={media.name}
-      aria-label={`Download ${media.name}`}
-    >
+  const content = (
+    <>
       <span className={styles.icon} aria-hidden="true">
         <span className={styles.extension}>{extension}</span>
         <Download className={styles.downloadIcon} size={DOWNLOAD_ICON_SIZE} />
@@ -72,6 +68,23 @@ export function DocumentMessage({
           {metadata}
         </span>
       </span>
+    </>
+  );
+  const attributes = { className: styles.document, 'data-extension': extension };
+  const label = `Download ${media.name}`;
+  if (onDownload) {
+    return (
+      <button type="button" {...attributes} aria-label={label} onClick={onDownload}>
+        {content}
+      </button>
+    );
+  }
+  if (!media.url) {
+    return <div {...attributes}>{content}</div>;
+  }
+  return (
+    <a {...attributes} href={media.url} download={media.name} aria-label={label}>
+      {content}
     </a>
   );
 }

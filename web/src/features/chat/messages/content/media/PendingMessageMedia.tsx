@@ -1,7 +1,12 @@
-import { AudioLines, Check, File, Image, RotateCcw, Video, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AudioLines, Check, File, FolderOpen, Image, RotateCcw, Video, X } from 'lucide-react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import type { PendingMediaDisplay, PendingMediaDisplayItem } from '@/domain/messages/message';
 import type { ConnectedMediaActions } from '@/features/media/ConnectedMediaContext';
+import { isVisualKind, visualDimensions } from '@/features/media/connectedMediaReference';
+import { DocumentMessage } from '../DocumentMessage';
+import { AlbumLayoutFrame, photoFramePresentation } from './VisualMediaLayout';
+import { VoiceMessage } from './VoiceMessage';
+import frameStyles from '../MessageBody.module.css';
 import styles from './ConnectedMessageMedia.module.css';
 
 const RING_SIZE = 40;
@@ -14,6 +19,8 @@ interface PendingMessageMediaProps {
   messageId: string;
   pending: PendingMediaDisplay;
   isFailed: boolean;
+  hasCaption: boolean;
+  metadata?: ReactNode;
   actions: Pick<ConnectedMediaActions, 'cancel' | 'retry' | 'reselect'>;
 }
 
@@ -21,7 +28,7 @@ interface PendingTileProps extends Omit<PendingMessageMediaProps, 'pending'> {
   item: PendingMediaDisplayItem;
   isActive: boolean;
   canRestart?: boolean;
-  hasAlbum: boolean;
+  isAlbum: boolean;
 }
 
 function useLocalPreview(source?: Blob): string | undefined {
@@ -105,70 +112,105 @@ function ProgressRing({ item }: { item: PendingMediaDisplayItem }) {
   );
 }
 
-function PendingTile({
-  messageId,
+function TransferControls({
+  item,
   actions,
-  isActive,
+  messageId,
   isFailed,
   canRestart,
-  hasAlbum,
-  item,
+  isAlbum,
 }: PendingTileProps) {
-  const isVisual = item.kind === 'image' || item.kind === 'video';
   const retryLabel = canRestart ? 'Send again' : 'Retry upload';
-  const cancelTitle = hasAlbum ? 'Cancel all attachments in this message' : 'Cancel upload';
-  const canReselect = isFailed && !item.isReady;
-
+  const cancelTitle = isAlbum ? 'Cancel all attachments in this message' : 'Cancel upload';
   return (
-    <div className={styles.pendingTile} role="group" aria-label={item.filename}>
-      <div className={styles.pendingSurface} data-visual={isVisual}>
-        <LocalPreview item={item} />
-        {!isActive && item.isReady && (
-          <Check className={styles.readyMark} role="img" aria-label="Attachment ready" />
-        )}
-        {isActive && (
-          <div className={styles.pendingControl}>
-            {!isFailed && <ProgressRing item={item} />}
-            <button
-              type="button"
-              className={styles.pendingButton}
-              aria-label={isFailed ? retryLabel : 'Cancel upload'}
-              title={isFailed ? retryLabel : cancelTitle}
-              onClick={() => {
-                if (isFailed) {
-                  actions.retry(messageId);
-                  return;
-                }
-                actions.cancel(messageId);
-              }}
-            >
-              {isFailed ? <RotateCcw aria-hidden="true" /> : <X aria-hidden="true" />}
-            </button>
-          </div>
-        )}
+    <>
+      <div className={styles.pendingControl}>
+        {!isFailed && <ProgressRing item={item} />}
+        <button
+          type="button"
+          className={styles.pendingButton}
+          aria-label={isFailed ? retryLabel : 'Cancel upload'}
+          title={isFailed ? retryLabel : cancelTitle}
+          onClick={() => {
+            if (isFailed) {
+              actions.retry(messageId);
+              return;
+            }
+            actions.cancel(messageId);
+          }}
+        >
+          {isFailed ? <RotateCcw aria-hidden="true" /> : <X aria-hidden="true" />}
+        </button>
       </div>
-      <span className={styles.pendingName} title={item.filename}>
-        {item.filename}
-      </span>
-      {isActive && isFailed && (
+      {isFailed && (
         <button
           type="button"
           className={styles.pendingCancel}
+          aria-label="Cancel upload"
           onClick={() => actions.cancel(messageId)}
         >
-          Cancel upload
+          <X aria-hidden="true" />
         </button>
       )}
-      {canReselect && (
-        <label className={styles.pendingRecovery}>
-          Select file for {item.filename}
+    </>
+  );
+}
+
+function PendingTile(props: PendingTileProps) {
+  const { item, isAlbum, hasCaption, isActive, metadata } = props;
+  const isVisual = isVisualKind(item.kind);
+  const dimensions = visualDimensions(item);
+  const frame =
+    isVisual && !isAlbum ? photoFramePresentation({ ...dimensions, hasCaption }) : undefined;
+  let preview: ReactNode;
+  if (isVisual) {
+    preview = <LocalPreview item={item} />;
+  } else if (item.kind === 'voice') {
+    preview = (
+      <VoiceMessage
+        media={{
+          kind: 'voice',
+          url: '',
+          duration: 0,
+          waveform: [],
+        }}
+        metadata={metadata}
+      />
+    );
+  } else {
+    preview = (
+      <DocumentMessage media={{ name: item.filename, size: item.sizeBytes }} metadata={metadata} />
+    );
+  }
+  return (
+    <div
+      className={`${styles.pendingTile} ${frame ? frameStyles.photoFrame : ''}`}
+      style={frame?.style}
+      data-visual={isVisual}
+      data-album={isAlbum}
+      role="group"
+      aria-label={item.filename}
+    >
+      {preview}
+      {!isActive && item.isReady && (
+        <Check className={styles.readyMark} role="img" aria-label="Attachment ready" />
+      )}
+      {isActive && <TransferControls {...props} />}
+      {props.isFailed && !item.isReady && (
+        <label className={styles.pendingRecovery} title={`Select file for ${item.filename}`}>
+          <FolderOpen aria-hidden="true" />
           <input
             type="file"
+            aria-label={`Select file for ${item.filename}`}
             onChange={(event) => {
               const input = event.currentTarget;
               const file = input.files?.[0];
               if (file) {
-                actions.reselect({ messageId, occurrenceId: item.occurrenceId, file });
+                props.actions.reselect({
+                  messageId: props.messageId,
+                  occurrenceId: item.occurrenceId,
+                  file,
+                });
               }
               input.value = '';
             }}
@@ -179,28 +221,35 @@ function PendingTile({
   );
 }
 
-/** Show the local media and the active transfer inside its original pending bubble. */
+/** Keep pending controls inside the final geometry and recovery actions available without bytes. */
 export function PendingMessageMedia({ pending, ...props }: PendingMessageMediaProps) {
-  const hasAlbum = pending.items.length > 1;
-
+  const isVisual = pending.items.every((item) => isVisualKind(item.kind));
+  const isAlbum = isVisual && pending.items.length > 1;
+  const tiles = pending.items.map((item, index) => ({
+    id: item.occurrenceId,
+    ...visualDimensions(item),
+    content: (
+      <PendingTile
+        {...props}
+        item={item}
+        isActive={item.occurrenceId === pending.activeOccurrenceId}
+        canRestart={pending.canRestart}
+        isAlbum={isAlbum}
+        metadata={index === pending.items.length - 1 ? props.metadata : undefined}
+      />
+    ),
+  }));
   return (
-    <div className={styles.pending}>
-      <div className={styles.grid} data-album={hasAlbum}>
-        {pending.items.map((item) => (
-          <PendingTile
-            key={item.occurrenceId}
-            item={item}
-            isActive={item.occurrenceId === pending.activeOccurrenceId}
-            canRestart={pending.canRestart}
-            hasAlbum={hasAlbum}
-            {...props}
-          />
-        ))}
-      </div>
-      <span className={styles.pendingStatus} role="status">
+    <div className={styles.pending} data-visual={isVisual}>
+      {isAlbum ? (
+        <AlbumLayoutFrame tiles={tiles} />
+      ) : (
+        tiles.map((tile) => <Fragment key={tile.id}>{tile.content}</Fragment>)
+      )}
+      <span className={styles.pendingStatus} role="status" title={pending.error}>
         {pending.status}
+        {pending.error && <span className={styles.pendingError}> · {pending.error}</span>}
       </span>
-      {pending.error && <span className={styles.pendingError}>{pending.error}</span>}
     </div>
   );
 }

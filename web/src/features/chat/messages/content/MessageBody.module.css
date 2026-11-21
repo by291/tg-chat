@@ -46,7 +46,7 @@
   border-radius: inherit;
 }
 
-.album button {
+.albumTile {
   position: absolute;
   inset-inline-start: var(--tile-left);
   top: var(--tile-top);
@@ -57,6 +57,16 @@
   padding: 0;
   border: 0;
   background: var(--input-color);
+  cursor: zoom-in;
+}
+
+.albumTile > button {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: zoom-in;
 }
 
@@ -84,7 +94,7 @@
     aspect-ratio: var(--album-mobile-ratio);
   }
 
-  .album button {
+  .albumTile {
     inset-inline-start: var(--tile-mobile-left);
     top: var(--tile-mobile-top);
     width: var(--tile-mobile-width);

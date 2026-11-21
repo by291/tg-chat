@@ -1,5 +1,5 @@
 import { useAppPreferences } from '@/features/settings/appPreferences';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog } from '@ark-ui/react/dialog';
 import { Menu } from '@ark-ui/react/menu';
 import { Portal } from '@ark-ui/react/portal';
@@ -21,7 +21,7 @@ import { CURRENT_USER_ID } from '@/domain/identity';
 import { type Message } from '@/domain/messages/message';
 import { formatMessageDate, formatMessageTime } from '@/features/chat/messageFormatting';
 import { copyViewerImage, canCopyViewerImage } from './copyViewerImage';
-import { downloadMedia } from './mediaAccess';
+import { useOriginalDownload } from './useOriginalDownload';
 import type { MediaViewerCommand } from './mediaViewerCommands';
 import type { ViewerTransformController } from './useViewerTransform';
 import styles from './MediaViewer.module.css';
@@ -71,30 +71,12 @@ export function ViewerToolbar({
   const video = message.media?.kind === 'video' ? message.media : undefined;
   const mediaLabel = video ? 'video' : 'image';
   const isConnected = Boolean(message.downloadOriginalUrl);
+  const canCopyImage = Boolean(message.attachment?.url) && canCopyViewerImage();
   const isOwnMedia = !isConnected && message.authorId === CURRENT_USER_ID;
-  const downloadRequest = useRef<AbortController>(undefined);
-  useEffect(() => () => downloadRequest.current?.abort(), [message.id]);
-
-  function downloadOriginal(): void {
-    if (!message.downloadOriginalUrl) {
-      return;
-    }
-    downloadRequest.current?.abort();
-    const controller = new AbortController();
-    downloadRequest.current = controller;
-    void message.downloadOriginalUrl(controller.signal).then(
-      (url) => {
-        if (!controller.signal.aborted) {
-          downloadMedia(url);
-        }
-      },
-      (error: unknown) => {
-        if (!controller.signal.aborted) {
-          onNotify(error instanceof Error ? error.message : 'Download unavailable.');
-        }
-      },
-    );
-  }
+  const downloadOriginal = useOriginalDownload({
+    authorize: message.downloadOriginalUrl,
+    onError: onNotify,
+  });
 
   function command(action: MediaViewerCommand['action']) {
     onCommand({ action, message });
@@ -140,7 +122,7 @@ export function ViewerToolbar({
             </IconButton>
           </>
         )}
-        {!video && canCopyViewerImage() && (
+        {canCopyImage && (
           <IconButton
             label="Copy image"
             className={styles.desktopAction}
@@ -205,7 +187,7 @@ export function ViewerToolbar({
                     Edit caption
                   </Menu.Item>
                 )}
-                {!video && canCopyViewerImage() && (
+                {canCopyImage && (
                   <Menu.Item
                     value="copy"
                     onClick={() => void copyViewerImage({ message, onNotify })}

@@ -27,7 +27,7 @@ interface MessageBodyProps {
 /** Select one explicit content renderer while the bubble keeps ownership of shared chrome. */
 export function MessageBody({ message, metadata, onOpenMedia, onInteract }: MessageBodyProps) {
   if (message.pendingMedia || message.remoteAttachments?.length) {
-    return <ConnectedMessageMedia message={message} />;
+    return <ConnectedMessageMedia message={message} metadata={metadata} />;
   }
   if (message.attachment) {
     return (

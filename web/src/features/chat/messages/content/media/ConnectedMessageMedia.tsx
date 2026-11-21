@@ -1,153 +1,193 @@
-import { useCallback, useContext, useRef } from 'react';
+import { Play } from 'lucide-react';
+import { Fragment, useCallback, useContext, useRef, type ReactNode } from 'react';
 import type { Message } from '@/domain/messages/message';
-import type { SessionOwner } from '@/features/auth/SessionOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
-import { rememberPhotoSource } from '@/features/media/mediaViewerTransition';
 import {
-  downloadMedia,
-  messageMediaUrl,
-  type AttachmentView,
-  type MediaVariant,
-} from '@/features/media/mediaAccess';
+  isVisualKind,
+  mediaDuration,
+  previewVariant,
+  visualDimensions,
+  type MediaReference,
+} from '@/features/media/connectedMediaReference';
+import { useOriginalDownload } from '@/features/media/useOriginalDownload';
+import { messageMediaUrl, type MediaVariant } from '@/features/media/mediaAccess';
+import { rememberPhotoSource } from '@/features/media/mediaViewerTransition';
 import { useAuthorizedMediaUrl } from '@/features/media/useAuthorizedMediaUrl';
+import { DocumentMessage } from '../DocumentMessage';
+import { PhotoFrame, VideoFrame } from './MessageMediaFrames';
+import { AlbumLayoutFrame } from './VisualMediaLayout';
 import { PendingMessageMedia } from './PendingMessageMedia';
 import { VoiceMessage } from './VoiceMessage';
 import styles from './ConnectedMessageMedia.module.css';
 
-const MILLISECONDS_PER_SECOND = 1000;
 const WAVEFORM_PEAK = 100;
-const DEFAULT_WIDTH = 240;
-const DEFAULT_HEIGHT = 160;
 
-interface MediaReference {
-  session: SessionOwner;
-  message: Message;
-  attachment: AttachmentView;
-}
-
-function previewVariant(attachment: AttachmentView): MediaVariant {
-  switch (attachment.file.kind) {
-    case 'video':
-      return 'poster';
-    case 'voice':
-      return 'playback';
-    default:
-      return 'thumbnail';
-  }
-}
-
-function duration(attachment: AttachmentView): number {
-  return Math.max(
-    0.001,
-    (attachment.file.duration_ms ?? MILLISECONDS_PER_SECOND) / MILLISECONDS_PER_SECOND,
-  );
-}
-
-function urlFor(input: {
-  reference: MediaReference;
-  variant: MediaVariant;
-  signal?: AbortSignal;
-}): Promise<string> {
-  const { session, message, attachment } = input.reference;
-  return messageMediaUrl({
-    session,
-    messageId: message.id,
-    occurrenceId: attachment.occurrence_id,
-    variant: input.variant,
-    signal: input.signal,
-  });
-}
-
-function RemoteTile({
-  reference,
-  onOpen,
-  onError,
-}: {
-  reference: MediaReference;
-  onOpen: () => void;
-  onError: (message: string) => void;
-}) {
-  const { attachment, session, message } = reference;
-  const variant = previewVariant(attachment);
-  const isDocument = attachment.file.kind === 'document';
-  const authorize = useCallback(
+function useOccurrenceAuthorization(reference: MediaReference, variant: MediaVariant) {
+  const { session, message, attachment } = reference;
+  const messageId = message.id;
+  const occurrenceId = attachment.occurrence_id;
+  return useCallback(
     (signal: AbortSignal) =>
       messageMediaUrl({
         session,
-        messageId: message.id,
-        occurrenceId: attachment.occurrence_id,
+        messageId,
+        occurrenceId,
         variant,
         signal,
       }),
-    [session, message.id, attachment.occurrence_id, variant],
-  );
-  const signed = useAuthorizedMediaUrl({
-    key: isDocument ? undefined : `${message.id}:${attachment.occurrence_id}`,
-    authorize,
-  });
-  const hasRetriedPreview = useRef(false);
-  const renewPreview = () => {
-    if (!hasRetriedPreview.current) {
-      hasRetriedPreview.current = true;
-      signed.renew();
-    }
-  };
-  const download = () => {
-    void urlFor({ reference, variant: 'original' }).then(downloadMedia, (error: unknown) => {
-      onError(error instanceof Error ? error.message : 'Download unavailable.');
-    });
-  };
-
-  if (isDocument) {
-    return (
-      <button className={styles.document} type="button" onClick={download}>
-        Download {attachment.file_name}
-      </button>
-    );
-  }
-  if (attachment.file.kind === 'voice') {
-    const waveform = (attachment.file.waveform ?? []).map((peak) => peak / WAVEFORM_PEAK);
-    return signed.url ? (
-      <VoiceMessage
-        media={{ kind: 'voice', url: signed.url, duration: duration(attachment), waveform }}
-        renewSource={authorize}
-      />
-    ) : (
-      <span role="status">{signed.error || 'Loading voice message…'}</span>
-    );
-  }
-
-  const width = attachment.file.width ?? DEFAULT_WIDTH;
-  const height = attachment.file.height ?? DEFAULT_HEIGHT;
-  return (
-    <div className={styles.tile}>
-      <button
-        type="button"
-        className={styles.visual}
-        style={{ aspectRatio: `${width} / ${height}` }}
-        aria-label={`Open ${attachment.file_name}`}
-        data-photo-id={attachment.occurrence_id}
-        onClick={(event) => {
-          rememberPhotoSource(attachment.occurrence_id, event.currentTarget);
-          onOpen();
-        }}
-      >
-        {signed.url ? (
-          <img src={signed.url} crossOrigin="anonymous" alt="" onError={renewPreview} />
-        ) : (
-          <span>{signed.error || attachment.file_name}</span>
-        )}
-        {attachment.file.kind === 'video' && <span className={styles.play}>▶</span>}
-      </button>
-      <button className={styles.original} type="button" onClick={download}>
-        Download original
-      </button>
-    </div>
+    // prettier-ignore
+    [
+      session,
+      messageId,
+      occurrenceId,
+      variant,
+    ],
   );
 }
 
-/** Render authorized media and pending progress in the existing message row. */
-export function ConnectedMessageMedia({ message }: { message: Message }) {
+function useSignedRendition(reference: MediaReference, variant?: MediaVariant) {
+  const authorize = useOccurrenceAuthorization(reference, variant ?? 'thumbnail');
+  const signed = useAuthorizedMediaUrl({
+    key: variant && `${reference.message.id}:${reference.attachment.occurrence_id}:${variant}`,
+    authorize,
+  });
+  const hasRetried = useRef(false);
+  function renewAfterError() {
+    if (!hasRetried.current) {
+      hasRetried.current = true;
+      signed.renew();
+    }
+  }
+  return {
+    ...signed,
+    authorize,
+    renewAfterError,
+  };
+}
+
+function RemoteDocument({
+  reference,
+  metadata,
+  onError,
+}: {
+  reference: MediaReference;
+  metadata?: ReactNode;
+  onError: (message: string) => void;
+}) {
+  const authorize = useOccurrenceAuthorization(reference, 'original');
+  const download = useOriginalDownload({ authorize, onError });
+
+  const { file_name, file } = reference.attachment;
+  return (
+    <DocumentMessage
+      media={{ name: file_name, size: file.size_bytes }}
+      metadata={metadata}
+      onDownload={download}
+    />
+  );
+}
+
+function RemoteVoice({ reference, metadata }: { reference: MediaReference; metadata?: ReactNode }) {
+  const playback = useSignedRendition(reference, 'playback');
+  const { attachment } = reference;
+  const waveform = (attachment.file.waveform ?? []).map((peak) => peak / WAVEFORM_PEAK);
+  return (
+    <>
+      <VoiceMessage
+        media={{
+          kind: 'voice',
+          url: playback.url ?? '',
+          duration: mediaDuration(attachment),
+          waveform,
+        }}
+        renewSource={playback.authorize}
+        metadata={metadata}
+      />
+      {playback.error && <button onClick={playback.renew}>Retry voice message</button>}
+    </>
+  );
+}
+
+function RemoteVisual({
+  reference,
+  isAlbum,
+  onOpen,
+}: {
+  reference: MediaReference;
+  isAlbum: boolean;
+  onOpen: () => void;
+}) {
+  const { message, attachment } = reference;
+  const preview = useSignedRendition(reference, previewVariant(attachment));
+  const isVideo = attachment.file.kind === 'video';
+  const playback = useSignedRendition(reference, isVideo && !isAlbum ? 'playback' : undefined);
+  const dimensions = visualDimensions(attachment.file);
+  const hasCaption = Boolean(message.text || message.replyToId);
+  const id = attachment.occurrence_id;
+  const name = attachment.file_name;
+
+  if (isAlbum) {
+    return (
+      <button
+        type="button"
+        aria-label={`Open ${name}`}
+        data-photo-id={id}
+        onClick={(event) => {
+          rememberPhotoSource(id, event.currentTarget);
+          onOpen();
+        }}
+      >
+        <img
+          src={preview.url}
+          crossOrigin="anonymous"
+          alt={name}
+          onError={preview.renewAfterError}
+        />
+        {isVideo && <Play className={styles.play} aria-hidden="true" />}
+      </button>
+    );
+  }
+  if (isVideo) {
+    return (
+      <VideoFrame
+        media={{
+          kind: 'video',
+          url: playback.url ?? '',
+          poster: preview.url ?? '',
+          ...dimensions,
+          duration: mediaDuration(attachment),
+        }}
+        messageId={id}
+        label={`Open ${name}`}
+        hasCaption={hasCaption}
+        onPlaybackError={playback.renewAfterError}
+        onOpen={onOpen}
+      />
+    );
+  }
+  return (
+    <PhotoFrame
+      messageId={id}
+      photo={{
+        name,
+        url: preview.url ?? '',
+        ...dimensions,
+      }}
+      hasCaption={hasCaption}
+      onImageError={preview.renewAfterError}
+      onOpen={onOpen}
+    />
+  );
+}
+
+/** Render authenticated occurrences and their local predecessors through the same media layout. */
+export function ConnectedMessageMedia({
+  message,
+  metadata,
+}: {
+  message: Message;
+  metadata?: ReactNode;
+}) {
   const actions = useContext(ConnectedMediaContext);
   if (!actions) {
     return null;
@@ -159,27 +199,54 @@ export function ConnectedMessageMedia({ message }: { message: Message }) {
         messageId={message.id}
         pending={pending}
         isFailed={message.deliveryStatus === 'failed'}
+        hasCaption={Boolean(message.text || message.replyToId)}
+        metadata={metadata}
         actions={actions}
       />
     );
   }
-
   const attachments = message.remoteAttachments ?? [];
-  const session = actions.session;
-  return (
-    <div className={styles.grid} data-album={attachments.length > 1}>
-      {attachments.map((attachment) => (
-        <RemoteTile
-          key={attachment.occurrence_id}
-          reference={{
-            session,
-            message,
-            attachment,
-          }}
-          onOpen={() => actions.openGallery({ message, occurrenceId: attachment.occurrence_id })}
-          onError={actions.notify}
-        />
-      ))}
-    </div>
-  );
+  const isAlbum =
+    attachments.length > 1 && attachments.every((item) => isVisualKind(item.file.kind));
+  const tiles = attachments.map((attachment, index) => {
+    const reference = {
+      session: actions.session,
+      message,
+      attachment,
+    };
+    const id = attachment.occurrence_id;
+    const inlineMetadata = index === attachments.length - 1 ? metadata : undefined;
+    let content: ReactNode;
+    switch (attachment.file.kind) {
+      case 'voice':
+        content = <RemoteVoice reference={reference} metadata={inlineMetadata} />;
+        break;
+      case 'document':
+        content = (
+          <RemoteDocument
+            reference={reference}
+            metadata={inlineMetadata}
+            onError={actions.notify}
+          />
+        );
+        break;
+      default:
+        content = (
+          <RemoteVisual
+            reference={reference}
+            isAlbum={isAlbum}
+            onOpen={() => actions.openGallery({ message, occurrenceId: id })}
+          />
+        );
+    }
+    return {
+      id,
+      ...visualDimensions(attachment.file),
+      content,
+    };
+  });
+  if (isAlbum) {
+    return <AlbumLayoutFrame tiles={tiles} />;
+  }
+  return tiles.map((tile) => <Fragment key={tile.id}>{tile.content}</Fragment>);
 }

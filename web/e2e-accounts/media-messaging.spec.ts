@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, expect, test, type Page } from '@playwright/test';
 
+import { measureMediaFrames, seedRestoredMedia } from './restoredMediaGeometry';
+
 const PASSWORD = 'a complete browser password phrase';
 const DOCUMENT_BYTES = 9 * 1024 * 1024;
 const DOCUMENT_NAME = 'resumable-document.bin';
@@ -205,4 +207,35 @@ test('records and plays a voice message and publishes a profile avatar', async (
   await removePhoto.click();
   await expect(removePhoto).toHaveCount(0);
   await expect(biography).toHaveValue(unsavedBiography);
+});
+
+test('retains restored portrait and album geometry when the server accepts the upload', async ({
+  page,
+}) => {
+  await register(page, account('Restored Geometry'));
+  await page.getByRole('button', { name: /Saved Messages/ }).click();
+  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+  await seedRestoredMedia(page);
+
+  const upload = latch();
+  await page.route('**/api/v1/media/uploads/**', async (route) => {
+    await upload.ready;
+    await route.continue();
+  });
+  try {
+    await page.reload();
+    await page
+      .getByRole('button', { name: /Saved Messages/ })
+      .first()
+      .click();
+    const pending = await measureMediaFrames(page, 'pending');
+    expect(pending[0]).toEqual({ width: 200, height: 400 });
+    expect(pending[1].width).toBeGreaterThan(pending[2].width);
+
+    upload.release();
+    const accepted = await measureMediaFrames(page, 'accepted');
+    expect(accepted).toEqual(pending);
+  } finally {
+    upload.release();
+  }
 });

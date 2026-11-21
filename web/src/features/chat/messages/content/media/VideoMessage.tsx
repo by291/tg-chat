@@ -1,6 +1,6 @@
 import { Play, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { getPhotoGeometry } from '@/features/media/mediaGeometry';
+import { photoFramePresentation } from './VisualMediaLayout';
 import { rememberPhotoSource } from '@/features/media/mediaViewerTransition';
 import type { MessageMedia } from '@/domain/messages/media';
 import { formatMediaDuration } from './VoiceMessage';
@@ -21,6 +21,8 @@ interface VideoFrameProps {
   hasCaption: boolean;
   messageId?: string;
   onOpen?: () => void;
+  onPlaybackError?: () => void;
+  label?: string;
 }
 
 interface ProgressRingProps {
@@ -57,8 +59,8 @@ function ProgressRing({ diameter, progress, isMobile }: ProgressRingProps) {
 
 function RoundVideo({ media }: Pick<VideoFrameProps, 'media'>) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const source = useDeferredMediaSource(media.url);
-  const poster = useDeferredMediaSource(media.poster);
+  const source = useDeferredMediaSource(media.url || undefined);
+  const poster = useDeferredMediaSource(media.poster || undefined);
   const [hasStarted, setHasStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -193,10 +195,17 @@ function RoundVideo({ media }: Pick<VideoFrameProps, 'media'>) {
   );
 }
 
-function VideoPreview({ media, hasCaption, messageId, onOpen }: VideoFrameProps) {
+function VideoPreview({
+  media,
+  hasCaption,
+  messageId,
+  label,
+  onOpen,
+  onPlaybackError,
+}: VideoFrameProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const source = useDeferredMediaSource(media.url);
-  const poster = useDeferredMediaSource(media.poster);
+  const source = useDeferredMediaSource(media.url || undefined);
+  const poster = useDeferredMediaSource(media.poster || undefined);
   const displayedSource = useVideoPreview({
     videoRef,
     source,
@@ -205,7 +214,7 @@ function VideoPreview({ media, hasCaption, messageId, onOpen }: VideoFrameProps)
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   // The reference's inline mini-player is disabled, so videos use the same fitted box as photos.
-  const frame = getPhotoGeometry({
+  const frame = photoFramePresentation({
     width: media.width,
     height: media.height,
     hasCaption,
@@ -216,8 +225,8 @@ function VideoPreview({ media, hasCaption, messageId, onOpen }: VideoFrameProps)
       className={styles.videoFrame}
       type="button"
       data-photo-id={messageId}
-      style={{ width: frame.width, aspectRatio: `${frame.width} / ${frame.height}` }}
-      aria-label="Open video"
+      style={frame.style}
+      aria-label={label ?? 'Open video'}
       onClick={(event) => {
         videoRef.current?.pause();
         if (messageId) {
@@ -226,11 +235,14 @@ function VideoPreview({ media, hasCaption, messageId, onOpen }: VideoFrameProps)
         onOpen?.();
       }}
     >
-      {frame.isFitted && <img className={styles.backdrop} src={poster} alt="" aria-hidden="true" />}
+      {frame.hasBackdrop && (
+        <img className={styles.backdrop} src={poster} alt="" aria-hidden="true" />
+      )}
       <video
         ref={videoRef}
         src={displayedSource}
         poster={poster}
+        onError={onPlaybackError}
         width={media.width}
         height={media.height}
         muted

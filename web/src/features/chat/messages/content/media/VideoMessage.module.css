@@ -1,4 +1,6 @@
 .videoFrame {
+  width: var(--photo-width);
+  aspect-ratio: var(--photo-ratio);
   position: relative;
   display: block;
   max-width: 100%;
@@ -145,5 +147,12 @@
 
   .progress[data-mobile='true'] {
     display: block;
+  }
+}
+
+@media (max-width: 600px) {
+  .videoFrame {
+    width: var(--photo-mobile-width);
+    aspect-ratio: var(--photo-mobile-ratio);
   }
 }
