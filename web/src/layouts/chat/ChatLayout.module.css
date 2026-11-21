@@ -60,11 +60,26 @@
   transform: translateX(0);
 }
 
-@media (max-width: 1300px) {
-  .layout {
-    --left-width: 320px;
-    --right-width: 320px;
-  }
+.resizer {
+  position: absolute;
+  z-index: 4;
+  inset-block: 12px;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizer[data-side='left'] {
+  right: -6px;
+}
+
+.resizer[data-side='right'] {
+  left: -6px;
+}
+
+.resizer:focus-visible {
+  border-radius: 5px;
+  outline: 2px solid var(--accent-color);
 }
 
 @media (min-width: 761px) and (max-width: 1479px) {
@@ -79,6 +94,10 @@
 }
 
 @media (max-width: 760px) {
+  .resizer {
+    display: none;
+  }
+
   .sidebarSlot,
   .conversationSlot,
   .detailsSlot {

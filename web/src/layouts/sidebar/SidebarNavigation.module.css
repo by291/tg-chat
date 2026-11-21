@@ -27,7 +27,9 @@
 }
 
 .page[data-active='true'] {
+  /* Focus can enter immediately, including when reduced motion shortens other transitions. */
   visibility: visible;
+  transition-property: transform, filter;
   transition-delay: 0s;
 }
 
@@ -55,6 +57,12 @@
   .navigation,
   .navigation[data-secondary-open='true'] {
     --navigation-duration: 0ms;
+  }
+
+  /* The global reduced-motion duration would animate inherited visibility on every descendant. */
+  .navigation > .page,
+  .navigation > .page * {
+    transition-duration: 0s !important;
   }
 
   .navigation > .page {

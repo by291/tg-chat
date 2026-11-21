@@ -1,6 +1,6 @@
 import { ArrowLeft, Search, Video } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { IconButton } from '@/components/IconButton';
 import { ChatHeaderMenu, type HeaderAction } from './ChatHeaderMenu';
@@ -39,66 +39,19 @@ export function ChatHeader({
   onAction,
   onAutoDelete,
 }: ChatHeaderProps) {
-  const shouldReduceMotion = useReducedMotion();
   const searchButtonRef = useRef<HTMLButtonElement>(null);
-  const wasSearchOpenRef = useRef(isSearchOpen);
-  const isPinnedView = pinnedCount !== undefined;
-  const transition = {
-    duration: shouldReduceMotion ? 0 : SEARCH_TRANSITION_DURATION,
-    ease: 'easeInOut' as const,
-  };
-
-  useLayoutEffect(() => {
-    // The actions must leave their inert state before the search trigger can receive focus.
-    if (wasSearchOpenRef.current && !isSearchOpen) {
-      searchButtonRef.current?.focus({ preventScroll: true });
-    }
-    wasSearchOpenRef.current = isSearchOpen;
-  }, [isSearchOpen]);
-
   return (
-    <div className={styles.headerStack}>
-      <header
-        className={styles.header}
-        data-pinned-view={isPinnedView}
-        data-search-open={isSearchOpen}
-      >
-        <IconButton
-          label={isPinnedView ? 'Back to conversation' : 'Back to chats'}
-          className={styles.backButton}
-          onClick={onBack}
-        >
-          <ArrowLeft />
-        </IconButton>
-        {isPinnedView ? (
-          <div className={styles.pinnedTitle}>
-            <strong>Pinned Messages</strong>
-            <span>{pinnedCount === 1 ? '1 message' : `${pinnedCount} messages`}</span>
-          </div>
-        ) : (
-          <button
-            className={styles.identity}
-            onClick={onOpenDetails}
-            aria-label="Open chat information"
-            disabled={isSearchOpen}
-          >
-            <Avatar initials={conversation.initials} color={conversation.color} size="small" />
-            <motion.span
-              className={styles.identityText}
-              animate={{ opacity: isSearchOpen ? 0 : 1 }}
-              transition={transition}
-            >
-              <strong>{conversation.title}</strong>
-              <span>{conversation.subtitle}</span>
-            </motion.span>
-          </button>
-        )}
-        <motion.div
-          className={styles.actions}
-          animate={{ opacity: isSearchOpen ? 0 : 1 }}
-          transition={transition}
-          inert={isSearchOpen}
-        >
+    <ChatHeaderFrame
+      title={conversation.title}
+      subtitle={conversation.subtitle}
+      avatar={<Avatar initials={conversation.initials} color={conversation.color} size="small" />}
+      isSearchOpen={isSearchOpen}
+      searchButtonRef={searchButtonRef}
+      pinnedCount={pinnedCount}
+      onBack={onBack}
+      onOpenDetails={onOpenDetails}
+      actions={
+        <>
           {conversation.kind === 'group' && (
             <IconButton
               label="Video chat"
@@ -123,6 +76,119 @@ export function ChatHeader({
             onAction={onAction}
             onAutoDelete={onAutoDelete}
           />
+        </>
+      }
+      search={
+        <ChatSearch
+          messages={messages}
+          canFilterSender={conversation.kind === 'group'}
+          onClose={onToggleSearch}
+          onJump={onSearchJump}
+        />
+      }
+    />
+  );
+}
+
+interface ChatHeaderFrameProps {
+  title: string;
+  subtitle: string;
+  avatar?: ReactNode;
+  actions: ReactNode;
+  search?: ReactNode;
+  searchButtonRef: RefObject<HTMLButtonElement | null>;
+  isSearchOpen?: boolean;
+  pinnedCount?: number;
+  detailsLabel?: string;
+  backLabel?: string;
+  onOpenDetails?: () => void;
+  onBack: () => void;
+}
+
+/** Present a floating header around the identity, authorized actions, and active search surface. */
+export function ChatHeaderFrame({
+  title,
+  subtitle,
+  avatar,
+  actions,
+  search,
+  searchButtonRef,
+  isSearchOpen = false,
+  pinnedCount,
+  detailsLabel = 'Open chat information',
+  backLabel = 'Back to chats',
+  onOpenDetails,
+  onBack,
+}: ChatHeaderFrameProps) {
+  const wasSearchOpenRef = useRef(isSearchOpen);
+  useLayoutEffect(() => {
+    // The actions must leave their inert state before the search trigger can receive focus.
+    if (wasSearchOpenRef.current && !isSearchOpen) {
+      searchButtonRef.current?.focus({ preventScroll: true });
+    }
+    wasSearchOpenRef.current = isSearchOpen;
+  }, [isSearchOpen, searchButtonRef]);
+
+  const shouldReduceMotion = useReducedMotion();
+  const isPinnedView = pinnedCount !== undefined;
+  const transition = {
+    duration: shouldReduceMotion ? 0 : SEARCH_TRANSITION_DURATION,
+    ease: 'easeInOut' as const,
+  };
+  const identity = (
+    <>
+      {avatar}
+      <motion.span
+        className={styles.identityText}
+        animate={{ opacity: isSearchOpen ? 0 : 1 }}
+        transition={transition}
+      >
+        <strong role="heading" aria-level={2}>
+          {title}
+        </strong>
+        <span aria-live="polite">{subtitle}</span>
+      </motion.span>
+    </>
+  );
+
+  return (
+    <div className={styles.headerStack}>
+      <header
+        className={styles.header}
+        data-pinned-view={isPinnedView}
+        data-search-open={isSearchOpen}
+      >
+        <IconButton
+          label={isPinnedView ? 'Back to conversation' : backLabel}
+          className={styles.backButton}
+          onClick={onBack}
+        >
+          <ArrowLeft />
+        </IconButton>
+        {isPinnedView && (
+          <div className={styles.pinnedTitle}>
+            <strong>Pinned Messages</strong>
+            <span>{pinnedCount === 1 ? '1 message' : `${pinnedCount} messages`}</span>
+          </div>
+        )}
+        {!isPinnedView && onOpenDetails && (
+          <button
+            className={styles.identity}
+            onClick={onOpenDetails}
+            aria-label={detailsLabel}
+            disabled={isSearchOpen}
+          >
+            {identity}
+          </button>
+        )}
+        {!isPinnedView && !onOpenDetails && <div className={styles.identity}>{identity}</div>}
+        <motion.div
+          className={styles.actions}
+          animate={{ opacity: isSearchOpen ? 0 : 1 }}
+          transition={transition}
+          inert={isSearchOpen}
+        >
+          {actions}
         </motion.div>
         <AnimatePresence>
           {isSearchOpen && (
@@ -133,12 +199,7 @@ export function ChatHeader({
               exit={{ opacity: 0 }}
               transition={transition}
             >
-              <ChatSearch
-                messages={messages}
-                canFilterSender={conversation.kind === 'group'}
-                onClose={onToggleSearch}
-                onJump={onSearchJump}
-              />
+              {search}
             </motion.div>
           )}
         </AnimatePresence>

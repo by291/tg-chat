@@ -1,9 +1,10 @@
-import { List, Pin, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { components } from '@/api/schema';
 import { IconButton } from '@/components/IconButton';
 import type { ChatOwner } from '../data/ChatOwner';
 import { renderMessage, type CanonicalMessage } from '../data/messageModels';
+import { PinnedMessageBar } from '../PinnedMessageBar';
 import { describeMessage } from '../messageFormatting';
 import styles from './ConnectedChat.module.css';
 
@@ -86,7 +87,10 @@ export function PinnedMessages(props: PinnedMessagesProps) {
 
   const page = latestPage && (older ?? latestPage);
   const messages = visiblePins(page);
-  const preview = visiblePins(latestPage).at(-1);
+  const previews = visiblePins(latestPage).map((pin) => {
+    const message = renderMessage(pin);
+    return { ...message, text: message.text.trim() };
+  });
 
   async function loadOlder() {
     const generation = requestGeneration.current;
@@ -107,31 +111,18 @@ export function PinnedMessages(props: PinnedMessagesProps) {
     }
   }
 
-  function jump(message: CanonicalMessage) {
-    void props.owner.jumpToMessage(message.id).then(props.onClose, props.onError);
+  function jump(messageId: string) {
+    void props.owner.jumpToMessage(messageId).then(props.onClose, props.onError);
   }
 
   return (
     <>
-      {preview && (
-        <div className={styles.pinPreview} data-chat-controls>
-          <button
-            type="button"
-            className={styles.pinJump}
-            aria-label={`Pinned message: ${pinLabel(preview)}`}
-            onClick={() => jump(preview)}
-          >
-            <Pin aria-hidden="true" />
-            <span>
-              <strong>Pinned message</strong>
-              <span>{pinLabel(preview)}</span>
-            </span>
-          </button>
-          <IconButton label="Open pinned messages" onClick={props.onOpen}>
-            <List />
-          </IconButton>
-        </div>
-      )}
+      <PinnedMessageBar
+        latestLabel="Pinned message"
+        messages={previews}
+        onJump={jump}
+        onOpenList={props.onOpen}
+      />
       {props.isListOpen && (
         <section className={styles.pins} data-chat-controls aria-label="Pinned messages">
           <IconButton label="Close pins" onClick={props.onClose}>
@@ -145,7 +136,7 @@ export function PinnedMessages(props: PinnedMessagesProps) {
           )}
           {page && messages.length === 0 && <p>No pinned messages.</p>}
           {messages.map((message) => (
-            <button type="button" key={message.id} onClick={() => jump(message)}>
+            <button type="button" key={message.id} onClick={() => jump(message.id)}>
               {pinLabel(message)}
             </button>
           ))}

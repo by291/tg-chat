@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch } from 'react';
-import { Forward, Trash2 } from 'lucide-react';
-import { IconButton } from '@/components/IconButton';
+import { MessageSelectionToolbar } from './MessageSelectionToolbar';
 import { HeaderActionDialog } from './HeaderActionDialog';
 import { useHeaderActions } from './useHeaderActions';
 import { useChatOverlayInsets } from './useChatOverlayInsets';
@@ -8,7 +7,6 @@ import { ConversationMuteDialog } from '@/features/conversations/ConversationMut
 import { ConversationRemovalDialog } from '@/features/conversations/ConversationDialogs';
 import { ChatHeader } from './ChatHeader';
 import { ForwardMessageDialog } from './messages/forwarding/ForwardMessageDialog';
-import { Ripple } from '@/components/Ripple';
 import { DeleteMessageDialog } from './DeleteMessageDialog';
 import { PinnedMessageBar } from './PinnedMessageBar';
 import { MessagePinDialog } from './MessagePinDialog';
@@ -235,32 +233,13 @@ export function ConversationPane({
             onNotify={onNotify}
           />
         </div>
-        <div
-          className={styles.selectionToolbar}
-          inert={!headerActions.isSelecting}
-          aria-hidden={!headerActions.isSelecting}
-        >
-          <IconButton
-            label="Delete selected messages"
-            className={styles.deleteSelected}
-            disabled={!headerActions.selectedIds.length}
-            onClick={() => headerActions.setDialog('delete-messages')}
-          >
-            <Trash2 />
-          </IconButton>
-          <button className={styles.selectionCount} onClick={headerActions.clearSelection}>
-            {headerActions.selectedIds.length}
-            {headerActions.selectedIds.length === 1 ? ' message' : ' messages'}
-            <Ripple />
-          </button>
-          <IconButton
-            label="Forward selected messages"
-            disabled={!headerActions.selectedIds.length}
-            onClick={commands.forwardSelectedMessages}
-          >
-            <Forward />
-          </IconButton>
-        </div>
+        <MessageSelectionToolbar
+          count={headerActions.selectedIds.length}
+          isSelecting={headerActions.isSelecting}
+          onDelete={() => headerActions.setDialog('delete-messages')}
+          onCancel={headerActions.clearSelection}
+          onForward={commands.forwardSelectedMessages}
+        />
       </div>
       <ConversationMuteDialog
         conversation={headerActions.actions.muteConversation}

@@ -13,9 +13,10 @@ import overlays from '@/components/overlays/overlays.module.css';
 
 interface PinnedMessageBarProps {
   messages: Message[];
+  latestLabel?: string;
   onJump: (messageId: string) => void;
   onOpenList: () => void;
-  onUnpin: (message: Message) => void;
+  onUnpin?: (message: Message) => void;
 }
 
 function resolvePinnedPreview(messages: Message[], anchor?: Message) {
@@ -33,7 +34,13 @@ function resolvePinnedPreview(messages: Message[], anchor?: Message) {
 }
 
 /** Present pinned-message navigation and request confirmation before unpinning. */
-export function PinnedMessageBar({ messages, onJump, onOpenList, onUnpin }: PinnedMessageBarProps) {
+export function PinnedMessageBar({
+  messages,
+  latestLabel = 'Pinned Message',
+  onJump,
+  onOpenList,
+  onUnpin,
+}: PinnedMessageBarProps) {
   const [selectedAnchor, setSelectedAnchor] = useState<Message>();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   useEffect(() => {
@@ -49,7 +56,7 @@ export function PinnedMessageBar({ messages, onJump, onOpenList, onUnpin }: Pinn
 
   const selectedIndex = messages.indexOf(selectedMessage);
   const isLatestPin = selectedIndex === messages.length - 1;
-  const pinLabel = isLatestPin ? 'Pinned Message' : `Pinned Message #${selectedIndex + 1}`;
+  const pinLabel = isLatestPin ? latestLabel : `Pinned Message #${selectedIndex + 1}`;
 
   function followPinnedMessage(message: Message) {
     onJump(message.id);
@@ -83,14 +90,16 @@ export function PinnedMessageBar({ messages, onJump, onOpenList, onUnpin }: Pinn
                 <List /> Pinned Messages
                 <Ripple />
               </Menu.Item>
-              <Menu.Item
-                value="unpin"
-                className={overlays.menuItem}
-                onSelect={() => onUnpin(selectedMessage)}
-              >
-                <PinOff /> Unpin
-                <Ripple />
-              </Menu.Item>
+              {onUnpin && (
+                <Menu.Item
+                  value="unpin"
+                  className={overlays.menuItem}
+                  onSelect={() => onUnpin(selectedMessage)}
+                >
+                  <PinOff /> Unpin
+                  <Ripple />
+                </Menu.Item>
+              )}
             </Menu.Content>
           </Menu.Positioner>
         </MenuDismissLayer>
@@ -108,13 +117,19 @@ export function PinnedMessageBar({ messages, onJump, onOpenList, onUnpin }: Pinn
         />
         <Ripple />
       </button>
-      <IconButton
-        label="Unpin message"
-        className={styles.iconButton}
-        onClick={() => onUnpin(selectedMessage)}
-      >
-        <X />
-      </IconButton>
+      {onUnpin ? (
+        <IconButton
+          label="Unpin message"
+          className={styles.iconButton}
+          onClick={() => onUnpin(selectedMessage)}
+        >
+          <X />
+        </IconButton>
+      ) : (
+        <IconButton label="Open pinned messages" className={styles.iconButton} onClick={onOpenList}>
+          <List />
+        </IconButton>
+      )}
     </div>
   );
 }
