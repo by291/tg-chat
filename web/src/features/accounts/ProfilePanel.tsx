@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import type { components } from '@/api/schema';
 import { Avatar } from '@/components/Avatar';
 import { AvatarEditor } from '@/features/media/AvatarEditor';
 import { SettingsAccountDetails } from '@/features/settings/profile/SettingsAccountDetails';
 import { SessionOwner, requirePayload } from '../auth/SessionOwner';
-import { AccountForm, Field, textField } from './AccountForm';
+import { ProfileTextForm } from './ProfileTextForm';
 import styles from './Accounts.module.css';
 
 type Profile = components['schemas']['PrivateProfile'];
@@ -19,21 +18,6 @@ export function ProfilePanel({
   profile: Profile;
   isAvatarAvailable?: boolean;
 }) {
-  const [notice, setNotice] = useState('');
-
-  async function save(fields: FormData) {
-    const reply = await owner.client.PATCH('/api/v1/account/profile', {
-      body: {
-        version: profile.version,
-        display_name: textField(fields, 'display_name'),
-        biography: textField(fields, 'biography'),
-        phone: textField(fields, 'phone') || null,
-      },
-    });
-    owner.replaceProfile(requirePayload(reply));
-    setNotice('Profile saved.');
-  }
-
   async function assignAvatar(fileId: string | null): Promise<void> {
     const reply = await owner.client.PUT('/api/v1/account/profile/avatar', {
       body: {
@@ -71,39 +55,7 @@ export function ProfilePanel({
             </>
           )}
         </div>
-        <AccountForm
-          key={profile.version}
-          submitLabel="Save profile"
-          onSubmit={save}
-          successMessage="Profile saved."
-        >
-          <Field
-            label="Display name"
-            name="display_name"
-            defaultValue={profile.display_name}
-            required
-            maxLength={80}
-          />
-          <label className={styles.field}>
-            <span>Biography</span>
-            <textarea name="biography" defaultValue={profile.biography} maxLength={500} />
-          </label>
-          <Field
-            label="Phone (private)"
-            name="phone"
-            type="tel"
-            defaultValue={profile.phone ?? ''}
-            maxLength={40}
-          />
-          <p className={styles.hint}>
-            Your phone is private account text. It is not used for login or directory search.
-          </p>
-        </AccountForm>
-        {notice && (
-          <p role="status" className={styles.notice}>
-            {notice}
-          </p>
-        )}
+        <ProfileTextForm key={profile.id} owner={owner} profile={profile} />
       </section>
       <SettingsAccountDetails profile={{ username: profile.username, email: profile.email }} />
     </div>

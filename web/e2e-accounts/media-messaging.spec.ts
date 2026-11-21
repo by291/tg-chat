@@ -189,12 +189,20 @@ test('records and plays a voice message and publishes a profile avatar', async (
 
   await page.getByRole('button', { name: 'Account settings' }).click();
   await page.getByRole('button', { name: 'Edit Profile', exact: true }).click();
+  const biography = page.getByLabel('Biography');
+  const unsavedBiography = 'Draft during avatar changes';
+  await biography.fill(unsavedBiography);
   await page.getByLabel('Choose avatar photo').setInputFiles('public/assets/settings-avatar.jpg');
   const profile = page.getByRole('complementary', { name: 'Account pages' });
-  await expect(profile.getByRole('button', { name: 'Remove photo', exact: true })).toBeVisible();
+  const removePhoto = profile.getByRole('button', { name: 'Remove photo', exact: true });
+  await expect(removePhoto).toBeVisible();
+  await expect(biography).toHaveValue(unsavedBiography);
   await expect
     .poll(async () => {
       return profile.locator('img').evaluate((image) => (image as HTMLImageElement).naturalWidth);
     })
     .toBeGreaterThan(0);
+  await removePhoto.click();
+  await expect(removePhoto).toHaveCount(0);
+  await expect(biography).toHaveValue(unsavedBiography);
 });

@@ -13,6 +13,7 @@ interface AccountFormProps {
   onSubmit: (fields: FormData) => Promise<void | false>;
   successMessage?: string;
   shouldReset?: boolean;
+  isSubmitDisabled?: boolean;
 }
 
 /** Report action failures while ignoring responses cancelled by account changes. */
@@ -64,6 +65,7 @@ export function AccountForm({
   onSubmit,
   successMessage,
   shouldReset = false,
+  isSubmitDisabled = false,
 }: AccountFormProps) {
   const action = useOperation();
 
@@ -91,7 +93,7 @@ export function AccountForm({
     >
       <fieldset disabled={action.isPending}>
         {children}
-        <button className={styles.primary} type="submit">
+        <button className={styles.primary} type="submit" disabled={isSubmitDisabled}>
           {action.isPending ? 'Please wait…' : submitLabel}
         </button>
       </fieldset>
