@@ -12,6 +12,7 @@ const user = { id: 'sender', display_name: 'Sender' };
 function renderMedia(pending: PendingMessage) {
   const actions = {
     session: {} as SessionOwner,
+    openGallery: vi.fn(),
     cancel: vi.fn(),
     retry: vi.fn(),
     reselect: vi.fn(),

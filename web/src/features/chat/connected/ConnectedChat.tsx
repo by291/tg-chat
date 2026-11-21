@@ -33,7 +33,7 @@ import { CurrentUserProvider } from '@/features/chat/CurrentUser';
 import { isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { CallOwner } from '@/features/calls/CallOwner';
 import type { CallMode } from '@/features/calls/callModels';
-import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
+import { ConnectedMediaScope } from '@/features/media/ConnectedMediaScope';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import { playNotificationSound } from '@/features/settings/notifications/notificationDelivery';
 import type { MessageInteraction } from '@/domain/messages/interaction';
@@ -1088,7 +1088,12 @@ export function ConnectedChat({
           Loading messages…
         </div>
       )}
-      <ConnectedMediaContext.Provider value={mediaActions}>
+      <ConnectedMediaScope
+        actions={mediaActions}
+        canShowGallery={isChatVisible}
+        owner={owner}
+        scope={`${selectedKey}:${owner.mediaVisibilityKey()}`}
+      >
         <ContactLinkContext.Provider
           value={session ? (id) => void openContactLink(id).catch(report) : undefined}
         >
@@ -1142,7 +1147,7 @@ export function ConnectedChat({
             </MessageRetryContext.Provider>
           </MessageReadTimeScope>
         </ContactLinkContext.Provider>
-      </ConnectedMediaContext.Provider>
+      </ConnectedMediaScope>
     </div>
   ) : (
     <div className={styles.empty}>Choose a conversation or find someone to message.</div>

@@ -105,6 +105,22 @@
   transition: transform 200ms ease;
 }
 
+.loadState {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  transform: translate(-50%, -50%);
+}
+
+.loadState button {
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: white;
+  background: #ffffff30;
+}
+
 .photoPositioner[data-slide-phase='leaving'] {
   pointer-events: none;
 }

@@ -253,6 +253,7 @@ export class ChatOwner {
   private cache?: CanonicalCache;
   private cacheSnapshot?: CanonicalSnapshot;
   private snapshot = initialSnapshot();
+  private retainedMedia?: { id: string; expiresAt?: number; revoke: () => void };
   private readonly listeners = new Set<() => void>();
   private readonly unsubscribe: () => void;
   private cursor = '';
@@ -308,6 +309,33 @@ export class ChatOwner {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   };
+
+  /** Keep a retained viewer subject to the same deletion and expiry events as a visible row. */
+  observeMediaRemoval(input: {
+    message: { id: string; expiresAt?: number };
+    revoke: () => void;
+  }): () => void {
+    const retained = {
+      id: input.message.id,
+      expiresAt: input.message.expiresAt,
+      revoke: input.revoke,
+    };
+    this.retainedMedia = retained;
+    if (retained.expiresAt !== undefined) {
+      this.refreshVisibleExpiry();
+    }
+    return () => {
+      if (this.retainedMedia === retained) {
+        this.retainedMedia = undefined;
+      }
+    };
+  }
+
+  /** Identify the visibility epoch that authorized media in the selected conversation. */
+  mediaVisibilityKey(): string {
+    const conversation = this.selectedConversation();
+    return JSON.stringify([this.cacheSnapshot?.epoch, conversation?.generation]);
+  }
 
   /** Load a bounded directory and restore pending identities before enabling the composer. */
   async start(): Promise<void> {
@@ -2084,6 +2112,10 @@ export class ChatOwner {
   }
 
   private removeMessage(messageId: string): void {
+    if (this.retainedMedia?.id === messageId) {
+      this.retainedMedia.revoke();
+      this.retainedMedia = undefined;
+    }
     const messages = this.snapshot.messages.filter((message) => message.id !== messageId);
     for (let index = 0; index < messages.length; index += 1) {
       const message = messages[index];
@@ -2485,6 +2517,20 @@ export class ChatOwner {
       const conversation = conversationsById.get(message.conversation_id);
       if (message.expires_at && conversation?.last_sequence === message.sequence) {
         this.summaryExpirations.set(conversation.id, message.expires_at);
+      }
+    }
+    const retainedMedia = this.retainedMedia;
+    if (retainedMedia) {
+      const current = this.snapshot.messages.find((message) => message.id === retainedMedia.id);
+      if (current) {
+        retainedMedia.expiresAt = current.expires_at ? Date.parse(current.expires_at) : undefined;
+      }
+      const deadline = retainedMedia.expiresAt ?? Infinity;
+      if (deadline <= now) {
+        retainedMedia.revoke();
+        this.retainedMedia = undefined;
+      } else {
+        nextExpiry = Math.min(nextExpiry, deadline);
       }
     }
     const drafts = [

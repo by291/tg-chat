@@ -20,6 +20,8 @@ const CLOSE_DURATION = 200;
 
 interface MediaViewerProps {
   message?: Message;
+  loadState?: { error?: string; retry: () => void };
+  onExitComplete?: () => void;
   messages: Message[];
   onClose: () => void;
   onNavigate: (message: Message) => void;
@@ -46,6 +48,7 @@ function ViewerPlaybackReservation() {
 function ViewerContent({
   message,
   messages,
+  loadState,
   isOpen,
   onClose,
   onNavigate,
@@ -64,15 +67,17 @@ function ViewerContent({
   const transform = useViewerTransform({
     mediaId: message.id,
     mediaElementRef,
-    isEnabled: isOpen && !isBusy,
-    canTransform: !isVideo,
+    isEnabled: isOpen && (!isBusy || Boolean(loadState)),
+    canTransform: !isVideo && !loadState,
     getMediaBox,
     onNavigate: navigate,
     onDismiss: onClose,
   });
   const hasPrevious = activeIndex > 0;
   const hasNext = activeIndex >= 0 && activeIndex < mediaMessages.length - 1;
-  const canNavigate = !isBusy && !transform.isZooming;
+  // A failed or still-signing slide must never trap the user on that occurrence.
+  const isTransitioning = !loadState && isBusy;
+  const canNavigate = !isTransitioning && !transform.isZooming;
   const albumPhotos =
     message.media?.kind === 'album'
       ? mediaMessages.filter((entry) => entry.media === message.media)
@@ -82,7 +87,7 @@ function ViewerContent({
     if (
       !nextMessage ||
       nextMessage.id === message.id ||
-      isBusyRef.current ||
+      (!loadState && isBusyRef.current) ||
       transform.isZooming ||
       isMenuOpen
     ) {
@@ -201,19 +206,26 @@ function ViewerContent({
           }
         }}
       >
-        <ViewerGallery
-          message={message}
-          isOpen={isOpen}
-          activeIndex={activeIndex}
-          mediaElementRef={mediaElementRef}
-          onBusyChange={updateBusy}
-        />
+        {loadState ? (
+          <div className={styles.loadState} data-viewer-controls>
+            <span role="status">{loadState.error ?? 'Loading media…'}</span>
+            {loadState.error && <button onClick={loadState.retry}>Retry media</button>}
+          </div>
+        ) : (
+          <ViewerGallery
+            message={message}
+            isOpen={isOpen}
+            activeIndex={activeIndex}
+            mediaElementRef={mediaElementRef}
+            onBusyChange={updateBusy}
+          />
+        )}
       </div>
       <ViewerToolbar
         message={message}
         activeIndex={activeIndex}
         count={mediaMessages.length}
-        isBusy={isBusy}
+        isBusy={Boolean(loadState) || isBusy}
         isMenuOpen={isMenuOpen}
         transform={transform}
         onCommand={onCommand}
@@ -309,6 +321,7 @@ export function MediaViewer({ message, ...options }: MediaViewerProps) {
         }
       }}
       lazyMount
+      onExitComplete={options.onExitComplete}
       unmountOnExit
     >
       <Portal>

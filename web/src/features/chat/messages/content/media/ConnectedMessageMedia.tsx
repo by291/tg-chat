@@ -1,8 +1,8 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useRef } from 'react';
 import type { Message } from '@/domain/messages/message';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
-import { MediaViewer } from '@/features/media/MediaViewer';
+import { rememberPhotoSource } from '@/features/media/mediaViewerTransition';
 import {
   downloadMedia,
   messageMediaUrl,
@@ -56,36 +56,6 @@ function urlFor(input: {
     variant: input.variant,
     signal: input.signal,
   });
-}
-
-async function galleryItem(reference: MediaReference, signal: AbortSignal): Promise<Message> {
-  const { message, attachment } = reference;
-  const file = attachment.file;
-  const width = file.width ?? DEFAULT_WIDTH;
-  const height = file.height ?? DEFAULT_HEIGHT;
-  const preview = await urlFor({ reference, variant: previewVariant(attachment), signal });
-  const base: Message = {
-    ...message,
-    id: attachment.occurrence_id,
-    remoteAttachments: undefined,
-    downloadOriginalUrl: (signal) => urlFor({ reference, variant: 'original', signal }),
-  };
-  if (file.kind === 'image') {
-    return {
-      ...base,
-      attachment: { name: attachment.file_name, url: preview, width, height },
-      renewPreviewUrl: (signal) => urlFor({ reference, variant: 'thumbnail', signal }),
-    };
-  }
-
-  const renew = (nextSignal: AbortSignal) =>
-    urlFor({ reference, variant: 'playback', signal: nextSignal });
-  const url = await renew(signal);
-  return {
-    ...base,
-    media: { kind: 'video', url, poster: preview, width, height, duration: duration(attachment) },
-    renewPlaybackUrl: renew,
-  };
 }
 
 function RemoteTile({
@@ -156,7 +126,11 @@ function RemoteTile({
         className={styles.visual}
         style={{ aspectRatio: `${width} / ${height}` }}
         aria-label={`Open ${attachment.file_name}`}
-        onClick={onOpen}
+        data-photo-id={attachment.occurrence_id}
+        onClick={(event) => {
+          rememberPhotoSource(attachment.occurrence_id, event.currentTarget);
+          onOpen();
+        }}
       >
         {signed.url ? (
           <img src={signed.url} crossOrigin="anonymous" alt="" onError={renewPreview} />
@@ -175,11 +149,6 @@ function RemoteTile({
 /** Render authorized media and pending progress in the existing message row. */
 export function ConnectedMessageMedia({ message }: { message: Message }) {
   const actions = useContext(ConnectedMediaContext);
-  const [gallery, setGallery] = useState<Message[]>([]);
-  const [activeId, setActiveId] = useState<string>();
-  const viewerRequest = useRef<AbortController>(undefined);
-  useEffect(() => () => viewerRequest.current?.abort(), [message.id, actions?.session]);
-
   if (!actions) {
     return null;
   }
@@ -197,56 +166,20 @@ export function ConnectedMessageMedia({ message }: { message: Message }) {
 
   const attachments = message.remoteAttachments ?? [];
   const session = actions.session;
-  const open = (occurrenceId: string) => {
-    viewerRequest.current?.abort();
-    const controller = new AbortController();
-    viewerRequest.current = controller;
-    const visual = attachments.filter((item) => ['image', 'video'].includes(item.file.kind));
-    const loaded = visual.map((attachment) => {
-      return galleryItem({ session, message, attachment }, controller.signal);
-    });
-    void Promise.all(loaded).then(
-      (items) => {
-        if (!controller.signal.aborted) {
-          setGallery(items);
-          setActiveId(occurrenceId);
-        }
-      },
-      (error: unknown) => {
-        if (!controller.signal.aborted) {
-          actions.notify(error instanceof Error ? error.message : 'Media unavailable.');
-        }
-      },
-    );
-  };
-
   return (
-    <>
-      <div className={styles.grid} data-album={attachments.length > 1}>
-        {attachments.map((attachment) => (
-          <RemoteTile
-            key={attachment.occurrence_id}
-            reference={{ session, message, attachment }}
-            onOpen={() => open(attachment.occurrence_id)}
-            onError={actions.notify}
-          />
-        ))}
-      </div>
-      {gallery.length > 0 && (
-        <MediaViewer
-          message={gallery.find((item) => item.id === activeId)}
-          messages={gallery}
-          onClose={() => setActiveId(undefined)}
-          onNavigate={(item) => setActiveId(item.id)}
-          onCommand={({ action }) => {
-            if (action === 'go-to-message') {
-              setActiveId(undefined);
-              actions.jump(message.id);
-            }
+    <div className={styles.grid} data-album={attachments.length > 1}>
+      {attachments.map((attachment) => (
+        <RemoteTile
+          key={attachment.occurrence_id}
+          reference={{
+            session,
+            message,
+            attachment,
           }}
-          onNotify={actions.notify}
+          onOpen={() => actions.openGallery({ message, occurrenceId: attachment.occurrence_id })}
+          onError={actions.notify}
         />
-      )}
-    </>
+      ))}
+    </div>
   );
 }
