@@ -10,6 +10,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  CircleStop,
   Pin,
   PinOff,
   Reply,
@@ -29,7 +30,7 @@ import overlays from '@/components/overlays/overlays.module.css';
 import { getMessageDownloads } from '../messageDownloads';
 import styles from './MessageMenu.module.css';
 import { MAX_CHECKLIST_TASKS } from '@/domain/messages/media';
-import { getSelectedPollOptions } from '../../state/pollVoting';
+import { pollManagement } from '../content/poll/pollManagement';
 import { useStructuredMessageActions } from '../StructuredMessageActions';
 import { MessageReadTimeLine } from './MessageReadTimeScope';
 
@@ -98,17 +99,29 @@ function getMessageItems(message: Message, currentUserId: string): MessageMenuIt
       icon: Pencil,
     });
   }
-  const canChangeVote =
-    media?.kind === 'poll' &&
-    media.canRevote !== false &&
-    (!media.closesAt || media.closesAt > Date.now()) &&
-    getSelectedPollOptions(media).length > 0;
-  if (canChangeVote) {
-    items.push({
-      action: 'change-vote',
-      label: 'Change vote',
-      icon: RotateCcw,
-    });
+  if (media?.kind === 'poll') {
+    const permissions = pollManagement(media);
+    if (permissions.canChangeVote) {
+      items.push({
+        action: 'change-vote',
+        label: 'Change vote',
+        icon: RotateCcw,
+      });
+    }
+    if (permissions.canEdit) {
+      items.push({
+        action: 'edit-poll',
+        label: 'Edit poll',
+        icon: Pencil,
+      });
+    }
+    if (permissions.canClose) {
+      items.push({
+        action: 'close-poll',
+        label: 'Close poll',
+        icon: CircleStop,
+      });
+    }
   }
   if (canEdit) {
     items.push({
@@ -303,6 +316,8 @@ export function MessageMenu({
     if (
       item?.action === 'add-task' ||
       item?.action === 'change-vote' ||
+      item?.action === 'edit-poll' ||
+      item?.action === 'close-poll' ||
       item?.action === 'edit-checklist'
     ) {
       structuredActions.dispatch({ messageId: message.id, action: item.action });

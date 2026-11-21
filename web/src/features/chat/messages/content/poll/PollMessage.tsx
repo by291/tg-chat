@@ -4,6 +4,7 @@ import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH, type PollMedia } from '@/doma
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import { getSelectedPollOptions } from '../../../state/pollVoting';
 import { Ripple } from '@/components/Ripple';
+import { pollManagement } from './pollManagement';
 import { PollOption } from './PollOption';
 import { getPollPercentages } from './pollResults';
 import { useStructuredMessageAction } from '../../StructuredMessageActions';
@@ -35,7 +36,6 @@ export function PollMessage({
   const hasVoted = selectedIds.length > 0;
   const canVote =
     !isSubmitting && poll.canVote !== false && !isClosed && (!hasVoted || isEditingVote);
-  const canChangeVote = poll.canVote !== false && hasVoted && !isClosed && poll.canRevote !== false;
   const canAddOption = !isClosed && poll.canAddOptions && poll.options.length < MAX_POLL_OPTIONS;
   const shouldShowAnswer = Boolean(poll.correctOptionIds?.length) && (hasVoted || isClosed);
   const currentOptionIds = new Set(poll.options.map((option) => option.id));
@@ -67,7 +67,7 @@ export function PollMessage({
   const pollLabel = poll.shouldShowVoters ? `Public ${typeLabel}` : `Anonymous ${typeLabel}`;
 
   function changeVote() {
-    if (!canChangeVote) {
+    if (isSubmitting || !pollManagement(poll).canChangeVote) {
       return;
     }
 
@@ -79,6 +79,25 @@ export function PollMessage({
     messageId,
     action: 'change-vote',
     onAction: changeVote,
+  });
+
+  useStructuredMessageAction({
+    messageId,
+    action: 'edit-poll',
+    onAction: () => {
+      if (pollManagement(poll).canEdit) {
+        void onInteract({ type: 'edit-poll' });
+      }
+    },
+  });
+  useStructuredMessageAction({
+    messageId,
+    action: 'close-poll',
+    onAction: () => {
+      if (pollManagement(poll).canClose) {
+        void onInteract({ type: 'close-poll' });
+      }
+    },
   });
 
   // prettier-ignore
@@ -256,38 +275,6 @@ export function PollMessage({
           </span>
         )}
       </div>
-      {(poll.canEdit || poll.canClose || canChangeVote) && (
-        <div className={styles.footer}>
-          {canChangeVote && !isEditingVote && poll.canVote !== undefined && (
-            <button
-              type="button"
-              className={styles.action}
-              disabled={isSubmitting}
-              onClick={changeVote}
-            >
-              Change vote
-            </button>
-          )}
-          {poll.canEdit && !isClosed && (
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => onInteract({ type: 'edit-poll' })}
-            >
-              Edit poll
-            </button>
-          )}
-          {poll.canClose && !isClosed && (
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => onInteract({ type: 'close-poll' })}
-            >
-              Close poll
-            </button>
-          )}
-        </div>
-      )}
     </section>
   );
 }

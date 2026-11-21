@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export type StructuredMessageAction = 'add-task' | 'change-vote' | 'edit-checklist';
+export type StructuredMessageAction =
+  'add-task' | 'change-vote' | 'edit-checklist' | 'edit-poll' | 'close-poll';
 
 interface StructuredMessageRequest {
   messageId: string;

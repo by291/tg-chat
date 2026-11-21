@@ -93,6 +93,9 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'copy-selected',
   'add-task',
   'edit-checklist',
+  'change-vote',
+  'edit-poll',
+  'close-poll',
   'forward',
   'report',
   'select',
@@ -390,7 +393,7 @@ export function ConnectedChat({
     if (action === 'pin') {
       return conversation?.can_manage ?? false;
     }
-    if (action === 'reply' || action === 'edit') {
+    if (action === 'reply' || action === 'edit' || action === 'edit-poll') {
       return canPost;
     }
     if (action === 'forward' || action === 'forward-selected') {
@@ -759,6 +762,9 @@ export function ConnectedChat({
           break;
         }
         case 'close-poll':
+          if (!body.can_close || body.is_closed) {
+            return false;
+          }
           setConfirmation({
             title: 'Close poll?',
             description: 'Voting will end immediately.',

@@ -86,6 +86,28 @@ afterEach(() => {
 });
 
 describe('poll result transitions', () => {
+  it('keeps management controls off the poll while preserving its results footer', () => {
+    render(
+      <PollMessage
+        poll={{
+          ...poll,
+          canEdit: true,
+          canClose: true,
+          canVote: true,
+          selectedOptionIds: ['layout'],
+          voterCount: 1,
+        }}
+        onInteract={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('1 member voted')).toBeTruthy();
+    const management = screen.queryAllByRole('button', {
+      name: /change vote|edit poll|close poll/i,
+    });
+    expect(management).toHaveLength(0);
+  });
+
   it('opens public voter details from the count shown after a vote', () => {
     const publicPoll = {
       ...poll,
@@ -275,4 +297,31 @@ describe('poll result transitions', () => {
     expect(screen.getByText('100%')).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: /^Layout,/ }).disabled).toBe(true);
   });
+});
+
+it('drops a queued poll management request after permissions are revoked', () => {
+  const onInteract = vi.fn();
+  function MenuTrigger() {
+    const { dispatch } = useStructuredMessageActions();
+    return (
+      <button onClick={() => dispatch({ messageId: 'poll', action: 'close-poll' })}>
+        Request close
+      </button>
+    );
+  }
+
+  const card = ({ canClose }: { canClose: boolean }) => (
+    <StructuredMessageActionsProvider>
+      <MenuTrigger />
+      <PollMessage messageId="poll" poll={{ ...poll, canClose }} onInteract={onInteract} />
+    </StructuredMessageActionsProvider>
+  );
+  const view = render(card({ canClose: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Request close' }));
+  expect(onInteract).toHaveBeenCalledWith({ type: 'close-poll' });
+
+  onInteract.mockClear();
+  view.rerender(card({ canClose: false }));
+  fireEvent.click(screen.getByRole('button', { name: 'Request close' }));
+  expect(onInteract).not.toHaveBeenCalled();
 });

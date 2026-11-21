@@ -148,7 +148,9 @@ async function vote(page: Page, option: string) {
   await expect(poll.getByText('Public Poll', { exact: true })).toBeVisible();
   await poll.getByRole('button', { name: option, exact: true }).click();
   await poll.getByRole('button', { name: 'Vote', exact: true }).click();
-  await expect(poll.getByRole('button', { name: 'Change vote', exact: true })).toBeVisible();
+  await poll.click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Change vote', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
 }
 
 test('votes and checklist tasks converge, and revocation removes private history', async ({
