@@ -1,137 +1,100 @@
 .dialog {
   display: flex;
   flex-direction: column;
-  width: min(480px, 100%);
-  max-height: min(700px, calc(100dvh - 48px));
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 48px);
   padding: 0;
   overflow: hidden;
 }
 
-.header,
-.actions {
+.header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 18px;
-}
-
-.header {
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border-color);
+  padding: 8px 18px 8px 8px;
 }
 
 .header h2 {
+  flex: 1;
   margin: 0;
 }
 
 .body {
   min-height: 0;
-  padding: 12px 18px;
+  padding: 0 18px;
   overflow: auto;
   overscroll-behavior: contain;
 }
 
 .previews {
   display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.previews[data-layout='gallery'] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.previews[data-layout='gallery'] .preview {
-  position: relative;
   grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
+  justify-items: center;
+  gap: 8px;
+  border-radius: 12px;
 }
 
-.previews[data-layout='gallery'] .preview:only-child {
-  grid-column: 1 / -1;
+.preview {
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--input-color);
 }
 
-.previews[data-layout='gallery'] .thumbnail {
+.preview[data-album='true'] {
   width: 100%;
-  height: auto;
-  aspect-ratio: 4 / 3;
+  height: 100%;
 }
 
-.previews[data-layout='gallery'] .preview:only-child .thumbnail {
-  max-height: min(320px, 40dvh);
-  aspect-ratio: 16 / 10;
-}
-
-.previews[data-layout='gallery'] .preview:only-child :is(img, video) {
+.preview :is(img, video) {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
-.previews[data-layout='gallery'] .preview > button {
+.preview[data-album='true'] :is(img, video) {
+  object-fit: cover;
+}
+
+.preview > button {
   position: absolute;
-  inset-block-start: 6px;
-  inset-inline-end: 6px;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
   color: white;
   background: rgb(0 0 0 / 55%);
 }
 
-.preview {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 64px;
-}
-
-.thumbnail {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  overflow: hidden;
-  border-radius: 10px;
-  color: var(--accent-color);
-  background: var(--input-color);
-}
-
-.thumbnail :is(img, video) {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.filename {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.body > button,
-.options,
-.options label {
+.preview[data-file='true'] {
+  --document-row-height: 56px;
+  --document-icon-size: 48px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  width: 100%;
+  min-height: var(--document-row-height);
+  padding-inline: 4px 48px;
+  background: transparent;
 }
 
-.options {
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  margin: 8px 0 14px;
+.preview[data-file='true'] > button {
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  color: var(--secondary-color);
+  background: transparent;
 }
 
-.options label {
-  cursor: pointer;
-}
-
-.options input {
-  accent-color: var(--accent-color);
+.menuPositioner {
+  z-index: 1;
 }
 
 .caption {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-end;
   min-height: 48px;
-  padding: 6px 10px;
+  margin: 12px 18px 16px;
+  padding: 3px 3px 3px 10px;
   border: 1px solid var(--border-color);
   border-radius: 12px;
   background: var(--input-color);
@@ -142,27 +105,17 @@
 }
 
 .dialog .error {
-  margin-bottom: 0;
+  margin: 0 18px 12px;
   color: var(--danger-color, #c43745);
 }
 
-.actions {
-  justify-content: flex-end;
-  border-top: 1px solid var(--border-color);
-}
-
-.send {
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 12px;
-  color: white;
+.caption .send {
+  color: var(--accent-text-color, white);
   background: var(--accent-color);
-  cursor: pointer;
 }
 
-.send:disabled {
-  opacity: 0.6;
-  cursor: default;
+.caption .send:hover {
+  background: var(--accent-hover);
 }
 
 @media (max-width: 520px) {
@@ -172,7 +125,6 @@
   }
 
   .dialog {
-    width: 100%;
     max-height: 90dvh;
     padding-bottom: env(safe-area-inset-bottom);
     border-radius: 20px 20px 0 0;

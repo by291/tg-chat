@@ -80,6 +80,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  delete document.documentElement.dataset.touchSupported;
   setAppPreferences(DEFAULT_APP_PREFERENCES);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -546,8 +547,14 @@ it('keeps the text editor available while unsupported attachment controls are hi
   expect(screen.getByRole('textbox', { name: 'Message' })).toBeTruthy();
 });
 
+async function chooseAttachmentOption(name: string) {
+  await userEvent.click(screen.getByRole('button', { name: 'Attachment options' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name }));
+}
+
 describe('connected attachment confirmation', () => {
   it('keeps the draft when closing a selected file without sending', async () => {
+    document.documentElement.dataset.touchSupported = 'true';
     const onMediaSubmit = vi.fn(async () => true);
     const onDraftChange = vi.fn();
     const file = new File(['photo'], 'sample.png', { type: 'image/png' });
@@ -558,14 +565,36 @@ describe('connected attachment confirmation', () => {
     });
 
     await screen.findByRole('dialog', { name: 'Send attachments' });
+    await waitFor(() =>
+      expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true),
+    );
+    expect(document.activeElement).not.toBe(screen.getByRole('textbox', { name: 'Caption' }));
     expect(screen.getByRole('textbox', { name: 'Caption' }).textContent).toBe('A caption');
-    expect(screen.getByText('sample.png')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'sample.png' })).toBeTruthy();
     expect(onMediaSubmit).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close attachment preview' }));
 
     expect(screen.getByRole('textbox', { name: 'Message' }).textContent).toBe('A caption');
     expect(onDraftChange).not.toHaveBeenCalled();
     expect(onMediaSubmit).not.toHaveBeenCalled();
+  });
+
+  it('focuses the caption on desktop and sends it with Enter', async () => {
+    const onMediaSubmit = vi.fn(async () => true);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(measuredEditorHeight);
+    const file = new File(['notes'], 'notes.txt', { type: 'text/plain' });
+    renderComposer({
+      draft: 'Notes',
+      isTextOnly: true,
+      isMediaAvailable: true,
+      onMediaSubmit,
+    });
+    fireEvent.change(screen.getByLabelText('Choose an attachment'), { target: { files: [file] } });
+
+    const caption = await screen.findByRole('textbox', { name: 'Caption' });
+    await waitFor(() => expect(document.activeElement).toBe(caption));
+    await userEvent.keyboard('{Enter}');
+    expect(onMediaSubmit).toHaveBeenCalledWith(expect.objectContaining({ text: 'Notes' }));
   });
 
   it('adds and removes photos before explicitly sending the selection as a file', async () => {
@@ -581,9 +610,9 @@ describe('connected attachment confirmation', () => {
     fireEvent.change(screen.getByLabelText('Choose more attachments'), {
       target: { files: [second] },
     });
-    expect(screen.getByText('second.png')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'second.png' })).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Remove first.png' }));
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Send as file' }));
+    await chooseAttachmentOption('Send as file');
     expect(onMediaSubmit).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Send attachments' }));
@@ -596,10 +625,17 @@ describe('connected attachment confirmation', () => {
       }),
     );
     expect(screen.getByRole('dialog', { name: 'Send attachments' })).toBeTruthy();
-    expect(screen.getByText('second.png')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'second.png' })).toBeTruthy();
   });
 
   it('sends a separated batch with the open caption while preserving a newer draft', async () => {
+    class LocalPreviewUrl extends URL {
+      static createObjectURL() {
+        return 'blob:local-preview';
+      }
+      static revokeObjectURL() {}
+    }
+    vi.stubGlobal('URL', LocalPreviewUrl);
     const onMediaSubmit = vi.fn(async () => true);
     const first = new File(['photo'], 'first.png', { type: 'image/png' });
     const second = new File(['video'], 'second.mp4', { type: 'video/mp4' });
@@ -615,7 +651,22 @@ describe('connected attachment confirmation', () => {
     });
     await screen.findByRole('dialog', { name: 'Send attachments' });
     view.rerenderComposer({ draft: 'New draft from another tab', draftIdentity: 'newer-draft' });
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Send as album' }));
+    await chooseAttachmentOption('Send separately');
+    const dialog = screen.getByRole('dialog');
+    const photo = dialog.querySelector('img')!;
+    const video = dialog.querySelector('video')!;
+    Object.defineProperties(photo, {
+      naturalWidth: { value: 1600 },
+      naturalHeight: { value: 800 },
+    });
+    Object.defineProperties(video, {
+      videoWidth: { value: 240 },
+      videoHeight: { value: 720 },
+    });
+    fireEvent.load(photo);
+    const send = screen.getByRole<HTMLButtonElement>('button', { name: 'Send attachments' });
+    expect(send.disabled).toBe(true);
+    fireEvent.loadedMetadata(video);
     await userEvent.click(screen.getByRole('button', { name: 'Send attachments' }));
 
     expect(onMediaSubmit).toHaveBeenCalledWith(
@@ -624,8 +675,18 @@ describe('connected attachment confirmation', () => {
         shouldSendFilesSeparately: true,
         shouldPreserveDraft: true,
         files: [
-          expect.objectContaining({ blob: first, kind: 'image' }),
-          expect.objectContaining({ blob: second, kind: 'video' }),
+          expect.objectContaining({
+            blob: first,
+            kind: 'image',
+            width: 1600,
+            height: 800,
+          }),
+          expect.objectContaining({
+            blob: second,
+            kind: 'video',
+            width: 240,
+            height: 720,
+          }),
         ],
       }),
     );

@@ -1,5 +1,4 @@
 import { expect, type Page } from '@playwright/test';
-import type { PendingMessage, PendingSnapshot } from '../src/features/chat/data/pendingMessages';
 
 const SERVER_PROCESSING_TIMEOUT_MS = 30_000;
 const PORTRAIT = {
@@ -24,87 +23,47 @@ interface MediaFrame {
   height: number;
 }
 
-/** Seed a previous client's measured sources in this isolated account for a real reload and upload. */
-export async function seedRestoredMedia(page: Page) {
-  const bootstrap = await page.request.get('/api/v1/chat/bootstrap');
-  const session = await page.request.get('/api/v1/auth/session');
-  expect(bootstrap.ok()).toBe(true);
-  expect(session.ok()).toBe(true);
-  const account = await bootstrap.json();
-  const auth = await session.json();
-  const key = `tg-chat:pending:v1:${account.deployment_id}:${auth.user.id}:${auth.session.id}`;
+async function createPhoto(page: Page, source: typeof PORTRAIT) {
+  const encoded = await page.evaluate(({ width, height }) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const encodedPhoto = canvas.toDataURL('image/png');
+    return encodedPhoto.split(',')[1];
+  }, source);
 
-  await page.evaluate(
-    async ({ groups, key }) => {
-      async function createUpload(source: typeof PORTRAIT) {
-        const canvas = document.createElement('canvas');
-        canvas.width = source.width;
-        canvas.height = source.height;
-        const blob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob((image) => {
-            if (image) {
-              resolve(image);
-            } else {
-              reject(new Error('The browser could not encode the PNG fixture.'));
-            }
-          });
-        });
-        return {
-          ...source,
-          kind: 'image' as const,
-          occurrenceId: crypto.randomUUID(),
-          uploadId: crypto.randomUUID(),
-          sizeBytes: blob.size,
-          blob,
-        };
-      }
+  return {
+    name: source.filename,
+    mimeType: 'image/png',
+    buffer: Buffer.from(encoded, 'base64'),
+  };
+}
 
-      const pending: PendingMessage[] = [];
-      for (const group of groups) {
-        const media = await Promise.all(group.map(createUpload));
-        pending.push({
-          createdAt: Date.now(),
-          status: 'queued',
-          isPrepared: false,
-          title: 'Saved Messages',
-          media,
-          request: {
-            operation_id: crypto.randomUUID(),
-            message_id: crypto.randomUUID(),
-            destination: { kind: 'saved' },
-            content: {
-              schema_version: 1,
-              text: '',
-              custom_emoji: [],
-            },
-          },
-        });
-      }
+/** Queue fresh images through the picker so reload exercises the dimensions captured by the UI. */
+export async function selectMeasuredMedia(page: Page) {
+  for (const group of FILE_GROUPS) {
+    await page.getByRole('button', { name: 'Attach', exact: true }).click();
+    const chooserEvent = page.waitForEvent('filechooser');
+    await page.getByRole('menuitem', { name: 'Photo or Video' }).click();
+    const chooser = await chooserEvent;
+    const files = await Promise.all(group.map((source) => createPhoto(page, source)));
+    await chooser.setFiles(files);
 
-      const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const opened = indexedDB.open('keyval-store');
-        opened.onsuccess = () => resolve(opened.result);
-        opened.onerror = () => reject(opened.error);
-      });
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const transaction = database.transaction('keyval', 'readwrite');
-          const store = transaction.objectStore('keyval');
-          const read = store.get(key);
-          // Keep the private snapshot intact and publish complete blobs in the same transaction.
-          read.onsuccess = () => {
-            const snapshot: PendingSnapshot = read.result;
-            store.put({ ...snapshot, pending: [...snapshot.pending, ...pending] }, key);
-          };
-          transaction.oncomplete = () => resolve();
-          transaction.onabort = () => reject(transaction.error);
-        });
-      } finally {
-        database.close();
+    const dialog = page.getByRole('dialog', { name: 'Send attachments' });
+    const send = dialog.getByRole('button', { name: 'Send attachments' });
+    await expect(send).toBeEnabled();
+    if (group.length > 1) {
+      const wide = await dialog.getByRole('img', { name: WIDE.filename }).boundingBox();
+      const narrow = await dialog.getByRole('img', { name: NARROW.filename }).boundingBox();
+      if (!wide || !narrow) {
+        throw new Error('Both selected album images must have visible frames.');
       }
-    },
-    { groups: FILE_GROUPS, key },
-  );
+      expect(wide.width).toBeGreaterThan(narrow.width);
+    }
+
+    await send.click();
+    await expect(dialog).toHaveCount(0);
+  }
 }
 
 /** Measure the actual rendered rectangles at each stage of durable upload reconciliation. */
@@ -120,7 +79,7 @@ export async function measureMediaFrames(page: Page, stage: 'pending' | 'accepte
     if (!bounds) {
       throw new Error(`No visible media frame for ${file.filename}`);
     }
-    frames.push({ width: bounds.width, height: bounds.height });
+    frames.push({ width: Math.round(bounds.width), height: Math.round(bounds.height) });
   }
   return frames;
 }

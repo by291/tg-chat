@@ -16,6 +16,21 @@ interface MediaGeometryOptions {
   availableWidth?: number;
 }
 
+/** Fit the original dimensions inside a surface's bounds without enlarging a smaller source. */
+export function fitMediaWithin(options: {
+  width: number;
+  height: number;
+  maximumWidth: number;
+  maximumHeight: number;
+}) {
+  const { width, height, maximumWidth, maximumHeight } = options;
+  const fitScale = Math.min(maximumWidth / width, maximumHeight / height, 1);
+  return {
+    width: Math.max(MIN_RENDERED_SIDE, Math.floor(width * fitScale)),
+    height: Math.max(MIN_RENDERED_SIDE, Math.floor(height * fitScale)),
+  };
+}
+
 function fitMediaImage({
   width,
   height,
@@ -23,9 +38,14 @@ function fitMediaImage({
 }: Pick<MediaGeometryOptions, 'width' | 'height' | 'isMobile'>) {
   const maximumWidth = isMobile ? MOBILE_MEDIA_SIDE : MAX_MEDIA_WIDTH;
   const maximumHeight = isMobile ? MOBILE_MEDIA_SIDE : MAX_MEDIA_HEIGHT;
-  const fitScale = Math.min(maximumWidth / width, maximumHeight / height, 1);
-  let frameWidth = Math.max(MIN_RENDERED_SIDE, Math.floor(width * fitScale));
-  let frameHeight = Math.max(MIN_RENDERED_SIDE, Math.floor(height * fitScale));
+  const fitted = fitMediaWithin({
+    width,
+    height,
+    maximumWidth,
+    maximumHeight,
+  });
+  let frameWidth = fitted.width;
+  let frameHeight = fitted.height;
 
   if (frameWidth < MIN_MEDIA_SIDE && frameHeight < MIN_MEDIA_SIDE) {
     const enlargement = MIN_MEDIA_SIDE / Math.max(frameWidth, frameHeight);

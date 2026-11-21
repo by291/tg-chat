@@ -68,9 +68,21 @@ function getAlbumTileStyle({
 }
 
 /** Lay out local and authorized album occurrences at their actual aspect ratios. */
-export function AlbumLayoutFrame({ tiles }: { tiles: AlbumTile[] }) {
-  const desktopLayout = getAlbumLayout({ items: tiles, maxWidth: DESKTOP_ALBUM_WIDTH });
-  const mobileLayout = getAlbumLayout({ items: tiles, maxWidth: MOBILE_ALBUM_WIDTH });
+export function AlbumLayoutFrame({
+  tiles,
+  maximumWidth,
+}: {
+  tiles: AlbumTile[];
+  maximumWidth?: number;
+}) {
+  const desktopLayout = getAlbumLayout({
+    items: tiles,
+    maxWidth: maximumWidth ?? DESKTOP_ALBUM_WIDTH,
+  });
+  const mobileLayout = getAlbumLayout({
+    items: tiles,
+    maxWidth: maximumWidth ?? MOBILE_ALBUM_WIDTH,
+  });
   const albumStyle = {
     '--album-width': `${desktopLayout.width}px`,
     '--album-ratio': `${desktopLayout.width} / ${desktopLayout.height}`,

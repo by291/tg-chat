@@ -1,14 +1,39 @@
-import { File, Film, Image, X } from 'lucide-react';
+import { Film, Image, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
+import { DocumentMessage } from '../../messages/content/DocumentMessage';
+import { AlbumLayoutFrame } from '../../messages/content/media/VisualMediaLayout';
+import { fitMediaWithin } from '@/features/media/mediaGeometry';
+import { visualDimensions } from '@/features/media/connectedMediaReference';
 import type { MediaSelection } from '@/features/media/uploadTransfer';
 import styles from './ConnectedAttachmentDialog.module.css';
 
+const PREVIEW_WIDTH = 384;
+const PREVIEW_HEIGHT = 320;
 const MAX_ATTACHMENTS = 10;
 const IMAGE_BYTES = 25 * 1024 * 1024;
 const FILE_BYTES = 100 * 1024 * 1024;
 
 export type AttachmentMode = 'media' | 'document';
+
+export interface AttachmentItem {
+  id: string;
+  selection: MediaSelection;
+  hasReadDimensions: boolean;
+}
+
+interface SourceDimensions {
+  width: number;
+  height: number;
+}
+
+interface AttachmentPreviewProps {
+  items: AttachmentItem[];
+  isAlbum: boolean;
+  isDisabled: boolean;
+  onRemove: (id: string) => void;
+  onMeasure: (id: string, size?: SourceDimensions) => void;
+}
 
 function visualKind(file: Blob): 'image' | 'video' | undefined {
   if (file.type.startsWith('image/')) {
@@ -40,7 +65,12 @@ export function selectConnectedFiles(input: {
 
   const incoming = input.files.map((file): MediaSelection => {
     const kind = input.mode === 'document' ? 'document' : (visualKind(file) ?? 'document');
-    const selection: MediaSelection = { blob: file, kind, filename: file.name };
+    // prettier-ignore
+    const selection: MediaSelection = {
+      blob: file,
+      kind,
+      filename: file.name,
+    };
     validateSize(selection);
     return selection;
   });
@@ -68,50 +98,117 @@ export function changeAttachmentMode(input: {
   return updated;
 }
 
-/** Preview each selected source and release its temporary URL when the row closes. */
-export function ConnectedAttachmentPreview({
-  selection,
-  isDisabled,
-  onRemove,
+function SourcePreview({
+  item,
+  onMeasure,
 }: {
-  selection: MediaSelection;
-  isDisabled: boolean;
-  onRemove: () => void;
+  item: AttachmentItem;
+  onMeasure: AttachmentPreviewProps['onMeasure'];
 }) {
+  const { blob, kind, filename } = item.selection;
   const [url, setUrl] = useState<string>();
-  const { blob, kind, filename } = selection;
   useEffect(() => {
-    if (kind === 'document' || typeof URL.createObjectURL !== 'function') {
-      setUrl(undefined);
+    if (typeof URL.createObjectURL !== 'function') {
       return;
     }
 
     const objectUrl = URL.createObjectURL(blob);
     setUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
-  }, [blob, kind]);
+  }, [blob]);
 
-  const hasThumbnail = Boolean(url && (kind === 'image' || kind === 'video'));
-  let FallbackIcon = File;
-  if (kind === 'image') {
-    FallbackIcon = Image;
-  } else if (kind === 'video') {
-    FallbackIcon = Film;
+  if (!url) {
+    const Icon = kind === 'video' ? Film : Image;
+    return <Icon aria-hidden="true" />;
   }
 
+  // Unsupported local codecs can still be uploaded for processing by the server.
+  const failed = () => onMeasure(item.id);
+  if (kind === 'video') {
+    return (
+      <video
+        src={url}
+        aria-label={filename}
+        muted
+        preload="metadata"
+        playsInline
+        onError={failed}
+        onLoadedMetadata={({ currentTarget }) =>
+          onMeasure(item.id, { width: currentTarget.videoWidth, height: currentTarget.videoHeight })
+        }
+      />
+    );
+  }
   return (
-    <li className={styles.preview}>
-      <div className={styles.thumbnail}>
-        {url && kind === 'image' && <img src={url} alt="" />}
-        {url && kind === 'video' && <video src={url} muted preload="metadata" playsInline />}
-        {!hasThumbnail && <FallbackIcon aria-hidden="true" />}
+    <img
+      src={url}
+      alt={filename}
+      onError={failed}
+      onLoad={({ currentTarget }) =>
+        onMeasure(item.id, {
+          width: currentTarget.naturalWidth,
+          height: currentTarget.naturalHeight,
+        })
+      }
+    />
+  );
+}
+
+/** Display each selection at its measured size, grouping only the files that will form an album. */
+export function ConnectedAttachmentPreview(props: AttachmentPreviewProps) {
+  const tiles = props.items.map((item) => {
+    const { selection, id } = item;
+    const { kind, filename, blob } = selection;
+    const dimensions = visualDimensions(selection);
+    const isFile = kind === 'document';
+    const isSingleVisual = !isFile && !props.isAlbum;
+    const fit = fitMediaWithin({
+      ...dimensions,
+      maximumWidth: PREVIEW_WIDTH,
+      maximumHeight: PREVIEW_HEIGHT,
+    });
+    const style = isSingleVisual
+      ? { width: fit.width, aspectRatio: `${fit.width} / ${fit.height}` }
+      : undefined;
+
+    const content = (
+      <div
+        key={id}
+        className={styles.preview}
+        data-file={isFile}
+        data-album={props.isAlbum}
+        style={style}
+        role="group"
+        aria-label={filename}
+      >
+        {isFile ? (
+          <DocumentMessage media={{ name: filename, size: blob.size }} />
+        ) : (
+          <SourcePreview item={item} onMeasure={props.onMeasure} />
+        )}
+        <IconButton
+          label={`Remove ${filename}`}
+          onClick={() => props.onRemove(id)}
+          disabled={props.isDisabled}
+        >
+          <X aria-hidden="true" />
+        </IconButton>
       </div>
-      <span className={styles.filename} title={filename}>
-        {filename}
-      </span>
-      <IconButton label={`Remove ${filename}`} onClick={onRemove} disabled={isDisabled}>
-        <X aria-hidden="true" />
-      </IconButton>
-    </li>
+    );
+    return {
+      id,
+      ...dimensions,
+      content,
+    };
+  });
+
+  return (
+    <div className={styles.previews} role="group" aria-label="Selected attachments">
+      {props.isAlbum ? (
+        <AlbumLayoutFrame tiles={tiles} maximumWidth={PREVIEW_WIDTH} />
+      ) : (
+        tiles.map((tile) => tile.content)
+      )}
+    </div>
   );
 }

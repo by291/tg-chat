@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, expect, test, type Page } from '@playwright/test';
 
-import { measureMediaFrames, seedRestoredMedia } from './restoredMediaGeometry';
+import { measureMediaFrames, selectMeasuredMedia } from './restoredMediaGeometry';
 
 const PASSWORD = 'a complete browser password phrase';
 const DOCUMENT_BYTES = 9 * 1024 * 1024;
@@ -92,7 +92,9 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
     await expect(preview.getByText(DOCUMENT_NAME, { exact: true })).toBeVisible();
     const bubble = page.locator('article[data-own="true"]').filter({ hasText: DOCUMENT_NAME });
     await expect(bubble).toHaveCount(0);
-    await preview.getByRole('button', { name: 'Send attachments', exact: true }).click();
+    await expect(preview.getByRole('textbox', { name: 'Caption' })).toBeFocused();
+    await page.keyboard.type('Recovered caption');
+    await page.keyboard.press('Enter');
     await expect(bubble).toBeVisible();
     const bubbleId = await bubble.getAttribute('id');
     await committed.ready;
@@ -145,6 +147,7 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
       .locator('article[data-own="false"]')
       .filter({ hasText: DOCUMENT_NAME });
     await expect(received).toHaveCount(1);
+    await expect(received).toContainText('Recovered caption');
     await expect(received.getByRole('button', { name: `Download ${DOCUMENT_NAME}` })).toBeVisible();
   } finally {
     await context.close();
@@ -215,20 +218,21 @@ test('retains restored portrait and album geometry when the server accepts the u
   await register(page, account('Restored Geometry'));
   await page.getByRole('button', { name: /Saved Messages/ }).click();
   await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
-  await seedRestoredMedia(page);
-
   const upload = latch();
   await page.route('**/api/v1/media/uploads/**', async (route) => {
     await upload.ready;
     await route.continue();
   });
   try {
+    await selectMeasuredMedia(page);
+    const fresh = await measureMediaFrames(page, 'pending');
     await page.reload();
     await page
       .getByRole('button', { name: /Saved Messages/ })
       .first()
       .click();
     const pending = await measureMediaFrames(page, 'pending');
+    expect(pending).toEqual(fresh);
     expect(pending[0]).toEqual({ width: 200, height: 400 });
     expect(pending[1].width).toBeGreaterThan(pending[2].width);
 

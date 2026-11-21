@@ -1,6 +1,7 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
-import { Plus, X } from 'lucide-react';
+import { Menu } from '@ark-ui/react/menu';
+import { Ellipsis, Files, Images, Plus, Send, X } from 'lucide-react';
 import { useRef, useState, type DragEvent } from 'react';
 import { IconButton } from '@/components/IconButton';
 import dialogs from '@/components/overlays/dialogs.module.css';
@@ -14,15 +15,11 @@ import {
   isVisualAttachment,
   selectConnectedFiles,
   type AttachmentMode,
+  type AttachmentItem,
 } from './ConnectedAttachments';
 import styles from './ConnectedAttachmentDialog.module.css';
 
 const SUBMIT_FAILURE = 'Could not queue the attachments. Try sending them again.';
-
-interface AttachmentItem {
-  id: string;
-  selection: MediaSelection;
-}
 
 interface AttachmentSubmission extends EmojiText {
   files: MediaSelection[];
@@ -38,7 +35,12 @@ interface ConnectedAttachmentDialogProps {
 }
 
 function identifyAttachment(selection: MediaSelection): AttachmentItem {
-  return { id: crypto.randomUUID(), selection };
+  const hasReadDimensions = Boolean(selection.width && selection.height);
+  return {
+    id: crypto.randomUUID(),
+    selection,
+    hasReadDimensions,
+  };
 }
 
 /** Confirm the selected sources and caption before admitting the durable upload. */
@@ -67,8 +69,13 @@ export function ConnectedAttachmentDialog({
   const shouldSendAsFiles = hasFiles && files.every((file) => file.kind === 'document');
   const canSwitchMode = hasFiles && files.every(isVisualAttachment);
   const hasVisualAlbum = hasMultipleFiles && !hasDocuments;
-  const canSend = isOpen && !isSending && hasFiles;
+  const isReadingDimensions =
+    typeof URL.createObjectURL === 'function' &&
+    items.some((item) => item.selection.kind !== 'document' && !item.hasReadDimensions);
+  const canSend = isOpen && !isSending && hasFiles && !isReadingDimensions;
   const addMode: AttachmentMode = shouldSendAsFiles ? 'document' : 'media';
+  const fileLabel = hasMultipleFiles ? 'Send as files' : 'Send as file';
+  const modeLabel = shouldSendAsFiles ? 'Send as media' : fileLabel;
 
   function close() {
     if (!isSubmitting.current) {
@@ -101,6 +108,24 @@ export function ConnectedAttachmentDialog({
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Could not change how files are sent.');
     }
+  }
+
+  function recordDimensions(id: string, dimensions?: { width: number; height: number }) {
+    // Match the occurrence, since removal, mode changes and decoding can finish in any order.
+    setItems((current) =>
+      current.map((item) => {
+        if (item.id !== id || item.hasReadDimensions) {
+          return item;
+        }
+
+        const hasSize = dimensions && dimensions.width > 0 && dimensions.height > 0;
+        return {
+          ...item,
+          hasReadDimensions: true,
+          selection: hasSize ? { ...item.selection, ...dimensions } : item.selection,
+        };
+      }),
+    );
   }
 
   function acceptDrop(event: DragEvent) {
@@ -153,7 +178,11 @@ export function ConnectedAttachmentDialog({
           close();
         }
       }}
-      initialFocusEl={() => closeRef.current}
+      initialFocusEl={() => {
+        // A touch keyboard would cover the selected media as soon as the popup opens.
+        const isTouchSupported = document.documentElement.dataset.touchSupported === 'true';
+        return isTouchSupported ? closeRef.current : (captionRef.current?.getElement() ?? null);
+      }}
       finalFocusEl={finalFocusEl}
       onExitComplete={onClose}
       unmountOnExit
@@ -167,7 +196,6 @@ export function ConnectedAttachmentDialog({
             onDrop={acceptDrop}
           >
             <header className={styles.header}>
-              <Dialog.Title>Send attachments</Dialog.Title>
               <IconButton
                 ref={closeRef}
                 label="Close attachment preview"
@@ -176,34 +204,54 @@ export function ConnectedAttachmentDialog({
               >
                 <X aria-hidden="true" />
               </IconButton>
+              <Dialog.Title>Send attachments</Dialog.Title>
+              <Menu.Root positioning={{ placement: 'bottom-end', gutter: 4 }}>
+                <Menu.Trigger asChild>
+                  <IconButton label="Attachment options" disabled={isSending}>
+                    <Ellipsis />
+                  </IconButton>
+                </Menu.Trigger>
+                <Menu.Positioner className={styles.menuPositioner}>
+                  <Menu.Content className={overlays.menu} aria-label="Attachment options">
+                    <Menu.Item
+                      value="add"
+                      className={overlays.menuItem}
+                      onSelect={() => inputRef.current?.click()}
+                    >
+                      <Plus /> Add files
+                    </Menu.Item>
+                    {canSwitchMode && (
+                      <Menu.Item
+                        value="mode"
+                        className={overlays.menuItem}
+                        onSelect={() => changeMode(shouldSendAsFiles ? 'media' : 'document')}
+                      >
+                        <Files /> {modeLabel}
+                      </Menu.Item>
+                    )}
+                    {hasVisualAlbum && (
+                      <Menu.Item
+                        value="group"
+                        className={overlays.menuItem}
+                        onSelect={() => setShouldSendAlbum(!shouldSendAlbum)}
+                      >
+                        <Images /> {shouldSendAlbum ? 'Send separately' : 'Group as album'}
+                      </Menu.Item>
+                    )}
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Menu.Root>
             </header>
             <div className={styles.body}>
               {hasFiles && (
-                <ul
-                  className={styles.previews}
-                  data-layout={hasDocuments ? 'list' : 'gallery'}
-                  aria-label="Selected attachments"
-                >
-                  {items.map(({ id, selection }) => (
-                    <ConnectedAttachmentPreview
-                      key={id}
-                      selection={selection}
-                      isDisabled={isSending}
-                      onRemove={() =>
-                        setItems((current) => current.filter((item) => item.id !== id))
-                      }
-                    />
-                  ))}
-                </ul>
+                <ConnectedAttachmentPreview
+                  items={items}
+                  isAlbum={hasVisualAlbum && shouldSendAlbum}
+                  isDisabled={isSending}
+                  onMeasure={recordDimensions}
+                  onRemove={(id) => setItems((current) => current.filter((item) => item.id !== id))}
+                />
               )}
-              <button
-                type="button"
-                className={overlays.textButton}
-                disabled={isSending}
-                onClick={() => inputRef.current?.click()}
-              >
-                <Plus aria-hidden="true" size={18} /> Add files
-              </button>
               <input
                 ref={inputRef}
                 type="file"
@@ -216,71 +264,34 @@ export function ConnectedAttachmentDialog({
                   event.currentTarget.value = '';
                 }}
               />
-              {(canSwitchMode || hasVisualAlbum) && (
-                <div className={styles.options}>
-                  {canSwitchMode && (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={shouldSendAsFiles}
-                        disabled={isSending}
-                        onChange={(event) =>
-                          changeMode(event.currentTarget.checked ? 'document' : 'media')
-                        }
-                      />
-                      {hasMultipleFiles ? 'Send as files' : 'Send as file'}
-                    </label>
-                  )}
-                  {hasVisualAlbum && (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={shouldSendAlbum}
-                        disabled={isSending}
-                        onChange={(event) => setShouldSendAlbum(event.currentTarget.checked)}
-                      />
-                      Send as album
-                    </label>
-                  )}
-                </div>
-              )}
-              <div className={styles.caption}>
-                <EmojiEditor
-                  controlsRef={captionRef}
-                  label="Caption"
-                  value={caption}
-                  placeholder="Add a caption"
-                  onChange={setCaption}
-                  onSubmit={() => void send()}
-                  onCancel={close}
-                  onPasteImage={(file) => addFiles([file])}
-                  onError={setError}
-                />
-              </div>
-              {error && (
-                <p className={styles.error} role="alert">
-                  {error}
-                </p>
-              )}
             </div>
-            <footer className={styles.actions}>
-              <button
-                type="button"
-                className={overlays.textButton}
-                onClick={close}
-                disabled={isSending}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
+            <div className={styles.caption}>
+              <EmojiEditor
+                controlsRef={captionRef}
+                label="Caption"
+                value={caption}
+                placeholder="Add a caption"
+                onChange={setCaption}
+                onSubmit={() => void send()}
+                onCancel={close}
+                onPasteImage={(file) => addFiles([file])}
+                onError={setError}
+              />
+              <IconButton
                 className={styles.send}
+                label="Send attachments"
+                aria-busy={isSending || isReadingDimensions}
                 disabled={!canSend}
                 onClick={() => void send()}
               >
-                {isSending ? 'Queueing attachments…' : 'Send attachments'}
-              </button>
-            </footer>
+                <Send aria-hidden="true" />
+              </IconButton>
+            </div>
+            {error && (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            )}
           </Dialog.Content>
         </Dialog.Positioner>
       </Portal>

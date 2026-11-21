@@ -5,7 +5,7 @@
   gap: 12px;
   width: max-content;
   max-width: 100%;
-  min-height: 70px;
+  min-height: var(--document-row-height, 70px);
   color: inherit;
   text-decoration: none;
   background: transparent;
@@ -29,9 +29,9 @@
 .icon {
   --fold-size: 18px;
   position: relative;
-  flex: 0 0 54px;
-  width: 54px;
-  height: 54px;
+  flex: 0 0 var(--document-icon-size, 54px);
+  width: var(--document-icon-size, 54px);
+  height: var(--document-icon-size, 54px);
   overflow: hidden;
   border-radius: 6px;
   color: white;
@@ -119,15 +119,15 @@
 }
 
 @media (hover: hover) {
-  .document:hover .icon {
+  :is(button, a).document:hover .icon {
     --fold-size: 0px;
   }
 
-  .document:hover .extension {
+  :is(button, a).document:hover .extension {
     opacity: 0;
   }
 
-  .document:hover .downloadIcon {
+  :is(button, a).document:hover .downloadIcon {
     opacity: 1;
   }
 }
