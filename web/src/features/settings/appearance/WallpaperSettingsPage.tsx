@@ -1,3 +1,4 @@
+import { isDismissKey } from '@/lib/keyboardEvent';
 import { ImagePlus, Palette, RotateCcw } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { getAppearance, type ThemeChoice } from './appearanceStore';
@@ -166,7 +167,7 @@ export function WallpaperSettingsPage({
     <div
       className={settings.page}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && isColorOpen && !event.defaultPrevented) {
+        if (isColorOpen && isDismissKey(event.nativeEvent)) {
           event.preventDefault();
           event.stopPropagation();
           showColor({ isOpen: false });

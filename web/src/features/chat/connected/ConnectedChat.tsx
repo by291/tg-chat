@@ -8,6 +8,8 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
+import { isDismissKey } from '@/lib/keyboardEvent';
+import { useHandheldLayout } from '@/layouts/chat/useHandheldLayout';
 import { ChatLayout } from '@/layouts/chat/ChatLayout';
 import { useExitingSidebarPage } from '@/layouts/sidebar/useExitingSidebarPage';
 import { SidebarNavigation } from '@/layouts/sidebar/SidebarNavigation';
@@ -129,6 +131,7 @@ interface ConnectedChatProps {
   onContacts: () => void;
   accountPage?: ReactNode;
   isConversationOpen: boolean;
+  isWorkspaceHidden?: boolean;
   onShowConversation: () => void;
   onShowDirectory: () => void;
   onCommunities: () => void;
@@ -206,6 +209,7 @@ export function ConnectedChat({
   user,
   accountPage,
   isConversationOpen,
+  isWorkspaceHidden = false,
   onShowConversation,
   onShowDirectory,
   onSettings,
@@ -224,7 +228,11 @@ export function ConnectedChat({
     calls?.subscribe ?? subscribeToNothing,
     calls?.isCallBusy ?? isCallIdle,
   );
-  const isDirectoryVisible = !isConversationOpen || !snapshot.selection;
+  const isHandheld = useHandheldLayout();
+  const isMobileChatOpen = Boolean(snapshot.selection && isConversationOpen && !accountPage);
+  // Desktop keeps the selected conversation visible beside account pages, except administration.
+  const isChatVisible =
+    Boolean(snapshot.selection) && !isWorkspaceHidden && (!isHandheld || isMobileChatOpen);
   const overlays = useChatOverlayInsets();
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const { variant, choice } = useResolvedAppearance();
@@ -281,9 +289,9 @@ export function ConnectedChat({
   const conversationName = conversation
     ? title(conversation)
     : (selection?.title ?? 'Your messages');
-  const activeAlertId = !isDirectoryVisible ? conversation?.id : undefined;
+  const activeAlertId = isChatVisible ? conversation?.id : undefined;
   useEffect(() => owner.setAlertConversation(activeAlertId), [owner, activeAlertId]);
-  const isViewingDirect = conversation?.kind === 'direct' && !isDirectoryVisible;
+  const isViewingDirect = conversation?.kind === 'direct' && isChatVisible;
   const directId = isViewingDirect ? conversation.id : undefined;
   const peerId = isViewingDirect ? conversation.peer_id : undefined;
   const generation = isViewingDirect ? conversation.generation : undefined;
@@ -430,7 +438,7 @@ export function ConnectedChat({
   const inlinePending = snapshot.hasNewer ? [] : pending;
   const inlinePendingIds = new Set(inlinePending.map((entry) => entry.request.message_id));
   const outbox = snapshot.pending.filter(
-    (entry) => isDirectoryVisible || !inlinePendingIds.has(entry.request.message_id),
+    (entry) => !isChatVisible || !inlinePendingIds.has(entry.request.message_id),
   );
   for (const entry of inlinePending) {
     if (!acceptedIds.has(entry.request.message_id)) {
@@ -906,7 +914,7 @@ export function ConnectedChat({
       conversationId={conversation?.id}
       connectionLabel={connectionLabel}
       outbox={outbox}
-      isVisible={isDirectoryVisible}
+      isConversationVisible={isChatVisible}
       onOpen={openConversation}
       onOpenMessage={openGlobalResult}
       onOpenPending={onShowConversation}
@@ -998,6 +1006,7 @@ export function ConnectedChat({
         actions={actions}
         isSearchOpen={isSearchOpen}
         searchButtonRef={searchButtonRef}
+        canRestoreSearchFocus={isChatVisible && !accountPage}
         detailsLabel={`View ${conversationName} profile`}
         onOpenDetails={canOpenProfile ? openConversationProfile : undefined}
         backLabel="Back to conversations"
@@ -1011,6 +1020,7 @@ export function ConnectedChat({
               owner={owner}
               conversation={conversation}
               messages={messages}
+              canDismissFromPage={isChatVisible && !accountPage}
               user={user}
               onClose={() => setSearchConversationId(undefined)}
             />
@@ -1083,7 +1093,7 @@ export function ConnectedChat({
                 isMuted={isConversationMuted(conversation)}
                 latestRequest={latestSendRequest}
                 onReachMessage={(messageId) => {
-                  if (!isDirectoryVisible && !editing && !profilePeerId && !profileCommunityId) {
+                  if (isChatVisible && !editing && !profilePeerId && !profileCommunityId) {
                     void owner.markReached(messageId).catch(report);
                   }
                 }}
@@ -1225,7 +1235,7 @@ export function ConnectedChat({
         <ChatLayout
           messageTextSize={textSize}
           isDetailsOpen={false}
-          isMobileChatOpen={!isDirectoryVisible && !accountPage}
+          isMobileChatOpen={isMobileChatOpen}
           background={<ChatWallpaper variant={variant} choice={choice} />}
           sidebar={sidebar}
           conversation={
@@ -1234,7 +1244,7 @@ export function ConnectedChat({
               className={`${surface.conversation} ${styles.chat}`}
               aria-label="Chat"
               onKeyDown={(event) => {
-                if (event.key !== 'Escape' || event.defaultPrevented) {
+                if (!isDismissKey(event.nativeEvent)) {
                   return;
                 }
                 if (isPinsOpen) {

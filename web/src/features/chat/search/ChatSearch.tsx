@@ -14,7 +14,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { SearchResults } from './SearchResults';
@@ -34,13 +33,12 @@ import {
 } from './useMessageSearch';
 import { renderMessage } from '../data/messageModels';
 import { ApiError, isCancelled } from '@/features/auth/SessionOwner';
+import { isCompositionKey, isDismissKey } from '@/lib/keyboardEvent';
+import { useHandheldLayout } from '@/layouts/chat/useHandheldLayout';
 import { IconButton } from '@/components/IconButton';
 import { describeMessage } from '../messageFormatting';
 import type { Message } from '@/domain/messages/message';
 import styles from './ChatSearch.module.css';
-
-const IME_KEY_CODE = 229;
-const NARROW_SEARCH_QUERY = '(max-width: 760px)';
 
 const MEDIA_KINDS: ReadonlyArray<{ kind: SearchMessageKind; label: string }> = [
   { kind: 'photo_video', label: 'Photos and videos' },
@@ -61,6 +59,7 @@ interface ConnectedSearchSource {
 interface ChatSearchProps {
   messages: Message[];
   canFilterSender: boolean;
+  canDismissFromPage?: boolean;
   onClose: () => void;
   onJump: (messageId: string) => void | Promise<void>;
   source?: ConnectedSearchSource;
@@ -78,16 +77,6 @@ function dayBoundary(value: string, options?: { isExclusiveEnd: boolean }): stri
   return date.toISOString();
 }
 
-function isNarrowSearchViewport() {
-  return window.matchMedia?.(NARROW_SEARCH_QUERY).matches ?? false;
-}
-
-function subscribeToSearchViewport(onChange: () => void) {
-  const media = window.matchMedia?.(NARROW_SEARCH_QUERY);
-  media?.addEventListener('change', onChange);
-  return () => media?.removeEventListener('change', onChange);
-}
-
 /** Search the conversation without replacing or remounting its timeline. */
 export function ChatSearch(props: ChatSearchProps) {
   const { messages, canFilterSender, onClose, onJump, source } = props;
@@ -95,7 +84,8 @@ export function ChatSearch(props: ChatSearchProps) {
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const hasClosedRef = useRef(false);
   const isPresent = useIsPresent();
-  const isNarrow = useSyncExternalStore(subscribeToSearchViewport, isNarrowSearchViewport);
+  const isNarrow = useHandheldLayout();
+  const canDismissFromPage = props.canDismissFromPage ?? true;
   const [query, setQuery] = useState('');
   const [sender, setSender] = useState<SearchSender>();
   const [kind, setKind] = useState<SearchMessageKind>();
@@ -199,13 +189,16 @@ export function ChatSearch(props: ChatSearchProps) {
 
   useEffect(() => {
     function closeFromKeyboard(event: KeyboardEvent) {
-      const canClose =
-        event.key === 'Escape' &&
-        !event.defaultPrevented &&
-        !event.isComposing &&
-        event.keyCode !== IME_KEY_CODE &&
-        !isChoosingDate;
-      if (canClose) {
+      if (!isDismissKey(event) || isChoosingDate || !isPresent) {
+        return;
+      }
+      // Desktop account pages and chat can coexist. Only the focused surface owns Escape.
+      const conversation = inputRef.current?.closest('main');
+      const target = event.target instanceof HTMLElement ? event.target : document.activeElement;
+      const hasFocusedControl = target && target !== document.body;
+      const ownsEscape =
+        hasFocusedControl && conversation ? conversation.contains(target) : canDismissFromPage;
+      if (ownsEscape) {
         event.preventDefault();
         closeSearch();
       }
@@ -213,7 +206,7 @@ export function ChatSearch(props: ChatSearchProps) {
     document.addEventListener('keydown', closeFromKeyboard);
 
     return () => document.removeEventListener('keydown', closeFromKeyboard);
-  }, [closeSearch, isChoosingDate]);
+  }, [closeSearch, isChoosingDate, isPresent, canDismissFromPage]);
 
   function jumpToDate(timestamp: number) {
     if (source) {
@@ -289,7 +282,7 @@ export function ChatSearch(props: ChatSearchProps) {
   }
 
   function navigateFromInput(event: ReactKeyboardEvent<HTMLInputElement>) {
-    const isComposing = event.nativeEvent.isComposing || event.keyCode === IME_KEY_CODE;
+    const isComposing = isCompositionKey(event.nativeEvent);
     if (event.defaultPrevented || isComposing) {
       return;
     }

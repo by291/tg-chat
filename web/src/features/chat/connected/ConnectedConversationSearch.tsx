@@ -9,6 +9,7 @@ interface ConnectedConversationSearchProps {
   owner: ChatOwner;
   conversation: Conversation;
   messages: Message[];
+  canDismissFromPage: boolean;
   user: components['schemas']['PrivateProfile'];
   onClose: () => void;
 }
@@ -18,6 +19,7 @@ export function ConnectedConversationSearch({
   owner,
   conversation,
   messages,
+  canDismissFromPage,
   user,
   onClose,
 }: ConnectedConversationSearchProps) {
@@ -26,6 +28,7 @@ export function ConnectedConversationSearch({
       <ChatSearch
         key={conversation.id}
         messages={messages}
+        canDismissFromPage={canDismissFromPage}
         canFilterSender={conversation.kind !== 'saved'}
         onClose={onClose}
         onJump={(messageId) => owner.jumpToMessage(messageId, { shouldRevalidate: true })}

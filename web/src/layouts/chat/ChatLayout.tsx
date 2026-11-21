@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { isHandheldLayout } from './useHandheldLayout';
 import { readSidebarWidth, SidebarResizer } from './SidebarResizer';
 import styles from './ChatLayout.module.css';
 
@@ -34,7 +35,7 @@ export function ChatLayout({
   useLayoutEffect(() => {
     const didSwitch = previousMobileOpen.current !== isMobileChatOpen;
     previousMobileOpen.current = isMobileChatOpen;
-    if (!didSwitch || !window.matchMedia?.('(max-width: 760px)').matches) {
+    if (!didSwitch || !isHandheldLayout()) {
       return;
     }
 

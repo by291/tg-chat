@@ -1,4 +1,6 @@
 import { useEffect, useEffectEvent } from 'react';
+import { isDismissKey } from '@/lib/keyboardEvent';
+import { isHandheldLayout } from '@/layouts/chat/useHandheldLayout';
 import { useSearchDestination } from '@/routes/useSearchDestination';
 import type { CommunityKind } from '../communities/communityModels';
 import type { SettingsPage } from './AccountSettingsHome';
@@ -112,7 +114,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   }
 
   const onEscape = useEffectEvent((event: KeyboardEvent) => {
-    if (event.key !== 'Escape' || event.defaultPrevented) {
+    if (!isDismissKey(event)) {
       return;
     }
     // Portaled dialogs and menus own their dismissal before the surrounding page can close.
@@ -124,7 +126,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
       goBack();
       return;
     }
-    if (isChatOpen && window.matchMedia?.('(max-width: 760px)').matches) {
+    if (isChatOpen && isHandheldLayout()) {
       event.preventDefault();
       closeConversation();
     }

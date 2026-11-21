@@ -411,7 +411,8 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
               isMediaAvailable={capabilities.media_uploads_available === true}
               isAvatarAvailable={capabilities.avatars_available}
               accountPage={page === 'messages' ? undefined : accountPage}
-              isConversationOpen={navigation.isChatOpen && !isOperatorOpen}
+              isConversationOpen={navigation.isChatOpen}
+              isWorkspaceHidden={isOperatorOpen}
               onShowConversation={navigation.openConversation}
               onShowDirectory={navigation.closeConversation}
               onSettings={() => openPage('settings')}

@@ -96,6 +96,7 @@ interface ChatHeaderFrameProps {
   avatar?: ReactNode;
   actions: ReactNode;
   search?: ReactNode;
+  canRestoreSearchFocus?: boolean;
   searchButtonRef: RefObject<HTMLButtonElement | null>;
   isSearchOpen?: boolean;
   pinnedCount?: number;
@@ -113,6 +114,7 @@ export function ChatHeaderFrame({
   actions,
   search,
   searchButtonRef,
+  canRestoreSearchFocus = true,
   isSearchOpen = false,
   pinnedCount,
   detailsLabel = 'Open chat information',
@@ -123,11 +125,15 @@ export function ChatHeaderFrame({
   const wasSearchOpenRef = useRef(isSearchOpen);
   useLayoutEffect(() => {
     // The actions must leave their inert state before the search trigger can receive focus.
-    if (wasSearchOpenRef.current && !isSearchOpen) {
+    const active = document.activeElement;
+    const header = searchButtonRef.current?.closest('header');
+    const ownsFocus =
+      header?.contains(active) || (active === document.body && canRestoreSearchFocus);
+    if (wasSearchOpenRef.current && !isSearchOpen && ownsFocus) {
       searchButtonRef.current?.focus({ preventScroll: true });
     }
     wasSearchOpenRef.current = isSearchOpen;
-  }, [isSearchOpen, searchButtonRef]);
+  }, [isSearchOpen, searchButtonRef, canRestoreSearchFocus]);
 
   const shouldReduceMotion = useReducedMotion();
   const isPinnedView = pinnedCount !== undefined;

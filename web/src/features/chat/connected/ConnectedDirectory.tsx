@@ -28,7 +28,7 @@ interface ConnectedDirectoryProps {
   conversationId?: string;
   connectionLabel?: string;
   outbox: ChatSnapshot['pending'];
-  isVisible: boolean;
+  isConversationVisible: boolean;
   onOpen: (conversation: Conversation) => void;
   onOpenMessage: (input: { conversation: Conversation; messageId: string }) => Promise<void>;
   onOpenPending: () => void;
@@ -61,7 +61,7 @@ export function ConnectedDirectory({
   conversationId,
   connectionLabel,
   outbox,
-  isVisible,
+  isConversationVisible,
   onOpen,
   onOpenMessage,
   onOpenPending,
@@ -97,7 +97,7 @@ export function ConnectedDirectory({
   });
 
   const directoryCommands = snapshot.pendingCommands.filter((entry) => {
-    return isVisible || entry.request.conversation_id !== conversationId;
+    return !isConversationVisible || entry.request.conversation_id !== conversationId;
   });
 
   function openConversation(entry: Conversation) {

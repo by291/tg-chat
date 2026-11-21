@@ -1,3 +1,4 @@
+import { isDismissKey } from '@/lib/keyboardEvent';
 import { useAppNavigation } from '@/routes/useAppNavigation';
 import { Palette, Rocket } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -106,7 +107,7 @@ export function GeneralSettingsPage({ onBack }: GeneralSettingsPageProps) {
     <div
       className={styles.page}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && page && !event.defaultPrevented) {
+        if (page && isDismissKey(event.nativeEvent)) {
           event.preventDefault();
           event.stopPropagation();
           navigation.openSettingsPage(undefined);

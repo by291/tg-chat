@@ -1,3 +1,5 @@
+import { isCompositionKey } from '@/lib/keyboardEvent';
+
 interface ComposerKey {
   key: string;
   shiftKey: boolean;
@@ -7,8 +9,6 @@ interface ComposerKey {
   metaKey?: boolean;
   altKey?: boolean;
 }
-
-const IME_KEY_CODE = 229;
 
 interface SubmitOptions {
   sendShortcut?: 'enter' | 'ctrlEnter';
@@ -20,7 +20,7 @@ export function shouldSubmitMessage(
   event: ComposerKey,
   { sendShortcut = 'enter', isApple = false }: SubmitOptions = {},
 ): boolean {
-  const isComposition = event.isComposing || event.keyCode === IME_KEY_CODE;
+  const isComposition = isCompositionKey(event);
   if (event.key !== 'Enter' || isComposition || event.shiftKey || event.altKey) {
     return false;
   }
