@@ -22,7 +22,7 @@ export function GlobalMessageSearch(props: GlobalMessageSearchProps) {
   const [navigation, setNavigation] = useState<{
     query: string;
     error: string;
-    unavailable: Set<string>;
+    unavailableMessageIds: Set<string>;
   }>();
   const currentNavigation = navigation?.query === query ? navigation : undefined;
   const { page, error, isLoading, loadMore } = useMessageSearch({
@@ -36,7 +36,7 @@ export function GlobalMessageSearch(props: GlobalMessageSearchProps) {
     }
 
     const hits = page.hits.filter((message) => {
-      return !currentNavigation?.unavailable.has(message.conversation_id);
+      return !currentNavigation?.unavailableMessageIds.has(message.id);
     });
     return hits.map(renderMessage);
   }, [currentNavigation, page]);
@@ -50,14 +50,19 @@ export function GlobalMessageSearch(props: GlobalMessageSearchProps) {
       }
 
       setNavigation((previous) => {
-        const unavailable = new Set(previous?.query === query ? previous.unavailable : []);
+        const previousIds = previous?.query === query ? previous.unavailableMessageIds : [];
+        const unavailableMessageIds = new Set(previousIds);
         const isMissing = failure instanceof ApiError && failure.code === 'not_found';
         if (isMissing) {
-          unavailable.add(selection.conversationId);
+          unavailableMessageIds.add(selection.messageId);
         }
 
         const error = isMissing ? 'Message unavailable' : 'Could not open the message';
-        return { query, error, unavailable };
+        return {
+          query,
+          error,
+          unavailableMessageIds,
+        };
       });
     }
   }
