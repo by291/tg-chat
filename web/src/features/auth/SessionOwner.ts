@@ -92,6 +92,7 @@ export class SessionOwner {
   private channel: BroadcastChannel | null = null;
   private settingsRequest = 0;
   private bootstrapChanges?: RelationshipChange[];
+  private shouldReconcileRelationships = false;
   private relationshipWrites = new Map<string, Promise<void>>();
   private requestedSettingsVersion?: string;
 
@@ -149,6 +150,7 @@ export class SessionOwner {
     this.requestedSettingsVersion = undefined;
     this.bootstrapChanges = undefined;
     this.relationshipWrites.clear();
+    this.shouldReconcileRelationships = false;
     this.snapshot = { auth: null, revision: this.snapshot.revision + 1 };
     this.notify();
     if (shouldBroadcast) {
@@ -170,6 +172,7 @@ export class SessionOwner {
     this.requestedSettingsVersion = undefined;
     this.bootstrapChanges = undefined;
     this.relationshipWrites.clear();
+    this.shouldReconcileRelationships = false;
     this.snapshot = { auth, revision: this.snapshot.revision + 1 };
     this.notify();
     if (shouldBroadcast) {
@@ -210,6 +213,10 @@ export class SessionOwner {
   /** Read the chat bootstrap and reconcile relationship writes admitted while it was loading. */
   async loadChatBootstrap() {
     const revision = this.snapshot.revision;
+    // A receipt cannot order its server write against a read that began while it was pending.
+    if (this.relationshipWrites.size > 0) {
+      this.shouldReconcileRelationships = true;
+    }
     const changes: RelationshipChange[] = [];
     this.bootstrapChanges = changes;
     try {
@@ -245,10 +252,12 @@ export class SessionOwner {
         await this.client.DELETE(path, parameters);
       }
       this.ensureCurrent(revision);
-      this.bootstrapChanges?.push(change);
-      const relationships = changedRelationships(this.snapshot.relationships, change);
-      this.snapshot = { ...this.snapshot, relationships };
-      this.notify();
+      if (!this.shouldReconcileRelationships) {
+        this.bootstrapChanges?.push(change);
+        const relationships = changedRelationships(this.snapshot.relationships, change);
+        this.snapshot = { ...this.snapshot, relationships };
+        this.notify();
+      }
       const userId = this.snapshot.auth?.user.id;
       if (userId) {
         this.channel?.postMessage(`relationships:${userId}`);
@@ -262,6 +271,13 @@ export class SessionOwner {
     } finally {
       if (this.relationshipWrites.get(key) === pending) {
         this.relationshipWrites.delete(key);
+      }
+      const isSettled = revision === this.snapshot.revision && this.relationshipWrites.size === 0;
+      if (isSettled && this.shouldReconcileRelationships) {
+        this.shouldReconcileRelationships = false;
+        // This read supersedes every older bootstrap, including a delayed remote invalidation.
+        // A failed refresh must not turn a committed write into an apparent rejection.
+        await this.loadChatBootstrap().catch(() => undefined);
       }
     }
   }

@@ -33,6 +33,14 @@ const LOGIN = {
   device_name: 'Browser',
 };
 
+function deferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 describe('SessionOwner', () => {
   it('preserves admitted contact changes when an older bootstrap completes', async () => {
     let releaseBootstrap: (response: Response) => void = () => {};
@@ -314,4 +322,86 @@ it('does not restore private ownership when a response body finishes after logou
   await pending;
 
   expect(owner.getSnapshot().auth).toBeNull();
+});
+
+it('keeps the later remote removal when a delayed local Add receipt arrives', async () => {
+  const addCommitted = deferred<void>();
+  const receipt = deferred<void>();
+  const removalRead = deferred<void>();
+  const heldRead = deferred<Response>();
+  const contacts = new Set<string>();
+  let shouldHoldRead = false;
+
+  function bootstrap() {
+    return Response.json({ contacts: Array.from(contacts, (id) => ({ id })), blocks: [] });
+  }
+  async function transport(request: Request) {
+    if (request.url.endsWith('/bootstrap')) {
+      return bootstrap();
+    }
+    if (request.method === 'PUT') {
+      contacts.add('peer');
+      addCommitted.resolve();
+      await receipt.promise;
+    } else {
+      contacts.delete('peer');
+    }
+    return new Response(null, { status: 204 });
+  }
+  const firstTab = new SessionOwner({
+    baseUrl: ORIGIN,
+    async fetch(request) {
+      if (shouldHoldRead && request.url.endsWith('/bootstrap')) {
+        shouldHoldRead = false;
+        removalRead.resolve();
+        return heldRead.promise;
+      }
+      return transport(request);
+    },
+  });
+  const secondTab = new SessionOwner({ baseUrl: ORIGIN, fetch: transport });
+  const change = {
+    kind: 'contacts' as const,
+    id: 'peer',
+    shouldInclude: true,
+  };
+  try {
+    for (const owner of [firstTab, secondTab]) {
+      owner.accept(SESSION, { shouldBroadcast: false });
+      owner.connectBroadcast();
+    }
+    await firstTab.loadChatBootstrap();
+    const saving = firstTab.setRelationship(change);
+    await addCommitted.promise;
+    await secondTab.loadChatBootstrap();
+    expect(secondTab.getSnapshot().relationships?.contacts.has('peer')).toBe(true);
+
+    // Hold a read of the old membership across the later authoritative reconciliation.
+    const staleSnapshot = bootstrap();
+    shouldHoldRead = true;
+    const older = firstTab.loadChatBootstrap();
+    await removalRead.promise;
+    const sawRemoval = deferred<void>();
+    const unsubscribe = firstTab.subscribe(() => {
+      if (!firstTab.getSnapshot().relationships?.contacts.has('peer')) {
+        sawRemoval.resolve();
+      }
+    });
+    await secondTab.setRelationship({ ...change, shouldInclude: false });
+    await sawRemoval.promise;
+    unsubscribe();
+    receipt.resolve();
+    await saving;
+
+    heldRead.resolve(staleSnapshot);
+    await older;
+    expect(contacts.has('peer')).toBe(false);
+    expect(firstTab.getSnapshot().relationships?.contacts.has('peer')).toBe(false);
+    expect(secondTab.getSnapshot().relationships?.contacts.has('peer')).toBe(false);
+  } finally {
+    receipt.resolve();
+    heldRead.resolve(bootstrap());
+    firstTab.dispose();
+    secondTab.dispose();
+  }
 });

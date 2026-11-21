@@ -126,8 +126,10 @@ joins can complete after navigation, while the newer route, focus and query reta
 
 The session owner publishes admitted contact and block changes to the directory and shared cards.
 Returning to the account or receiving a same-account tab invalidation refreshes membership from
-the authorized bootstrap. The owner serializes writes for each person and replays admissions that
-overlap a refresh. Directory search and pagination describe only the displayed page. A card
+the authorized bootstrap. The owner serializes writes for each person. A write started after the
+read can update the resulting set. If a read starts with writes outstanding, response arrival
+cannot determine their server order. The owner reads membership again when its queue settles and
+discards older snapshots. Directory search and pagination describe only the displayed page. A card
 keeps its original shared identity even after a rejected mutation. Profile text saves compare
 the edited fields with their baseline, adopt newer clean fields and surface conflicting edits.
 
