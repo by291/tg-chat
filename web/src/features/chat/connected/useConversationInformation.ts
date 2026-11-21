@@ -5,6 +5,8 @@ import type { ChatOwner } from '../data/ChatOwner';
 
 export interface VoterTarget {
   id: string;
+  optionId: string;
+  after?: string;
   version: string;
 }
 

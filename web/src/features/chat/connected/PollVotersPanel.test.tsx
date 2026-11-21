@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { useRef } from 'react';
+import { BrowserRouter, useNavigate } from 'react-router';
+import { HandheldPanelHistory, useHandheldPanel, type PanelEntry } from './HandheldPanelHistory';
+import type { VoterTarget } from './useConversationInformation';
 import type { components } from '@/api/schema';
 import { ApiError, type SessionOwner } from '@/features/auth/SessionOwner';
 import type { ChatOwner } from '../data/ChatOwner';
@@ -147,3 +151,100 @@ it('revokes the open voter profile when another option loses results access', as
   expect(screen.queryByText('@grace_hopper')).toBeNull();
   expect(screen.queryByText('Grace')).toBeNull();
 });
+
+function HandheldResults({ owner }: { owner: Pick<ChatOwner, 'loadPollVoters'> }) {
+  const navigate = useNavigate();
+  const layer = useHandheldPanel({ kind: 'information', isValid: () => true });
+  const rememberedVoter = useRef<PanelEntry<VoterTarget>>(undefined);
+
+  return (
+    <>
+      <button onClick={() => navigate(-1)}>Browser Back</button>
+      <button onClick={() => navigate(1)}>Browser Forward</button>
+      <button onClick={() => layer.open('poll')}>Open results</button>
+      {layer.selection && (
+        <PollVotersPanel
+          owner={owner}
+          session={session}
+          messageId="poll"
+          poll={poll}
+          rememberedVoter={rememberedVoter}
+          isOpen
+          onClose={layer.close}
+        />
+      )}
+    </>
+  );
+}
+
+it.each(['available', 'withdrawn'])(
+  'reauthorizes a later-page voter on Forward when the row is %s',
+  async (availability) => {
+    window.history.replaceState(null, '', '/');
+    const handheld = Object.assign(new EventTarget(), { matches: true });
+    vi.stubGlobal('matchMedia', () => handheld);
+    const ada = { user_id: 'ada', display_name: 'Ada' };
+    const grace = { user_id: 'grace', display_name: 'Grace' };
+    let laterVoters = [grace];
+    let hasReadRestoredPage = false;
+    let isRestoring = false;
+    const owner: Pick<ChatOwner, 'loadPollVoters'> = {
+      async loadPollVoters({ optionId, after }) {
+        if (optionId !== 'morning') {
+          return { voters: [], next_after: null };
+        }
+        if (isRestoring && after === 'next-morning') {
+          hasReadRestoredPage = true;
+        }
+        return after
+          ? { voters: laterVoters, next_after: null }
+          : { voters: [ada], next_after: 'next-morning' };
+      },
+    };
+    const click = async (name: string) => {
+      fireEvent.click(await screen.findByRole('button', { name }));
+    };
+    const results = () => screen.queryByRole('complementary', { name: 'Poll voters' });
+    const expectVoterFocus = () => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Grace' }));
+    };
+    try {
+      render(
+        <BrowserRouter>
+          <HandheldPanelHistory captureIntent={() => () => true}>
+            <HandheldResults owner={owner} />
+          </HandheldPanelHistory>
+        </BrowserRouter>,
+      );
+
+      await click('Open results');
+      await click('Load more');
+      await click('Grace');
+      await screen.findByText('@grace_hopper');
+      await click('Browser Back');
+      await waitFor(expectVoterFocus);
+      await click('Browser Back');
+      await waitFor(() => expect(results()).toBeNull());
+      isRestoring = true;
+      laterVoters = availability === 'available' ? [grace] : [];
+
+      await click('Browser Forward');
+      await screen.findByRole('button', { name: 'Ada' });
+      await click('Browser Forward');
+      if (availability === 'available') {
+        await screen.findByText('@grace_hopper');
+        await click('Browser Back');
+        await waitFor(expectVoterFocus);
+      } else {
+        await waitFor(() => expect(hasReadRestoredPage).toBe(true));
+        // A missing private target returns to results without consuming the next user Back.
+        await waitFor(() => expect(window.history.state?.usr?.chatPanels?.voter).toBeUndefined());
+        expect(screen.queryByText('@grace_hopper')).toBeNull();
+      }
+      await click('Browser Back');
+      await waitFor(() => expect(results()).toBeNull());
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  },
+);

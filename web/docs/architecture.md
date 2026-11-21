@@ -118,7 +118,9 @@ desktop conversation and cover it at handheld widths. A closing detail restores 
 control when it still exists. Only the visible surface receives global shortcuts and activity
 updates. Handheld Back traverses from a voter profile to the results, the conversation and then
 the directory. Browser entries carry opaque tokens. The session owns the targets, validates their
-membership on traversal and resolves voter identities from the currently authorized results.
+membership on traversal and remembers the selected voter's option and page cursor. After a results
+panel remounts, Forward can open the profile only after that page returns the voter again. Back
+returns focus to the row in its original option.
 Search and admission capture account navigation intent at activation. History and successful
 joins can complete after navigation, while the newer route, focus and query retain ownership.
 

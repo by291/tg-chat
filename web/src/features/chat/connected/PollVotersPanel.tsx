@@ -31,14 +31,29 @@ interface PollVotersPanelProps {
   onClose: () => void;
 }
 
+interface VoterPage {
+  optionId: string;
+  after?: string;
+  nextAfter?: string | null;
+  voters: Voter[];
+}
+
+interface VoterRowTarget {
+  voter: Voter;
+  optionId: string;
+  after?: string;
+}
+
 interface VoterListProps {
   owner: PollVotersPanelProps['owner'];
   session: SessionOwner;
   messageId: string;
   optionId: string;
   onAccessLost: () => void;
-  onLoadVoters: (voters: Voter[]) => void;
-  onSelectVoter: (voter: Voter, trigger: HTMLButtonElement) => void;
+  pages: VoterPage[];
+  restoreAfter?: string;
+  onLoadPage: (page: VoterPage) => void;
+  onSelectVoter: (target: VoterRowTarget, trigger: HTMLButtonElement) => void;
 }
 
 interface OptionResultsProps extends Omit<VoterListProps, 'optionId'> {
@@ -57,8 +72,13 @@ function isAccessFailure(failure: unknown): boolean {
   return failure.status === 401 || failure.status === 403 || failure.status === 404;
 }
 
-function VoterRow(props: Pick<VoterListProps, 'session' | 'onSelectVoter'> & { voter: Voter }) {
-  const { voter, session, onSelectVoter } = props;
+function VoterRow(
+  props: Pick<VoterListProps, 'session' | 'onSelectVoter'> & {
+    target: VoterRowTarget;
+  },
+) {
+  const { target, session, onSelectVoter } = props;
+  const { voter } = target;
   const initials = voter.display_name.slice(0, 2).toUpperCase();
   return (
     <li>
@@ -66,7 +86,8 @@ function VoterRow(props: Pick<VoterListProps, 'session' | 'onSelectVoter'> & { v
         type="button"
         className={styles.voter}
         data-voter-id={voter.user_id}
-        onClick={(event) => onSelectVoter(voter, event.currentTarget)}
+        data-voter-option={target.optionId}
+        onClick={(event) => onSelectVoter(target, event.currentTarget)}
       >
         <RemoteAvatar
           session={session}
@@ -82,20 +103,61 @@ function VoterRow(props: Pick<VoterListProps, 'session' | 'onSelectVoter'> & { v
   );
 }
 
+function optionVoters(pages: VoterPage[]) {
+  const remaining = new Map(pages.map((page) => [page.after, page]));
+  const ordered: VoterPage[] = [];
+  let nextAfter: string | undefined;
+  let page = remaining.get(undefined);
+
+  // Forward can restore a page ahead of normal pagination. Keep the missing pages reachable.
+  while (page) {
+    ordered.push(page);
+    remaining.delete(page.after);
+    nextAfter = page.nextAfter ?? undefined;
+    page = nextAfter ? remaining.get(nextAfter) : undefined;
+  }
+
+  const rows = new Map<string, VoterRowTarget>();
+  for (const admitted of [...ordered, ...remaining.values()]) {
+    for (const voter of admitted.voters) {
+      rows.set(voter.user_id, {
+        voter,
+        optionId: admitted.optionId,
+        after: admitted.after,
+      });
+    }
+  }
+  return { rows, nextAfter };
+}
+
 function VoterList({
   owner,
   session,
   messageId,
   optionId,
   onAccessLost,
-  onLoadVoters,
+  onLoadPage,
   onSelectVoter,
+  pages,
+  restoreAfter,
 }: VoterListProps) {
-  const [voters, setVoters] = useState<Map<string, Voter>>(new Map());
-  const [nextAfter, setNextAfter] = useState<string | null>(null);
+  const { rows, nextAfter } = optionVoters(pages);
   const [request, setRequest] = useState<{ after?: string }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // prettier-ignore
+  useEffect(() => {
+    if (restoreAfter && !isLoading && request.after !== restoreAfter) {
+      setIsLoading(true);
+      setError('');
+      setRequest({ after: restoreAfter });
+    }
+  }, [
+    restoreAfter,
+    isLoading,
+    request.after,
+  ]);
 
   // An option owns its requests until the poll version changes or the panel closes.
   // prettier-ignore
@@ -114,15 +176,12 @@ function VoterList({
           return;
         }
 
-        onLoadVoters(page.voters);
-        setVoters((current) => {
-          const updated = new Map(current);
-          for (const voter of page.voters) {
-            updated.set(voter.user_id, voter);
-          }
-          return updated;
+        onLoadPage({
+          optionId,
+          after: request.after,
+          nextAfter: page.next_after,
+          voters: page.voters,
         });
-        setNextAfter(page.next_after ?? null);
       } catch (failure) {
         if (controller.signal.aborted) {
           return;
@@ -132,6 +191,12 @@ function VoterList({
           onAccessLost();
           return;
         }
+        // A failed restoration has no authorized row. Keep the ordinary Retry action available.
+        onLoadPage({
+          optionId,
+          after: request.after,
+          voters: [],
+        });
         setError('Unable to load voters.');
       } finally {
         if (!controller.signal.aborted) {
@@ -148,7 +213,7 @@ function VoterList({
     optionId,
     request,
     onAccessLost,
-    onLoadVoters,
+    onLoadPage,
   ]);
 
   function requestPage() {
@@ -160,13 +225,13 @@ function VoterList({
 
   return (
     <>
-      {voters.size > 0 && (
+      {rows.size > 0 && (
         <ul className={styles.voterList}>
-          {Array.from(voters.values(), (voter) => (
+          {Array.from(rows.values(), (target) => (
             <VoterRow
-              key={voter.user_id}
+              key={target.voter.user_id}
               session={session}
-              voter={voter}
+              target={target}
               onSelectVoter={onSelectVoter}
             />
           ))}
@@ -213,30 +278,41 @@ export function PollVotersPanel({
   onClose,
 }: PollVotersPanelProps) {
   const [isAccessLost, setIsAccessLost] = useState(false);
-  const [authorized, setAuthorized] = useState<{ version: string; voters: Map<string, Voter> }>();
+  const [authorized, setAuthorized] = useState<{ version: string; pages: VoterPage[] }>();
+  const pages = authorized?.version === poll.version ? authorized.pages : [];
+
+  function authorizedPage(target: VoterTarget) {
+    return pages.find((page) => page.optionId === target.optionId && page.after === target.after);
+  }
+  function isValid(target: VoterTarget) {
+    const option = poll.options.find((candidate) => candidate.id === target.optionId);
+    if (isAccessLost || target.version !== poll.version || !option?.votes) {
+      return false;
+    }
+    // A remounted panel must reauthorize this exact option and cursor before showing its profile.
+    const page = authorizedPage(target);
+    return !page || page.voters.some((voter) => voter.user_id === target.id);
+  }
   const layer = useHandheldPanel<VoterTarget>({
     remembered: rememberedVoter,
     kind: 'voter',
-    isValid: (entry) => !isAccessLost && entry.version === poll.version,
+    isValid,
   });
   const selection = isOpen ? layer.selection : undefined;
   const rowTrigger = useRef<HTMLButtonElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const lastVoter = useRef<string>(undefined);
+  const lastVoter = useRef<VoterTarget>(undefined);
+  const selectedPage = selection && authorizedPage(selection);
+  const selectedVoter = selectedPage?.voters.find((voter) => voter.user_id === selection?.id);
   const wasProfileOpen = useRef(false);
-  const selectedVoter =
-    selection && authorized?.version === poll.version
-      ? authorized.voters.get(selection.id)
-      : undefined;
-  // Forward may remount this list. Authorize the identity from its current voter response first.
-  const recordVoters = useCallback(
-    (voters: Voter[]) => {
+  const recordPage = useCallback(
+    (page: VoterPage) => {
       setAuthorized((previous) => {
-        const current = new Map(previous?.version === poll.version ? previous.voters : undefined);
-        for (const voter of voters) {
-          current.set(voter.user_id, voter);
-        }
-        return { version: poll.version, voters: current };
+        const current = previous?.version === poll.version ? previous.pages : [];
+        const otherPages = current.filter(
+          (candidate) => candidate.optionId !== page.optionId || candidate.after !== page.after,
+        );
+        return { version: poll.version, pages: [...otherPages, page] };
       });
     },
     [poll.version],
@@ -251,25 +327,33 @@ export function PollVotersPanel({
   useLayoutEffect(() => {
     const didClose = wasProfileOpen.current && !canShowProfile;
     wasProfileOpen.current = canShowProfile;
-    if (selectedVoter) {
-      lastVoter.current = selectedVoter.user_id;
+    if (canShowProfile) {
+      lastVoter.current = selection;
     }
     if (didClose && isOpen) {
       // Forward can restore a profile after the original button and its ref were unmounted.
       const rows = resultsRef.current?.querySelectorAll<HTMLButtonElement>('[data-voter-id]') ?? [];
-      const restored = Array.from(rows).find((row) => row.dataset.voterId === lastVoter.current);
+      const restored = Array.from(rows).find((row) => {
+        return row.dataset.voterId === lastVoter.current?.id &&
+          row.dataset.voterOption === lastVoter.current?.optionId;
+      });
       const trigger = rowTrigger.current?.isConnected ? rowTrigger.current : restored;
       trigger?.focus({ preventScroll: true });
     }
   }, [
     canShowProfile,
     isOpen,
-    selectedVoter,
+    selection,
   ]);
 
-  function selectVoter(voter: Voter, trigger: HTMLButtonElement) {
+  function selectVoter(target: VoterRowTarget, trigger: HTMLButtonElement) {
     rowTrigger.current = trigger;
-    layer.open({ id: voter.user_id, version: poll.version });
+    layer.open({
+      id: target.voter.user_id,
+      optionId: target.optionId,
+      after: target.after,
+      version: poll.version,
+    });
   }
 
   const count = poll.voter_count;
@@ -308,7 +392,11 @@ export function PollVotersPanel({
                   session={session}
                   messageId={messageId}
                   onAccessLost={clearResults}
-                  onLoadVoters={recordVoters}
+                  pages={pages.filter((page) => page.optionId === option.id)}
+                  restoreAfter={
+                    selection?.optionId === option.id && !selectedPage ? selection.after : undefined
+                  }
+                  onLoadPage={recordPage}
                   onSelectVoter={selectVoter}
                 />
               ))}
