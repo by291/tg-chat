@@ -197,6 +197,9 @@ it('animates from the clicked occurrence and removes private media on a deletion
   try {
     const thumbnail = await screen.findByRole('button', { name: /Open.*neighbor.jpg/ });
     thumbnail.getBoundingClientRect = () => DOMRect.fromRect({ width: 200, height: 400 });
+    const history = screen.getByLabelText('Message history');
+    history.getBoundingClientRect = () =>
+      DOMRect.fromRect({ width: window.innerWidth, height: VIEWPORT_HEIGHT });
     fireEvent.click(thumbnail);
     const dialog = within(await screen.findByRole('dialog'));
     expect(await dialog.findByRole('img', { name: 'neighbor.jpg' })).toBeTruthy();

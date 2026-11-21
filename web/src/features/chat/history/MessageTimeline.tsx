@@ -341,6 +341,7 @@ function VirtualMessageHistory({
         }}
         onLostPointerCapture={replySwipe.onPointerCancel}
         aria-label="Message history"
+        data-history-scrollport
         data-total-rows={allRows.length}
         data-loaded-rows={rows.length}
         data-rendered-rows={virtualItems.length}

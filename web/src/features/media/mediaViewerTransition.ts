@@ -82,14 +82,16 @@ function isVisibleOccurrence(element: HTMLElement | undefined | null, messageId:
     return false;
   }
   const bounds = element.getBoundingClientRect();
-  return (
-    bounds.width > 0 &&
-    bounds.height > 0 &&
-    bounds.bottom > 0 &&
-    bounds.top < window.innerHeight &&
-    bounds.right > 0 &&
-    bounds.left < window.innerWidth
+  const scrollport = element.closest('[data-history-scrollport]')?.getBoundingClientRect();
+  const left = Math.max(0, bounds.left, scrollport?.left ?? 0);
+  const top = Math.max(0, bounds.top, scrollport?.top ?? 0);
+  const right = Math.min(window.innerWidth, bounds.right, scrollport?.right ?? window.innerWidth);
+  const bottom = Math.min(
+    window.innerHeight,
+    bounds.bottom,
+    scrollport?.bottom ?? window.innerHeight,
   );
+  return left < right && top < bottom;
 }
 
 /** Resolve a visible thumbnail without retaining a virtual history row. */

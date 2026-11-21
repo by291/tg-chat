@@ -126,26 +126,30 @@ describe('photo viewer transitions', () => {
     }
   });
 
-  it('fades on close when the source remains mounted outside the viewport', () => {
+  it.each(['window', 'history'])('fades when the mounted source moves outside %s', (clip) => {
     const thumbnail = document.createElement('button');
     thumbnail.dataset.photoId = photoMessage.id;
     thumbnail.append(document.createElement('img'));
     const visible = DOMRect.fromRect({ width: 200, height: 400 });
     thumbnail.getBoundingClientRect = () => visible;
-    document.body.append(thumbnail);
+    const scrollport = document.createElement('div');
+    scrollport.dataset.historyScrollport = '';
+    scrollport.getBoundingClientRect = () => visible;
+    scrollport.append(thumbnail);
+    document.body.append(scrollport);
     try {
       const view = render(<ViewerPhoto message={photoMessage} isOpen activeIndex={0} />);
       expect(thumbnail.hasAttribute('data-viewer-source')).toBe(true);
       thumbnail.getBoundingClientRect = () =>
         DOMRect.fromRect({
-          y: window.innerHeight + 1,
+          y: clip === 'window' ? window.innerHeight + 1 : visible.bottom,
           width: visible.width,
           height: visible.height,
         });
       view.rerender(<ViewerPhoto message={photoMessage} isOpen={false} activeIndex={0} />);
       expect(thumbnail.hasAttribute('data-viewer-source')).toBe(false);
     } finally {
-      thumbnail.remove();
+      scrollport.remove();
     }
   });
 
