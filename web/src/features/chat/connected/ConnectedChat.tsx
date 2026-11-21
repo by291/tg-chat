@@ -521,8 +521,8 @@ export function ConnectedChat({
   }
 
   function openConversation(entry: Conversation) {
-    if (conversation?.id === entry.id && selection) {
-      // Returning from the handheld directory keeps the existing history and draft generation.
+    if (conversation?.id === entry.id && owner.canResumeSelection()) {
+      // A restored directory entry can reuse its ID after the old private history was fenced.
       onShowConversation();
       return;
     }

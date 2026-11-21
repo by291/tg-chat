@@ -259,6 +259,7 @@ export class ChatOwner {
   private readonly unsubscribe: () => void;
   private cursor = '';
   private viewGeneration = 0;
+  private resumableViewGeneration?: number;
   private openingHistoryGeneration?: number;
   private navigationRequestId = 0;
   private contactOpenGeneration = 0;
@@ -708,6 +709,13 @@ export class ChatOwner {
     return isCurrentContact() && this.isCurrentView(selectedGeneration);
   }
 
+  /** Check whether the retained selection still owns the current private history view. */
+  canResumeSelection(): boolean {
+    return (
+      this.snapshot.selection !== undefined && this.resumableViewGeneration === this.viewGeneration
+    );
+  }
+
   /** Switch private history ownership before starting any remote page request. */
   async select(
     selection: Selection,
@@ -716,6 +724,8 @@ export class ChatOwner {
     this.ensureCurrent();
     void this.flushDraft().catch((error) => this.report(error));
     const generation = ++this.viewGeneration;
+    // The pending first page already owns this view; returning must not replace its request.
+    this.resumableViewGeneration = generation;
     this.openingHistoryGeneration = generation;
     this.historyLoad = undefined;
     this.publish({
@@ -1727,6 +1737,8 @@ export class ChatOwner {
             ...(anchor?.unread && { kind: 'unread' as const }),
           }
         : this.snapshot.navigation;
+      // An admitted refresh can restore the retained view after its old access was fenced.
+      this.resumableViewGeneration = generation;
       this.publish({
         ...window,
         navigation,
