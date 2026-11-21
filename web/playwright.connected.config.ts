@@ -68,7 +68,16 @@ export default defineConfig({
     {
       name: 'interactions',
       testMatch: 'message-interactions.spec.ts',
+      grepInvert: /@copy/,
       outputDir: './test-results/interactions',
+      timeout: EXTENDED_TEST_TIMEOUT_MS,
+      use: { actionTimeout: ACTION_TIMEOUT_MS },
+    },
+    {
+      name: 'copy',
+      testMatch: 'message-interactions.spec.ts',
+      grep: /@copy/,
+      outputDir: './test-results/copy',
       timeout: EXTENDED_TEST_TIMEOUT_MS,
       use: { actionTimeout: ACTION_TIMEOUT_MS },
     },

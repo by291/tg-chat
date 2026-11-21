@@ -15,6 +15,7 @@
     "test:reset": "playwright test --config playwright.connected.config.ts --project=reset",
     "test:media": "playwright test --config playwright.connected.config.ts --project=media",
     "test:interactions": "playwright test --config playwright.connected.config.ts --project=interactions",
+    "test:copy": "playwright test --config playwright.connected.config.ts --project=copy",
     "test:lifecycle": "playwright test --config playwright.connected.config.ts --project=lifecycle",
     "test:communities": "playwright test --config playwright.connected.config.ts --project=communities",
     "test:channels": "playwright test --config playwright.connected.config.ts --project=channels",

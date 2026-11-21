@@ -186,6 +186,9 @@ individually, point `TG_CHAT_ACCOUNT_TEST_URL` at an isolated connected deployme
 - `pnpm --dir web test:interactions` exercises poll and checklist convergence, forwarded
   attachment access after source deletion, distant Chinese search, and preview opt-out.
   Real-service tests cover restricted results, stale revisions, and forwarding and search access.
+- `pnpm --dir web test:copy` checks native text fragments and handheld chronological selection
+  against real messages. The runtime runner gives this independent group a fresh registration
+  budget in its disposable project, after the other interaction scenarios complete.
 - `pnpm --dir web test:lifecycle` checks report original downloads after source deletion,
   recent operator authentication, quarantine and restoration, and deletion with an ownership
   conflict. The full runner supplies the operator and media fixtures. Real PostgreSQL tests

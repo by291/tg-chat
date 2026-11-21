@@ -722,6 +722,10 @@ async function main() {
     resetAdmissionFixtures();
     console.log('Checking connected polls, checklists, forwarding, search, and preview opt-out.');
     verifyAccountBrowsers(origin, 'test:interactions');
+    // Independent copy scenarios need their own registration budget on the shared loopback IP.
+    resetAdmissionFixtures();
+    console.log('Checking native and handheld clipboard selection through real messages.');
+    verifyAccountBrowsers(origin, 'test:copy');
     resetAdmissionFixtures();
     console.log('Checking report evidence, account deletion, activity, and notifications.');
     verifyLifecycleBrowsers(origin, storageOrigin);

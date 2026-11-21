@@ -56,6 +56,8 @@ export async function copyMessagesByTouch(options: {
   const { page, first, second, expected } = options;
   const text = second.locator('[data-message-text]').last();
   await text.scrollIntoViewIfNeeded();
+  // Absolute touch coordinates must be sampled after the sliding chat has settled.
+  await text.tap({ trial: true });
   const bounds = await text.boundingBox();
   if (!bounds) {
     throw new Error('The second message is outside the viewport.');

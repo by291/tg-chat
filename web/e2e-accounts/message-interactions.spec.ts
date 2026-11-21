@@ -564,65 +564,66 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   await expect(conversationSearch).toHaveValue(SEARCH_TERM);
 });
 
-test('preserves a native multiline selection and slices the standalone emoji body', async ({
-  context,
-  baseURL,
-}) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  const account = await register(context, baseURL!);
-  const destination = { kind: 'saved' } as const;
-  const formatted = await sendText({
-    account,
-    destination,
-    text: 'First line\nSecond line',
-    richText: '<p><strong>First line</strong><br>Second line</p>',
-  });
-  const emoji = '😊🎈✨';
-  const standalone = await sendText({
-    account,
-    destination,
-    text: emoji,
-  });
-  const { page } = account;
-  await openMessages(page);
-  await openConversation(page, 'Saved Messages');
+test(
+  'preserves a native multiline selection and slices the standalone emoji body',
+  { tag: '@copy' },
+  async ({ context, baseURL }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const account = await register(context, baseURL!);
+    const destination = { kind: 'saved' } as const;
+    const formatted = await sendText({
+      account,
+      destination,
+      text: 'First line\nSecond line',
+      richText: '<p><strong>First line</strong><br>Second line</p>',
+    });
+    const emoji = '😊🎈✨';
+    const standalone = await sendText({
+      account,
+      destination,
+      text: emoji,
+    });
+    const { page } = account;
+    await openMessages(page);
+    await openConversation(page, 'Saved Messages');
 
-  const formattedRow = page.locator(`[data-message-id="${formatted.message.id}"]`);
-  const emojiRow = page.locator(`[data-message-id="${standalone.message.id}"]`);
-  await copyNativeFragment({
-    page,
-    row: formattedRow,
-    start: { text: 'First line', offset: 'First '.length },
-    end: { text: 'Second line', offset: 'Second'.length },
-    expected: 'line\nSecond',
-  });
-  await copyNativeFragment({
-    page,
-    row: emojiRow,
-    start: { text: emoji, offset: '😊'.length },
-    end: { text: emoji, offset: '😊🎈'.length },
-    expected: '🎈',
-  });
+    const formattedRow = page.locator(`[data-message-id="${formatted.message.id}"]`);
+    const emojiRow = page.locator(`[data-message-id="${standalone.message.id}"]`);
+    await copyNativeFragment({
+      page,
+      row: formattedRow,
+      start: { text: 'First line', offset: 'First '.length },
+      end: { text: 'Second line', offset: 'Second'.length },
+      expected: 'line\nSecond',
+    });
+    await copyNativeFragment({
+      page,
+      row: emojiRow,
+      start: { text: emoji, offset: '😊'.length },
+      end: { text: emoji, offset: '😊🎈'.length },
+      expected: '🎈',
+    });
 
-  await emojiRow.focus();
-  await page.keyboard.press('Shift+F10');
-  await page.getByRole('menuitem', { name: 'Select', exact: true }).click();
-  await formattedRow.click();
-  await formattedRow.focus();
-  await page.keyboard.press('Shift+F10');
-  await page.getByRole('menuitem', { name: 'Copy selected', exact: true }).click();
-  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
-  await expect.poll(clipboard).toBe(`First line\nSecond line\n${emoji}`);
-  await page.getByRole('button', { name: 'Cancel selection, 2 messages' }).click();
+    await emojiRow.focus();
+    await page.keyboard.press('Shift+F10');
+    await page.getByRole('menuitem', { name: 'Select', exact: true }).click();
+    await formattedRow.click();
+    await formattedRow.focus();
+    await page.keyboard.press('Shift+F10');
+    await page.getByRole('menuitem', { name: 'Copy selected', exact: true }).click();
+    const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+    await expect.poll(clipboard).toBe(`First line\nSecond line\n${emoji}`);
+    await page.getByRole('button', { name: 'Cancel selection, 2 messages' }).click();
 
-  await page.getByRole('button', { name: 'Search this conversation', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Search in this conversation' }).fill('🎈');
-  const results = page.getByRole('region', { name: 'Search results', exact: true });
-  await results.getByRole('button', { name: new RegExp(emoji) }).click();
-  await expectKeyword(emojiRow, '🎈');
-});
+    await page.getByRole('button', { name: 'Search this conversation', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Search in this conversation' }).fill('🎈');
+    const results = page.getByRole('region', { name: 'Search results', exact: true });
+    await results.getByRole('button', { name: new RegExp(emoji) }).click();
+    await expectKeyword(emojiRow, '🎈');
+  },
+);
 
-test.describe('handheld message selection', () => {
+test.describe('handheld message selection', { tag: '@copy' }, () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 
   test('copies chronologically after holding and tapping messages', async ({
