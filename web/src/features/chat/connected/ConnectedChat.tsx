@@ -466,6 +466,10 @@ export function ConnectedChat({
     }
   }
 
+  function jumpToDate(timestamp: number) {
+    void owner.jumpToDate(timestamp).catch(report);
+  }
+
   function retryPendingMessage(messageId: string) {
     void owner.retry(messageId).catch(report);
   }
@@ -1110,6 +1114,7 @@ export function ConnectedChat({
                           onInteract={interact}
                           onOpenMedia={() => undefined}
                           onRedial={canStartCall ? startCall : undefined}
+                          onJumpToDate={jumpToDate}
                           onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
                         />
                       </MessageRetryContext.Provider>

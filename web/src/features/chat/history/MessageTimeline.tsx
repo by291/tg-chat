@@ -76,6 +76,7 @@ interface MessageTimelineProps {
   onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
   onOpenMedia: (message: Message) => void;
   onRedial?: (mode: CallMode) => void;
+  onJumpToDate?: (timestamp: number) => void;
   onJumpToMessage: (messageId: string) => void;
 }
 
@@ -113,6 +114,7 @@ function VirtualMessageHistory({
   onInteract,
   onOpenMedia,
   onRedial,
+  onJumpToDate,
   onJumpToMessage,
 }: VirtualMessageHistoryProps) {
   const currentUserId = useCurrentUserId();
@@ -248,6 +250,13 @@ function VirtualMessageHistory({
     }
     setCalendarRequest((previous) => ({ timestamp, id: previous.id + 1 }));
     setIsCalendarOpen(true);
+  }
+
+  function jumpToLoadedDate(timestamp: number) {
+    const message = messages.find((entry) => entry.createdAt >= timestamp) ?? messages.at(-1);
+    if (message) {
+      onJumpToMessage(message.id);
+    }
   }
 
   function canReplyToMessage(message?: Message): message is Message {
@@ -426,13 +435,7 @@ function VirtualMessageHistory({
           isOpen={isCalendarOpen}
           initialDate={calendarRequest.timestamp}
           onClose={() => setIsCalendarOpen(false)}
-          onSelect={(timestamp) => {
-            const message =
-              messages.find((entry) => entry.createdAt >= timestamp) ?? messages.at(-1);
-            if (message) {
-              onJumpToMessage(message.id);
-            }
-          }}
+          onSelect={onJumpToDate ?? jumpToLoadedDate}
         />
       )}
       {!isPreview && canUseMessageActions && (
