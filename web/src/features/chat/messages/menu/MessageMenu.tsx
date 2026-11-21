@@ -30,6 +30,7 @@ import overlays from '@/components/overlays/overlays.module.css';
 import { getMessageDownloads } from '../messageDownloads';
 import styles from './MessageMenu.module.css';
 import { MAX_CHECKLIST_TASKS } from '@/domain/messages/media';
+import { usePollClock } from '../content/poll/usePollClock';
 import { pollManagement } from '../content/poll/pollManagement';
 import { useStructuredMessageActions } from '../StructuredMessageActions';
 import { MessageReadTimeLine } from './MessageReadTimeScope';
@@ -66,7 +67,7 @@ interface MessageMenuItem {
   icon: LucideIcon;
 }
 
-function getMessageItems(message: Message, currentUserId: string): MessageMenuItem[] {
+function getMessageItems(message: Message, currentUserId: string, now: number): MessageMenuItem[] {
   const items: MessageMenuItem[] = [
     {
       action: 'reply',
@@ -100,7 +101,7 @@ function getMessageItems(message: Message, currentUserId: string): MessageMenuIt
     });
   }
   if (media?.kind === 'poll') {
-    const permissions = pollManagement(media);
+    const permissions = pollManagement(media, now);
     if (permissions.canChangeVote) {
       items.push({
         action: 'change-vote',
@@ -232,6 +233,8 @@ export function MessageMenu({
   const isExpanded = Boolean(pickerBounds);
   const structuredActions = useStructuredMessageActions();
   const isSelecting = selectedMessages !== undefined;
+  const menuMedia = isOpen && !isSelecting ? message?.media : undefined;
+  const now = usePollClock(menuMedia?.kind === 'poll' ? menuMedia.closesAt : undefined);
   const canShowReadTime =
     isOpen &&
     !isSelecting &&
@@ -243,7 +246,7 @@ export function MessageMenu({
   if (message) {
     items = selectedMessages
       ? getSelectionItems({ message, selectedMessages })
-      : getMessageItems(message, currentUserId);
+      : getMessageItems(message, currentUserId, now);
   }
   if (allowedActions) {
     const canReport =

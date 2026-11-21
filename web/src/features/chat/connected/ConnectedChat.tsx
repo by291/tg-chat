@@ -54,6 +54,7 @@ import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
 import { PinnedMessages } from './PinnedMessages';
+import { PollCloseConfirmation } from './PollCloseConfirmation';
 import { PollVotersPanel } from './PollVotersPanel';
 import { ComposerListDialog, type ListSubmitOptions } from '../composer/forms/ComposerListDialog';
 import { pollInput } from '../data/pollInput';
@@ -253,7 +254,7 @@ export function ConnectedChat({
   const [searchConversationId, setSearchConversationId] = useState<string>();
   const [editing, setEditing] = useState<CanonicalMessage>();
   const [editVersion, setEditVersion] = useState('');
-  const [confirmation, setConfirmation] = useState<Confirmation>();
+  const [confirmation, setConfirmation] = useState<Confirmation | { pollId: string }>();
   const [isPinsOpen, setIsPinsOpen] = useState(false);
   const [contactDestination, setContactDestination] = useState<string>();
   const [checklistEditor, setChecklistEditor] = useState<{
@@ -770,16 +771,7 @@ export function ConnectedChat({
           if (!body.can_close || body.is_closed) {
             return false;
           }
-          setConfirmation({
-            title: 'Close poll?',
-            description: 'Voting will end immediately.',
-            choices: [
-              {
-                label: 'Close poll',
-                action: () => owner.command({ kind: 'close_poll', message_id: messageId }),
-              },
-            ],
-          });
+          setConfirmation({ pollId: messageId });
           break;
         case 'view-voters': {
           const trigger = document.activeElement;
@@ -1402,12 +1394,22 @@ export function ConnectedChat({
               onSubmit={saveChecklist}
             />
           )}
-          <ActionConfirmation
-            confirmation={confirmation}
-            isBusy={isPersisting}
-            onCancel={() => setConfirmation(undefined)}
-            onChoose={(action) => void confirm(action)}
-          />
+          {confirmation && 'pollId' in confirmation ? (
+            <PollCloseConfirmation
+              owner={owner}
+              messageId={confirmation.pollId}
+              isBusy={isPersisting}
+              onCancel={() => setConfirmation(undefined)}
+              onChoose={(action) => void confirm(action)}
+            />
+          ) : (
+            <ActionConfirmation
+              confirmation={confirmation}
+              isBusy={isPersisting}
+              onCancel={() => setConfirmation(undefined)}
+              onChoose={(action) => void confirm(action)}
+            />
+          )}
         </ChatLayout>
       </div>
     </CurrentUserProvider>

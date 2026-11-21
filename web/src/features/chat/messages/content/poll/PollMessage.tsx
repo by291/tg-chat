@@ -1,16 +1,15 @@
 import { Plus } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { MAX_POLL_OPTIONS, MAX_POLL_OPTION_LENGTH, type PollMedia } from '@/domain/messages/media';
 import type { MessageInteraction } from '@/domain/messages/interaction';
 import { getSelectedPollOptions } from '../../../state/pollVoting';
 import { Ripple } from '@/components/Ripple';
+import { usePollClock } from './usePollClock';
 import { pollManagement } from './pollManagement';
 import { PollOption } from './PollOption';
 import { getPollPercentages } from './pollResults';
 import { useStructuredMessageAction } from '../../StructuredMessageActions';
 import styles from './PollMessage.module.css';
-
-const MAX_TIMEOUT = 2_147_483_647;
 
 /** Render a poll with explicit submission, quiz results, and revoting rules. */
 export function PollMessage({
@@ -27,7 +26,7 @@ export function PollMessage({
   const [isEditingVote, setIsEditingVote] = useState(false);
   const [newOption, setNewOption] = useState('');
   const [isAddingOption, setIsAddingOption] = useState(false);
-  const [now, setNow] = useState(Date.now);
+  const now = usePollClock(poll.closesAt);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const resultCountId = useId();
   const hasPendingAction = useRef(false);
@@ -99,22 +98,6 @@ export function PollMessage({
       }
     },
   });
-
-  // prettier-ignore
-  useEffect(() => {
-    if (!poll.closesAt || isClosed) {
-      return;
-    }
-
-    const remaining = Math.min(MAX_TIMEOUT, Math.max(0, poll.closesAt - Date.now()));
-    const timer = setTimeout(() => setNow(Date.now()), remaining);
-
-    return () => clearTimeout(timer);
-  }, [
-    poll.closesAt,
-    isClosed,
-    now
-  ]);
 
   async function submitAction(interaction: MessageInteraction) {
     if (hasPendingAction.current) {

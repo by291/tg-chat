@@ -3,6 +3,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PollMedia } from '@/domain/messages/media';
+import { canonicalFixture } from '../../../data/messageFixtures.test-support';
+import { renderMessage } from '../../../data/messageModels';
+import { MessageMenu } from '../../menu/MessageMenu';
 import { PollMessage } from './PollMessage';
 import { createPollAnimationClock } from './pollAnimationClock.test-support';
 import {
@@ -324,4 +327,48 @@ it('drops a queued poll management request after permissions are revoked', () =>
   view.rerender(card({ canClose: false }));
   fireEvent.click(screen.getByRole('button', { name: 'Request close' }));
   expect(onInteract).not.toHaveBeenCalled();
+});
+
+it('withdraws management items from an open menu when the poll reaches its deadline', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    },
+  );
+  const message = {
+    ...renderMessage(canonicalFixture()),
+    media: {
+      ...poll,
+      selectedOptionIds: ['layout'],
+      canClose: true,
+      canEdit: true,
+      closesAt: Date.now() + POLL_CLOSE_DELAY_MS,
+    },
+  };
+  const target = {
+    row: document.body,
+    messageId: message.id,
+    point: { x: 0, y: 0 },
+  };
+  render(
+    <MessageMenu
+      contentId="poll-menu"
+      target={target}
+      isOpen
+      message={message}
+      onClose={vi.fn()}
+      onExitComplete={vi.fn()}
+      onCommand={vi.fn()}
+      onReact={vi.fn()}
+    />,
+  );
+  const management = () =>
+    screen.queryAllByRole('menuitem', { name: /change vote|edit poll|close poll/i });
+  expect(management()).toHaveLength(3);
+  await animationClock.advance(POLL_CLOSE_DELAY_MS);
+  expect(management()).toHaveLength(0);
+  expect(screen.getByRole('menuitem', { name: 'Reply' })).toBeTruthy();
 });
