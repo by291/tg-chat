@@ -105,6 +105,9 @@ function setup(initialCall: CallView, options: PanelTestOptions = {}) {
 }
 
 beforeEach(() => {
+  // Motion restores the viewport after measuring auto height. jsdom has no scrolling viewport.
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
   // jsdom does not decode audio. Track playback at the browser media boundary.
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (
     this: HTMLMediaElement,
@@ -174,7 +177,7 @@ it('counts from server activation in the compact panel and through reconnect', a
 
   await updateCall({ ...activeCall, reconnect_deadline: '2026-11-13T10:01:30Z' });
   await act(async () => vi.advanceTimersByTimeAsync(2_000));
-  expect(screen.getByText('Reconnecting…')).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toBe('Reconnecting…');
   expect(timer.textContent).toBe('01:09');
 });
 
@@ -294,4 +297,19 @@ it('keeps the current input and reports a refused switch from device settings', 
   fireEvent.change(camera, { target: { value: 'rear' } });
   expect((await screen.findByRole('alert')).textContent).toContain('could not be used');
   expect(camera.value).toBe('');
+});
+
+it('opens expanded for fresh media consent when the same call is rediscovered', async () => {
+  const { owner, updateCall } = setup(connecting);
+  await act(async () => owner.refresh());
+  fireEvent.click(screen.getByRole('button', { name: 'Collapse call panel' }));
+  const previousHangup = screen.getByRole('button', { name: 'Hang up' });
+
+  await updateCall(null);
+  await updateCall(connecting);
+  expect(screen.getByRole('button', { name: 'Enable microphone and camera' })).toBeTruthy();
+
+  // Queued input on a departing control cannot end the newly admitted call.
+  await act(async () => previousHangup.click());
+  expect(screen.getByRole('button', { name: 'Enable microphone and camera' })).toBeTruthy();
 });

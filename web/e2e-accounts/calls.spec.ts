@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { get } from 'node:http';
 import { expect, test, type BrowserContext, type Page, type Request } from '@playwright/test';
 import type { components } from '../src/api/schema';
+import { verifyInterruptedCallEntry } from './callPanelMotion';
 
 const PASSWORD = 'a complete connected calls password phrase';
 const MEDIA_TIMEOUT_MS = 20_000;
@@ -252,7 +253,7 @@ async function verifyVideo(input: { caller: Device; recipient: Device }) {
   await expect(timer).not.toHaveText(await timer.innerText());
 
   const peerCamera = caller.page.locator('video[aria-label="Peer camera"]');
-  await button(caller.page, 'Collapse call panel').click();
+  await verifyInterruptedCallEntry(caller.page);
   await expect(peerCamera).toBeAttached();
   await expect(peerCamera).toBeHidden();
   await expectRemoteVideo(recipient.page);

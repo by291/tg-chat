@@ -48,8 +48,10 @@ export function CallControls({
   owner,
   snapshot,
   isCompact,
-}: CallControlsProps & { isCompact: boolean }) {
-  const { call, isBusy, mediaStatus, isMuted, isCameraOn } = snapshot;
+  isExiting = false,
+}: CallControlsProps & { isCompact: boolean; isExiting?: boolean }) {
+  const { call, mediaStatus, isMuted, isCameraOn } = snapshot;
+  const isBusy = snapshot.isBusy || isExiting;
   if (!call) {
     return null;
   }

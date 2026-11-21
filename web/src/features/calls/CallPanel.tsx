@@ -1,56 +1,39 @@
 import { ChevronDown, Maximize, Minimize, X } from 'lucide-react';
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import { Avatar } from '@/components/Avatar';
+import { AnimatePresence } from 'motion/react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from 'react';
+import { CallCompactBar } from './CallCompactBar';
+import { callPresentation, CallIdentity } from './CallIdentity';
 import type { CallOwner } from './CallOwner';
-import type { CallVideo, CallView, MediaStatus } from './callModels';
+import type { CallVideo, CallView } from './callModels';
 import { CallControls, type CallControlsProps } from './CallControls';
 import { CallDeviceSettings } from './CallDeviceSettings';
-import { CallGradient, type CallTone } from './CallGradient';
+import { CallGradient } from './CallGradient';
 import { useCallFullscreen } from './useCallFullscreen';
 import styles from './CallPanel.module.css';
-
-const MEDIA_STATUS: Record<MediaStatus, string> = {
-  idle: 'Ready to join',
-  preparing: 'Waiting for device permission…',
-  waiting: 'Preparing the call…',
-  joining: 'Connecting media…',
-  connected: 'Connected',
-  reconnecting: 'Reconnecting…',
-};
 
 const RINGTONE_SOURCE = {
   incoming: '/assets/audio/call-incoming.wav',
   outgoing: '/assets/audio/call-outgoing.wav',
 };
 
-const MILLISECONDS_PER_SECOND = 1_000;
-const SECONDS_PER_MINUTE = 60;
-const MINUTES_PER_HOUR = 60;
-const SECONDS_PER_HOUR = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
-
 interface CallPanelProps {
   owner: CallOwner;
 }
 
-function CallDuration({ startedAt }: { startedAt: number }) {
-  const [now, setNow] = useState(Date.now);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), MILLISECONDS_PER_SECOND);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const elapsed = Math.max(0, Math.floor((now - startedAt) / MILLISECONDS_PER_SECOND));
-  const hours = Math.floor(elapsed / SECONDS_PER_HOUR);
-  const minutes = Math.floor((elapsed % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
-  const seconds = elapsed % SECONDS_PER_MINUTE;
-  const clock = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-  return (
-    <span className={styles.duration} role="timer" aria-label="Call duration">
-      {hours > 0 ? `${hours}:${clock}` : clock}
-    </span>
-  );
+interface ExpandedCallProps extends CallControlsProps {
+  call: CallView;
+  isCompact: boolean;
+  mediaId: string;
+  collapseRef: RefObject<HTMLButtonElement | null>;
+  onCollapse: () => void;
 }
 
 function CallVideoTile({ video }: { video: CallVideo }) {
@@ -85,6 +68,36 @@ function CallVideoTile({ video }: { video: CallVideo }) {
 export function CallPanel({ owner }: CallPanelProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const { call, ownsTab, isBusy, error } = snapshot;
+  const mediaId = useId();
+  const [compactId, setCompactId] = useState<string>();
+  const restoreFocus = useRef<HTMLButtonElement>(null);
+  const collapseFocus = useRef<HTMLButtonElement>(null);
+  const focusRequest = useRef<string | undefined>(undefined);
+  const isCompact = Boolean(
+    call && ownsTab && compactId === call.id && call.allowed_actions.includes('hangup'),
+  );
+  // A released call can be rediscovered with the same ID and must regain media consent.
+  if (compactId && !isCompact) {
+    setCompactId(undefined);
+  }
+
+  // An explicit toggle moves keyboard focus. Server snapshots never steal focus from the chat.
+  useLayoutEffect(() => {
+    if (!call || focusRequest.current !== call.id) {
+      return;
+    }
+    focusRequest.current = undefined;
+    const target = isCompact ? restoreFocus.current : collapseFocus.current;
+    target?.focus({ preventScroll: true });
+  }, [call, isCompact]);
+
+  function toggleCompact() {
+    if (call) {
+      focusRequest.current = call.id;
+      setCompactId(isCompact ? undefined : call.id);
+    }
+  }
+
   const ringingCall = ownsTab && !isBusy && call?.phase === 'ringing' ? call : undefined;
   const ringingId = ringingCall?.id;
   const ringingDirection = ringingCall?.direction;
@@ -101,71 +114,79 @@ export function CallPanel({ owner }: CallPanelProps) {
     return () => ringtone.pause();
   }, [ringingId, ringingDirection]);
 
-  if (!call && !error && !isBusy) {
-    return null;
-  }
-
-  if (!call || !ownsTab) {
-    return (
-      <section className={styles.notice} aria-label="Call">
-        {error ? (
-          <p role="alert">{error}</p>
-        ) : (
-          <p role="status">{call ? 'Call is open in another tab.' : 'Starting call…'}</p>
+  const hasNotice = (!call || !ownsTab) && Boolean(call || error || isBusy);
+  return (
+    <>
+      <AnimatePresence initial={false}>
+        {isCompact && call && (
+          <CallCompactBar
+            key={call.id}
+            mediaId={mediaId}
+            restoreRef={restoreFocus}
+            onRestore={toggleCompact}
+            presentation={callPresentation(call, snapshot.mediaStatus)}
+            snapshot={snapshot}
+            owner={owner}
+          />
         )}
-        {!call && error && (
-          <button
-            className={styles.tool}
-            type="button"
-            aria-label="Dismiss call message"
-            onClick={() => owner.dismiss()}
-          >
-            <X aria-hidden="true" />
-          </button>
-        )}
-      </section>
-    );
-  }
-
-  return <CallPanelContents key={call.id} call={call} snapshot={snapshot} owner={owner} />;
+      </AnimatePresence>
+      {call && ownsTab && (
+        <CallPanelContents
+          key={call.id}
+          call={call}
+          owner={owner}
+          snapshot={snapshot}
+          isCompact={isCompact}
+          mediaId={mediaId}
+          collapseRef={collapseFocus}
+          onCollapse={toggleCompact}
+        />
+      )}
+      {hasNotice && (
+        <section className={styles.notice} aria-label="Call">
+          {error ? (
+            <p role="alert">{error}</p>
+          ) : (
+            <p role="status">{call ? 'Call is open in another tab.' : 'Starting call…'}</p>
+          )}
+          {!call && error && (
+            <button
+              className={styles.tool}
+              type="button"
+              aria-label="Dismiss call message"
+              onClick={() => owner.dismiss()}
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
+        </section>
+      )}
+    </>
+  );
 }
 
-function CallPanelContents({ call, snapshot, owner }: CallControlsProps & { call: CallView }) {
-  const mediaId = useId();
-  const statusId = useId();
-  const [isMinimized, setIsMinimized] = useState(false);
+function CallPanelContents({
+  call,
+  snapshot,
+  owner,
+  isCompact,
+  mediaId,
+  collapseRef,
+  onCollapse,
+}: ExpandedCallProps) {
   const fullscreen = useCallFullscreen();
   const { videos, mediaStatus, error } = snapshot;
   const canCollapse = call.allowed_actions.includes('hangup');
-  const isCollapsed = canCollapse && isMinimized;
-  const isRinging = call.phase === 'ringing';
-  const isReconnecting = Boolean(call.reconnect_deadline) || mediaStatus === 'reconnecting';
-  const startedAt = call.active_at ? Date.parse(call.active_at) : NaN;
-  const hasDuration = call.phase === 'active' && Number.isFinite(startedAt);
   const hasPeerVideo = videos.some((video) => !video.isLocal);
-  const compactLabel = isCollapsed ? 'Restore call panel' : 'Collapse call panel';
+  const presentation = callPresentation(call, mediaStatus);
   const fullscreenLabel = fullscreen.isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
 
-  let tone: CallTone = 'connecting';
-  let status = MEDIA_STATUS[mediaStatus];
-  if (isReconnecting) {
-    tone = 'weak';
-    status = MEDIA_STATUS.reconnecting;
-  } else if (isRinging) {
-    status =
-      call.direction === 'outgoing'
-        ? `Outgoing ${call.mode} call · Ringing…`
-        : `Incoming ${call.mode} call`;
-  } else if (mediaStatus === 'connected') {
-    tone = 'active';
-  }
-
-  async function toggleCompact() {
+  async function collapse() {
     // Keep fullscreen bound to the expanded panel until the browser confirms its exit.
     if (fullscreen.isFullscreen && !(await fullscreen.exit())) {
       return;
     }
-    setIsMinimized(!isCollapsed);
+    onCollapse();
   }
 
   return (
@@ -173,17 +194,12 @@ function CallPanelContents({ call, snapshot, owner }: CallControlsProps & { call
       ref={fullscreen.panelRef}
       className={styles.panel}
       aria-label="Call"
-      data-collapsed={isCollapsed || undefined}
+      hidden={isCompact}
       data-video={videos.length > 0 || undefined}
     >
-      <CallGradient tone={tone} />
+      <CallGradient tone={presentation.tone} />
       {/* Hiding the video layer leaves both the node and its playing MediaStream attached. */}
-      <div
-        id={mediaId}
-        className={styles.videos}
-        hidden={isCollapsed}
-        data-has-peer={hasPeerVideo || undefined}
-      >
+      <div id={mediaId} className={styles.videos} data-has-peer={hasPeerVideo || undefined}>
         {videos.map((video) => (
           <CallVideoTile key={video.id} video={video} />
         ))}
@@ -193,18 +209,18 @@ function CallPanelContents({ call, snapshot, owner }: CallControlsProps & { call
           <button
             type="button"
             className={styles.collapse}
-            aria-label={compactLabel}
-            title={compactLabel}
+            ref={collapseRef}
+            aria-label="Collapse call panel"
+            title="Collapse call panel"
             aria-controls={mediaId}
-            aria-describedby={isCollapsed ? statusId : undefined}
-            aria-expanded={!isCollapsed}
+            aria-expanded={!isCompact}
             disabled={fullscreen.isPending}
-            onClick={() => void toggleCompact()}
+            onClick={() => void collapse()}
           >
             <ChevronDown aria-hidden="true" />
           </button>
         )}
-        {!isCollapsed && (
+        {!isCompact && (
           <div className={styles.tools}>
             {mediaStatus === 'connected' && (
               <CallDeviceSettings snapshot={snapshot} owner={owner} />
@@ -224,22 +240,13 @@ function CallPanelContents({ call, snapshot, owner }: CallControlsProps & { call
           </div>
         )}
       </div>
-      <div className={styles.identity}>
-        <Avatar initials={call.peer_display_name.slice(0, 2).toUpperCase()} />
-        <h2>{call.peer_display_name}</h2>
-        <div className={styles.statusLine}>
-          <span id={statusId} role="status">
-            {status}
-          </span>
-          {hasDuration && <CallDuration startedAt={startedAt} />}
-        </div>
-      </div>
+      <CallIdentity {...presentation} />
       {(error || fullscreen.error) && (
         <p className={styles.error} role="alert">
           {error || fullscreen.error}
         </p>
       )}
-      <CallControls owner={owner} snapshot={snapshot} isCompact={isCollapsed} />
+      <CallControls owner={owner} snapshot={snapshot} isCompact={false} />
     </section>
   );
 }

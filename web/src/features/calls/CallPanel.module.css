@@ -330,7 +330,17 @@
   border-radius: 0;
 }
 
+/* Anchoring the plate at the bottom reveals exactly the space the workspace yields each frame. */
+.compactSlot {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: none;
+  overflow: clip;
+}
+
 .panel[data-collapsed] {
+  animation: none;
   position: relative;
   inset: auto;
   flex: none;
@@ -347,7 +357,6 @@
   box-shadow: none;
 }
 
-.panel[data-collapsed] .toolbar,
 .panel[data-collapsed] .actions {
   display: contents;
 }
@@ -365,7 +374,6 @@
   border-radius: 6px;
 }
 
-.panel[data-collapsed] .collapse svg,
 .panel[data-collapsed] .caption {
   display: none;
 }
