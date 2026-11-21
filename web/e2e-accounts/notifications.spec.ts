@@ -121,7 +121,7 @@ function alertToast(page: Page) {
 }
 
 function chatPane(page: Page) {
-  return page.getByRole('region', { name: 'Chat', exact: true });
+  return page.getByRole('main', { name: 'Chat', exact: true });
 }
 
 function nextSync(page: Page) {

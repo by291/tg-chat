@@ -315,7 +315,7 @@ async function verifyMissed(input: { caller: Device; recipient: Device; callerNa
   reopened.setDefaultTimeout(MEDIA_TIMEOUT_MS);
   await reopened.goto('/');
   await reopened.getByRole('button', { name: new RegExp(`^${callerName}`) }).click();
-  const chat = reopened.getByRole('region', { name: 'Chat', exact: true });
+  const chat = reopened.getByRole('main', { name: 'Chat', exact: true });
   await expect(chat.getByText('Missed incoming video call', { exact: true })).toHaveCount(1);
   await button(reopened, 'Redial video call').click();
 

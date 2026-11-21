@@ -48,7 +48,7 @@ export async function communities(page: Page) {
 /** Locate the active conversation heading without matching sidebar labels. */
 export function chatHeading(page: Page, title: string) {
   return page
-    .getByRole('region', { name: 'Chat', exact: true })
+    .getByRole('main', { name: 'Chat', exact: true })
     .getByRole('heading', { name: title, exact: true });
 }
 
