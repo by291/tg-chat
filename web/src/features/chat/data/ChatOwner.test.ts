@@ -1970,6 +1970,73 @@ it('preserves typing that follows a draft recovery choice', async () => {
   }
 });
 
+it.each(['removed', 'edited'] as const)(
+  'scrubs the %s reply source while publishing a recovered draft',
+  async (change) => {
+    const store = new PendingMessages({ key: crypto.randomUUID() });
+    const source = historyMessage(1);
+    const edited = {
+      ...source,
+      version: '2',
+      content: { ...source.content, text: 'Revised message' },
+    };
+    const page = changePage({
+      position: 2,
+      conversation: DIRECT,
+      removedMessageId: change === 'removed' ? source.id : undefined,
+      message: change === 'edited' ? edited : undefined,
+    });
+    const { owner } = fixture({
+      store,
+      conversation: DIRECT,
+      history: async () => historyPage({ first: 1, last: 1 }),
+      transport: syncTransport(page),
+    });
+    const destination = `conversation:${DIRECT.id}`;
+    try {
+      await owner.start();
+      const alternative = {
+        id: 'quoted-draft',
+        value: { text: 'My own spelling' },
+        reply: { message_id: source.id, quote: 'Message 1' },
+      };
+      const sibling = {
+        ...alternative,
+        id: 'sibling-draft',
+        value: { text: 'Other words' },
+      };
+      await store.saveDraft({ destination, draft: alternative });
+      await store.saveDraft({ destination, draft: sibling });
+      await store.saveDraft({ destination, draft: { id: 'current', value: { text: 'Current' } } });
+      await owner.select(SELECTION);
+
+      const choice = owner.getSnapshot().draftAlternatives![0];
+      const finishRecovery = await beginDelayedDraftRecovery(owner, store, choice);
+      await owner.catchUp();
+      await finishRecovery();
+
+      const persisted = await store.read();
+      const editor = owner.getSnapshot();
+      const isRemoved = change === 'removed';
+      for (const draft of [persisted.drafts[destination], editor.draft]) {
+        expect(draft.value.text).toBe('My own spelling');
+        expect(draft.reply?.message_id).toBe(source.id);
+        expect(draft.reply?.quote).toBeNull();
+        expect(draft.isReplyUnavailable ?? false).toBe(isRemoved);
+      }
+      const savedAlternatives = persisted.draftAlternatives?.[destination];
+      for (const alternatives of [savedAlternatives, editor.draftAlternatives]) {
+        const other = alternatives?.find((draft) => draft.id === sibling.id);
+        expect(other?.value.text).toBe('Other words');
+        expect(other?.reply?.quote).toBeNull();
+        expect(other?.isReplyUnavailable ?? false).toBe(isRemoved);
+      }
+    } finally {
+      owner.dispose();
+    }
+  },
+);
+
 it('discards a pending restore when the same chat changes membership generation', async () => {
   const store = new PendingMessages({ key: crypto.randomUUID() });
   const conversation = { ...DIRECT, kind: 'group' };

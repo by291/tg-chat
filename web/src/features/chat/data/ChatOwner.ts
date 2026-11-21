@@ -83,6 +83,14 @@ interface ReadAdvance {
 
 type HistoryWindow = Pick<ChatSnapshot, 'messages' | 'precedingMessage' | 'hasOlder' | 'hasNewer'>;
 
+type DraftState = Pick<ChatSnapshot, 'draft' | 'draftConflict' | 'draftAlternatives'>;
+type DraftReplyChange = (draft: Draft) => Draft;
+
+interface DraftRecovery {
+  draft: Draft;
+  replyChanges: DraftReplyChange[];
+}
+
 interface Selection {
   destination: Destination;
   title: string;
@@ -256,7 +264,7 @@ export class ChatOwner {
   private mediaQueue?: ChatMediaQueue;
   private readonly mediaTransport: UploadTransport;
   private draftPromise?: Promise<void>;
-  private latestDraftRecoveryId?: string;
+  private pendingDraftRecovery?: DraftRecovery;
   private draftTimer?: ReturnType<typeof setTimeout>;
   private expiryTimer?: ReturnType<typeof setTimeout>;
   private readonly summaryExpirations = new Map<string, string>();
@@ -805,34 +813,49 @@ export class ChatOwner {
     const destination = destinationKey(selection.destination);
     const generation = this.viewGeneration;
     const previousId = this.snapshot.draft.id;
-    const restored = { ...draft, id: crypto.randomUUID() };
-    // Both choices may start from the same input revision before either write can publish.
-    this.latestDraftRecoveryId = restored.id;
-    await this.requireStore().saveDraft({
-      destination,
-      draft: restored,
-      expectedId: previousId,
-    });
-    await this.requireStore().resolveAlternative({
-      destination,
-      id: draft.id,
-    });
-    const persisted = await this.requireStore().read();
+    const recovery: DraftRecovery = {
+      draft: { ...draft, id: crypto.randomUUID() },
+      replyChanges: [],
+    };
 
-    // Persistence belongs to the original destination even if its editor was replaced meanwhile.
-    const canRestoreEditor =
-      this.latestDraftRecoveryId === restored.id &&
-      this.isCurrentView(generation) &&
-      this.snapshot.selection === selection &&
-      this.snapshot.draft.id === previousId;
-    if (!canRestoreEditor) {
-      return;
+    // Both choices may start from the same input revision before either write can publish.
+    this.pendingDraftRecovery = recovery;
+    try {
+      await this.requireStore().saveDraft({
+        destination,
+        draft: recovery.draft,
+        expectedId: previousId,
+      });
+      await this.requireStore().resolveAlternative({ destination, id: draft.id });
+      const persisted = await this.requireStore().read();
+
+      // Persistence belongs to the original destination even if its editor was replaced meanwhile.
+      const canRestoreEditor =
+        this.pendingDraftRecovery === recovery &&
+        this.isCurrentView(generation) &&
+        this.snapshot.selection === selection &&
+        this.snapshot.draft.id === previousId;
+      if (!canRestoreEditor) {
+        return;
+      }
+
+      // Source edits can arrive after IndexedDB took its snapshot. Replay them before publishing.
+      const applyReplyChanges = (candidate: Draft) => {
+        return recovery.replyChanges.reduce((current, change) => change(current), candidate);
+      };
+      const stored = persisted.drafts[destination];
+      const chosen = stored?.id === recovery.draft.id ? stored : recovery.draft;
+      const alternatives = persisted.draftAlternatives?.[destination] ?? [];
+      this.publish({
+        draft: applyReplyChanges(chosen),
+        draftConflict: undefined,
+        draftAlternatives: alternatives.map(applyReplyChanges),
+      });
+    } finally {
+      if (this.pendingDraftRecovery === recovery) {
+        this.pendingDraftRecovery = undefined;
+      }
     }
-    this.publish({
-      draft: restored,
-      draftConflict: undefined,
-      draftAlternatives: persisted.draftAlternatives?.[destination] ?? [],
-    });
   }
 
   /** Rebase local text only after the user chooses it over the competing server draft. */
@@ -1923,14 +1946,9 @@ export class ChatOwner {
     }
     if (compareCounter(message.version, '1') > 0) {
       const source = { messageId: message.id, text: message.content.text };
-      const conflict = this.snapshot.draftConflict;
-      this.publish({
-        draft: scrubDraftReplyQuote(this.snapshot.draft, source),
-        draftConflict: conflict ? scrubDraftReplyQuote(conflict, source) : undefined,
-        draftAlternatives: this.snapshot.draftAlternatives?.map((draft) =>
-          scrubDraftReplyQuote(draft, source),
-        ),
-      });
+      this.publish(
+        this.changeDraftReplies(this.snapshot, (draft) => scrubDraftReplyQuote(draft, source)),
+      );
       await this.requireStore().scrubReplyQuote(source);
       this.ensureCurrent();
     }
@@ -2037,6 +2055,15 @@ export class ChatOwner {
     this.publish({ conversations });
   }
 
+  private changeDraftReplies(state: DraftState, change: DraftReplyChange): DraftState {
+    this.pendingDraftRecovery?.replyChanges.push(change);
+    return {
+      draft: change(state.draft),
+      draftConflict: state.draftConflict ? change(state.draftConflict) : undefined,
+      draftAlternatives: state.draftAlternatives?.map(change),
+    };
+  }
+
   private async invalidateMessage(messageId: string): Promise<void> {
     this.removeMessage(messageId);
     await this.requireStore().redactReply(messageId);
@@ -2069,13 +2096,7 @@ export class ChatOwner {
       messages,
       precedingMessage,
       firstUnreadMessageId: firstUnreadMessageId === messageId ? undefined : firstUnreadMessageId,
-      draft: redactDraftReply(this.snapshot.draft, messageId),
-      draftConflict: this.snapshot.draftConflict
-        ? redactDraftReply(this.snapshot.draftConflict, messageId)
-        : undefined,
-      draftAlternatives: this.snapshot.draftAlternatives?.map((draft) =>
-        redactDraftReply(draft, messageId),
-      ),
+      ...this.changeDraftReplies(this.snapshot, (draft) => redactDraftReply(draft, messageId)),
     });
   }
 
@@ -2509,21 +2530,17 @@ export class ChatOwner {
           },
         };
       });
-      let draft = this.snapshot.draft;
-      let draftConflict = this.snapshot.draftConflict;
-      let draftAlternatives = this.snapshot.draftAlternatives;
+      let draftState: DraftState = this.snapshot;
       for (const messageId of expiredIds) {
-        draft = redactDraftReply(draft, messageId);
-        draftConflict = draftConflict ? redactDraftReply(draftConflict, messageId) : undefined;
-        draftAlternatives = draftAlternatives?.map((entry) => redactDraftReply(entry, messageId));
+        draftState = this.changeDraftReplies(draftState, (draft) =>
+          redactDraftReply(draft, messageId),
+        );
         void this.store?.redactReply(messageId).catch((error) => this.report(error));
       }
       this.snapshot = {
         ...this.snapshot,
+        ...draftState,
         messages,
-        draft,
-        draftConflict,
-        draftAlternatives,
       };
     }
     if (Number.isFinite(nextExpiry)) {
