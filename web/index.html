@@ -51,7 +51,7 @@
       .startup-sidebar-slot {
         position: absolute;
         inset: 16px auto 16px 16px;
-        width: 360px;
+        width: var(--startup-sidebar-width, 360px);
       }
 
       .startup-sidebar {
@@ -107,12 +107,6 @@
         filter: invert(1);
       }
 
-      @media (max-width: 1300px) {
-        .startup-sidebar-slot {
-          width: 320px;
-        }
-      }
-
       @media (max-width: 760px) {
         .startup-sidebar-slot {
           inset: 8px 8px max(8px, env(safe-area-inset-bottom));
@@ -121,6 +115,20 @@
       }
     </style>
     <script>
+      // Match the mounted resizer before module loading; a storage failure uses the CSS default.
+      try {
+        const minimumWidth = 320;
+        const maximumWidth = 480;
+        const saved = localStorage.getItem('react-tweb.sidebar-width.left.v1');
+        const width = Number(saved);
+        if (saved && Number.isFinite(width)) {
+          const clamped = Math.min(maximumWidth, Math.max(minimumWidth, Math.round(width)));
+          document.documentElement.style.setProperty('--startup-sidebar-width', `${clamped}px`);
+        }
+      } catch {
+        // The default column remains available when storage access is denied.
+      }
+
       // Read only the existing preference; React resolves the complete palette after startup.
       try {
         const storedAppearance = localStorage.getItem('react-tweb.appearance.v1');

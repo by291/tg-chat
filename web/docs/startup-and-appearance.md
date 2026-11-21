@@ -6,7 +6,8 @@ The application separates three milestones: the document can paint, React can mo
 and saved conversation data is ready. Waiting for all three before showing anything causes a blank
 screen even though the layout itself does not depend on restored messages.
 
-A small HTML frame paints the background and sidebar before application modules arrive. React then
+A small HTML frame paints the background and sidebar before application modules arrive. Both the
+frame and the mounted desktop directory use the clamped browser-local column width. React then
 mounts the wallpaper and matching layout while storage restoration continues. Conversation controls
 appear when their data is ready. A storage failure still completes this handoff with usable local
 content and a visible error notice.
