@@ -274,6 +274,7 @@ export class ChatOwner {
   private readonly mediaTransport: UploadTransport;
   private draftPromise?: Promise<void>;
   private draftRecoveries: DraftRecovery[] = [];
+  private pendingDraftReplies = new Set<DraftReplyChange[]>();
   private draftTimer?: ReturnType<typeof setTimeout>;
   private expiryTimer?: ReturnType<typeof setTimeout>;
   private readonly summaryExpirations = new Map<string, string>();
@@ -823,17 +824,42 @@ export class ChatOwner {
       serverVersion: previous.serverVersion ?? this.selectedConversation()?.draft.version ?? '0',
       hasLocalChanges: true,
     };
+    const generation = this.viewGeneration;
+    const destination = destinationKey(selection.destination);
+    const store = this.requireStore();
+    const replyChanges: DraftReplyChange[] = [];
+    this.pendingDraftReplies.add(replyChanges);
     this.publish({ draft });
-    const conflict = await this.requireStore().saveDraft({
-      destination: destinationKey(selection.destination),
-      draft,
-      expectedId: previous.id,
-    });
-    this.ensureCurrent();
-    if (conflict) {
-      this.publish({ draftAlternatives: [...(this.snapshot.draftAlternatives ?? []), conflict] });
+
+    try {
+      const conflict = await store.saveDraft({
+        destination,
+        draft,
+        expectedId: previous.id,
+      });
+      this.ensureCurrent();
+      if (!this.isCurrentView(generation)) {
+        return;
+      }
+      if (conflict) {
+        // A later recovery may already have consumed this choice or scrubbed its reply.
+        const persisted = await store.read();
+        if (!this.isCurrentView(generation)) {
+          return;
+        }
+        const alternatives = persisted.draftAlternatives?.[destination] ?? [];
+        const draftAlternatives = alternatives.map((candidate) =>
+          replyChanges.reduce((current, change) => change(current), candidate),
+        );
+        this.publish({ draftAlternatives });
+      }
+      // Selection changes flush the outgoing draft. Only its current edit owns the next timer.
+      if (this.snapshot.draft.id === draft.id) {
+        this.scheduleDraft();
+      }
+    } finally {
+      this.pendingDraftReplies.delete(replyChanges);
     }
-    this.scheduleDraft();
   }
 
   /** Synchronize one captured draft while preserving later typing and explicit remote conflicts. */
@@ -2121,6 +2147,9 @@ export class ChatOwner {
   }
 
   private changeDraftReplies(state: DraftState, change: DraftReplyChange): DraftState {
+    for (const changes of this.pendingDraftReplies) {
+      changes.push(change);
+    }
     for (const recovery of this.draftRecoveries) {
       recovery.replyChanges.push(change);
     }

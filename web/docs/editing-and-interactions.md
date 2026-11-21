@@ -105,7 +105,9 @@ frontend behavior until a backend supplies authoritative rules.
 ## Connected composition
 
 Draft recovery rechecks the active session, destination, view and editor input after storage
-completes. A reply or edit keeps its context while link metadata loads. Displayable metadata uses
+completes. A concurrent ordinary write preserves the displaced revision for its original
+destination. Only the initiating view publishes those choices, with current reply access applied.
+A reply or edit keeps its context while link metadata loads. Displayable metadata uses
 the shared helper slot, and dismissal restores the underlying action. An unavailable result leaves
 the editor usable and exposes its state to assistive technology.
 

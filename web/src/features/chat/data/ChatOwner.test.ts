@@ -2345,3 +2345,56 @@ it('durably queues a sticker without consuming the unrelated draft and reply', a
   expect(owner.getSnapshot().draft.reply?.message_id).toBe('reply-target');
   owner.dispose();
 });
+
+it.each(['other conversation', 'reopened conversation'])(
+  'isolates a delayed draft conflict in the %s',
+  async (view) => {
+    const store = new PendingMessages({ key: crypto.randomUUID() });
+    const { owner } = fixture({ store, conversation: DIRECT });
+    try {
+      await owner.start();
+      await owner.select(SELECTION);
+      const destination = `conversation:${DIRECT.id}`;
+      await store.saveDraft({
+        destination,
+        draft: { id: 'another-tab', value: { text: 'Alternate wording' } },
+      });
+      const saved = deferredValue<void>();
+      const resume = deferredValue<void>();
+      const write = store.saveDraft.bind(store);
+      vi.spyOn(store, 'saveDraft').mockImplementationOnce(async (choice) => {
+        const result = await write(choice);
+        saved.release();
+        await resume.promise;
+        return result;
+      });
+
+      const editing = owner.setDraft({ text: 'Current wording' });
+      await saved.promise;
+      await owner.select({
+        destination: { kind: 'recipient', user_id: 'different-peer' },
+        title: 'B',
+      });
+      if (view === 'reopened conversation') {
+        await owner.select(SELECTION);
+        await owner.setDraft({ text: 'Newer edit' });
+      }
+      resume.release();
+      await editing;
+      if (view === 'other conversation') {
+        expect(owner.getSnapshot().draftAlternatives).toEqual([]);
+        await owner.select(SELECTION);
+      } else {
+        expect(owner.getSnapshot().draft.value.text).toBe('Newer edit');
+      }
+      expect(owner.getSnapshot().draftAlternatives?.map((choice) => choice.id)).toEqual([
+        'another-tab',
+      ]);
+      const committed = await store.read();
+      const alternatives = committed.draftAlternatives?.[destination];
+      expect(alternatives?.map((choice) => choice.value.text)).toContain('Alternate wording');
+    } finally {
+      owner.dispose();
+    }
+  },
+);
