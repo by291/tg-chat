@@ -73,7 +73,7 @@ import {
 import { MessageComposer, type ComposedMessage } from '../composer/MessageComposer';
 import { MessageTimeline } from '../history/MessageTimeline';
 import { ShareContactDialog } from '../composer/ShareContactDialog';
-import { ContactLinkContext } from '../messages/content/contact/ContactActions';
+import { ConnectedContactLinks } from './ConnectedContactLinks';
 import { ForwardMessageDialog } from '../messages/forwarding/ForwardMessageDialog';
 import { ReportMessageDialog } from './ReportMessageDialog';
 import type { ActivityOwner } from '../activity/ActivityOwner';
@@ -1094,8 +1094,9 @@ export function ConnectedChat({
         owner={owner}
         scope={`${selectedKey}:${owner.mediaVisibilityKey()}`}
       >
-        <ContactLinkContext.Provider
-          value={session ? (id) => void openContactLink(id).catch(report) : undefined}
+        <ConnectedContactLinks
+          session={session}
+          onOpen={(id) => void openContactLink(id).catch(report)}
         >
           <MessageReadTimeScope session={session} isDirect={conversation?.kind === 'direct'}>
             <MessageRetryContext.Provider value={retryPendingMessage}>
@@ -1146,7 +1147,7 @@ export function ConnectedChat({
               />
             </MessageRetryContext.Provider>
           </MessageReadTimeScope>
-        </ContactLinkContext.Provider>
+        </ConnectedContactLinks>
       </ConnectedMediaScope>
     </div>
   ) : (

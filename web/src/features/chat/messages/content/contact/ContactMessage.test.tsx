@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ConversationDirectoryProvider } from '@/features/conversations/ConversationDirectory';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useReducer } from 'react';
 import { messageMediaSchema, type ContactMedia } from '@/domain/messages/media';
@@ -9,6 +9,9 @@ import type { ChatState } from '@/features/chat/state/chatState';
 import { chatReducer } from '../../../state/reducer';
 import { getConversations } from '../../../state/conversations';
 import { parseSavedState } from '../../../state/storage';
+import { CurrentUserProvider } from '../../../CurrentUser';
+import { ConnectedContactLinks } from '../../../connected/ConnectedContactLinks';
+import { createChatOwnerFixture, USER } from '../../../data/chatOwner.test-support';
 import { ContactActionsProvider } from './ContactActions';
 import { ContactCard } from '../MessageCards';
 import { ToastViewport } from '@/components/Toast';
@@ -73,6 +76,64 @@ afterEach(() => {
 });
 
 describe('shared contacts', () => {
+  it('preserves the card through denial, addition, removal and blocking', async () => {
+    const denied = Response.json(
+      {
+        error: {
+          code: 'forbidden',
+          message: 'Private contact',
+          request_id: 'denied',
+        },
+      },
+      { status: 403 },
+    );
+    const transport = vi
+      .fn()
+      .mockResolvedValueOnce(denied)
+      .mockImplementation(async () => new Response(null, { status: 204 }));
+    const { session } = createChatOwnerFixture({ transport });
+    const card = (userId: string) => (
+      <CurrentUserProvider value={USER.id}>
+        <ConnectedContactLinks session={session} onOpen={vi.fn()}>
+          <ContactCard media={{ ...contact, userId }} />
+        </ConnectedContactLinks>
+      </CurrentUserProvider>
+    );
+    const view = render(card(USER.id));
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+
+    view.rerender(card('linked-account'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Private contact');
+    expect(screen.getByText(contact.phone)).toBeTruthy();
+    expect(screen.getByText(contact.name)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Add' })).toBeNull());
+    view.rerender(card(USER.id));
+    view.rerender(card('linked-account'));
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+
+    await act(() =>
+      session.setRelationship({
+        id: 'linked-account',
+        kind: 'contacts',
+        shouldInclude: false,
+      }),
+    );
+    expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy();
+    await act(() =>
+      session.setRelationship({
+        id: 'linked-account',
+        kind: 'blocks',
+        shouldInclude: true,
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+    expect(screen.getByText(contact.name)).toBeTruthy();
+    session.dispose();
+  });
+
   it('identifies a registered peer without mistaking its phone for a telephone link', () => {
     const registeredContact = { ...contact, userId: 'maya' };
     render(<ContactConversation media={registeredContact} />);

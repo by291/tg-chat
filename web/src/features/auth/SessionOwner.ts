@@ -2,6 +2,13 @@ import createClient, { type Client } from 'openapi-fetch';
 import { z } from 'zod';
 import type { components, paths } from '@/api/schema';
 
+import {
+  bootstrapRelationships,
+  changedRelationships,
+  type AccountRelationships,
+  type RelationshipChange,
+} from '../accounts/accountRelationships';
+
 type AuthResponse = components['schemas']['AuthResponse'];
 type Login = components['schemas']['Login'];
 type Registration = components['schemas']['Registration'];
@@ -26,6 +33,7 @@ interface OwnerOptions {
 export interface SessionSnapshot {
   auth: AuthResponse | null;
   revision: number;
+  relationships?: AccountRelationships;
   preferences?: AccountPreferences;
 }
 
@@ -83,6 +91,8 @@ export class SessionOwner {
   private readonly origin: string;
   private channel: BroadcastChannel | null = null;
   private settingsRequest = 0;
+  private bootstrapChanges?: RelationshipChange[];
+  private relationshipWrites = new Map<string, Promise<void>>();
   private requestedSettingsVersion?: string;
 
   /** Scope private requests to one deployment and one in-memory session generation. */
@@ -131,6 +141,8 @@ export class SessionOwner {
     this.controller.abort();
     this.controller = new AbortController();
     this.requestedSettingsVersion = undefined;
+    this.bootstrapChanges = undefined;
+    this.relationshipWrites.clear();
     this.snapshot = { auth: null, revision: this.snapshot.revision + 1 };
     this.notify();
     if (shouldBroadcast) {
@@ -150,6 +162,8 @@ export class SessionOwner {
     this.controller.abort();
     this.controller = new AbortController();
     this.requestedSettingsVersion = undefined;
+    this.bootstrapChanges = undefined;
+    this.relationshipWrites.clear();
     this.snapshot = { auth, revision: this.snapshot.revision + 1 };
     this.notify();
     if (shouldBroadcast) {
@@ -180,6 +194,61 @@ export class SessionOwner {
         return;
       }
       throw error;
+    }
+  }
+
+  /** Read the chat bootstrap and reconcile relationship writes admitted while it was loading. */
+  async loadChatBootstrap() {
+    const revision = this.snapshot.revision;
+    const changes: RelationshipChange[] = [];
+    this.bootstrapChanges = changes;
+    try {
+      const response = await this.client.GET('/api/v1/chat/bootstrap');
+      this.ensureCurrent(revision);
+      const bootstrap = requirePayload(response);
+      if (this.bootstrapChanges === changes) {
+        const initial = bootstrapRelationships(bootstrap);
+        const relationships = changes.reduce<AccountRelationships>(changedRelationships, initial);
+        this.snapshot = { ...this.snapshot, relationships };
+        this.notify();
+      }
+      return bootstrap;
+    } finally {
+      if (this.bootstrapChanges === changes) {
+        this.bootstrapChanges = undefined;
+      }
+    }
+  }
+
+  /** Serialize writes to each peer so a later removal wins over an outstanding card Add. */
+  async setRelationship(change: RelationshipChange) {
+    const revision = this.snapshot.revision;
+    const key = change.id;
+    const previous = this.relationshipWrites.get(key);
+    const write = async () => {
+      this.ensureCurrent(revision);
+      const path = change.kind === 'contacts' ? '/api/v1/contacts' : '/api/v1/blocks';
+      const parameters = { body: { target_id: change.id } };
+      if (change.shouldInclude) {
+        await this.client.PUT(path, parameters);
+      } else {
+        await this.client.DELETE(path, parameters);
+      }
+      this.ensureCurrent(revision);
+      this.bootstrapChanges?.push(change);
+      const relationships = changedRelationships(this.snapshot.relationships, change);
+      this.snapshot = { ...this.snapshot, relationships };
+      this.notify();
+    };
+
+    const pending = previous ? previous.then(write, write) : write();
+    this.relationshipWrites.set(key, pending);
+    try {
+      await pending;
+    } finally {
+      if (this.relationshipWrites.get(key) === pending) {
+        this.relationshipWrites.delete(key);
+      }
     }
   }
 

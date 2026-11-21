@@ -19,23 +19,23 @@ const MINIMUM_SEARCH_LENGTH = 2;
 
 const RELATIONSHIPS = {
   add: {
-    path: '/api/v1/contacts',
-    method: 'PUT',
+    kind: 'contacts',
+    shouldInclude: true,
     result: 'added to contacts',
   },
   remove: {
-    path: '/api/v1/contacts',
-    method: 'DELETE',
+    kind: 'contacts',
+    shouldInclude: false,
     result: 'removed from contacts',
   },
   block: {
-    path: '/api/v1/blocks',
-    method: 'PUT',
+    kind: 'blocks',
+    shouldInclude: true,
     result: 'blocked',
   },
   unblock: {
-    path: '/api/v1/blocks',
-    method: 'DELETE',
+    kind: 'blocks',
+    shouldInclude: false,
     result: 'unblocked',
   },
 } as const;
@@ -111,12 +111,11 @@ export function ContactsPanel({
     function commit() {
       return action.run({
         operation: async () => {
-          const parameters = { body: { target_id: person.id } };
-          if (relationship.method === 'PUT') {
-            await owner.client.PUT(relationship.path, parameters);
-          } else {
-            await owner.client.DELETE(relationship.path, parameters);
-          }
+          await owner.setRelationship({
+            kind: relationship.kind,
+            id: person.id,
+            shouldInclude: relationship.shouldInclude,
+          });
           directory.reload();
         },
         successMessage: `${name} ${relationship.result}.`,

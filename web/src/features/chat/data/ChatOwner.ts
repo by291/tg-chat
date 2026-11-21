@@ -340,9 +340,8 @@ export class ChatOwner {
   /** Load a bounded directory and restore pending identities before enabling the composer. */
   async start(): Promise<void> {
     this.ensureCurrent();
-    const reply = await this.session.client.GET('/api/v1/chat/bootstrap');
+    const bootstrap = await this.session.loadChatBootstrap();
     this.ensureCurrent();
-    const bootstrap = requirePayload(reply);
     this.observeAccountSettings(bootstrap.account_settings_version);
     this.store ??= new PendingMessages({
       key: `${bootstrap.deployment_id}:${this.userId}:${this.sessionId}`,
@@ -2301,9 +2300,8 @@ export class ChatOwner {
       isLoading: false,
     });
     const expected = await this.requireCache().read();
-    const reply = await this.session.client.GET('/api/v1/chat/bootstrap');
+    const bootstrap = await this.session.loadChatBootstrap();
     this.ensureCurrent();
-    const bootstrap = requirePayload(reply);
     this.observeAccountSettings(bootstrap.account_settings_version);
     await this.requireCache().reset({ expected, bootstrap });
     await this.reloadSharedCache();

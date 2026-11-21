@@ -41,10 +41,15 @@ interface ContactActionsProviderProps {
   children: ReactNode;
 }
 
-/** Provide authorized account-link opening for connected contact cards. */
-export const ContactLinkContext = createContext<((accountId: string) => void) | undefined>(
-  undefined,
-);
+interface ContactAccountLinks {
+  sessionId: string;
+  canAdd: (id: string) => boolean;
+  open: (id: string) => void;
+  add: (id: string) => Promise<void>;
+}
+
+/** Expose only authenticated account-link operations to connected contact cards. */
+export const ContactLinkContext = createContext<ContactAccountLinks | undefined>(undefined);
 
 const ContactActionsContext = createContext<ContactActions | undefined>(undefined);
 

@@ -34,6 +34,64 @@ const LOGIN = {
 };
 
 describe('SessionOwner', () => {
+  it('preserves admitted contact changes when an older bootstrap completes', async () => {
+    let releaseBootstrap: (response: Response) => void = () => {};
+    const pending = new Promise<Response>((resolve) => {
+      releaseBootstrap = resolve;
+    });
+    const owner = new SessionOwner({
+      baseUrl: ORIGIN,
+      fetch: async (request) => {
+        return request.url.endsWith('/bootstrap') ? pending : new Response(null, { status: 204 });
+      },
+    });
+    owner.accept(SESSION, { shouldBroadcast: false });
+
+    const bootstrapping = owner.loadChatBootstrap();
+    // prettier-ignore
+    await owner.setRelationship({
+      kind: 'contacts',
+      id: 'new-peer',
+      shouldInclude: true,
+    });
+    releaseBootstrap(Response.json({ contacts: [{ id: 'earlier-peer' }], blocks: [] }));
+    await bootstrapping;
+    expect(owner.getSnapshot().relationships?.contacts).toEqual(
+      new Set(['new-peer', 'earlier-peer']),
+    );
+
+    // prettier-ignore
+    await owner.setRelationship({
+      kind: 'contacts',
+      id: 'new-peer',
+      shouldInclude: false,
+    });
+    expect(owner.getSnapshot().relationships?.contacts).toEqual(new Set(['earlier-peer']));
+    owner.invalidate({ shouldBroadcast: false });
+    expect(owner.getSnapshot().relationships).toBeUndefined();
+  });
+
+  it('rejects an old contact admission if the session ends during the request', async () => {
+    let release: (response: Response) => void = () => {};
+    const response = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    const owner = new SessionOwner({ baseUrl: ORIGIN, fetch: async () => response });
+    owner.accept(SESSION, { shouldBroadcast: false });
+    // prettier-ignore
+    const adding = owner.setRelationship({
+      kind: 'contacts',
+      id: 'old-peer',
+      shouldInclude: true,
+    });
+    const rejection = expect(adding).rejects.toMatchObject({ name: 'AbortError' });
+
+    owner.invalidate({ shouldBroadcast: false });
+    release(new Response(null, { status: 204 }));
+    await rejection;
+    expect(owner.getSnapshot().relationships).toBeUndefined();
+  });
+
   it('retains the newest account settings when an earlier refresh returns late', async () => {
     let releaseOld: (response: Response) => void = () => undefined;
     const oldResponse = new Promise<Response>((resolve) => {

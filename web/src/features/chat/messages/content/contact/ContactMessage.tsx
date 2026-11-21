@@ -15,7 +15,7 @@ import { Avatar } from '@/components/Avatar';
 import { copyTextWithToast } from '@/components/copyTextWithToast';
 import { Ripple } from '@/components/Ripple';
 import type { ContactDetail, ContactMedia } from '@/domain/messages/media';
-import { CURRENT_USER_ID } from '@/domain/identity';
+import { useCurrentUserId } from '../../../CurrentUser';
 import overlays from '@/components/overlays/overlays.module.css';
 import { AddContactDialog } from './AddContactDialog';
 import { ContactLinkContext, getContactColor, useContactActions } from './ContactActions';
@@ -129,17 +129,60 @@ function ContactDetailsDialog({ details, isOpen, onOpenChange }: ContactDetailsD
   );
 }
 
+function AddLinkedContact({
+  add,
+  accountId,
+}: {
+  add: (id: string) => Promise<void>;
+  accountId: string;
+}) {
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState('');
+  async function submit() {
+    setIsPending(true);
+    setError('');
+    try {
+      // Admission changes the relationship only. The shared card remains the sender's snapshot.
+      await add(accountId);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Could not add contact.');
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.footerButton}
+        disabled={isPending}
+        onClick={() => void submit()}
+      >
+        Add
+        <Ripple />
+      </button>
+      {error && (
+        <span role="alert" className={styles.admissionError}>
+          {error}
+        </span>
+      )}
+    </>
+  );
+}
+
 /** Show a shared contact and open its details, or copy its phone when no details exist. */
 export function ContactMessage({ media }: { media: ContactMedia }) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const actions = useContactActions();
   const conversation = media.userId ? actions?.getConversation(media.userId) : undefined;
-  const openAccountLink = useContext(ContactLinkContext);
-  const canMessage = Boolean(media.userId && (actions || openAccountLink));
+  const links = useContext(ContactLinkContext);
+  const currentUserId = useCurrentUserId();
+  const canMessage = Boolean(media.userId && (actions || links));
   const isSavedContact = Boolean(conversation && conversation.isContact !== false);
   const canAdd = Boolean(
-    actions && canMessage && media.userId !== CURRENT_USER_ID && !isSavedContact,
+    actions && canMessage && media.userId !== currentUserId && !isSavedContact,
   );
   const avatarColor = conversation?.color || getContactColor(media.userId || media.name);
   const { details, displayName, lines } = getContactPreview({
@@ -159,8 +202,8 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
   }
 
   function openLinkedConversation() {
-    if (media.userId && openAccountLink) {
-      openAccountLink(media.userId);
+    if (media.userId && links) {
+      links.open(media.userId);
       return;
     }
     actions?.openConversation(media);
@@ -210,6 +253,16 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
               Message
               <Ripple />
             </button>
+            {links &&
+              media.userId &&
+              media.userId !== currentUserId &&
+              links.canAdd(media.userId) && (
+                <AddLinkedContact
+                  key={`${links.sessionId}:${media.userId}`}
+                  accountId={media.userId}
+                  add={links.add}
+                />
+              )}
             {canAdd && (
               <button
                 type="button"
@@ -234,7 +287,9 @@ export function ContactMessage({ media }: { media: ContactMedia }) {
         isOpen={isDetailsOpen}
         onOpenChange={({ isOpen }) => setIsDetailsOpen(isOpen)}
       />
-      <AddContactDialog media={media} isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+      {actions && (
+        <AddContactDialog media={media} isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+      )}
     </>
   );
 }
