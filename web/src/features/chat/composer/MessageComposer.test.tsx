@@ -601,6 +601,16 @@ it('keeps the text editor available while unsupported attachment controls are hi
   expect(screen.getByRole('textbox', { name: 'Message' })).toBeTruthy();
 });
 
+function installLocalPreviewUrls() {
+  class LocalPreviewUrl extends URL {
+    static createObjectURL() {
+      return 'blob:local-preview';
+    }
+    static revokeObjectURL() {}
+  }
+  vi.stubGlobal('URL', LocalPreviewUrl);
+}
+
 async function chooseAttachmentOption(name: string) {
   await userEvent.click(screen.getByRole('button', { name: 'Attachment options' }));
   await userEvent.click(await screen.findByRole('menuitem', { name }));
@@ -652,6 +662,7 @@ describe('connected attachment confirmation', () => {
   });
 
   it('adds and removes photos before explicitly sending the selection as a file', async () => {
+    installLocalPreviewUrls();
     const onMediaSubmit = vi.fn(async () => false);
     const first = new File(['first'], 'first.png', { type: 'image/png' });
     const second = new File(['second'], 'second.png', { type: 'image/png' });
@@ -666,7 +677,18 @@ describe('connected attachment confirmation', () => {
     });
     expect(screen.getByRole('group', { name: 'second.png' })).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Remove first.png' }));
-    await chooseAttachmentOption('Send as file');
+    await userEvent.click(screen.getByRole('button', { name: 'Attachment options' }));
+    const convert = await screen.findByRole('menuitem', { name: 'Send as file' });
+    const photo = screen.getByRole('img', { name: 'second.png' });
+    Object.defineProperties(photo, {
+      naturalWidth: { value: 600 },
+      naturalHeight: { value: 800 },
+    });
+    // A native read can be queued when the next discrete menu action runs.
+    act(() => {
+      photo.dispatchEvent(new Event('load'));
+      fireEvent.click(convert);
+    });
     expect(onMediaSubmit).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Send attachments' }));
@@ -674,7 +696,13 @@ describe('connected attachment confirmation', () => {
       expect.objectContaining({
         text: 'A caption',
         files: [
-          expect.objectContaining({ blob: second, filename: 'second.png', kind: 'document' }),
+          expect.objectContaining({
+            blob: second,
+            filename: 'second.png',
+            kind: 'document',
+            width: 600,
+            height: 800,
+          }),
         ],
       }),
     );
@@ -683,13 +711,7 @@ describe('connected attachment confirmation', () => {
   });
 
   it('sends a separated batch with the open caption while preserving a newer draft', async () => {
-    class LocalPreviewUrl extends URL {
-      static createObjectURL() {
-        return 'blob:local-preview';
-      }
-      static revokeObjectURL() {}
-    }
-    vi.stubGlobal('URL', LocalPreviewUrl);
+    installLocalPreviewUrls();
     const onMediaSubmit = vi.fn(async () => true);
     const first = new File(['photo'], 'first.png', { type: 'image/png' });
     const second = new File(['video'], 'second.mp4', { type: 'video/mp4' });
@@ -717,7 +739,14 @@ describe('connected attachment confirmation', () => {
       videoWidth: { value: 240 },
       videoHeight: { value: 720 },
     });
-    fireEvent.load(photo);
+    const added = new File(['extra'], 'extra.png', { type: 'image/png' });
+    const chooser = screen.getByLabelText('Choose more attachments');
+    act(() => {
+      photo.dispatchEvent(new Event('load'));
+      fireEvent.change(chooser, { target: { files: [added] } });
+    });
+
+    fireEvent.error(screen.getByRole('img', { name: 'extra.png' }));
     const send = screen.getByRole<HTMLButtonElement>('button', { name: 'Send attachments' });
     expect(send.disabled).toBe(true);
     fireEvent.loadedMetadata(video);
@@ -741,6 +770,7 @@ describe('connected attachment confirmation', () => {
             width: 240,
             height: 720,
           }),
+          expect.objectContaining({ blob: added, kind: 'image' }),
         ],
       }),
     );

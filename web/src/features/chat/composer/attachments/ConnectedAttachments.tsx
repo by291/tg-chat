@@ -54,16 +54,16 @@ function validateSize(selection: MediaSelection): void {
 
 /** Validate ordered sources before showing them in the attachment confirmation. */
 export function selectConnectedFiles(input: {
-  current: MediaSelection[];
+  existingCount?: number;
   files: File[];
   mode: AttachmentMode;
 }): MediaSelection[] {
-  const selectionCount = input.current.length + input.files.length;
+  const selectionCount = (input.existingCount ?? 0) + input.files.length;
   if (selectionCount > MAX_ATTACHMENTS) {
     throw new Error('Choose at most ten attachments at a time.');
   }
 
-  const incoming = input.files.map((file): MediaSelection => {
+  return input.files.map((file): MediaSelection => {
     const kind = input.mode === 'document' ? 'document' : (visualKind(file) ?? 'document');
     // prettier-ignore
     const selection: MediaSelection = {
@@ -74,7 +74,6 @@ export function selectConnectedFiles(input: {
     validateSize(selection);
     return selection;
   });
-  return [...input.current, ...incoming];
 }
 
 /** Check whether a source can switch between visual media and a file. */

@@ -320,7 +320,7 @@ export function MessageComposer({
     }
 
     try {
-      const selections = selectConnectedFiles({ current: [], files, mode });
+      const selections = selectConnectedFiles({ files, mode });
       setAttachmentPreview({
         files: selections,
         caption: draftValue,

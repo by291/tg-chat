@@ -34,10 +34,10 @@ interface ConnectedAttachmentDialogProps {
   finalFocusEl: () => HTMLElement | null;
 }
 
-function identifyAttachment(selection: MediaSelection): AttachmentItem {
+function identifyAttachment(selection: MediaSelection, id: string): AttachmentItem {
   const hasReadDimensions = Boolean(selection.width && selection.height);
   return {
-    id: crypto.randomUUID(),
+    id,
     selection,
     hasReadDimensions,
   };
@@ -51,12 +51,15 @@ export function ConnectedAttachmentDialog({
   onClose,
   finalFocusEl,
 }: ConnectedAttachmentDialogProps) {
-  const [items, setItems] = useState(() => initialFiles.map(identifyAttachment));
+  const [selectionState, setSelectionState] = useState(() => ({
+    items: initialFiles.map((selection) => identifyAttachment(selection, crypto.randomUUID())),
+    error: '',
+  }));
+  const { items, error } = selectionState;
   const [caption, setCaption] = useState(initialCaption);
   const [shouldSendAlbum, setShouldSendAlbum] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
-  const [error, setError] = useState('');
   const isSubmitting = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -83,37 +86,54 @@ export function ConnectedAttachmentDialog({
     }
   }
 
+  function setError(message: string) {
+    setSelectionState((current) => ({ ...current, error: message }));
+  }
+
+  function changeSelection(change: (current: AttachmentItem[]) => AttachmentItem[]) {
+    // Apply validation and edits to the same snapshot, including queued native measurements.
+    setSelectionState((current) => {
+      try {
+        return { items: change(current.items), error: '' };
+      } catch (failure) {
+        const error = failure instanceof Error ? failure.message : 'Could not change attachments.';
+        return { ...current, error };
+      }
+    });
+  }
+
   function addFiles(sources: File[]) {
     if (!sources.length || isSubmitting.current) {
       return;
     }
-    try {
-      const updated = selectConnectedFiles({ current: files, files: sources, mode: addMode });
-      const added = updated.slice(files.length).map(identifyAttachment);
-      setItems([...items, ...added]);
-      setError('');
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not add these attachments.');
-    }
+
+    // Allocate identities once per picker event, even when React replays its state update.
+    const ids = sources.map(() => crypto.randomUUID());
+    changeSelection((current) => {
+      const selections = selectConnectedFiles({
+        existingCount: current.length,
+        files: sources,
+        mode: addMode,
+      });
+      const added = selections.map((selection, index) => identifyAttachment(selection, ids[index]));
+      return [...current, ...added];
+    });
   }
 
   function changeMode(mode: AttachmentMode) {
-    try {
-      const converted = items.map((item) => ({
+    changeSelection((current) =>
+      current.map((item) => ({
         ...item,
         selection: changeAttachmentMode({ selection: item.selection, mode }),
-      }));
-      setItems(converted);
-      setError('');
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not change how files are sent.');
-    }
+      })),
+    );
   }
 
   function recordDimensions(id: string, dimensions?: { width: number; height: number }) {
     // Match the occurrence, since removal, mode changes and decoding can finish in any order.
-    setItems((current) =>
-      current.map((item) => {
+    setSelectionState((current) => ({
+      ...current,
+      items: current.items.map((item) => {
         if (item.id !== id || item.hasReadDimensions) {
           return item;
         }
@@ -125,7 +145,7 @@ export function ConnectedAttachmentDialog({
           selection: hasSize ? { ...item.selection, ...dimensions } : item.selection,
         };
       }),
-    );
+    }));
   }
 
   function acceptDrop(event: DragEvent) {
@@ -249,7 +269,9 @@ export function ConnectedAttachmentDialog({
                   isAlbum={hasVisualAlbum && shouldSendAlbum}
                   isDisabled={isSending}
                   onMeasure={recordDimensions}
-                  onRemove={(id) => setItems((current) => current.filter((item) => item.id !== id))}
+                  onRemove={(id) =>
+                    changeSelection((current) => current.filter((item) => item.id !== id))
+                  }
                 />
               )}
               <input
