@@ -9,12 +9,14 @@ interface RenewalOptions {
   url: string;
   renew?: (signal: AbortSignal) => Promise<string>;
   onFailure: () => void;
+  onResumeFailure?: () => void;
 }
 
 /** Recover a playback source at its prior position when a signed URL expires mid-stream. */
 export function usePlaybackRenewal(options: RenewalOptions) {
-  const { url, renew, onFailure } = options;
+  const { url, renew, onFailure, onResumeFailure = onFailure } = options;
   const [replacement, setReplacement] = useState<{ original: string; url: string }>();
+  const displayedUrl = replacement?.original === url ? replacement.url : url;
   const pending = useRef<AbortController>(undefined);
   const point = useRef<ResumePoint>(undefined);
   const hasRetried = useRef(false);
@@ -39,7 +41,7 @@ export function usePlaybackRenewal(options: RenewalOptions) {
     point.current = next;
     void renew(controller.signal).then(
       (updated) => {
-        if (!controller.signal.aborted && updated !== url) {
+        if (!controller.signal.aborted && updated !== displayedUrl) {
           setReplacement({ original: url, url: updated });
         } else if (!controller.signal.aborted) {
           onFailure();
@@ -62,12 +64,13 @@ export function usePlaybackRenewal(options: RenewalOptions) {
     hasRetried.current = false;
     element.currentTime = Math.min(saved.position, element.duration || saved.position);
     if (saved.shouldPlay) {
-      void element.play().catch(onFailure);
+      // Autoplay denial after recovery leaves a valid source for an explicit play gesture.
+      void element.play().catch(onResumeFailure);
     }
   }
 
   return {
-    src: replacement?.original === url ? replacement.url : url,
+    src: displayedUrl,
     onError,
     restore,
   };

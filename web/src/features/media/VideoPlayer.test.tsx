@@ -174,6 +174,30 @@ describe('viewer video playback', () => {
     expect(video.volume).toBe(0.4);
   });
 
+  it('reports a failed renewed resource while keeping ordinary autoplay denial local', async () => {
+    const resourceFailure = vi.fn();
+    const renew = async () => '/renewed.mp4';
+    const view = render(
+      <VideoPlayer
+        media={videoMedia}
+        isActive
+        renewSource={renew}
+        onResourceError={resourceFailure}
+      />,
+    );
+    const video = view.container.querySelector('video')!;
+    fireEvent.error(video);
+    await waitFor(() => expect(video.getAttribute('src')).toBe('/renewed.mp4'));
+
+    vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValue(new Error('Not allowed'));
+    fireEvent.loadedMetadata(video);
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(resourceFailure).not.toHaveBeenCalled();
+
+    fireEvent.error(video);
+    await waitFor(() => expect(resourceFailure).toHaveBeenCalledWith('Video could not be loaded.'));
+  });
+
   it('keeps a usable play control after autoplay is denied', async () => {
     vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValue(new Error('Not allowed'));
     render(<VideoPlayer media={videoMedia} isActive />);

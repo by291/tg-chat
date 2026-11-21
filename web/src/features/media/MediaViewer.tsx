@@ -21,6 +21,7 @@ const CLOSE_DURATION = 200;
 interface MediaViewerProps {
   message?: Message;
   loadState?: { error?: string; retry: () => void };
+  onResourceError?: (message: Message, error: string) => void;
   onExitComplete?: () => void;
   messages: Message[];
   onClose: () => void;
@@ -49,6 +50,7 @@ function ViewerContent({
   message,
   messages,
   loadState,
+  onResourceError,
   isOpen,
   onClose,
   onNavigate,
@@ -218,6 +220,7 @@ function ViewerContent({
             activeIndex={activeIndex}
             mediaElementRef={mediaElementRef}
             onBusyChange={updateBusy}
+            onResourceError={onResourceError}
           />
         )}
       </div>

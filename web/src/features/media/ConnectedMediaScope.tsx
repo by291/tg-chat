@@ -145,6 +145,18 @@ function GallerySession({
     setResults((current) => ({ ...current, [active.placeholder.id]: {} }));
     load(active, signal);
   }
+  function markResourceError(message: Message, error: string) {
+    if (!isOpen) {
+      return;
+    }
+    setResults((current) => {
+      // A leaving slide can fail after its occurrence has already started a newer retry.
+      if (current[message.id]?.message !== message) {
+        return current;
+      }
+      return { ...current, [message.id]: { error } };
+    });
+  }
   const loadState =
     active && !result?.message ? { error: result?.error, retry: retryActive } : undefined;
 
@@ -153,6 +165,7 @@ function GallerySession({
       message={isOpen ? messages.find((message) => message.id === activeId) : undefined}
       messages={messages}
       loadState={loadState}
+      onResourceError={markResourceError}
       onClose={close}
       onExitComplete={onDiscard}
       onNavigate={(message) => setActiveId(message.id)}

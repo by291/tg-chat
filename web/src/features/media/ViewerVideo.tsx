@@ -8,6 +8,7 @@ interface ViewerVideoProps extends ViewerTransitionProps {
   message: Message;
   isOpen: boolean;
   activeIndex: number;
+  onResourceError?: (message: Message, error: string) => void;
 }
 
 /** Retain video content through the thumbnail transition while stopping its playback on close. */
@@ -18,6 +19,7 @@ export function ViewerVideo({
   direction,
   onSettled,
   positionerRef,
+  onResourceError,
 }: ViewerVideoProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const media = message.media;
@@ -50,6 +52,7 @@ export function ViewerVideo({
           key={message.id}
           media={media}
           renewSource={message.renewPlaybackUrl}
+          onResourceError={(error) => onResourceError?.(message, error)}
           isActive={isOpen && phase !== 'leaving'}
         />
       </div>

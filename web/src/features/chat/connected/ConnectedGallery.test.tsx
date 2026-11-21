@@ -243,3 +243,46 @@ it('finishes an original download started before the same occurrence finishes si
     owner.dispose();
   }
 });
+
+it.each(['renewal rejected', 'renewed photo fails'])(
+  'keeps other slides available and retries a signed neighbor after %s',
+  async (failure) => {
+    let stage: 'initial' | 'renewing' | 'retry' = 'initial';
+    const { owner } = await openChat(async (request) => {
+      if (stage === 'renewing' && failure === 'renewal rejected') {
+        return Response.error();
+      }
+      const path = new URL(request.url).pathname;
+      return Response.json({ url: `/objects/${stage}${path}` });
+    });
+    try {
+      fireEvent.click(await screen.findByRole('button', { name: /Open.*portrait.jpg/ }));
+      const dialog = within(await screen.findByRole('dialog'));
+      await dialog.findByRole('img', { name: 'portrait.jpg' });
+      const next = dialog.getByRole('button', { name: 'Next media' });
+      await waitFor(() => expect(next).toHaveProperty('disabled', false));
+      fireEvent.click(next);
+      const neighbor = await dialog.findByRole('img', { name: 'neighbor.jpg' });
+      stage = 'renewing';
+      fireEvent.error(neighbor);
+      if (failure === 'renewed photo fails') {
+        await waitFor(() => expect(neighbor.getAttribute('src')).toContain('/renewing/'));
+        fireEvent.error(neighbor);
+      }
+      await dialog.findByRole('button', { name: 'Retry media' });
+
+      fireEvent.click(dialog.getByRole('button', { name: 'Previous media' }));
+      expect(await dialog.findByRole('img', { name: 'portrait.jpg' })).toBeTruthy();
+      await waitFor(() => expect(next).toHaveProperty('disabled', false));
+      fireEvent.click(next);
+      stage = 'retry';
+      fireEvent.click(await dialog.findByRole('button', { name: 'Retry media' }));
+      const recovered = await dialog.findByRole('img', { name: 'neighbor.jpg' });
+      expect(recovered.getAttribute('src')).toBe(
+        `/objects/retry/api/v1/media/messages/${source.id}/attachments/${NEIGHBOR_OCCURRENCE_ID}/thumbnail`,
+      );
+    } finally {
+      owner.dispose();
+    }
+  },
+);

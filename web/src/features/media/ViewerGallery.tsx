@@ -8,6 +8,7 @@ interface ViewerGalleryProps {
   isOpen: boolean;
   activeIndex: number;
   mediaElementRef?: RefObject<HTMLDivElement | null>;
+  onResourceError?: (message: Message, error: string) => void;
   onBusyChange?: (options: { isBusy: boolean }) => void;
 }
 
@@ -18,6 +19,7 @@ export function ViewerGallery({
   activeIndex,
   mediaElementRef,
   onBusyChange,
+  onResourceError,
 }: ViewerGalleryProps) {
   const [slides, setSlides] = useState({
     current: message,
@@ -79,6 +81,7 @@ export function ViewerGallery({
         phase={isActive ? activePhase : 'leaving'}
         direction={slides.direction}
         onSettled={isActive ? settle : undefined}
+        onResourceError={onResourceError}
         positionerRef={isActive ? mediaElementRef : undefined}
       />
     );

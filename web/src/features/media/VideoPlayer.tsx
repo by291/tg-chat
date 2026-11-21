@@ -14,6 +14,7 @@ const CONTROLS_IDLE_MILLISECONDS = 3000;
 interface VideoPlayerProps {
   media: Extract<MessageMedia, { kind: 'video' }>;
   isActive: boolean;
+  onResourceError?: (error: string) => void;
   renewSource?: (signal: AbortSignal) => Promise<string>;
 }
 
@@ -40,7 +41,7 @@ function exitPlayerFullscreen(player: HTMLElement | null) {
 }
 
 /** Play a viewer video with accessible custom controls. */
-export function VideoPlayer({ media, isActive, renewSource }: VideoPlayerProps) {
+export function VideoPlayer({ media, isActive, renewSource, onResourceError }: VideoPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const isActiveRef = useRef(isActive);
@@ -59,7 +60,12 @@ export function VideoPlayer({ media, isActive, renewSource }: VideoPlayerProps) 
   const playback = usePlaybackRenewal({
     url: media.url,
     renew: renewSource,
-    onFailure: () => setError('Video could not be loaded.'),
+    onResumeFailure: () => setError('Press Play to resume the video.'),
+    onFailure: () => {
+      const failure = 'Video could not be loaded.';
+      setError(failure);
+      onResourceError?.(failure);
+    },
   });
 
   function revealControls() {
