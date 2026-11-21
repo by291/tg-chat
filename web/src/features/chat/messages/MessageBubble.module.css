@@ -729,3 +729,8 @@ button.missedCallCard:focus-visible {
 .bubble[data-structured='video'][data-standalone='true'] .mediaContent {
   border-radius: 50%;
 }
+
+::highlight(message-search-keyword) {
+  color: var(--surface-color);
+  background-color: var(--accent-color);
+}

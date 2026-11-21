@@ -30,7 +30,11 @@ interface ConnectedDirectoryProps {
   outbox: ChatSnapshot['pending'];
   isConversationVisible: boolean;
   onOpen: (conversation: Conversation) => void;
-  onOpenMessage: (input: { conversation: Conversation; messageId: string }) => Promise<void>;
+  onOpenMessage: (input: {
+    conversation: Conversation;
+    messageId: string;
+    keyword: string;
+  }) => Promise<void>;
   onOpenPending: () => void;
   onSettings: () => void;
   onContacts: () => void;
@@ -141,7 +145,11 @@ export function ConnectedDirectory({
     if (!entry) {
       throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
     }
-    await onOpenMessage({ conversation: entry, messageId: result.messageId });
+    await onOpenMessage({
+      conversation: entry,
+      messageId: result.messageId,
+      keyword: directoryQuery.trim().normalize('NFC'),
+    });
     setDirectoryQuery('');
   }
 

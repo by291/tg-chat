@@ -548,10 +548,14 @@ export function ConnectedChat({
     void owner.retry(messageId).catch(report);
   }
 
-  async function openGlobalResult(input: { conversation: Conversation; messageId: string }) {
-    const { conversation, messageId } = input;
+  async function openGlobalResult(input: {
+    conversation: Conversation;
+    messageId: string;
+    keyword: string;
+  }) {
+    const { conversation, messageId, keyword } = input;
     const destination = conversationDestination(conversation);
-    await owner.select({ destination, title: title(conversation) }, { messageId });
+    await owner.select({ destination, title: title(conversation) }, { messageId, keyword });
     onShowConversation();
   }
 

@@ -533,6 +533,16 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   await results.getByRole('button', { name: new RegExp(SEARCH_HIT) }).click();
   await expect(hit).toBeInViewport({ timeout: CONVERGENCE_TIMEOUT_MS });
   await expect(hit).toContainText(SEARCH_HIT);
+  const highlighted = () =>
+    hit.evaluate((row) => {
+      const ranges = CSS.highlights.get('message-search-keyword');
+      if (!ranges) {
+        return [];
+      }
+      const inside = Array.from(ranges).filter((range) => row.contains(range.startContainer));
+      return inside.map((range) => range.toString());
+    });
+  await expect.poll(highlighted).toContain(SEARCH_TERM);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Search this conversation', exact: true }).click();
@@ -541,6 +551,7 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   const mobileResults = page.getByRole('region', { name: 'Search results', exact: true });
   await mobileResults.getByRole('button', { name: new RegExp(SEARCH_HIT) }).click();
   await expect(hit).toBeInViewport({ timeout: CONVERGENCE_TIMEOUT_MS });
+  await expect.poll(highlighted).toContain(SEARCH_TERM);
   await page.getByRole('button', { name: 'Show search results', exact: true }).click();
   await expect(mobileResults.getByRole('button', { name: new RegExp(SEARCH_HIT) })).toBeVisible();
   await expect(conversationSearch).toHaveValue(SEARCH_TERM);

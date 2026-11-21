@@ -69,6 +69,7 @@ interface HistoryRequest {
   edge: HistoryEdge;
   anchor?: HistoryAnchor;
   shouldSupersede?: boolean;
+  keyword?: string;
 }
 
 interface HistoryLoad {
@@ -115,7 +116,7 @@ export interface ChatSnapshot {
   draftConflict?: Draft;
   draftAlternatives?: Draft[];
   editConflict?: CanonicalMessage;
-  navigation?: { messageId: string; requestId: number; kind?: 'unread' };
+  navigation?: { messageId: string; requestId: number; kind?: 'unread'; keyword?: string };
   firstUnreadMessageId?: string;
   hasOlder: boolean;
   hasNewer: boolean;
@@ -706,7 +707,10 @@ export class ChatOwner {
   }
 
   /** Switch private history ownership before starting any remote page request. */
-  async select(selection: Selection, options?: { messageId: string }): Promise<void> {
+  async select(
+    selection: Selection,
+    options?: { messageId: string; keyword?: string },
+  ): Promise<void> {
     this.ensureCurrent();
     void this.flushDraft().catch((error) => this.report(error));
     const generation = ++this.viewGeneration;
@@ -730,7 +734,11 @@ export class ChatOwner {
     });
 
     try {
-      await this.restoreSelection({ selection, generation, messageId: options?.messageId });
+      await this.restoreSelection({
+        selection,
+        generation,
+        ...options,
+      });
     } finally {
       if (this.openingHistoryGeneration === generation) {
         this.openingHistoryGeneration = undefined;
@@ -742,8 +750,9 @@ export class ChatOwner {
     selection: Selection;
     generation: number;
     messageId?: string;
+    keyword?: string;
   }): Promise<void> {
-    const { selection, generation, messageId } = options;
+    const { selection, generation, messageId, keyword } = options;
     const initialDraftId = this.snapshot.draft.id;
     const persisted = await this.requireStore().read();
     if (!this.isCurrentView(generation)) {
@@ -764,7 +773,7 @@ export class ChatOwner {
     }
 
     if (messageId) {
-      await this.jumpToMessage(messageId, { shouldRevalidate: true });
+      await this.jumpToMessage(messageId, { shouldRevalidate: true, keyword });
       return;
     }
 
@@ -1536,7 +1545,10 @@ export class ChatOwner {
   }
 
   /** Reveal a reply target through its bounded authorized neighborhood. */
-  async jumpToMessage(messageId: string, options?: { shouldRevalidate: boolean }): Promise<void> {
+  async jumpToMessage(
+    messageId: string,
+    options?: { shouldRevalidate: boolean; keyword?: string },
+  ): Promise<void> {
     const existing = this.snapshot.messages.find((message) => message.id === messageId);
     if (existing && !options?.shouldRevalidate) {
       this.historyLoad = undefined;
@@ -1546,7 +1558,12 @@ export class ChatOwner {
       });
       return;
     }
-    await this.requestHistory({ edge: 'latest', anchor: { messageId }, shouldSupersede: true });
+    await this.requestHistory({
+      edge: 'latest',
+      anchor: { messageId },
+      shouldSupersede: true,
+      keyword: options?.keyword,
+    });
   }
 
   /** Reveal the first authorized message on or after a date, or the latest earlier message. */
@@ -1671,6 +1688,8 @@ export class ChatOwner {
         ? {
             messageId: resolvedAnchorId,
             requestId: ++this.navigationRequestId,
+            // Publish search text only with the admitted anchor in the owning view.
+            ...(request.keyword && { keyword: request.keyword }),
             ...(anchor?.unread && { kind: 'unread' as const }),
           }
         : this.snapshot.navigation;

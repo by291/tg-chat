@@ -10,6 +10,7 @@ import { MessageMetadata } from './MessageMetadata';
 import { MessageRetryContext } from './messageRetryContext';
 import { MessageReaction } from './reactions/MessageReaction';
 import { finishReactionLayout } from './reactions/reactionLayoutTransition';
+import { highlightMessageKeyword } from '../search/highlightMessageKeyword';
 import { MessageTail } from './MessageTail';
 import { useDeferredMediaSource } from './content/media/deferredMedia';
 import { describeMessage } from '../messageFormatting';
@@ -33,6 +34,7 @@ interface MessageBubbleProps {
   isGroupStart: boolean;
   isGroupEnd: boolean;
   isHighlighted: boolean;
+  keyword?: string;
   onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMedia: (message: Message) => void;
@@ -72,6 +74,7 @@ export const MessageBubble = memo(function MessageBubble({
   isGroupStart,
   isGroupEnd,
   isHighlighted,
+  keyword,
   onInteract,
   onReact,
   onOpenMedia,
@@ -83,6 +86,11 @@ export const MessageBubble = memo(function MessageBubble({
   const canShowLargeEmoji = shouldUseLargeEmoji && !hasConnectedMedia;
   const largeEmojiSize = canShowLargeEmoji ? getLargeEmojiSize(message) : undefined;
   const rowRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (keyword && rowRef.current) {
+      return highlightMessageKeyword(rowRef.current, keyword);
+    }
+  }, [keyword, message]);
   useLayoutEffect(() => {
     const row = rowRef.current;
     if (row) {

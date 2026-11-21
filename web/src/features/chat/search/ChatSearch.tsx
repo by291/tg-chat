@@ -61,7 +61,7 @@ interface ChatSearchProps {
   canFilterSender: boolean;
   canDismissFromPage?: boolean;
   onClose: () => void;
-  onJump: (messageId: string) => void | Promise<void>;
+  onJump: (messageId: string, keyword: string) => void | Promise<void>;
   source?: ConnectedSearchSource;
 }
 
@@ -237,7 +237,7 @@ export function ChatSearch(props: ChatSearchProps) {
         mobileToggleRef.current?.focus({ preventScroll: true });
       }
     }
-    void Promise.resolve(onJump(message.id)).catch(showNavigationError);
+    void Promise.resolve(onJump(message.id, text)).catch(showNavigationError);
   }
 
   function toggleMobileView() {

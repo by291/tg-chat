@@ -31,7 +31,9 @@ export function ConnectedConversationSearch({
         canDismissFromPage={canDismissFromPage}
         canFilterSender={conversation.kind !== 'saved'}
         onClose={onClose}
-        onJump={(messageId) => owner.jumpToMessage(messageId, { shouldRevalidate: true })}
+        onJump={(messageId, keyword) =>
+          owner.jumpToMessage(messageId, { shouldRevalidate: true, keyword })
+        }
         source={{
           conversationId: conversation.id,
           visibilityKey: owner.searchVisibilityKey(conversation.id),

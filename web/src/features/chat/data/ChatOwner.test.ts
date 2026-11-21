@@ -483,11 +483,15 @@ describe('connected chat ownership', () => {
       { destination: { kind: 'saved' }, title: 'Saved Messages' },
       {
         messageId: 'message-3',
+        keyword: 'archive',
       },
     );
 
     expect(history).toHaveBeenCalledOnce();
-    expect(owner.getSnapshot().navigation?.messageId).toBe('message-3');
+    expect(owner.getSnapshot().navigation).toMatchObject({
+      messageId: 'message-3',
+      keyword: 'archive',
+    });
     expect(owner.getSnapshot().hasNewer).toBe(true);
     owner.dispose();
   });

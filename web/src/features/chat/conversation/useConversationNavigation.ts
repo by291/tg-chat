@@ -22,9 +22,13 @@ export function useConversationNavigation(onBack: () => void) {
     setNavigation({ messageId, requestId: Date.now() });
   }, []);
 
-  function searchJump(messageId: string) {
+  function searchJump(messageId: string, keyword: string) {
     // Search navigation preserves the input and result cursor until an explicit message jump.
-    setNavigation({ messageId, requestId: Date.now() });
+    setNavigation({
+      messageId,
+      keyword,
+      requestId: Date.now(),
+    });
   }
 
   function openPinnedMessages() {

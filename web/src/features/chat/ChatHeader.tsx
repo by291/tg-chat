@@ -18,7 +18,7 @@ interface ChatHeaderProps {
   isSelecting: boolean;
   pinnedCount?: number;
   onToggleSearch: () => void;
-  onSearchJump: (messageId: string) => void;
+  onSearchJump: (messageId: string, keyword: string) => void;
   onOpenDetails: () => void;
   onBack: () => void;
   onAction: (action: HeaderAction) => void;

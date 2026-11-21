@@ -45,6 +45,7 @@ export interface MessageNavigation {
   messageId: string;
   requestId: number;
   kind?: 'unread';
+  keyword?: string;
 }
 
 interface MessageTimelineProps {
@@ -395,6 +396,7 @@ function VirtualMessageHistory({
                         isGroupStart={row.isGroupStart}
                         isGroupEnd={row.isGroupEnd}
                         isHighlighted={row.key === highlightedId}
+                        keyword={row.key === highlightedId ? navigation?.keyword : undefined}
                         onReact={onReact}
                         onInteract={onInteract}
                         onOpenMedia={onOpenMedia}

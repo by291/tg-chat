@@ -46,7 +46,7 @@ it('keeps a paged query and its filters when switching narrow search views', asy
   await screen.findByRole('button', { name: 'More results' });
   fireEvent.click(screen.getByRole('button', { name: 'Show in chat' }));
 
-  expect(onJump).toHaveBeenCalledWith('newest-match');
+  expect(onJump).toHaveBeenCalledWith('newest-match', 'archive');
   expect(screen.getByRole('status', { name: 'Search position' }).textContent).toBe('1 of 1+');
   fireEvent.click(screen.getByRole('button', { name: 'Show search results' }));
   expect(screen.getByRole('button', { name: 'More results' })).toBeTruthy();
