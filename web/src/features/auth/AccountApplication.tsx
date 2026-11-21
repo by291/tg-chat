@@ -1,3 +1,4 @@
+import { useAppearanceTheme } from '@/features/settings/appearance/useAppearanceTheme';
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import type { components } from '@/api/schema';
 import { AccountWorkspace } from '../accounts/AccountWorkspace';
@@ -10,6 +11,7 @@ const SESSION_REFRESH_INTERVAL_MS = 60_000;
 
 /** Load server-owned accounts and unmount private views when the session changes. */
 export function AccountApplication() {
+  useAppearanceTheme();
   const [owner] = useState(() => new SessionOwner({ baseUrl: window.location.origin }));
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const [capabilities, setCapabilities] = useState<components['schemas']['Capabilities']>();

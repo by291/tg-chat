@@ -5,7 +5,7 @@ import { setAppearanceMode } from './appearanceStore';
 import { useAppearanceTheme } from './useAppearanceTheme';
 
 function ThemeRoot() {
-  const { isDark } = useAppearanceTheme({ isReady: true, isLegacyDark: false });
+  const { isDark } = useAppearanceTheme();
   return <output>{isDark ? 'Dark' : 'Light'}</output>;
 }
 

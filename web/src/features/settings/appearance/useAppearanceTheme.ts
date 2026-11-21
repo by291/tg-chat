@@ -12,7 +12,10 @@ import { selectAppearanceMode } from './appearanceActions';
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 
 function subscribeSystemTheme(notify: () => void) {
-  const query = window.matchMedia(SYSTEM_DARK_QUERY);
+  const query = window.matchMedia?.(SYSTEM_DARK_QUERY);
+  if (!query) {
+    return () => {};
+  }
   query.addEventListener('change', notify);
 
   return () => query.removeEventListener('change', notify);
@@ -35,22 +38,25 @@ export function useResolvedAppearance() {
   };
 }
 
-/** Own the document palette and migrate the old dark preference after chat hydration. */
-export function useAppearanceTheme({
+/** Import the demo dark preference only after its persistent chat state has loaded. */
+export function useLegacyAppearanceMigration({
   isReady,
   isLegacyDark,
 }: {
   isReady: boolean;
   isLegacyDark: boolean;
 }) {
-  const resolved = useResolvedAppearance();
-  const palette = useMemo(() => getThemePalette(resolved), [resolved.variant, resolved.choice]);
-
   useLayoutEffect(() => {
     if (isReady) {
       migrateLegacyAppearance({ isDark: isLegacyDark });
     }
   }, [isReady, isLegacyDark]);
+}
+
+/** Apply the shared local palette for the lifetime of the current application. */
+export function useAppearanceTheme() {
+  const resolved = useResolvedAppearance();
+  const palette = useMemo(() => getThemePalette(resolved), [resolved.variant, resolved.choice]);
 
   useLayoutEffect(() => {
     const root = document.documentElement;

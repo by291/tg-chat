@@ -24,7 +24,10 @@ import { useChatState } from '@/features/chat/state/useChatState';
 import { useChatRoute } from '@/routes/useChatRoute';
 import { useAppNavigation } from '@/routes/useAppNavigation';
 import { useAppPreferences } from '@/features/settings/appPreferences';
-import { useAppearanceTheme } from '@/features/settings/appearance/useAppearanceTheme';
+import {
+  useAppearanceTheme,
+  useLegacyAppearanceMigration,
+} from '@/features/settings/appearance/useAppearanceTheme';
 import { ChatWallpaper } from '@/features/settings/appearance/ChatWallpaper';
 import { StartupSidebar } from '@/layouts/chat/StartupSidebar';
 import { useStartupTransition } from '@/layouts/chat/useStartupTransition';
@@ -73,10 +76,11 @@ function ChatWorkspace({
   const activeEntry = conversation;
   const messages =
     messageIndex.messagesByChatId.get(conversation?.id ?? '') ?? EMPTY_CONVERSATION_MESSAGES;
-  const { variant, choice, isDark, toggleTheme } = useAppearanceTheme({
+  useLegacyAppearanceMigration({
     isReady,
     isLegacyDark: state.isDark,
   });
+  const { variant, choice, isDark, toggleTheme } = useAppearanceTheme();
 
   useChatRoute({
     chatId: navigation.chatId,
