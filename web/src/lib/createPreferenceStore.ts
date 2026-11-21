@@ -3,11 +3,16 @@ import { createStore } from 'zustand/vanilla';
 
 interface PreferenceStoreOptions<State> {
   storageKey: string;
+  missingValue?: unknown;
   parse: (value: unknown) => State;
 }
 
 /** Share validated preference state while preserving the existing browser storage format. */
-export function createPreferenceStore<State>({ storageKey, parse }: PreferenceStoreOptions<State>) {
+export function createPreferenceStore<State>({
+  storageKey,
+  missingValue = {},
+  parse,
+}: PreferenceStoreOptions<State>) {
   let hasSavedValue = false;
   let subscriberCount = 0;
 
@@ -15,9 +20,9 @@ export function createPreferenceStore<State>({ storageKey, parse }: PreferenceSt
     try {
       const stored = localStorage.getItem(storageKey);
       hasSavedValue = stored !== null;
-      return parse(stored ? JSON.parse(stored) : {});
+      return parse(stored === null ? missingValue : JSON.parse(stored));
     } catch {
-      return parse({});
+      return parse(hasSavedValue ? {} : missingValue);
     }
   }
 

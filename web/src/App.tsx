@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter } from 'react-router';
 import { useInputModality } from '@/hooks/useInputModality';
 import { AccountApplication } from '@/features/auth/AccountApplication';
+import { isConnectedAccountEntry } from '@/routes/applicationEntry';
 import styles from '@/features/accounts/Accounts.module.css';
 // Demo stores and editor modules load only after the user enters the demo route.
 const ChatPage = lazy(async () => {
@@ -13,15 +14,14 @@ const ChatPage = lazy(async () => {
 export function App() {
   useInputModality();
 
-  const isConnected = import.meta.env.VITE_APP_MODE === 'connected';
-  if (isConnected && window.location.pathname !== '/demo') {
+  if (isConnectedAccountEntry()) {
     return (
       <BrowserRouter>
         <AccountApplication />
       </BrowserRouter>
     );
   }
-  if (isConnected) {
+  if (import.meta.env.VITE_APP_MODE === 'connected') {
     return (
       <div className={styles.demo}>
         <aside className={styles.demoNotice}>

@@ -123,13 +123,16 @@
     <script>
       // Read only the existing preference; React resolves the complete palette after startup.
       try {
-        const savedAppearance = JSON.parse(localStorage.getItem('react-tweb.appearance.v1'));
-        let mode = savedAppearance?.mode ?? 'classic';
+        const storedAppearance = localStorage.getItem('react-tweb.appearance.v1');
+        const savedAppearance = JSON.parse(storedAppearance);
+        const isAccount = '%VITE_APP_MODE%' === 'connected' && location.pathname !== '/demo';
+        const defaultMode = isAccount && storedAppearance === null ? 'system' : 'classic';
+        let mode = savedAppearance?.mode ?? defaultMode;
         if (mode === 'system') {
           const isSystemDark = matchMedia('(prefers-color-scheme: dark)').matches;
           mode = isSystemDark
-            ? (savedAppearance.lastDark ?? 'night')
-            : (savedAppearance.lastLight ?? 'classic');
+            ? (savedAppearance?.lastDark ?? 'night')
+            : (savedAppearance?.lastLight ?? 'classic');
         }
         const isDark = mode === 'night' || mode === 'dark';
         document.documentElement.dataset.theme = isDark ? 'dark' : 'light';

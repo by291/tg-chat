@@ -1,4 +1,5 @@
 import { createPreferenceStore } from '@/lib/createPreferenceStore';
+import { isConnectedAccountEntry } from '@/routes/applicationEntry';
 import { z } from 'zod';
 
 export const APPEARANCE_KEY = 'react-tweb.appearance.v1';
@@ -64,6 +65,8 @@ export type Appearance = z.infer<typeof appearanceSchema>;
 
 const preferenceStore = createPreferenceStore({
   storageKey: APPEARANCE_KEY,
+  // An unsaved default must not preempt the demo's later migration from its stored chat state.
+  missingValue: { mode: isConnectedAccountEntry() ? 'system' : 'classic' },
   parse: (value) => appearanceSchema.parse(value),
 });
 
