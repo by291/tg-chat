@@ -40,14 +40,16 @@ function findMessageTarget(element: EventTarget | null): MessageMenuTarget | und
 
   // Menu focus can collapse the native range. Only retain a selection inside this message.
   const selection = window.getSelection();
-  const range = selection?.rangeCount ? selection.getRangeAt(0) : undefined;
+  const range = selection?.rangeCount === 1 ? selection.getRangeAt(0) : undefined;
   const container = range?.commonAncestorContainer;
   const textElement = container instanceof Element ? container : container?.parentElement;
   const hasMessageText = textElement?.closest('[data-message-text]');
   const canCopyRange = hasMessageText && row.contains(hasMessageText) && !range?.collapsed;
 
+  // Native selection preserves rendered line breaks and omits unselectable touch content.
+  const selectedText = canCopyRange ? selection?.toString() : undefined;
   return {
-    selectedText: canCopyRange ? range?.toString() : undefined,
+    selectedText: selectedText || undefined,
     messageId,
     row,
     point: { x: rectangle.left, y: rectangle.bottom },

@@ -362,6 +362,7 @@ export function ConnectedChat({
     isChoosingReportMessages,
     reportableMessageIds,
     canReportSelection,
+    canCopySelection,
     canReportMessage,
     startReportSelection,
     cancelMessageSelection,
@@ -1266,6 +1267,7 @@ export function ConnectedChat({
           isChoosingReport={isChoosingReportMessages}
           canReport={canReportSelection}
           onCancel={cancelMessageSelection}
+          onCopy={canCopySelection ? () => void copySelectedMessages().catch(report) : undefined}
           onDelete={isChoosingReportMessages ? undefined : confirmSelectedRemoval}
           onForward={
             !isChoosingReportMessages && canForward ? () => setForwardIds(selectedIds) : undefined

@@ -266,7 +266,11 @@ export const MessageBubble = memo(function MessageBubble({
         )}
         <div className={styles.mediaContent} data-message-media>
           {largeEmojiSize && (
-            <div className={styles.largeEmoji} style={{ fontSize: largeEmojiSize }}>
+            <div
+              className={styles.largeEmoji}
+              data-message-text
+              style={{ fontSize: largeEmojiSize }}
+            >
               <MessageText message={message} />
             </div>
           )}

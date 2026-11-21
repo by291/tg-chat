@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { copyMessagesByTouch, copyNativeFragment } from './messageCopy';
 import type { components } from '../src/api/schema';
 
 const PASSWORD = 'a complete message workflow password phrase';
@@ -281,6 +282,7 @@ async function sendText(input: {
   account: Account;
   destination: components['schemas']['Destination'];
   text: string;
+  richText?: string;
 }): Promise<components['schemas']['SendReceipt']> {
   const message: components['schemas']['SendMessage'] = {
     operation_id: randomUUID(),
@@ -289,6 +291,7 @@ async function sendText(input: {
     content: {
       schema_version: 1,
       text: input.text,
+      rich_text: input.richText,
       custom_emoji: [],
     },
   };
@@ -455,6 +458,19 @@ test('replays the destination receipt and keeps the attachment after source dele
   }
 });
 
+async function expectKeyword(row: Locator, keyword: string) {
+  const highlighted = () =>
+    row.evaluate((element) => {
+      const ranges = CSS.highlights.get('message-search-keyword');
+      if (!ranges) {
+        return [];
+      }
+      const inside = Array.from(ranges).filter((range) => element.contains(range.startContainer));
+      return inside.map((range) => range.toString());
+    });
+  await expect.poll(highlighted).toContain(keyword);
+}
+
 test('opens a distant Chinese search hit and honors link preview opt-out', async ({
   context,
   baseURL,
@@ -533,16 +549,7 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   await results.getByRole('button', { name: new RegExp(SEARCH_HIT) }).click();
   await expect(hit).toBeInViewport({ timeout: CONVERGENCE_TIMEOUT_MS });
   await expect(hit).toContainText(SEARCH_HIT);
-  const highlighted = () =>
-    hit.evaluate((row) => {
-      const ranges = CSS.highlights.get('message-search-keyword');
-      if (!ranges) {
-        return [];
-      }
-      const inside = Array.from(ranges).filter((range) => row.contains(range.startContainer));
-      return inside.map((range) => range.toString());
-    });
-  await expect.poll(highlighted).toContain(SEARCH_TERM);
+  await expectKeyword(hit, SEARCH_TERM);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Search this conversation', exact: true }).click();
@@ -551,61 +558,100 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   const mobileResults = page.getByRole('region', { name: 'Search results', exact: true });
   await mobileResults.getByRole('button', { name: new RegExp(SEARCH_HIT) }).click();
   await expect(hit).toBeInViewport({ timeout: CONVERGENCE_TIMEOUT_MS });
-  await expect.poll(highlighted).toContain(SEARCH_TERM);
+  await expectKeyword(hit, SEARCH_TERM);
   await page.getByRole('button', { name: 'Show search results', exact: true }).click();
   await expect(mobileResults.getByRole('button', { name: new RegExp(SEARCH_HIT) })).toBeVisible();
   await expect(conversationSearch).toHaveValue(SEARCH_TERM);
 });
 
-test('copies a native fragment and chronological multi-message text', async ({
+test('preserves a native multiline selection and slices the standalone emoji body', async ({
   context,
   baseURL,
 }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const account = await register(context, baseURL!);
   const destination = { kind: 'saved' } as const;
-  const first = 'First selected body';
-  const second = 'Second selected body';
-  // prettier-ignore
-  await sendText({
+  const formatted = await sendText({
     account,
     destination,
-    text: first,
+    text: 'First line\nSecond line',
+    richText: '<p><strong>First line</strong><br>Second line</p>',
   });
-  // prettier-ignore
-  await sendText({
+  const emoji = '😊🎈✨';
+  const standalone = await sendText({
     account,
     destination,
-    text: second,
+    text: emoji,
   });
   const { page } = account;
   await openMessages(page);
   await openConversation(page, 'Saved Messages');
 
-  const firstRow = page.getByRole('group', { name: `Message: ${first}`, exact: true });
-  const secondRow = page.getByRole('group', { name: `Message: ${second}`, exact: true });
-  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
-  await firstRow.focus();
-  await firstRow.getByText(first, { exact: true }).evaluate((element, fragment) => {
-    const text = element.firstChild!;
-    const start = text.textContent!.indexOf(fragment);
-    const range = new Range();
-    range.setStart(text, start);
-    range.setEnd(text, start + fragment.length);
-    const selection = window.getSelection()!;
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }, 'selected');
-  await page.keyboard.press('Shift+F10');
-  await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
-  await expect.poll(clipboard).toBe('selected');
+  const formattedRow = page.locator(`[data-message-id="${formatted.message.id}"]`);
+  const emojiRow = page.locator(`[data-message-id="${standalone.message.id}"]`);
+  await copyNativeFragment({
+    page,
+    row: formattedRow,
+    start: { text: 'First line', offset: 'First '.length },
+    end: { text: 'Second line', offset: 'Second'.length },
+    expected: 'line\nSecond',
+  });
+  await copyNativeFragment({
+    page,
+    row: emojiRow,
+    start: { text: emoji, offset: '😊'.length },
+    end: { text: emoji, offset: '😊🎈'.length },
+    expected: '🎈',
+  });
 
-  await secondRow.focus();
+  await emojiRow.focus();
   await page.keyboard.press('Shift+F10');
   await page.getByRole('menuitem', { name: 'Select', exact: true }).click();
-  await firstRow.click();
-  await firstRow.focus();
+  await formattedRow.click();
+  await formattedRow.focus();
   await page.keyboard.press('Shift+F10');
   await page.getByRole('menuitem', { name: 'Copy selected', exact: true }).click();
-  await expect.poll(clipboard).toBe(`${first}\n${second}`);
+  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+  await expect.poll(clipboard).toBe(`First line\nSecond line\n${emoji}`);
+  await page.getByRole('button', { name: 'Cancel selection, 2 messages' }).click();
+
+  await page.getByRole('button', { name: 'Search this conversation', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Search in this conversation' }).fill('🎈');
+  const results = page.getByRole('region', { name: 'Search results', exact: true });
+  await results.getByRole('button', { name: new RegExp(emoji) }).click();
+  await expectKeyword(emojiRow, '🎈');
+});
+
+test.describe('handheld message selection', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test('copies chronologically after holding and tapping messages', async ({
+    context,
+    baseURL,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const account = await register(context, baseURL!);
+    const destination = { kind: 'saved' } as const;
+    const first = 'First selected body';
+    const second = 'Second selected body';
+    for (const text of [first, second]) {
+      // prettier-ignore
+      await sendText({
+        account,
+        destination,
+        text,
+      });
+    }
+    const { page } = account;
+    await openMessages(page);
+    const directory = page.getByRole('complementary', { name: 'Conversations' });
+    await directory.getByRole('button', { name: /^Saved Messages/ }).tap();
+    await page.clock.install();
+    await copyMessagesByTouch({
+      page,
+      first: page.getByRole('group', { name: `Message: ${first}` }),
+      second: page.getByRole('group', { name: `Message: ${second}` }),
+      expected: `${first}\n${second}`,
+    });
+  });
 });

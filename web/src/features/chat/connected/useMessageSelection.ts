@@ -16,6 +16,14 @@ interface MessageSelectionOptions {
   onError: (message: string) => void;
 }
 
+function readableSelectedBodies(messages: CanonicalMessage[], ids: string[]) {
+  const selected = new Set(ids);
+  const readable = messages.filter((message) => {
+    return selected.has(message.id) && !message.is_deleted && !message.service_kind;
+  });
+  return readable.map((message) => message.content.text).filter((text) => text.trim());
+}
+
 /** Keep message selections and their dialogs within the authorized conversation view. */
 export function useMessageSelection({
   owner,
@@ -48,6 +56,12 @@ export function useMessageSelection({
     canReport && selectedIds?.length && selectedIds.every((id) => reportableMessageIds.has(id)),
   );
 
+  const canCopySelection = Boolean(
+    !isChoosingReportMessages &&
+    selectedIds &&
+    readableSelectedBodies(messages, selectedIds).length,
+  );
+
   function ownsSelection() {
     const current = owner.getSnapshot().selection;
     return (
@@ -63,11 +77,7 @@ export function useMessageSelection({
     }
 
     // Resolve in current history order so removed or revoked text cannot enter the clipboard.
-    const selected = new Set(selectedIds);
-    const readable = owner.getSnapshot().messages.filter((message) => {
-      return selected.has(message.id) && !message.is_deleted && !message.service_kind;
-    });
-    const bodies = readable.map((message) => message.content.text).filter((text) => text.trim());
+    const bodies = readableSelectedBodies(owner.getSnapshot().messages, selectedIds);
     if (bodies.length) {
       await navigator.clipboard.writeText(bodies.join('\n'));
     }
@@ -169,6 +179,7 @@ export function useMessageSelection({
     isChoosingReportMessages,
     reportableMessageIds,
     canReportSelection,
+    canCopySelection,
     canReportMessage,
     startReportSelection,
     cancelMessageSelection,

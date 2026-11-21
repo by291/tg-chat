@@ -29,6 +29,7 @@ it('discards selected report messages when the same conversation gets a new memb
   act(() => result.current.toggleSelection(message.id));
   act(() => result.current.reportSelectedMessages());
   expect(result.current.reportedMessageIds).toEqual([message.id]);
+  expect(result.current.canCopySelection).toBe(false);
 
   rerender({ generation: '2' });
 

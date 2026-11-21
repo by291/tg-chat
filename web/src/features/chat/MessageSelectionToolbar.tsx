@@ -1,4 +1,4 @@
-import { Flag, Forward, Trash2 } from 'lucide-react';
+import { Copy, Flag, Forward, Trash2 } from 'lucide-react';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import styles from './ConversationPane.module.css';
@@ -9,6 +9,7 @@ interface MessageSelectionToolbarProps {
   canReport?: boolean;
   isChoosingReport?: boolean;
   onCancel: () => void;
+  onCopy?: () => void;
   onDelete?: () => void;
   onForward?: () => void;
   onReport?: () => void;
@@ -21,6 +22,7 @@ export function MessageSelectionToolbar({
   canReport,
   isChoosingReport,
   onCancel,
+  onCopy,
   onDelete,
   onForward,
   onReport,
@@ -52,6 +54,11 @@ export function MessageSelectionToolbar({
         {isChoosingReport && !count ? 'Select messages to report' : countLabel}
         <Ripple />
       </button>
+      {onCopy && (
+        <IconButton label="Copy selected messages" onClick={onCopy}>
+          <Copy />
+        </IconButton>
+      )}
       {onReport && (
         <IconButton label="Report selected messages" disabled={!canReport} onClick={onReport}>
           <Flag />
