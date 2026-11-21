@@ -101,6 +101,11 @@ export async function openProfile(options: { page: Page; title: string; section?
   await page.getByRole('button', { name: `View ${title} profile`, exact: true }).click();
   const profile = page.getByRole('complementary', { name: /^(Group|Channel) info$/ });
   await expect(profile).toBeVisible();
+  // Reopening during the exit animation retains the previously selected management page.
+  const overview = profile.getByRole('button', { name: 'Back to community info', exact: true });
+  if (await overview.isVisible()) {
+    await overview.click();
+  }
   if (section) {
     await profile.getByRole('button', { name: section, exact: true }).click();
   }
