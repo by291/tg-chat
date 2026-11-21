@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
   type RefObject,
 } from 'react';
+import { useHandheldLayout } from '@/layouts/chat/useHandheldLayout';
 import { CallCompactBar } from './CallCompactBar';
 import { callPresentation, CallIdentity } from './CallIdentity';
 import type { CallOwner } from './CallOwner';
@@ -26,9 +27,11 @@ const RINGTONE_SOURCE = {
 
 interface CallPanelProps {
   owner: CallOwner;
+  onCoverageChange?: (coverage: { isCovered: boolean }) => void;
 }
 
 interface ExpandedCallProps extends CallControlsProps {
+  onCoverageChange?: CallPanelProps['onCoverageChange'];
   call: CallView;
   isCompact: boolean;
   mediaId: string;
@@ -65,7 +68,7 @@ function CallVideoTile({ video }: { video: CallVideo }) {
 }
 
 /** Keep the call accessible from any authenticated workspace page. */
-export function CallPanel({ owner }: CallPanelProps) {
+export function CallPanel({ owner, onCoverageChange }: CallPanelProps) {
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const { call, ownsTab, isBusy, error } = snapshot;
   const mediaId = useId();
@@ -139,6 +142,7 @@ export function CallPanel({ owner }: CallPanelProps) {
           isCompact={isCompact}
           mediaId={mediaId}
           collapseRef={collapseFocus}
+          onCoverageChange={onCoverageChange}
           onCollapse={toggleCompact}
         />
       )}
@@ -173,8 +177,26 @@ function CallPanelContents({
   mediaId,
   collapseRef,
   onCollapse,
+  onCoverageChange,
 }: ExpandedCallProps) {
   const fullscreen = useCallFullscreen();
+  const isHandheld = useHandheldLayout();
+  const isCovered = !isCompact && (fullscreen.isFullscreen || isHandheld);
+  const panelRef = fullscreen.panelRef;
+  // Move focus into a newly covering call before the underlying workspace becomes inert.
+  // prettier-ignore
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (isCovered && panel && !panel.contains(document.activeElement)) {
+      panel.querySelector<HTMLElement>('button:not(:disabled)')?.focus({ preventScroll: true });
+    }
+    onCoverageChange?.({ isCovered });
+    return () => onCoverageChange?.({ isCovered: false });
+  }, [
+    isCovered,
+    onCoverageChange,
+    panelRef,
+  ]);
   const { videos, mediaStatus, error } = snapshot;
   const canCollapse = call.allowed_actions.includes('hangup');
   const hasPeerVideo = videos.some((video) => !video.isLocal);

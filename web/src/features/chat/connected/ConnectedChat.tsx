@@ -2,6 +2,7 @@ import { Bell, BellOff, LoaderCircle, Phone, Search, Video } from 'lucide-react'
 import {
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -138,6 +139,7 @@ interface ConnectedChatProps {
   accountPage?: ReactNode;
   isConversationOpen: boolean;
   isWorkspaceHidden?: boolean;
+  isCallCoveringChat?: boolean;
   captureIntent?: () => () => boolean;
   onShowConversation: () => void;
   onShowDirectory: () => void;
@@ -225,6 +227,7 @@ export function ConnectedChat({
   accountPage,
   isConversationOpen,
   isWorkspaceHidden = false,
+  isCallCoveringChat = false,
   captureIntent,
   onShowConversation,
   onShowDirectory,
@@ -321,10 +324,10 @@ export function ConnectedChat({
   const pollId = information.target?.kind === 'poll' ? information.target.id : undefined;
   const voterPoll = pollId ? publicPoll(snapshot.messages, pollId) : undefined;
   // Desktop chat remains visible beside information. A handheld panel covers the timeline.
-  const isChatCovered = isHandheld && information.isOpen;
+  const isChatCovered = isCallCoveringChat || (isHandheld && information.isOpen);
   const isChatVisible = Boolean(selection) && canShowChat && !isChatCovered;
   const activeAlertId = isChatVisible ? conversation?.id : undefined;
-  useEffect(() => owner.setAlertConversation(activeAlertId), [owner, activeAlertId]);
+  useLayoutEffect(() => owner.setAlertConversation(activeAlertId), [owner, activeAlertId]);
   const isViewingDirect = conversation?.kind === 'direct' && isChatVisible;
   const directId = isViewingDirect ? conversation.id : undefined;
   const peerId = isViewingDirect ? conversation.peer_id : undefined;

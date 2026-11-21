@@ -45,7 +45,13 @@ function parseAccountPage(value: string | null, fallback: AccountPage): AccountP
 }
 
 /** Own account and handheld panel history without applying settings changes to ChatOwner. */
-export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvailable: boolean }) {
+export function useAccountNavigation({
+  isMessagingAvailable,
+  isCovered,
+}: {
+  isMessagingAvailable: boolean;
+  isCovered: boolean;
+}) {
   const { searchParams, changeDestination, entryState } = useSearchDestination();
   const intentVersion = useRef(0);
   const rootPage = isMessagingAvailable ? 'messages' : 'settings';
@@ -164,7 +170,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   }
 
   const onEscape = useEffectEvent((event: KeyboardEvent) => {
-    if (!isDismissKey(event)) {
+    if (isCovered || !isDismissKey(event)) {
       return;
     }
     // Portaled dialogs and menus own their dismissal before the surrounding page can close.

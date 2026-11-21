@@ -87,7 +87,9 @@ const SUBPAGE_NAVIGATION = {
 
 /** Keep authenticated ownership separate from demo state and persistence. */
 export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) {
+  const [callCoverage, setCallCoverage] = useState({ isCovered: false });
   const navigation = useAccountNavigation({
+    isCovered: callCoverage.isCovered,
     isMessagingAvailable: capabilities.messaging_available,
   });
   const { page, communityView, openPage, goBack } = navigation;
@@ -399,7 +401,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       renderPage={(entry) => (entry === 'operator' && chat ? null : renderPage(entry))}
     />
   );
-  const callPanel = canUseCalls && <CallPanel owner={calls} />;
+  const callPanel = canUseCalls && <CallPanel owner={calls} onCoverageChange={setCallCoverage} />;
 
   const inviteLink = chat && (
     <CommunityInviteLink
@@ -415,7 +417,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       {callPanel}
       {chat ? (
         <ConnectedStickerPackScope packIds={preferences?.sticker_pack_ids}>
-          <div className={styles.chatSlot} hidden={isOperatorOpen}>
+          <div className={styles.chatSlot} hidden={isOperatorOpen} inert={callCoverage.isCovered}>
             <ConnectedChat
               owner={chat}
               session={owner}
@@ -428,6 +430,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
               accountPage={page === 'messages' ? undefined : accountPage}
               isConversationOpen={navigation.isChatOpen}
               isWorkspaceHidden={isOperatorOpen}
+              isCallCoveringChat={callCoverage.isCovered}
               captureIntent={navigation.captureIntent}
               onShowConversation={navigation.openConversation}
               onShowDirectory={navigation.closeConversation}
@@ -439,7 +442,11 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
             />
           </div>
           {isOperatorOpen && (
-            <main className={styles.standaloneAccount} ref={operatorRef}>
+            <main
+              className={styles.standaloneAccount}
+              ref={operatorRef}
+              inert={callCoverage.isCovered}
+            >
               {renderPage('operator')}
             </main>
           )}
@@ -447,7 +454,9 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
         </ConnectedStickerPackScope>
       ) : (
         <>
-          <main className={styles.standaloneAccount}>{accountPage}</main>
+          <main className={styles.standaloneAccount} inert={callCoverage.isCovered}>
+            {accountPage}
+          </main>
           <ToastViewport />
         </>
       )}

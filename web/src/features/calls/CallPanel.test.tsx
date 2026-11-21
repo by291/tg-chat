@@ -37,6 +37,7 @@ const disconnects: (() => void)[] = [];
 const playing = new Set<HTMLMediaElement>();
 
 interface PanelTestOptions {
+  onCoverageChange?: (coverage: { isCovered: boolean }) => void;
   canOwnTab?: boolean;
   devices?: MediaDeviceInfo[];
   selectDevice?: CallMedia['selectDevice'];
@@ -91,7 +92,7 @@ function setup(initialCall: CallView, options: PanelTestOptions = {}) {
   });
 
   disconnects.push(owner.connect());
-  const view = render(<CallPanel owner={owner} />);
+  const view = render(<CallPanel owner={owner} onCoverageChange={options.onCoverageChange} />);
 
   return {
     view,
@@ -240,7 +241,12 @@ it('withdraws a ringing action immediately when its server permission changes', 
 
 it('restores compact chrome after leaving the call fullscreen', async () => {
   Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });
-  const { owner } = setup(connecting);
+  let isCovered = false;
+  const { owner } = setup(connecting, {
+    onCoverageChange: (coverage) => {
+      isCovered = coverage.isCovered;
+    },
+  });
   await act(async () => owner.refresh());
   const panel = screen.getByRole('region', { name: 'Call' });
   let fullscreenElement: Element | null = null;
@@ -261,7 +267,9 @@ it('restores compact chrome after leaving the call fullscreen', async () => {
   try {
     fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
     expect(await screen.findByRole('button', { name: 'Exit fullscreen' })).toBeTruthy();
+    expect(isCovered).toBe(true);
     await act(async () => changeFullscreen(null));
+    expect(isCovered).toBe(false);
     // Native state can change before its queued fullscreenchange reaches React.
     fullscreenElement = panel;
     fireEvent.click(screen.getByRole('button', { name: 'Collapse call panel' }));

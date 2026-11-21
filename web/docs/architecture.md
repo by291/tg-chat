@@ -127,7 +127,10 @@ the edited fields with their baseline, adopt newer clean fields and surface conf
 
 One tab owns call media. Collapsing the call preserves its media elements while the compact controls
 remain reachable. Native fullscreen belongs to the expanded panel. A delayed fullscreen exit can
-collapse only that same mounted panel. Rediscovering the call requires fresh consent.
+collapse only that same mounted panel. The expanded handheld call and native fullscreen suspend
+chat reads, direct activity and keyboard input. Foreground alerts resume for the covered chat.
+A floating desktop call or compact strip leaves the conversation visible and interactive.
+Rediscovering the call requires fresh consent.
 
 ## Connected communities
 
