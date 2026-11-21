@@ -1,4 +1,4 @@
-import { Check, Quote } from 'lucide-react';
+import { Check, Quote, Reply } from 'lucide-react';
 import { memo, useContext, useLayoutEffect, useRef } from 'react';
 import { useAppPreferences } from '@/features/settings/appPreferences';
 import { isVisualKind } from '@/features/media/connectedMediaReference';
@@ -34,6 +34,7 @@ interface MessageBubbleProps {
   isGroupStart: boolean;
   isGroupEnd: boolean;
   isHighlighted: boolean;
+  canSwipeToReply?: boolean;
   keyword?: string;
   onInteract: (messageId: string, interaction: MessageInteraction) => void | Promise<boolean>;
   onReact: (messageId: string, emoji: string) => void;
@@ -74,6 +75,7 @@ export const MessageBubble = memo(function MessageBubble({
   isGroupStart,
   isGroupEnd,
   isHighlighted,
+  canSwipeToReply,
   keyword,
   onInteract,
   onReact,
@@ -216,6 +218,11 @@ export const MessageBubble = memo(function MessageBubble({
         data-has-caption={hasCaption}
         data-structured={structuredKind}
       >
+        {canSwipeToReply && (
+          <span className={styles.swipeReplyIcon} aria-hidden="true">
+            <Reply size={18} fill="currentColor" />
+          </span>
+        )}
         {canHaveTail && isGroupEnd && <MessageTail />}
         {hasAuthor && (
           <span className={styles.author} data-author={message.authorId}>

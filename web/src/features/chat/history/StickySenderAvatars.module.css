@@ -25,10 +25,16 @@
   background: transparent;
   font-size: 16px;
   font-weight: 500;
+  translate: var(--reply-swipe-offset, none);
   transform-origin: bottom center;
   transition:
+    translate 250ms ease-out,
     transform 200ms ease,
     bottom var(--duration-normal);
+}
+
+.avatar[data-reply-swiping] {
+  transition: none;
 }
 
 .senderGroup[data-selecting='true'] .avatar {
@@ -41,6 +47,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .avatar {
+    translate: none;
     transition: none;
   }
 }

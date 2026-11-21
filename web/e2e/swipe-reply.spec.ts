@@ -107,3 +107,95 @@ swipeTest('only a completed horizontal swipe adds a reply', async ({ page, swipe
   await expect(reply).toContainText('Scroll up to explore');
   await expect(menu).toHaveCount(0);
 });
+
+const PHOTO_ROW = '[data-message-id="dev-4"]';
+const WHEEL_RELEASE_MS = 75;
+const WHEEL_DISTANCE = 272;
+const CLOCK_START = new Date('2026-11-01T12:00:00Z');
+const CLOCK_PAUSE = new Date('2026-11-01T12:00:01Z');
+
+test.describe('gallery thumbnail gestures', () => {
+  // prettier-ignore
+  test.use({
+    viewport: TOUCH_VIEWPORT,
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  test('swipes the photo to reply and retains tap to open the gallery', async ({
+    page,
+    context,
+  }) => {
+    await page.goto('/?chat=dev');
+    const row = page.locator(PHOTO_ROW);
+    const photo = row.locator('button[data-photo-id]');
+    const protocol = await context.newCDPSession(page);
+    // A drag on the reaction belongs to that button; it must never act on the gallery row.
+    const reaction = row.getByRole('button', { name: /reaction$/ });
+    const controlOrigin = await startSwipe(protocol, reaction);
+    await moveSwipe({ protocol, origin: controlOrigin, distance: { x: -SWIPE_DISTANCE, y: 0 } });
+    await protocol.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(page.getByRole('button', { name: 'Jump to replied message' })).toHaveCount(0);
+    const origin = await startSwipe(protocol, photo);
+    await moveSwipe({ protocol, origin, distance: { x: -SWIPE_DISTANCE, y: 0 } });
+    await expect(row).toHaveAttribute('data-reply-swiping', 'true');
+    await protocol.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(page.getByRole('button', { name: 'Jump to replied message' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    await photo.tap();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+});
+
+test('horizontal trackpad motion moves the photo and its avatar until release', async ({
+  page,
+}) => {
+  await page.goto('/?chat=dev');
+  const row = page.locator(PHOTO_ROW);
+  const photo = row.locator('[data-photo-id]');
+  const avatar = page.locator('[data-sender-group="dev-4"] > :first-child');
+  const reply = page.getByRole('button', { name: 'Jump to replied message' });
+  await photo.hover();
+  await page.clock.install({ time: CLOCK_START });
+  await page.clock.pauseAt(CLOCK_PAUSE);
+  await page.mouse.wheel(WHEEL_DISTANCE, 0);
+  await expect(row).toHaveAttribute('data-reply-swiping', 'true');
+  await expect(row.locator('[data-message-row-content]')).toHaveCSS('translate', '-64px');
+  await expect(avatar).toHaveCSS('translate', '-64px');
+  await expect(reply).toHaveCount(0);
+  await page.clock.runFor(WHEEL_RELEASE_MS);
+  await expect(reply).toBeVisible();
+  await expect(row.locator('[data-message-row-content]')).toHaveCSS('transition-duration', '0.25s');
+});
+
+test('reduced motion keeps the reply feedback stationary and accepts the threshold', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?chat=dev');
+  const row = page.locator(PHOTO_ROW);
+  const photo = row.locator('[data-photo-id]');
+  const avatar = page.locator('[data-sender-group="dev-4"] > :first-child');
+  const content = row.locator('[data-message-row-content]');
+  const reply = page.getByRole('button', { name: 'Jump to replied message' });
+  await photo.hover();
+  await page.clock.install({ time: CLOCK_START });
+  await page.clock.pauseAt(CLOCK_PAUSE);
+
+  // The first burst ends one CSS pixel below threshold. The next reaches it exactly.
+  const belowThreshold = 188;
+  const atThreshold = 192;
+  await page.mouse.wheel(belowThreshold, 0);
+  await expect(row).toHaveAttribute('data-reply-swiping', 'true');
+  await page.clock.runFor(WHEEL_RELEASE_MS);
+  await expect(reply).toHaveCount(0);
+
+  await page.mouse.wheel(atThreshold, 0);
+  await expect(row).toHaveAttribute('data-reply-swiping', 'true');
+  await expect(content).toHaveCSS('translate', 'none');
+  await expect(avatar).toHaveCSS('translate', 'none');
+  await expect(content).toHaveCSS('transition-property', 'none');
+  await page.clock.runFor(WHEEL_RELEASE_MS);
+  await expect(reply).toBeVisible();
+});

@@ -7,7 +7,6 @@ import {
   type CSSProperties,
   type MouseEvent,
 } from 'react';
-import { Reply } from 'lucide-react';
 import { IconButton } from '@/components/IconButton';
 import { createHistoryRows } from './historyRows';
 import { MessageBubble } from '../messages/MessageBubble';
@@ -28,7 +27,8 @@ import type { MessageInteraction } from '@/domain/messages/interaction';
 import { useHistoryWindow, type RemoteHistory } from './useHistoryWindow';
 import { useCurrentUserId } from '@/features/chat/CurrentUser';
 import { useVirtualHistory } from './useVirtualHistory';
-import { canReplyFromTarget, useReplySwipe } from './useReplySwipe';
+import { canReplyFromTarget } from './replyGesture';
+import { useReplySwipe } from './useReplySwipe';
 import { StickyDateHeaders } from './StickyDateHeaders';
 import { createHistoryDateGroups } from './historyDates';
 import { createHistorySenderGroups } from './historySenderGroups';
@@ -200,7 +200,11 @@ function VirtualMessageHistory({
     !menu.isOpen &&
     selectedIds === undefined &&
     (allowedActions?.includes('reply') ?? true);
-  const replySwipe = useReplySwipe({ isDisabled: !canReply, onReply: replyToMessage });
+  const replySwipe = useReplySwipe({
+    viewportRef: scroll.viewportRef,
+    isDisabled: !canReply,
+    onReply: replyToMessage,
+  });
   const virtualItems = scroll.virtualizer.getVirtualItems();
   const totalHeight = scroll.virtualizer.getTotalSize();
   const viewportHeight = scroll.virtualizer.scrollRect?.height || 0;
@@ -278,7 +282,9 @@ function VirtualMessageHistory({
   }
 
   function replyToRow(event: MouseEvent<HTMLDivElement>) {
-    if (canReply && canReplyFromTarget(event.target)) {
+    const target = event.target;
+    const isTextReply = canReplyFromTarget(target) && !target.closest('[data-message-media]');
+    if (canReply && isTextReply) {
       const messageId = findMessageRow(event.target)?.dataset.messageId;
       if (messageId) {
         replyToMessage(messageId);
@@ -362,12 +368,16 @@ function VirtualMessageHistory({
               const row = rows[item.index];
               const isMessageRow = row.kind === 'message' && !row.message.isService;
               const canSwipeToReply = isMessageRow && canReplyToMessage(row.message);
+              const senderGroup = senderGroups.find((group) => {
+                return item.index >= group.firstRowIndex && item.index <= group.lastRowIndex;
+              });
               return (
                 <div
                   key={row.key}
                   ref={scroll.virtualizer.measureElement}
                   data-index={item.index}
                   data-row-key={row.key}
+                  data-reply-group={senderGroup?.key}
                   data-message-id={isMessageRow ? row.key : undefined}
                   data-can-swipe-reply={canSwipeToReply ? true : undefined}
                   role={isMessageRow ? 'group' : undefined}
@@ -384,6 +394,7 @@ function VirtualMessageHistory({
                     {row.kind === 'message' && (
                       <MessageBubble
                         message={row.message}
+                        canSwipeToReply={canSwipeToReply}
                         shouldShowSender={shouldShowSender}
                         onMount={notifyMessageMount}
                         isSelecting={
@@ -405,9 +416,6 @@ function VirtualMessageHistory({
                       />
                     )}
                   </div>
-                  {canSwipeToReply && (
-                    <Reply className={styles.swipeReplyIcon} aria-hidden="true" />
-                  )}
                   {row.kind === 'unread' && (
                     <div
                       className={styles.unreadDivider}

@@ -1126,6 +1126,7 @@ export function ConnectedChat({
                 }
                 shouldShowSender={conversation?.kind === 'group'}
                 allowedActions={allowedActions}
+                canUseMessageActions={isChatVisible}
                 selectedIds={selectedIds}
                 canSelectMessage={
                   isChoosingReportMessages
