@@ -1,15 +1,16 @@
 .authPage {
   display: grid;
-  min-height: 100dvh;
-  padding: 32px 20px;
-  place-items: center;
+  height: 100dvh;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  place-items: safe center;
   background: var(--panel-color);
 }
 
 .authCard {
-  width: min(100%, 420px);
-  padding: 36px;
-  border-radius: 28px;
+  width: min(100%, 392px);
+  padding: 16px;
+  border-radius: 32px;
   background: var(--surface-color);
   box-shadow: var(--surface-shadow);
 }
@@ -18,6 +19,51 @@
   margin: 20px 0 24px;
   font-size: 27px;
   text-align: center;
+}
+
+.authCard .form fieldset {
+  gap: 24px;
+}
+
+.authCard .field {
+  position: relative;
+}
+
+.authCard .field input {
+  height: 54px;
+  scroll-margin-block: 16px;
+  border-radius: 12px;
+  background: var(--surface-color);
+  font-size: 16px;
+}
+
+.authCard .field span {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 12px;
+  padding: 0 4px;
+  transform: translateY(-50%);
+  background: var(--surface-color);
+  color: var(--secondary-color);
+  pointer-events: none;
+  transition:
+    top 150ms ease,
+    font-size 150ms ease;
+}
+
+.authCard .field:has(input:focus, input:not(:placeholder-shown)) span {
+  top: 0;
+  font-size: 12px;
+}
+
+.authCard .field:focus-within span {
+  color: var(--accent-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .authCard .field span {
+    transition: none;
+  }
 }
 
 .brandIcon {
@@ -380,9 +426,5 @@
 @media (max-width: 720px) {
   .panel {
     padding: 16px;
-  }
-
-  .authCard {
-    padding: 24px;
   }
 }

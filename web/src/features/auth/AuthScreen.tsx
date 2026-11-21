@@ -43,6 +43,7 @@ function CredentialsForm({ owner, mode }: CredentialsFormProps) {
       onSubmit={submit}
     >
       <Field
+        placeholder=" "
         label="Username"
         name="username"
         autoComplete="username"
@@ -51,6 +52,7 @@ function CredentialsForm({ owner, mode }: CredentialsFormProps) {
       />
       {isRegistration && (
         <Field
+          placeholder=" "
           label="Display name"
           name="display_name"
           autoComplete="nickname"
@@ -59,6 +61,7 @@ function CredentialsForm({ owner, mode }: CredentialsFormProps) {
         />
       )}
       <Field
+        placeholder=" "
         label="Password"
         name="password"
         type="password"
@@ -87,7 +90,14 @@ function RecoveryForm({ owner }: { owner: SessionOwner }) {
       onSubmit={submit}
       successMessage="If a verified account uses this email, a recovery link will arrive shortly."
     >
-      <Field label="Verified email" name="email" type="email" autoComplete="email" required />
+      <Field
+        placeholder=" "
+        label="Verified email"
+        name="email"
+        type="email"
+        autoComplete="email"
+        required
+      />
       <p className={styles.hint}>
         Recovery is available only for an email you verified before losing access.
       </p>
@@ -105,7 +115,15 @@ export function AuthScreen({ owner, capabilities }: AuthScreenProps) {
   }[mode];
 
   return (
-    <main className={styles.authPage}>
+    <main
+      className={styles.authPage}
+      onFocus={(event) => {
+        // Some browsers leave a partially visible field clipped when autofill moves focus.
+        if (event.target instanceof HTMLInputElement) {
+          event.target.scrollIntoView?.({ block: 'nearest' });
+        }
+      }}
+    >
       <section className={styles.authCard}>
         <span className={styles.brandIcon}>
           <Send aria-hidden="true" />

@@ -250,3 +250,55 @@ test('real SMTP verification and single-use recovery links replace credentials a
     await recoveryContext.close();
   }
 });
+
+test('keeps every credential field reachable on a short handheld viewport', async ({ page }) => {
+  await page.route('**/api/v1/capabilities', (route) =>
+    route.fulfill({ json: { registration_open: true, email_recovery_available: false } }),
+  );
+  await page.route('**/api/v1/auth/session', (route) =>
+    route.fulfill({
+      status: 401,
+      json: {
+        // prettier-ignore
+        error: {
+          code: 'unauthenticated',
+          message: 'Sign in.',
+          request_id: 'request',
+        },
+      },
+    }),
+  );
+  await page.setViewportSize({ width: 320, height: 320 });
+  await page.goto('/');
+  const register = page.getByRole('button', { name: 'Create an account', exact: true });
+  await register.click();
+  const card = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: 'Create your account' }) });
+  const password = page.getByLabel('Password', { exact: true });
+  await password.fill(PASSWORD);
+  await expect(password).toBeInViewport({ ratio: 1 });
+  await expect(password).toBeFocused();
+  const layout = await card.evaluate((section) => {
+    const style = getComputedStyle(section);
+    const field = section.querySelector('fieldset')!;
+    return {
+      padding: style.paddingInlineStart,
+      radius: style.borderTopLeftRadius,
+      gap: getComputedStyle(field).gap,
+    };
+  });
+  expect(layout.padding).toBe('16px');
+  expect(layout.radius).toBe('32px');
+  expect(layout.gap).toBe('24px');
+  await expect
+    .poll(() =>
+      password.evaluate((input) => {
+        const label = input.closest('label')!.querySelector('span')!;
+        return label.getBoundingClientRect().top < input.getBoundingClientRect().top;
+      }),
+    )
+    .toBe(true);
+  await page.getByRole('button', { name: 'Back to sign in' }).click();
+  await expect(page.getByLabel('Username')).toBeEditable();
+});
