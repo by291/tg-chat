@@ -45,7 +45,9 @@
 }
 
 .editorRow[data-recording='true'] {
-  display: none;
+  max-height: 48px;
+  visibility: hidden;
+  overflow: clip;
 }
 
 .editorRow[data-expanded='true'] > button,

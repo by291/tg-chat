@@ -27,6 +27,7 @@ interface RecordingView {
   elapsedMs: number;
   waveform: number[];
   preview?: Blob;
+  previewPeaks?: readonly number[];
   error: string;
 }
 
@@ -36,6 +37,8 @@ const EMPTY_VIEW: RecordingView = {
   phase: 'idle',
   elapsedMs: 0,
   waveform: [],
+  preview: undefined,
+  previewPeaks: undefined,
   error: '',
 };
 
@@ -127,7 +130,7 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
     if (recording) {
       releaseRecording(recording);
     }
-    publish({ ...EMPTY_VIEW, preview: undefined });
+    publish(EMPTY_VIEW);
   }
 
   function failRecording(recording: Recording) {
@@ -151,7 +154,7 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
     }
     if (isAccepted) {
       readySelection.current = undefined;
-      publish({ ...EMPTY_VIEW, preview: undefined });
+      publish(EMPTY_VIEW);
       return;
     }
 
@@ -232,7 +235,12 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
       return;
     }
 
-    publish({ phase: 'recording', preview: undefined, error: '' });
+    publish({
+      phase: 'recording',
+      preview: undefined,
+      previewPeaks: undefined,
+      error: '',
+    });
     try {
       recording.recorder.resume();
       startClock(recording);
@@ -261,7 +269,12 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
       filename: `Voice message.${extension}`,
     };
     readySelection.current = selection;
-    publish({ phase: 'ready', elapsedMs: recording.elapsedMs, preview: blob });
+    publish({
+      phase: 'ready',
+      elapsedMs: recording.elapsedMs,
+      preview: blob,
+      previewPeaks: recording.meter?.getPeaks(),
+    });
     if (recording.shouldSend) {
       void submitReady(selection);
     }
@@ -269,15 +282,22 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
 
   function watchRecording(recording: Recording) {
     const { recorder } = recording;
+    function publishPausedPreview() {
+      publish({ preview: recordingBlob(recording), previewPeaks: recording.meter?.getPeaks() });
+    }
+
     recorder.addEventListener('dataavailable', (event) => {
       if (active.current !== recording) {
         return;
       }
-      if (event.data.size > 0) {
+      const hasNewAudio = event.data.size > 0;
+      if (hasNewAudio) {
         recording.chunks.push(event.data);
       }
-      if (currentView.current.phase === 'paused') {
-        publish({ preview: recordingBlob(recording) });
+      // Empty timeslices should only expose existing audio, not replace a preview in progress.
+      const shouldUpdatePreview = hasNewAudio || !currentView.current.preview;
+      if (currentView.current.phase === 'paused' && shouldUpdatePreview) {
+        publishPausedPreview();
       }
     });
     recorder.addEventListener('pause', () => {
@@ -286,7 +306,7 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
         try {
           recorder.requestData();
         } catch {
-          publish({ preview: recordingBlob(recording) });
+          publishPausedPreview();
         }
       }
     });
@@ -299,7 +319,7 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
       return;
     }
     const attempt = ++generation.current;
-    publish({ ...EMPTY_VIEW, phase: 'requesting', preview: undefined });
+    publish({ ...EMPTY_VIEW, phase: 'requesting' });
     let stream: MediaStream | undefined;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });

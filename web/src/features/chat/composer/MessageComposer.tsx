@@ -1,4 +1,5 @@
 import { Link, Link2Off, LoaderCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
@@ -412,13 +413,13 @@ export function MessageComposer({
           onRemove={attachments.removeAttachment}
         />
       )}
-      {isMediaAvailable && recorder.isActive && <VoiceRecordingBar recorder={recorder} />}
       {isMediaAvailable && recorder.error && <p role="alert">{recorder.error}</p>}
       <div
         ref={editorRowRef}
         className={styles.editorRow}
         data-expanded={isExpanded}
         data-recording={recorder.isActive}
+        inert={recorder.isActive}
       >
         {(!isTextOnly ||
           isMediaAvailable ||
@@ -518,6 +519,9 @@ export function MessageComposer({
           onSend={sendMessage}
         />
       </div>
+      <AnimatePresence>
+        {isMediaAvailable && recorder.isActive && <VoiceRecordingBar recorder={recorder} />}
+      </AnimatePresence>
       {attachmentPreview && onMediaSubmit && !editingMessage && (
         <ConnectedAttachmentDialog
           initialFiles={attachmentPreview.files}

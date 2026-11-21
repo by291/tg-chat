@@ -1,62 +1,109 @@
 import { Mic, Pause, Play, Send, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { motion, useIsPresent, useReducedMotion } from 'motion/react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { pauseOtherMedia } from '@/lib/mediaPlayback';
+import { RecordingWaveform } from './RecordingWaveform';
 import type { useVoiceRecorder } from './useVoiceRecorder';
 import styles from './VoiceRecordingBar.module.css';
 
 const MILLISECONDS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
-const MAX_WAVEFORM_HEIGHT = 22;
-const MIN_WAVEFORM_HEIGHT = 2;
+const CENTISECONDS_PER_SECOND = 100;
+const SEEK_STEP_SECONDS = 0.01;
+const FADE_SECONDS = 0.15;
+// prettier-ignore
+const APPEARANCE_EASE: [number, number, number, number] = [
+  0.25,
+  0.1,
+  0.25,
+  1,
+];
+const EMPTY_PEAKS: readonly number[] = [];
 
 interface VoiceRecordingBarProps {
   recorder: ReturnType<typeof useVoiceRecorder>;
 }
 
-function formatElapsedTime(milliseconds: number): string {
-  const seconds = Math.floor(milliseconds / MILLISECONDS_PER_SECOND);
-  const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
-  const remainingSeconds = String(seconds % SECONDS_PER_MINUTE).padStart(2, '0');
-  return `${minutes}:${remainingSeconds}`;
+interface RecordingPreviewProps {
+  blob: Blob;
+  elapsedMs: number;
+  peaks: readonly number[];
+  isPresent: boolean;
 }
 
-function RecordingWaveform({ levels }: { levels: number[] }) {
-  return (
-    <span className={styles.waveform} aria-hidden="true">
-      {levels.length === 0 && <span className={styles.quietLine} />}
-      {levels.map((level, index) => {
-        const height = Math.max(MIN_WAVEFORM_HEIGHT, level * MAX_WAVEFORM_HEIGHT);
-        return <span className={styles.sample} key={index} style={{ height }} />;
-      })}
-    </span>
-  );
+function formatRecordingTime(seconds: number): string {
+  const totalCentiseconds = Math.floor(seconds * CENTISECONDS_PER_SECOND);
+  const wholeSeconds = Math.floor(totalCentiseconds / CENTISECONDS_PER_SECOND);
+  const minutes = Math.floor(wholeSeconds / SECONDS_PER_MINUTE);
+  const remainingSeconds = String(wholeSeconds % SECONDS_PER_MINUTE).padStart(2, '0');
+  const centiseconds = String(totalCentiseconds % CENTISECONDS_PER_SECOND).padStart(2, '0');
+  return `${minutes}:${remainingSeconds},${centiseconds}`;
 }
 
-function RecordingPreview({ blob }: { blob: Blob }) {
+function RecordingPreview({ blob, elapsedMs, peaks, isPresent }: RecordingPreviewProps) {
   const audio = useRef<HTMLAudioElement>(null);
-  const [source, setSource] = useState<{ blob: Blob; url: string }>();
+  const source = useRef<string>(undefined);
+  const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackError, setPlaybackError] = useState(false);
-  const url = source?.blob === blob ? source.url : undefined;
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const [position, setPosition] = useState<number>();
+  const [mediaDuration, setMediaDuration] = useState<number>();
+  const duration = mediaDuration ?? elapsedMs / MILLISECONDS_PER_SECOND;
+  const currentTime = position ?? 0;
+  const progress = position !== undefined && duration > 0 ? Math.min(1, currentTime / duration) : 1;
+  const timer = formatRecordingTime(position ?? duration);
+  const timerLabel = position === undefined ? 'Recording duration' : 'Playback time';
+
+  useLayoutEffect(() => {
+    const player = audio.current;
+    if (!isPresent || !player) {
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(blob);
+    source.current = previewUrl;
+    player.src = previewUrl;
+    setIsReady(true);
+    setIsPlaying(false);
+    setHasPlaybackError(false);
+    setPosition(undefined);
+    setMediaDuration(undefined);
+
+    return () => {
+      // Exit motion can keep the controls mounted after their audio ownership has ended.
+      source.current = undefined;
+      if (!player.paused) {
+        player.pause();
+      }
+      player.removeAttribute('src');
+      player.load();
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [blob, isPresent]);
 
   useEffect(() => {
     const player = audio.current;
-    const previewUrl = URL.createObjectURL(blob);
-    setSource({ blob, url: previewUrl });
-    setIsPlaying(false);
-    setPlaybackError(false);
-    return () => {
-      if (player && !player.paused) {
-        player.pause();
+    if (!isPresent || !isPlaying || !player) {
+      return;
+    }
+
+    const updatePosition = () => {
+      if (player.paused) {
+        return;
       }
-      URL.revokeObjectURL(previewUrl);
+      setPosition(player.currentTime);
+      frame = requestAnimationFrame(updatePosition);
     };
-  }, [blob]);
+
+    let frame = requestAnimationFrame(updatePosition);
+    return () => cancelAnimationFrame(frame);
+  }, [isPlaying, isPresent]);
 
   async function togglePlayback() {
     const player = audio.current;
-    if (!player) {
+    const previewUrl = source.current;
+    if (!player || !previewUrl) {
       return;
     }
     if (!player.paused) {
@@ -67,31 +114,86 @@ function RecordingPreview({ blob }: { blob: Blob }) {
     pauseOtherMedia(player);
     try {
       await player.play();
+      if (source.current === previewUrl) {
+        setHasPlaybackError(false);
+      }
     } catch {
-      setPlaybackError(true);
+      if (source.current === previewUrl) {
+        setHasPlaybackError(true);
+      }
     }
+  }
+
+  function updateDuration(player: HTMLAudioElement) {
+    // MediaRecorder can omit duration metadata on a partial WebM. The capture clock is finite.
+    const duration = player.duration;
+    if (Number.isFinite(duration) && duration > 0) {
+      setMediaDuration(duration);
+      setPosition((previous) =>
+        previous === undefined ? undefined : Math.min(previous, duration),
+      );
+    }
+  }
+
+  function seekTo(seconds: number) {
+    const player = audio.current;
+    if (!player || !source.current) {
+      return;
+    }
+    player.currentTime = seconds;
+    setPosition(seconds);
   }
 
   return (
     <>
       <audio
         ref={audio}
-        src={url}
-        preload="none"
-        onPlay={() => setIsPlaying(true)}
+        preload="metadata"
+        onDurationChange={(event) => updateDuration(event.currentTarget)}
+        onPlay={(event) => {
+          setIsPlaying(true);
+          setPosition(event.currentTarget.currentTime);
+        }}
         onPause={() => setIsPlaying(false)}
-        onEnded={() => setIsPlaying(false)}
-        onError={() => setPlaybackError(true)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setPosition(undefined);
+        }}
+        onTimeUpdate={(event) => {
+          const player = event.currentTarget;
+          if (!player.ended) {
+            const seconds = player.currentTime;
+            setPosition((previous) => (previous === undefined ? undefined : seconds));
+          }
+        }}
+        onError={() => setHasPlaybackError(Boolean(source.current))}
       />
       <IconButton
         label={isPlaying ? 'Pause recording preview' : 'Play recording preview'}
         className={styles.preview}
-        disabled={!url}
+        disabled={!isReady}
         onClick={() => void togglePlayback()}
       >
         {isPlaying ? <Pause /> : <Play />}
       </IconButton>
-      {playbackError && (
+      <RecordingWaveform levels={peaks} isPreview progress={progress}>
+        <input
+          className={styles.seek}
+          type="range"
+          min={0}
+          max={duration}
+          step={SEEK_STEP_SECONDS}
+          value={currentTime}
+          disabled={!isReady || duration <= 0}
+          aria-label="Recording preview playback position"
+          aria-valuetext={`${formatRecordingTime(currentTime)} of ${formatRecordingTime(duration)}`}
+          onChange={(event) => seekTo(event.currentTarget.valueAsNumber)}
+        />
+      </RecordingWaveform>
+      <span className={styles.timer} aria-label={timerLabel}>
+        {timer}
+      </span>
+      {hasPlaybackError && (
         <span className={styles.visuallyHidden} role="status">
           This recording preview could not be played.
         </span>
@@ -122,12 +224,24 @@ function recordingStatus(recorder: VoiceRecordingBarProps['recorder']): string {
 
 /** Replace the editor controls during voice capture and keep recording actions in one row. */
 export function VoiceRecordingBar({ recorder }: VoiceRecordingBarProps) {
+  const isPresent = useIsPresent();
+  const shouldReduceMotion = useReducedMotion();
   const isBusy = recorder.isFinalizing || recorder.isSending;
   const status = recordingStatus(recorder);
   const shouldShowStatus = recorder.isRequesting || isBusy;
 
   return (
-    <div className={styles.bar} role="group" aria-label="Voice recording controls">
+    <motion.div
+      className={styles.bar}
+      role="group"
+      aria-label="Voice recording controls"
+      aria-hidden={!isPresent}
+      inert={!isPresent}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: shouldReduceMotion ? 0 : FADE_SECONDS, ease: APPEARANCE_EASE }}
+    >
       <IconButton
         label="Cancel recording"
         className={styles.cancel}
@@ -137,29 +251,37 @@ export function VoiceRecordingBar({ recorder }: VoiceRecordingBarProps) {
         <Trash2 />
       </IconButton>
       <div className={styles.track} dir="ltr">
-        {shouldShowStatus ? (
+        {shouldShowStatus && (
           <span className={styles.pending} role="status">
             {status}
           </span>
-        ) : (
+        )}
+        {!shouldShowStatus && recorder.preview && (
+          <RecordingPreview
+            blob={recorder.preview}
+            elapsedMs={recorder.elapsedMs}
+            peaks={recorder.previewPeaks ?? EMPTY_PEAKS}
+            isPresent={isPresent}
+          />
+        )}
+        {!shouldShowStatus && !recorder.preview && (
           <>
-            {recorder.preview ? (
-              <RecordingPreview blob={recorder.preview} />
-            ) : (
-              <span className={styles.dot} data-paused={recorder.isPaused} aria-hidden="true" />
-            )}
+            <span className={styles.dot} data-paused={recorder.isPaused} aria-hidden="true" />
             <RecordingWaveform levels={recorder.waveform} />
             <span className={styles.timer} aria-label="Recording duration">
-              {formatElapsedTime(recorder.elapsedMs)}
-            </span>
-            <span className={styles.visuallyHidden} role="status">
-              {status}
+              {formatRecordingTime(recorder.elapsedMs / MILLISECONDS_PER_SECOND)}
             </span>
           </>
+        )}
+        {!shouldShowStatus && (
+          <span className={styles.visuallyHidden} role="status">
+            {status}
+          </span>
         )}
       </div>
       {recorder.isRecording && recorder.canPause && (
         <IconButton
+          className={styles.pause}
           label={recorder.isPaused ? 'Resume recording' : 'Pause recording'}
           onClick={recorder.isPaused ? recorder.resume : recorder.pause}
         >
@@ -174,6 +296,6 @@ export function VoiceRecordingBar({ recorder }: VoiceRecordingBarProps) {
       >
         <Send />
       </IconButton>
-    </div>
+    </motion.div>
   );
 }

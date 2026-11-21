@@ -1,9 +1,10 @@
-const WAVEFORM_BAR_COUNT = 30;
+const LIVE_WAVEFORM_BAR_COUNT = 30;
 const MIDPOINT = 128;
 const INPUT_GAIN = 5;
 
 export interface VoiceRecordingMeter {
   read: () => number[];
+  getPeaks: () => number[];
   dispose: () => void;
 }
 
@@ -29,7 +30,11 @@ export function createVoiceRecordingMeter(stream: MediaStream): VoiceRecordingMe
         }
         const rms = Math.sqrt(sum / samples.length);
         levels.push(Math.min(rms * INPUT_GAIN, 1));
-        return levels.slice(-WAVEFORM_BAR_COUNT);
+        return levels.slice(-LIVE_WAVEFORM_BAR_COUNT);
+      },
+      getPeaks() {
+        // Capture is bounded by the recorder. Copy the full history only for a preview.
+        return levels.slice();
       },
       dispose() {
         source.disconnect();

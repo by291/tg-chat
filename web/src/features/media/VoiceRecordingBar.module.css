@@ -1,12 +1,21 @@
 .bar {
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  inset-block-end: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  padding: 4px;
-  border-radius: 24px;
+  height: 48px;
+  padding-inline: 4px;
+  border-radius: inherit;
   color: var(--text-color);
   background: var(--surface-color);
+}
+
+.bar[inert] {
+  pointer-events: none;
 }
 
 .bar > button {
@@ -17,36 +26,46 @@
   color: var(--danger-color, #c43745);
 }
 
-.bar .send {
+.bar .cancel svg,
+.bar .pause svg {
+  width: 24px;
+  height: 24px;
+}
+
+.bar .send,
+.bar .send:is(:hover, :active) {
   color: white;
   background: var(--accent-color);
 }
 
-.bar .send:hover:not(:disabled) {
-  color: white;
-  background: var(--accent-color);
+:global(:where(:root[data-touch-supported='false'])) .bar .send:is(:hover, :active) {
+  background: var(--accent-hover);
 }
 
-.bar button:disabled {
-  opacity: 0.5;
+.bar .send svg,
+.track .preview svg,
+.bar .pause :global(.lucide-pause) {
+  fill: currentColor;
 }
 
 .track {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
   min-width: 0;
-  min-height: 38px;
-  padding-inline: 8px;
-  border-radius: 19px;
-  background: var(--input-color);
+  height: 40px;
+  padding-block: 6px;
+  padding-inline: 8px 12px;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--accent-color) 12%, var(--surface-color));
 }
 
 .dot {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   flex: none;
+  margin-inline: 7px;
   border-radius: 50%;
   background: var(--danger-color, #c43745);
 }
@@ -55,54 +74,80 @@
   opacity: 0.4;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .dot[data-paused='false'] {
+    animation: blink 1.25s infinite;
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 .waveform {
-  display: flex;
+  position: relative;
   flex: 1;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
   min-width: 0;
-  height: 24px;
-  overflow: hidden;
+  height: 28px;
   color: var(--accent-color);
 }
 
-.sample {
-  width: 3px;
-  flex: none;
-  border-radius: 2px;
-  background: currentColor;
+.waveformDrawing {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.quietLine {
+.waveform:has(.seek:focus-visible) {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.seek {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: 2px;
-  opacity: 0.45;
-  background: currentColor;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .timer {
   flex: none;
-  color: var(--secondary-color);
-  font-size: 0.8rem;
+  min-width: 3rem;
+  color: var(--text-color);
+  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: end;
+  user-select: none;
 }
 
-.track .preview {
-  width: 28px;
-  height: 28px;
+.track .preview,
+.track .preview:is(:hover, :active) {
+  width: 24px;
+  height: 24px;
   flex: none;
-  color: var(--accent-color);
+  color: white;
+  background: var(--accent-color);
+}
+
+:global(:where(:root[data-touch-supported='false'])) .track .preview:is(:hover, :active) {
+  background: var(--accent-hover);
 }
 
 .track .preview svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
 }
 
 .pending {
   color: var(--secondary-color);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
 }
 
 .visuallyHidden {

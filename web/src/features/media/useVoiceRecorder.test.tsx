@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { MediaSelection } from './uploadTransfer';
+import { VoiceRecordingBar } from './VoiceRecordingBar';
 import { useVoiceRecorder } from './useVoiceRecorder';
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -54,6 +56,55 @@ function mockMicrophone() {
   return { getUserMedia, stopTrack, stream };
 }
 
+function mockMicrophoneLevels() {
+  let sample = 128;
+  class AudioContextFixture {
+    createAnalyser() {
+      return {
+        fftSize: 4,
+        getByteTimeDomainData(samples: Uint8Array) {
+          samples.fill(sample);
+        },
+        disconnect() {},
+      };
+    }
+
+    createMediaStreamSource() {
+      return { connect() {}, disconnect() {} };
+    }
+
+    async resume() {}
+    async close() {}
+  }
+
+  vi.stubGlobal('AudioContext', AudioContextFixture);
+  return (nextSample: number) => {
+    sample = nextSample;
+  };
+}
+
+function renderRecorder() {
+  const previewUrl = 'blob:https://example.test/recording';
+  const revokeObjectURL = vi.fn();
+  class PreviewURL extends URL {
+    static createObjectURL = () => previewUrl;
+    static revokeObjectURL = revokeObjectURL;
+  }
+  vi.stubGlobal('URL', PreviewURL);
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
+
+  function Recorder() {
+    const recorder = useVoiceRecorder(() => undefined);
+    if (recorder.isActive) {
+      return <VoiceRecordingBar recorder={recorder} />;
+    }
+
+    return <button onClick={() => void recorder.start()}>Record</button>;
+  }
+
+  return { ...render(<Recorder />), previewUrl, revokeObjectURL };
+}
+
 it('releases the microphone when a recording is cancelled', async () => {
   const { stopTrack } = mockMicrophone();
   const onFinish = vi.fn();
@@ -96,6 +147,93 @@ it('previews a paused recording and excludes pauses from elapsed time', async ()
   expect(onFinish).toHaveBeenCalledOnce();
   expect(stopTrack).toHaveBeenCalledOnce();
   expect(result.current.isActive).toBe(false);
+});
+
+it('keeps peaks from the beginning of a long take and across capture pauses', async () => {
+  vi.useFakeTimers();
+  mockMicrophone();
+  const setMicrophoneLevel = mockMicrophoneLevels();
+  const { result } = renderHook(() => useVoiceRecorder(() => undefined));
+
+  setMicrophoneLevel(160);
+  await act(() => result.current.start());
+  act(() => vi.advanceTimersByTime(400));
+  setMicrophoneLevel(128);
+  act(() => vi.advanceTimersByTime(3_600));
+  act(() => result.current.pause());
+
+  expect(result.current.waveform.every((level) => level === 0)).toBe(true);
+  const firstTakeLength = result.current.previewPeaks?.length ?? 0;
+  expect(firstTakeLength).toBeGreaterThan(result.current.waveform.length);
+  expect(result.current.previewPeaks?.[0]).toBe(1);
+  expect(result.current.previewPeaks?.at(-1)).toBe(0);
+
+  act(() => vi.advanceTimersByTime(3_000));
+  act(() => result.current.resume());
+  expect(result.current.previewPeaks).toBeUndefined();
+  setMicrophoneLevel(144);
+  act(() => vi.advanceTimersByTime(400));
+  act(() => result.current.pause());
+
+  expect(result.current.previewPeaks?.length).toBe(firstTakeLength + 5);
+  expect(result.current.previewPeaks?.[0]).toBe(1);
+  expect(result.current.previewPeaks?.at(-1)).toBe(0.625);
+});
+
+it('shows preview playback time and seeks the underlying paused take', async () => {
+  vi.useFakeTimers();
+  mockMicrophone();
+  const { container } = renderRecorder();
+
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
+  act(() => vi.advanceTimersByTime(4_000));
+  fireEvent.click(screen.getByRole('button', { name: 'Pause recording' }));
+  const audio = container.querySelector('audio')!;
+  const seekControl = screen.getByRole('slider', { name: 'Recording preview playback position' });
+  expect(seekControl).toHaveProperty('max', '4');
+
+  fireEvent.play(audio);
+  audio.currentTime = 1.25;
+  fireEvent.timeUpdate(audio);
+  expect(screen.getByText('0:01,25')).toBeTruthy();
+  expect(seekControl).toHaveProperty('value', '1.25');
+
+  fireEvent.change(seekControl, { target: { value: '2.5' } });
+  expect(audio.currentTime).toBe(2.5);
+  expect(screen.getByText('0:02,50')).toBeTruthy();
+
+  fireEvent.pause(audio);
+  fireEvent.change(seekControl, { target: { value: '0' } });
+  expect(screen.getByText('0:00,00')).toBeTruthy();
+
+  fireEvent.ended(audio);
+  expect(seekControl).toHaveProperty('value', '0');
+  expect(screen.getByText('0:04,00')).toBeTruthy();
+});
+
+it('abandons the playing preview and its URL when the recording is cancelled', async () => {
+  vi.useFakeTimers();
+  const { stopTrack } = mockMicrophone();
+  const { container, previewUrl, revokeObjectURL } = renderRecorder();
+
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Record' })));
+  act(() => vi.advanceTimersByTime(1_000));
+  fireEvent.click(screen.getByRole('button', { name: 'Pause recording' }));
+
+  const audio = container.querySelector('audio')!;
+  let isPaused = false;
+  vi.spyOn(audio, 'paused', 'get').mockImplementation(() => isPaused);
+  vi.spyOn(audio, 'pause').mockImplementation(() => {
+    isPaused = true;
+  });
+  fireEvent.play(audio);
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel recording' }));
+
+  expect(audio.paused).toBe(true);
+  expect(audio.hasAttribute('src')).toBe(false);
+  expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith(previewUrl);
+  expect(stopTrack).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('group', { name: 'Voice recording controls' })).toBeNull();
 });
 
 it('keeps a rejected recording and prevents duplicate sends', async () => {

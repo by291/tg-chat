@@ -171,10 +171,23 @@ test('records and plays a voice message and publishes a profile avatar', async (
   await page.waitForTimeout(VOICE_SAMPLE_MS);
   await pause.click();
   const preview = controls.getByRole('button', { name: 'Play recording preview' });
+  const seek = controls.getByRole('slider', { name: 'Recording preview playback position' });
+  const previewAudio = controls.locator('audio');
+  const previewTime = () =>
+    previewAudio.evaluate((audio) => (audio as HTMLAudioElement).currentTime);
+  await expect(seek).toBeEnabled();
+  await expect
+    .poll(() => previewAudio.evaluate((audio) => (audio as HTMLAudioElement).readyState))
+    .toBeGreaterThan(0);
+  await seek.press('Home');
+  await seek.press('ArrowRight');
+  await expect.poll(previewTime).toBeCloseTo(0.01);
   await preview.click();
   await expect(controls.getByRole('button', { name: 'Pause recording preview' })).toBeVisible();
+  await expect.poll(previewTime).toBeGreaterThan(0.1);
   await controls.getByRole('button', { name: 'Resume recording' }).click();
   await expect(pause).toBeVisible();
+  await expect(previewAudio).toHaveCount(0);
   await controls.getByRole('button', { name: 'Send voice message' }).click();
   await expect(controls).toHaveCount(0);
   const play = page.getByRole('button', { name: 'Play voice message', exact: true });
