@@ -1,8 +1,8 @@
-import { pauseOtherMedia } from '@/lib/mediaPlayback';
+import { cycleVoicePlaybackRate, pauseOtherMedia, useVoicePlaybackRate } from '@/lib/mediaPlayback';
 import { usePlaybackRenewal } from '@/features/media/usePlaybackRenewal';
 import { useVisiblePlayback } from './useVisiblePlayback';
 import { Pause, Play } from 'lucide-react';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { MessageMedia } from '@/domain/messages/media';
 import { createVoiceWaveform } from './voiceWaveform';
 import styles from './VoiceMessage.module.css';
@@ -13,12 +13,6 @@ const SEEK_STEP_SECONDS = 0.1;
 const FALLBACK_LINE_HEIGHT = 2;
 const PLAYBACK_ICON_SIZE = 24;
 const INACTIVE_WAVEFORM_OPACITY = 0.3;
-// prettier-ignore
-const VOICE_PLAYBACK_SPEEDS = [
-  1,
-  1.5,
-  2,
-] as const;
 
 interface VoiceWaveformProps {
   media: Extract<MessageMedia, { kind: 'voice' }>;
@@ -107,8 +101,7 @@ export function VoiceMessage({
   useVisiblePlayback(audioRef);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
-  const [speedIndex, setSpeedIndex] = useState(0);
-  const speed = VOICE_PLAYBACK_SPEEDS[speedIndex];
+  const speed = useVoicePlaybackRate();
   const [error, setError] = useState('');
   const playback = usePlaybackRenewal({
     url: media.url,
@@ -118,6 +111,14 @@ export function VoiceMessage({
   const shouldShowElapsedTime = isPlaying || position > 0;
   const displayedDuration = shouldShowElapsedTime ? position : media.duration;
   const progress = media.duration > 0 ? Math.min(1, Math.max(0, position / media.duration)) : 0;
+
+  useLayoutEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.defaultPlaybackRate = speed;
+      audio.playbackRate = speed;
+    }
+  }, [speed]);
 
   async function togglePlayback() {
     const audio = audioRef.current;
@@ -136,14 +137,6 @@ export function VoiceMessage({
     } catch {
       setError('Audio could not be played.');
     }
-  }
-
-  function cycleSpeed() {
-    const nextIndex = (speedIndex + 1) % VOICE_PLAYBACK_SPEEDS.length;
-    if (audioRef.current) {
-      audioRef.current.playbackRate = VOICE_PLAYBACK_SPEEDS[nextIndex];
-    }
-    setSpeedIndex(nextIndex);
   }
 
   function seekTo(seconds: number) {
@@ -203,7 +196,7 @@ export function VoiceMessage({
             className={styles.speedButton}
             type="button"
             aria-label={`Voice playback speed: ${speed}×`}
-            onClick={cycleSpeed}
+            onClick={cycleVoicePlaybackRate}
           >
             {speed}×
           </button>

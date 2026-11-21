@@ -10,6 +10,15 @@ const voice = {
   waveform: [0.2, 0.8],
 };
 
+function VoiceRows({ shouldShowFirst }: { shouldShowFirst: boolean }) {
+  return (
+    <>
+      {shouldShowFirst && <VoiceMessage key="first" media={voice} />}
+      <VoiceMessage key="second" media={{ ...voice, url: '/another-voice.ogg' }} />
+    </>
+  );
+}
+
 beforeEach(() => {
   vi.stubGlobal(
     'IntersectionObserver',
@@ -53,20 +62,31 @@ describe('voice message playback', () => {
     expect(screen.getByText('0:00')).toBeTruthy();
   });
 
-  it('cycles audio speed and restores it when metadata loads', () => {
-    const { container } = render(<VoiceMessage media={voice} />);
-    const audio = container.querySelector('audio')!;
+  it('applies the same rate to other voices and restores it after a row remounts', () => {
+    const { container, rerender } = render(<VoiceRows shouldShowFirst />);
+    const [first, second] = container.querySelectorAll('audio');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Voice playback speed: 1×' }));
-    expect(audio.playbackRate).toBe(1.5);
-    audio.playbackRate = 1;
-    fireEvent.loadedMetadata(audio);
-    expect(audio.playbackRate).toBe(1.5);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Voice playback speed: 1×' })[0]);
+    expect(first.playbackRate).toBe(1.5);
+    expect(second.playbackRate).toBe(1.5);
+    second.playbackRate = 1;
+    fireEvent.loadedMetadata(second);
+    expect(second.playbackRate).toBe(1.5);
 
+    rerender(<VoiceRows shouldShowFirst={false} />);
+    expect(first.isConnected).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Voice playback speed: 1.5×' }));
-    expect(audio.playbackRate).toBe(2);
+    expect(second.playbackRate).toBe(2);
+
     fireEvent.click(screen.getByRole('button', { name: 'Voice playback speed: 2×' }));
-    expect(audio.playbackRate).toBe(1);
+    expect(second.playbackRate).toBe(0.5);
+    rerender(<VoiceRows shouldShowFirst />);
+
+    const remounted = container.querySelector('audio')!;
+    expect(remounted.playbackRate).toBe(0.5);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Voice playback speed: 0.5×' })[0]);
+    expect(remounted.playbackRate).toBe(1);
+    expect(second.playbackRate).toBe(1);
   });
 
   it('reports a playback failure without switching to a pause control', async () => {
