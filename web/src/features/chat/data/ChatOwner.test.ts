@@ -77,18 +77,18 @@ async function beginDelayedDraftRecovery(
   store: PendingMessages,
   draft: Draft = { id: 'recovered-draft', value: { text: 'Recovered words' } },
 ) {
-  const readFinished = deferredValue<void>();
+  const committed = deferredValue<void>();
   const publication = deferredValue<void>();
-  const read = store.read.bind(store);
-  vi.spyOn(store, 'read').mockImplementationOnce(async () => {
-    const persisted = await read();
-    readFinished.release();
+  const recover = store.recoverDraft.bind(store);
+  vi.spyOn(store, 'recoverDraft').mockImplementationOnce(async (choice) => {
+    const persisted = await recover(choice);
+    committed.release();
     await publication.promise;
     return persisted;
   });
 
   const restoring = owner.restoreDraft(draft);
-  await readFinished.promise;
+  await committed.promise;
   return async () => {
     publication.release();
     await restoring;
@@ -1951,6 +1951,77 @@ it('keeps the newer of two pending recovery choices in the editor and storage', 
     owner.dispose();
   }
 });
+
+it.each(['before', 'after'] as const)(
+  'keeps a committed recovery that finishes %s a later choice is rejected',
+  async (completion) => {
+    const alternativeLimit = 5;
+    const store = new PendingMessages({ key: crypto.randomUUID() });
+    const conversation = {
+      ...DIRECT,
+      draft: {
+        version: '1',
+        reply: { message_id: 'message-1', quote: 'Message 1' },
+        content: {
+          schema_version: 1,
+          text: 'Words from my other device',
+          custom_emoji: [],
+        },
+      },
+    };
+    const { owner } = fixture({
+      store,
+      conversation,
+      transport: syncTransport(
+        changePage({
+          position: 2,
+          conversation,
+          removedMessageId: 'message-1',
+        }),
+      ),
+    });
+    const destination = `conversation:${DIRECT.id}`;
+    try {
+      await owner.start();
+      for (let index = 0; index <= alternativeLimit; index += 1) {
+        const draft = { id: `draft-${index}`, value: { text: `Local revision ${index}` } };
+        await store.saveDraft({ destination, draft });
+      }
+      await owner.select(SELECTION);
+
+      const choices = owner.getSnapshot();
+      const finishFirst = await beginDelayedDraftRecovery(owner, store, choices.draftConflict!);
+      const admission = deferredValue<void>();
+      const recover = store.recoverDraft.bind(store);
+      vi.spyOn(store, 'recoverDraft').mockImplementationOnce(async (choice) => {
+        await admission.promise;
+        return recover(choice);
+      });
+      const later = owner.restoreDraft(choices.draftAlternatives![0]);
+      const rejected = expect(later).rejects.toThrow('Resolve the recovered draft alternatives');
+      if (completion === 'before') {
+        await finishFirst();
+        expect(owner.getSnapshot().draft.id).toBe(choices.draft.id);
+      }
+
+      await owner.catchUp();
+      admission.release();
+      await rejected;
+      if (completion === 'after') {
+        await finishFirst();
+      }
+
+      const stored = await store.read();
+      for (const draft of [stored.drafts[destination], owner.getSnapshot().draft]) {
+        expect(draft.value.text).toBe('Words from my other device');
+        expect(draft.reply?.quote).toBeNull();
+        expect(draft.isReplyUnavailable).toBe(true);
+      }
+    } finally {
+      owner.dispose();
+    }
+  },
+);
 
 it('preserves typing that follows a draft recovery choice', async () => {
   const store = new PendingMessages({ key: crypto.randomUUID() });

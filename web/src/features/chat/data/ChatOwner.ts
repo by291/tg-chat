@@ -36,6 +36,7 @@ import {
   scrubDraftReplyQuote,
   PendingMessages,
   type Draft,
+  type RecoveredDraft,
   type PendingMessage,
   type PendingCommand,
   type PendingForward,
@@ -87,8 +88,11 @@ type DraftState = Pick<ChatSnapshot, 'draft' | 'draftConflict' | 'draftAlternati
 type DraftReplyChange = (draft: Draft) => Draft;
 
 interface DraftRecovery {
-  draft: Draft;
+  selection: Selection;
+  generation: number;
+  previousId: string;
   replyChanges: DraftReplyChange[];
+  result?: RecoveredDraft;
 }
 
 interface Selection {
@@ -264,7 +268,7 @@ export class ChatOwner {
   private mediaQueue?: ChatMediaQueue;
   private readonly mediaTransport: UploadTransport;
   private draftPromise?: Promise<void>;
-  private pendingDraftRecovery?: DraftRecovery;
+  private draftRecoveries: DraftRecovery[] = [];
   private draftTimer?: ReturnType<typeof setTimeout>;
   private expiryTimer?: ReturnType<typeof setTimeout>;
   private readonly summaryExpirations = new Map<string, string>();
@@ -810,52 +814,55 @@ export class ChatOwner {
     if (!selection) {
       return;
     }
-    const destination = destinationKey(selection.destination);
-    const generation = this.viewGeneration;
-    const previousId = this.snapshot.draft.id;
     const recovery: DraftRecovery = {
-      draft: { ...draft, id: crypto.randomUUID() },
+      selection,
+      generation: this.viewGeneration,
+      previousId: this.snapshot.draft.id,
       replyChanges: [],
     };
-
-    // Both choices may start from the same input revision before either write can publish.
-    this.pendingDraftRecovery = recovery;
+    // Retain earlier choices until a newer transaction commits or rejects.
+    this.draftRecoveries.push(recovery);
     try {
-      await this.requireStore().saveDraft({
-        destination,
-        draft: recovery.draft,
-        expectedId: previousId,
+      recovery.result = await this.requireStore().recoverDraft({
+        destination: destinationKey(selection.destination),
+        expectedId: recovery.previousId,
+        chosenId: draft.id,
+        draft: { ...draft, id: crypto.randomUUID() },
       });
-      await this.requireStore().resolveAlternative({ destination, id: draft.id });
-      const persisted = await this.requireStore().read();
-
-      // Persistence belongs to the original destination even if its editor was replaced meanwhile.
-      const canRestoreEditor =
-        this.pendingDraftRecovery === recovery &&
-        this.isCurrentView(generation) &&
-        this.snapshot.selection === selection &&
-        this.snapshot.draft.id === previousId;
-      if (!canRestoreEditor) {
-        return;
-      }
-
-      // Source edits can arrive after IndexedDB took its snapshot. Replay them before publishing.
-      const applyReplyChanges = (candidate: Draft) => {
-        return recovery.replyChanges.reduce((current, change) => change(current), candidate);
-      };
-      const stored = persisted.drafts[destination];
-      const chosen = stored?.id === recovery.draft.id ? stored : recovery.draft;
-      const alternatives = persisted.draftAlternatives?.[destination] ?? [];
-      this.publish({
-        draft: applyReplyChanges(chosen),
-        draftConflict: undefined,
-        draftAlternatives: alternatives.map(applyReplyChanges),
-      });
+    } catch (failure) {
+      this.draftRecoveries = this.draftRecoveries.filter((attempt) => attempt !== recovery);
+      throw failure;
     } finally {
-      if (this.pendingDraftRecovery === recovery) {
-        this.pendingDraftRecovery = undefined;
-      }
+      this.publishLatestRecovery();
     }
+  }
+
+  private publishLatestRecovery(): void {
+    const latest = this.draftRecoveries.at(-1);
+    if (!latest?.result) {
+      return;
+    }
+    const result = latest.result;
+
+    // A committed choice supersedes its predecessors even if their continuations are delayed.
+    this.draftRecoveries = [];
+    const canRestoreEditor =
+      this.isCurrentView(latest.generation) &&
+      this.snapshot.selection === latest.selection &&
+      this.snapshot.draft.id === latest.previousId;
+    if (!canRestoreEditor) {
+      return;
+    }
+
+    // Source edits can arrive after IndexedDB took its snapshot. Replay them before publishing.
+    const applyReplyChanges = (candidate: Draft) => {
+      return latest.replyChanges.reduce((current, change) => change(current), candidate);
+    };
+    this.publish({
+      draft: applyReplyChanges(result.draft),
+      draftConflict: undefined,
+      draftAlternatives: result.alternatives.map(applyReplyChanges),
+    });
   }
 
   /** Rebase local text only after the user chooses it over the competing server draft. */
@@ -2056,7 +2063,9 @@ export class ChatOwner {
   }
 
   private changeDraftReplies(state: DraftState, change: DraftReplyChange): DraftState {
-    this.pendingDraftRecovery?.replyChanges.push(change);
+    for (const recovery of this.draftRecoveries) {
+      recovery.replyChanges.push(change);
+    }
     return {
       draft: change(state.draft),
       draftConflict: state.draftConflict ? change(state.draftConflict) : undefined,

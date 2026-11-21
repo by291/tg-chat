@@ -65,6 +65,17 @@ export interface Draft {
   reply?: components['schemas']['ReplyInput'];
 }
 
+interface DraftWrite {
+  destination: string;
+  draft: Draft;
+  expectedId?: string;
+}
+
+export interface RecoveredDraft {
+  draft: Draft;
+  alternatives: Draft[];
+}
+
 export interface PendingSnapshot {
   isActive: boolean;
   pending: PendingMessage[];
@@ -135,6 +146,39 @@ function protectDraftReplies(input: { draft: Draft; revision: number }): Draft {
   // A writer captured before access removal cannot restore an excerpt after the removal commits.
   const redacted = draft.reply ? redactDraftReply(draft, draft.reply.message_id) : draft;
   return { ...redacted, replyRevision: input.revision };
+}
+
+function writeDraft(snapshot: PendingSnapshot, options: DraftWrite): Draft | undefined {
+  const existing = snapshot.drafts[options.destination];
+  if (!existing && Object.keys(snapshot.drafts).length >= MAX_DRAFTS) {
+    throw new Error('The draft limit has been reached. Clear an unused draft first.');
+  }
+  const draft = protectDraftReplies({
+    draft: options.draft,
+    revision: snapshot.replyRevisions?.[options.destination] ?? 0,
+  });
+  const hasConcurrentEdit =
+    existing && existing.id !== options.expectedId && existing.id !== options.draft.id;
+
+  let conflict: Draft | undefined;
+  if (hasConcurrentEdit) {
+    const alternatives = snapshot.draftAlternatives?.[options.destination] ?? [];
+    if (alternatives.length >= MAX_DRAFT_ALTERNATIVES) {
+      throw new Error('Resolve the recovered draft alternatives before saving another conflict.');
+    }
+    snapshot.draftAlternatives ??= {};
+    snapshot.draftAlternatives[options.destination] = [...alternatives, existing];
+    conflict = existing;
+  }
+
+  const isEmpty =
+    !options.draft.value.text && !options.draft.value.richText && !options.draft.reply;
+  if (isEmpty && !options.draft.hasLocalChanges) {
+    delete snapshot.drafts[options.destination];
+  } else {
+    snapshot.drafts[options.destination] = draft;
+  }
+  return conflict;
 }
 
 function acknowledgeCurrentDraft(current: Draft, acknowledged: Draft): Draft {
@@ -555,44 +599,24 @@ export class PendingMessages {
   }
 
   /** Save a private draft without letting draft growth exceed the directory budget. */
-  async saveDraft(options: {
-    destination: string;
-    draft: Draft;
-    expectedId?: string;
-  }): Promise<Draft | undefined> {
-    let conflict: Draft | undefined;
-    await this.mutate((snapshot) => {
-      const isNew = !snapshot.drafts[options.destination];
-      if (isNew && Object.keys(snapshot.drafts).length >= MAX_DRAFTS) {
-        throw new Error('The draft limit has been reached. Clear an unused draft first.');
+  async saveDraft(options: DraftWrite): Promise<Draft | undefined> {
+    return this.mutate((snapshot) => writeDraft(snapshot, options));
+  }
+
+  /** Commit a recovery choice and return its protected projection from the same transaction. */
+  async recoverDraft(options: DraftWrite & { chosenId: string }): Promise<RecoveredDraft> {
+    return this.mutate((snapshot) => {
+      writeDraft(snapshot, options);
+      const previous = snapshot.draftAlternatives?.[options.destination];
+      const alternatives = previous?.filter((draft) => draft.id !== options.chosenId) ?? [];
+      if (previous) {
+        snapshot.draftAlternatives![options.destination] = alternatives;
       }
-      const existing = snapshot.drafts[options.destination];
-      const draft = protectDraftReplies({
-        draft: options.draft,
-        revision: snapshot.replyRevisions?.[options.destination] ?? 0,
-      });
-      const hasConcurrentEdit =
-        existing && existing.id !== options.expectedId && existing.id !== options.draft.id;
-      if (hasConcurrentEdit) {
-        const alternatives = snapshot.draftAlternatives?.[options.destination] ?? [];
-        if (alternatives.length >= MAX_DRAFT_ALTERNATIVES) {
-          throw new Error(
-            'Resolve the recovered draft alternatives before saving another conflict.',
-          );
-        }
-        snapshot.draftAlternatives ??= {};
-        snapshot.draftAlternatives[options.destination] = [...alternatives, existing];
-        conflict = existing;
-      }
-      const isEmpty =
-        !options.draft.value.text && !options.draft.value.richText && !options.draft.reply;
-      if (isEmpty && !options.draft.hasLocalChanges) {
-        delete snapshot.drafts[options.destination];
-        return;
-      }
-      snapshot.drafts[options.destination] = draft;
+
+      // A clean empty choice has no durable row, but it must still clear the editor.
+      const draft = snapshot.drafts[options.destination] ?? options.draft;
+      return { draft, alternatives };
     });
-    return conflict;
   }
 
   /** Acknowledge the owned draft revision while preserving newer typing and alternatives. */
@@ -663,18 +687,6 @@ export class PendingMessages {
     await this.transformDraftReplies((draft) => scrubDraftReplyQuote(draft, source));
   }
 
-  /** Remove an explicitly resolved alternative without discarding the active draft. */
-  async resolveAlternative(options: { destination: string; id: string }): Promise<void> {
-    await this.mutate((snapshot) => {
-      const alternatives = snapshot.draftAlternatives?.[options.destination];
-      if (alternatives) {
-        snapshot.draftAlternatives![options.destination] = alternatives.filter(
-          (draft) => draft.id !== options.id,
-        );
-      }
-    });
-  }
-
   /** Clear private records and permanently fence every existing writer for this session key. */
   async invalidate(): Promise<void> {
     this.isClosed = true;
@@ -702,15 +714,17 @@ export class PendingMessages {
     }
   }
 
-  private async mutate(change: (snapshot: PendingSnapshot) => void): Promise<void> {
+  private async mutate<Result>(change: (snapshot: PendingSnapshot) => Result): Promise<Result> {
     this.ensureOpen();
+    let result!: Result;
     // idb-keyval runs this read/modify/write in one IndexedDB transaction across all tabs.
     await update<PendingSnapshot>(this.key, (existing) => {
       this.ensureOpen();
       const snapshot = requireActive(existing);
-      change(snapshot);
+      result = change(snapshot);
       return snapshot;
     });
     this.ensureOpen();
+    return result;
   }
 }
