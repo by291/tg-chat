@@ -3,6 +3,7 @@ import { Portal } from '@ark-ui/react/portal';
 import { Archive, Bookmark, EyeOff, Megaphone, Menu as MenuIcon, Users } from 'lucide-react';
 import { IconButton } from '@/components/IconButton';
 import type { CommunityKind } from '../../communities/communityModels';
+import styles from './ConnectedDirectory.module.css';
 import overlays from '@/components/overlays/overlays.module.css';
 
 /** Open common chat destinations and creation flows from the main menu. */
@@ -25,7 +26,7 @@ export function ConnectedChatMenu({
         </IconButton>
       </Menu.Trigger>
       <Portal>
-        <Menu.Positioner>
+        <Menu.Positioner className={styles.mainMenu}>
           <Menu.Content className={overlays.menu}>
             <Menu.Item
               value="new-group"

@@ -373,7 +373,7 @@ async function createOwnedCommunity(page: Page, title: string) {
   await page.getByRole('button', { name: 'Main menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'New Group', exact: true }).click();
   await page.getByLabel('Community title', { exact: true }).fill(title);
-  await page.getByRole('button', { name: 'Create group', exact: true }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
   const chat = page.getByRole('main', { name: 'Chat', exact: true });
   await expect(chat.getByRole('heading', { name: title, exact: true })).toBeVisible();
 }

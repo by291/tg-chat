@@ -219,6 +219,7 @@
   overflow: auto;
 }
 
+.accountPage:has([data-community-creation]),
 .accountPage:is(
   [data-page='settings'],
   [data-page='general'],

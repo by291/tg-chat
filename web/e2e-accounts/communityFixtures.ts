@@ -69,7 +69,7 @@ export async function createCommunity(options: {
   const acknowledged = options.page.waitForResponse((response) => {
     return response.url().endsWith('/api/v1/communities') && response.request().method() === 'POST';
   });
-  await options.page.getByRole('button', { name: `Create ${options.kind}`, exact: true }).click();
+  await options.page.getByRole('button', { name: 'Next', exact: true }).click();
   const response = await acknowledged;
   expect(response.status()).toBe(200);
   const receipt: components['schemas']['CommandReceipt'] = await response.json();

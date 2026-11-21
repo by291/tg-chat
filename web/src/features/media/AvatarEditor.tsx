@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { isCancelled } from '@/features/auth/SessionOwner';
-import { pendingMedia, resumeUpload } from './uploadTransfer';
-import { uploadClient } from './uploadClient';
-import { withMediaSession } from './mediaSessionLock';
+import { prepareAvatar } from './avatarUpload';
 import { RemoteAvatar, type RemoteAvatarProps } from './RemoteAvatar';
-
-const MAX_AVATAR_BYTES = 25 * 1024 * 1024;
 
 interface AvatarEditorProps extends RemoteAvatarProps {
   onAssign: (fileId: string | null) => Promise<void>;
@@ -22,43 +18,18 @@ export function AvatarEditor({ onAssign, ...avatar }: AvatarEditorProps) {
   useEffect(() => () => active.current?.abort(), []);
 
   async function change(file: File): Promise<void> {
-    if (!file.size || file.size > MAX_AVATAR_BYTES) {
-      setError('Choose a photo no larger than 25 MiB.');
-      return;
-    }
     setError('');
     setStatus('Uploading photo…');
     const controller = new AbortController();
     active.current = controller;
-    const item = pendingMedia({ blob: file, filename: file.name, kind: 'avatar' });
     try {
-      const sessionId = avatar.session.getSnapshot().auth?.session.id;
-      if (!sessionId) {
-        throw new Error('Sign in before changing the photo.');
-      }
-      const ready = await withMediaSession({
-        sessionId,
-        run: () =>
-          resumeUpload({
-            item,
-            transport: uploadClient(avatar.session),
-            signal: controller.signal,
-            checkpoint: async () => controller.signal.throwIfAborted(),
-            onProgress: ({ phase }) => {
-              if (phase === 'processing') {
-                setStatus('Preparing photo…');
-              }
-            },
-          }),
+      const upload = prepareAvatar(file);
+      const fileId = await upload({
+        session: avatar.session,
+        signal: controller.signal,
+        onProcessing: () => setStatus('Preparing photo…'),
       });
-      if (!ready) {
-        throw new Error('Another upload is active. Try again after it finishes.');
-      }
-      controller.signal.throwIfAborted();
-      if (!ready.file_id) {
-        throw new Error('The photo could not be prepared.');
-      }
-      await onAssign(ready.file_id);
+      await onAssign(fileId);
     } catch (failure) {
       if (!isCancelled(failure)) {
         setError(failure instanceof Error ? failure.message : 'Photo upload failed.');

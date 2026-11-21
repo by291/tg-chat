@@ -10,6 +10,7 @@ interface OperationOptions {
 interface AccountFormProps {
   children: ReactNode;
   submitLabel: string;
+  submitIcon?: ReactNode;
   onSubmit: (fields: FormData) => Promise<void | false>;
   successMessage?: string;
   shouldReset?: boolean;
@@ -62,6 +63,7 @@ export function textField(fields: FormData, name: string): string {
 export function AccountForm({
   children,
   submitLabel,
+  submitIcon,
   onSubmit,
   successMessage,
   shouldReset = false,
@@ -93,8 +95,14 @@ export function AccountForm({
     >
       <fieldset disabled={action.isPending}>
         {children}
-        <button className={styles.primary} type="submit" disabled={isSubmitDisabled}>
-          {action.isPending ? 'Please wait…' : submitLabel}
+        <button
+          className={styles.primary}
+          type="submit"
+          aria-label={submitIcon ? submitLabel : undefined}
+          title={submitIcon ? submitLabel : undefined}
+          disabled={isSubmitDisabled}
+        >
+          {submitIcon ?? (action.isPending ? 'Please wait…' : submitLabel)}
         </button>
       </fieldset>
       {action.error && (

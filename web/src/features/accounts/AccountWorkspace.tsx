@@ -280,6 +280,8 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
             session={owner}
             chat={chat}
             view={currentPage === 'invitations' ? 'invitations' : communityView}
+            captureIntent={navigation.captureIntent}
+            isAvatarAvailable={capabilities.avatars_available}
             onShowInvitations={() => showCommunities('invitations')}
             onShowDiscovery={() => {
               if (currentPage === 'invitations') {

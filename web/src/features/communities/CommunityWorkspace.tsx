@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 import { useOperation } from '@/features/accounts/AccountForm';
-import { CommunitySettingsForm, readCommunitySettings } from './CommunityForms';
+import { CommunityCreation } from './CommunityCreation';
 import { CommunityDiscovery } from './CommunityDiscovery';
 import { CommunityAdmission } from './CommunityAdmission';
 import type { CommunityOperations } from './CommunityOperations';
@@ -68,6 +68,8 @@ interface CommunityWorkspaceProps {
   session: SessionOwner;
   chat: ChatOwner;
   view: 'discover' | 'invitations' | CommunityKind;
+  isAvatarAvailable: boolean;
+  captureIntent: () => () => boolean;
   onShowInvitations: () => void;
   onShowDiscovery: () => void;
   onOpen: (conversation: Conversation) => void;
@@ -84,18 +86,15 @@ export function CommunityWorkspace(props: CommunityWorkspaceProps) {
     <div className={`${styles.panel} ${communityStyles.workspace}`}>
       {operations && <CommunityRecovery operations={operations} />}
       {isCreating && operations && (
-        <CommunitySettingsForm
+        <CommunityCreation
           key={view}
-          creationKind={view}
-          onSubmit={async (fields) => {
-            const receipt = await operations.create({
-              ...readCommunitySettings(fields),
-              kind: view,
-            });
-            if (receipt.conversation) {
-              props.onOpen(receipt.conversation);
-            }
-          }}
+          kind={view}
+          session={session}
+          chat={chat}
+          operations={operations}
+          isAvatarAvailable={props.isAvatarAvailable}
+          captureIntent={props.captureIntent}
+          onOpen={props.onOpen}
         />
       )}
       {!isCreating && (

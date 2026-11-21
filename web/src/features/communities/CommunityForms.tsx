@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { components } from '@/api/schema';
 import { AccountForm, Field, textField } from '@/features/accounts/AccountForm';
-import type { CommunityKind } from './communityModels';
+import { ArrowRight } from 'lucide-react';
 import styles from '@/features/accounts/Accounts.module.css';
 
 type Settings = components['schemas']['CommunitySettings'];
@@ -20,66 +20,71 @@ export function readCommunitySettings(fields: FormData): Settings {
 /** Share metadata controls while keeping create and expected-version saves independently owned. */
 export function CommunitySettingsForm(props: {
   initial?: Settings;
-  creationKind?: CommunityKind;
+  creation?: { avatar: ReactNode; isCreated: boolean };
   onSubmit: (fields: FormData) => Promise<void>;
 }) {
   const [isPublic, setIsPublic] = useState(props.initial?.is_public ?? false);
-  let submitLabel = 'Save community settings';
-  if (props.creationKind) {
-    submitLabel = props.creationKind === 'channel' ? 'Create channel' : 'Create group';
-  }
+  const creation = props.creation;
+  const submitLabel = creation?.isCreated ? 'Retry photo' : 'Next';
 
   return (
-    <AccountForm submitLabel={submitLabel} onSubmit={props.onSubmit}>
-      <Field
-        label="Community title"
-        name="title"
-        required
-        maxLength={128}
-        defaultValue={props.initial?.title}
-      />
-      <label className={styles.field}>
-        <span>Description</span>
-        <textarea name="description" maxLength={2000} defaultValue={props.initial?.description} />
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          name="is_public"
-          checked={isPublic}
-          onChange={(event) => setIsPublic(event.target.checked)}
-        />
-        Public discovery
-      </label>
-      <input
-        type="hidden"
-        name="public_handle"
-        value={props.initial?.public_handle ?? ''}
-        disabled={isPublic}
-      />
-      <div hidden={!isPublic}>
+    <AccountForm
+      submitLabel={creation ? submitLabel : 'Save community settings'}
+      submitIcon={creation && <ArrowRight aria-hidden="true" />}
+      onSubmit={props.onSubmit}
+    >
+      {creation?.avatar}
+      <fieldset disabled={creation?.isCreated}>
         <Field
-          label="Public handle"
-          name="public_handle"
-          required={isPublic}
-          disabled={!isPublic}
-          minLength={3}
-          maxLength={32}
-          pattern="[A-Za-z0-9_]+"
-          defaultValue={props.initial?.public_handle ?? ''}
+          label="Community title"
+          name="title"
+          required
+          maxLength={128}
+          defaultValue={props.initial?.title}
         />
-      </div>
-      <label>
+        <label className={styles.field}>
+          <span>Description</span>
+          <textarea name="description" maxLength={2000} defaultValue={props.initial?.description} />
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            name="is_public"
+            checked={isPublic}
+            onChange={(event) => setIsPublic(event.target.checked)}
+          />
+          Public discovery
+        </label>
         <input
-          type="checkbox"
-          name="requires_approval"
-          defaultChecked={props.initial?.requires_approval}
+          type="hidden"
+          name="public_handle"
+          value={props.initial?.public_handle ?? ''}
+          disabled={isPublic}
         />
-        Approve public and invite-link join requests
-      </label>
-      <p className={styles.hint}>
-        Admitted members can read retained history. Private communities are absent from discovery.
-      </p>
+        <div hidden={!isPublic}>
+          <Field
+            label="Public handle"
+            name="public_handle"
+            required={isPublic}
+            disabled={!isPublic}
+            minLength={3}
+            maxLength={32}
+            pattern="[A-Za-z0-9_]+"
+            defaultValue={props.initial?.public_handle ?? ''}
+          />
+        </div>
+        <label>
+          <input
+            type="checkbox"
+            name="requires_approval"
+            defaultChecked={props.initial?.requires_approval}
+          />
+          Approve public and invite-link join requests
+        </label>
+        <p className={styles.hint}>
+          Admitted members can read retained history. Private communities are absent from discovery.
+        </p>
+      </fieldset>
     </AccountForm>
   );
 }

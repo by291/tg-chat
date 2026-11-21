@@ -80,6 +80,7 @@ function renderWorkspace(
   options: {
     chat?: Parameters<typeof createChatOwnerFixture>[0];
     profilePhoto?: string;
+    areAvatarsAvailable?: boolean;
     handheldQuery?: EventTarget & { matches: boolean };
   } = {},
 ) {
@@ -124,9 +125,10 @@ function renderWorkspace(
   const grant = session.getSnapshot().auth!;
   const profile = { ...grant.user, avatar_file_id: options.profilePhoto };
   const auth = { ...grant, user: profile };
+  const capabilities = { ...CAPABILITIES, avatars_available: options.areAvatarsAvailable ?? false };
   render(
     <BrowserRouter>
-      <AccountWorkspace owner={session} auth={auth} capabilities={CAPABILITIES} />
+      <AccountWorkspace owner={session} auth={auth} capabilities={capabilities} />
     </BrowserRouter>,
   );
 
@@ -448,4 +450,91 @@ it('opens both nested pages from a direct General Settings destination', async (
   await user.click(await screen.findByRole('button', { name: 'Back from wallpaper' }));
   await user.click(await screen.findByRole('button', { name: /Power Saving Mode/ }));
   expect(await screen.findByRole('button', { name: /Back from power saving/i })).toBeTruthy();
+});
+
+it.each(['group', 'channel'] as const)('retries the avatar on the created %s', async (kind) => {
+  window.history.replaceState(null, '', '/?account=communities&community=' + kind);
+  const created: string[] = [];
+  const assigned: string[] = [];
+  const uploadIds: string[] = [];
+  const finishAssignment = deferred<Response>();
+  const user = renderWorkspace({
+    areAvatarsAvailable: true,
+    chat: {
+      transport: async (request) => {
+        const path = new URL(request.url).pathname;
+        if (path.endsWith('/sync')) {
+          return Response.json({
+            groups: [],
+            cursor: cursorFixture(2),
+            observation_cursor: cursorFixture(2),
+            has_more: false,
+          });
+        }
+        if (path.endsWith('/communities') && request.method === 'POST') {
+          const settings = await request.json();
+          created.push(settings.conversation_id);
+          // prettier-ignore
+          const conversation = {
+            ...READERS,
+            ...settings,
+            id: settings.conversation_id,
+          };
+          return Response.json({ conversation, observation_cursor: cursorFixture(1) });
+        }
+        if (path.includes('/media/uploads/')) {
+          uploadIds.push(path);
+          if (uploadIds.length === 1) {
+            return Response.json({ error: { message: 'Unavailable' } }, { status: 503 });
+          }
+          return Response.json({ state: 'ready', file_id: 'portrait' });
+        }
+        return Response.json({ items: [] });
+      },
+      commands: async (request) => {
+        const command = await request.json();
+        assigned.push(command.conversation_id);
+        expect(command.action).toEqual({
+          kind: 'avatar',
+          expected_version: READERS.settings_version,
+          file_id: 'portrait',
+        });
+        return finishAssignment.promise;
+      },
+    },
+  });
+
+  const title = await screen.findByLabelText('Community title');
+  await user.type(title, 'Readers');
+  vi.stubGlobal(
+    'URL',
+    class extends URL {
+      static createObjectURL() {
+        return 'blob:portrait';
+      }
+      static revokeObjectURL() {}
+    },
+  );
+  const file = new File(['photo'], 'portrait.png', { type: 'image/png' });
+  await user.upload(screen.getByLabelText('Choose community photo'), file);
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  await screen.findByRole('alert');
+  expect(title.matches(':disabled')).toBe(true);
+  await user.click(screen.getByRole('button', { name: 'Retry photo' }));
+  await waitFor(() => expect(assigned).toEqual([created[0]]));
+  expect(created).toHaveLength(1);
+  expect(uploadIds).toEqual([uploadIds[0], uploadIds[0]]);
+
+  // A newer route owns focus even when the authoritative write finishes during the exit.
+  if (kind === 'channel') {
+    await user.keyboard('{Escape}');
+  }
+  await act(async () => {
+    finishAssignment.resolve(Response.json({ observation_cursor: cursorFixture(2) }));
+  });
+  if (kind === 'channel') {
+    expect(window.location.search).toBe('');
+  } else {
+    await waitFor(() => expect(window.location.search).toBe('?conversation=open'));
+  }
 });
