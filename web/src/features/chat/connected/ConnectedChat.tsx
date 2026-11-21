@@ -90,6 +90,7 @@ const CONNECTED_ACTIONS: MessageMenuAction[] = [
   'delete',
   'pin',
   'copy',
+  'copy-selected',
   'add-task',
   'edit-checklist',
   'forward',
@@ -367,6 +368,7 @@ export function ConnectedChat({
     setForwardIds,
     setReportedMessageIds,
     clearSelectedMessages,
+    copySelectedMessages,
     forwardTo,
   } = useMessageSelection({
     owner,
@@ -823,7 +825,12 @@ export function ConnectedChat({
         setEditVersion(canonical.version);
         break;
       case 'copy':
-        void navigator.clipboard.writeText(command.message.text).catch(report);
+        void navigator.clipboard
+          .writeText(command.selectedText ?? canonical.content.text)
+          .catch(report);
+        break;
+      case 'copy-selected':
+        void copySelectedMessages().catch(report);
         break;
       case 'pin':
         void owner

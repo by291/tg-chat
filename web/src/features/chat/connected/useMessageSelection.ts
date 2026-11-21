@@ -57,6 +57,22 @@ export function useMessageSelection({
     );
   }
 
+  async function copySelectedMessages() {
+    if (!ownsSelection() || !selectedIds || isChoosingReportMessages) {
+      return;
+    }
+
+    // Resolve in current history order so removed or revoked text cannot enter the clipboard.
+    const selected = new Set(selectedIds);
+    const readable = owner.getSnapshot().messages.filter((message) => {
+      return selected.has(message.id) && !message.is_deleted && !message.service_kind;
+    });
+    const bodies = readable.map((message) => message.content.text).filter((text) => text.trim());
+    if (bodies.length) {
+      await navigator.clipboard.writeText(bodies.join('\n'));
+    }
+  }
+
   function clearSelectedMessages() {
     if (ownsSelection()) {
       setSelectedIds(undefined);
@@ -162,6 +178,7 @@ export function useMessageSelection({
     setForwardIds,
     setReportedMessageIds,
     clearSelectedMessages,
+    copySelectedMessages,
     forwardTo,
   };
 }

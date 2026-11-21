@@ -48,9 +48,9 @@ export function useConversationMessageCommands({
   }, [selectedMessages, onNotify]);
 
   const copyMessage = useCallback(
-    async (message: Message) => {
+    async (text: string) => {
       try {
-        await navigator.clipboard.writeText(describeMessage(message));
+        await navigator.clipboard.writeText(text);
         onNotify('Copied to clipboard');
       } catch {
         onNotify('Could not access the clipboard. Select the message text to copy it.');
@@ -65,7 +65,7 @@ export function useConversationMessageCommands({
 
   // Stable callbacks let memoized history ignore draft and composer-only state changes.
   const applyMessageCommand = useCallback(
-    ({ action, message }: MessageCommand) => {
+    ({ action, message, selectedText }: MessageCommand) => {
       switch (action) {
         case 'reply':
           onReply(message);
@@ -92,7 +92,7 @@ export function useConversationMessageCommands({
           onDelete(message);
           return;
         case 'copy':
-          void copyMessage(message);
+          void copyMessage(selectedText ?? describeMessage(message));
           return;
         case 'select':
           selectMessage(message.id);

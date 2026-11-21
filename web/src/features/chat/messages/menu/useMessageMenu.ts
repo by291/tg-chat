@@ -38,7 +38,16 @@ function findMessageTarget(element: EventTarget | null): MessageMenuTarget | und
   const content = row.querySelector<HTMLElement>('[data-message-content]');
   const rectangle = (content ?? row).getBoundingClientRect();
 
+  // Menu focus can collapse the native range. Only retain a selection inside this message.
+  const selection = window.getSelection();
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : undefined;
+  const container = range?.commonAncestorContainer;
+  const textElement = container instanceof Element ? container : container?.parentElement;
+  const hasMessageText = textElement?.closest('[data-message-text]');
+  const canCopyRange = hasMessageText && row.contains(hasMessageText) && !range?.collapsed;
+
   return {
+    selectedText: canCopyRange ? range?.toString() : undefined,
     messageId,
     row,
     point: { x: rectangle.left, y: rectangle.bottom },

@@ -40,6 +40,7 @@ const POSITION_TOLERANCE = 1;
 export interface MessageMenuTarget {
   messageId: string;
   selectedIds?: string[];
+  selectedText?: string;
   row: HTMLElement;
   point: { x: number; y: number };
 }
@@ -308,7 +309,11 @@ export function MessageMenu({
       return;
     }
     if (item) {
-      onCommand({ action: item.action, message });
+      onCommand({
+        action: item.action,
+        message,
+        selectedText: item.action === 'copy' ? target?.selectedText : undefined,
+      });
     }
   }
 

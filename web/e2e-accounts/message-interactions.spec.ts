@@ -543,3 +543,56 @@ test('opens a distant Chinese search hit and honors link preview opt-out', async
   await expect(mobileResults.getByRole('button', { name: new RegExp(SEARCH_HIT) })).toBeVisible();
   await expect(conversationSearch).toHaveValue(SEARCH_TERM);
 });
+
+test('copies a native fragment and chronological multi-message text', async ({
+  context,
+  baseURL,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const account = await register(context, baseURL!);
+  const destination = { kind: 'saved' } as const;
+  const first = 'First selected body';
+  const second = 'Second selected body';
+  // prettier-ignore
+  await sendText({
+    account,
+    destination,
+    text: first,
+  });
+  // prettier-ignore
+  await sendText({
+    account,
+    destination,
+    text: second,
+  });
+  const { page } = account;
+  await openMessages(page);
+  await openConversation(page, 'Saved Messages');
+
+  const firstRow = page.getByRole('group', { name: `Message: ${first}`, exact: true });
+  const secondRow = page.getByRole('group', { name: `Message: ${second}`, exact: true });
+  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+  await firstRow.focus();
+  await firstRow.getByText(first, { exact: true }).evaluate((element, fragment) => {
+    const text = element.firstChild!;
+    const start = text.textContent!.indexOf(fragment);
+    const range = new Range();
+    range.setStart(text, start);
+    range.setEnd(text, start + fragment.length);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, 'selected');
+  await page.keyboard.press('Shift+F10');
+  await page.getByRole('menuitem', { name: 'Copy', exact: true }).click();
+  await expect.poll(clipboard).toBe('selected');
+
+  await secondRow.focus();
+  await page.keyboard.press('Shift+F10');
+  await page.getByRole('menuitem', { name: 'Select', exact: true }).click();
+  await firstRow.click();
+  await firstRow.focus();
+  await page.keyboard.press('Shift+F10');
+  await page.getByRole('menuitem', { name: 'Copy selected', exact: true }).click();
+  await expect.poll(clipboard).toBe(`${first}\n${second}`);
+});

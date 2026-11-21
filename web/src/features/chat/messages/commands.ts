@@ -21,4 +21,5 @@ export type MessageMenuAction = MessageAction | StructuredMessageAction;
 export interface MessageCommand {
   action: MessageAction;
   message: Message;
+  selectedText?: string;
 }
