@@ -32,8 +32,14 @@ interface LinkLookup {
 }
 
 interface LinkLookupResult {
+  url: string;
   scope?: string;
-  preview: LinkPreview;
+  preview?: LinkPreview;
+}
+
+/** Require readable metadata before reserving the composer helper slot. */
+export function hasPreviewMetadata(preview?: LinkPreview): preview is LinkPreview {
+  return Boolean(preview?.site_name?.trim() || preview?.title?.trim() || preview?.summary?.trim());
 }
 
 function isPreviewCandidate(candidate: string): boolean {
@@ -111,10 +117,9 @@ export function findComposerLink({ text, richText }: EmojiText): string | undefi
 }
 
 /** Debounce link changes and ignore metadata returned after the composer moved on. */
-export function useLinkPreview({ url, scope, onLoad }: LinkLookup): LinkPreview | undefined {
+export function useLinkPreview({ url, scope, onLoad }: LinkLookup) {
   const [result, setResult] = useState<LinkLookupResult>();
-  const current =
-    result?.preview.url === url && result?.scope === scope ? result?.preview : undefined;
+  const current = result && result.url === url && result.scope === scope ? result : undefined;
 
   useEffect(() => {
     if (!url || !onLoad || current) {
@@ -123,13 +128,23 @@ export function useLinkPreview({ url, scope, onLoad }: LinkLookup): LinkPreview 
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
+      let preview: LinkPreview | undefined;
       try {
-        const preview = await onLoad(url, controller.signal);
-        if (!controller.signal.aborted && preview?.url === url) {
-          setResult({ scope, preview });
+        const response = await onLoad(url, controller.signal);
+        if (response?.url === url && hasPreviewMetadata(response)) {
+          preview = response;
         }
       } catch {
         // Preview lookup is optional and never blocks composing or sending the message.
+      }
+
+      // A stale lookup must not take the helper from the new message or URL.
+      if (!controller.signal.aborted) {
+        setResult({
+          scope,
+          url,
+          preview,
+        });
       }
     }, PREVIEW_DEBOUNCE_MS);
 
@@ -139,5 +154,6 @@ export function useLinkPreview({ url, scope, onLoad }: LinkLookup): LinkPreview 
     };
   }, [current, onLoad, scope, url]);
 
-  return current;
+  const isLoading = Boolean(url && onLoad && !current);
+  return { preview: current?.preview, isLoading };
 }

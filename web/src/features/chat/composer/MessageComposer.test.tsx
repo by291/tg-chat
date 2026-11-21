@@ -169,6 +169,59 @@ it('carries the sender link preview opt-out with the message', async () => {
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ disableLinkPreview: true }));
 });
 
+it('keeps the reply available while loading and restores it after preview dismissal', async () => {
+  const lookup = deferredPreview();
+  const onJumpToMessage = vi.fn();
+  renderComposer({
+    draft: FIRST_PREVIEW.url,
+    isTextOnly: true,
+    replyMessage: {
+      id: 'reply-target',
+      chatId: 'dev',
+      authorId: 'mia',
+      authorName: 'Mia',
+      text: 'Original question',
+      createdAt: 1000,
+      reactions: [],
+    },
+    onLoadLinkPreview: () => lookup.pending,
+    onJumpToMessage,
+  });
+
+  const reply = { name: 'Jump to replied message' };
+  expect(screen.getByRole('button', reply)).toBeTruthy();
+  expect(screen.queryByRole('group', { name: 'Link preview' })).toBeNull();
+  await act(async () => lookup.complete(FIRST_PREVIEW));
+  expect(await screen.findByText('Example')).toBeTruthy();
+  expect(screen.queryByRole('button', reply)).toBeNull();
+
+  fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message' }), { key: 'Escape' });
+  await userEvent.click(screen.getByRole('button', reply));
+  expect(onJumpToMessage).toHaveBeenCalledWith('reply-target');
+});
+
+it('leaves the editor usable when the server returns no displayable metadata', async () => {
+  matchMobileViewport();
+  const onLoadLinkPreview = vi.fn().mockResolvedValue({
+    url: FIRST_PREVIEW.url,
+    title: ' ',
+    site_name: '',
+    summary: '',
+  });
+  const onSubmit = vi.fn();
+  renderComposer({
+    draft: FIRST_PREVIEW.url,
+    isTextOnly: true,
+    onLoadLinkPreview,
+    onSubmit,
+  });
+
+  await screen.findByTitle('Link preview unavailable');
+  expect(screen.queryByRole('group', { name: 'Link preview' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Send message' }));
+  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ text: FIRST_PREVIEW.url }));
+});
+
 it('keeps a late lookup from replacing the preview of the current link', async () => {
   const previous = deferredPreview();
   const onLoadLinkPreview = vi.fn((url: string) =>
@@ -254,10 +307,11 @@ it('keeps the draft preview dismissed when the sender replaces its link', async 
   const composer = renderComposer({
     draft: FIRST_PREVIEW.url,
     isTextOnly: true,
+    onLoadLinkPreview: async () => FIRST_PREVIEW,
     onSubmit,
   });
 
-  await user.click(screen.getByRole('button', { name: 'Disable link preview' }));
+  await user.click(await screen.findByRole('button', { name: 'Disable link preview' }));
   composer.rerenderComposer({ draft: NEXT_PREVIEW.url });
   await user.click(screen.getByRole('button', { name: 'Send message' }));
 

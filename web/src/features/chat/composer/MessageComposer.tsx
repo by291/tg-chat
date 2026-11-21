@@ -1,4 +1,4 @@
-import { Link, Maximize2, Minimize2 } from 'lucide-react';
+import { Link, Link2Off, LoaderCircle, Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { AttachmentMenu, type AttachmentAction } from './attachments/AttachmentMenu';
@@ -18,7 +18,12 @@ import { EmojiPicker } from './picker/EmojiPicker';
 import { ComposerContextBar } from './context/ComposerContextBar';
 import { ComposerLinkPreviewBar } from './context/ComposerLinkPreviewBar';
 import { DiscardEditDialog } from './context/DiscardEditDialog';
-import { findComposerLink, useLinkPreview, type LoadLinkPreview } from './linkPreview';
+import {
+  findComposerLink,
+  hasPreviewMetadata,
+  useLinkPreview,
+  type LoadLinkPreview,
+} from './linkPreview';
 import { hasMessageEditChanged } from './context/messageEditing';
 import type { Attachment } from '@/domain/messages/media';
 import type { Message } from '@/domain/messages/message';
@@ -148,7 +153,7 @@ export function MessageComposer({
     [isTextOnly, text, value.richText],
   );
   const canShowPreviewControl = Boolean(previewUrl) && !recorder.isActive;
-  const isPreviewVisible = canShowPreviewControl && !isPreviewDisabled;
+  const isPreviewEnabled = canShowPreviewControl && !isPreviewDisabled;
   const publishedPreview = editingMessage?.linkPreview;
   const existingPreview =
     publishedPreview && publishedPreview.url === previewUrl
@@ -159,11 +164,27 @@ export function MessageComposer({
           summary: publishedPreview.description,
         }
       : undefined;
-  const loadedPreview = useLinkPreview({
-    url: isPreviewVisible && !existingPreview ? previewUrl : undefined,
+  const publishedMetadata = hasPreviewMetadata(existingPreview) ? existingPreview : undefined;
+  const lookup = useLinkPreview({
+    url: isPreviewEnabled && !publishedMetadata ? previewUrl : undefined,
     scope: editingMessage?.id,
     onLoad: onLoadLinkPreview,
   });
+
+  const preview = isPreviewEnabled ? (publishedMetadata ?? lookup.preview) : undefined;
+  const isCompactPreviewControl = canShowPreviewControl && !preview;
+  let PreviewControlIcon = Link2Off;
+  let previewControlLabel = 'Disable link preview';
+  let previewControlTitle = 'Link preview unavailable';
+  if (isPreviewDisabled) {
+    PreviewControlIcon = Link;
+    previewControlLabel = 'Restore link preview';
+    previewControlTitle = previewControlLabel;
+  } else if (lookup.isLoading) {
+    PreviewControlIcon = LoaderCircle;
+    previewControlLabel = 'Disable link preview while loading';
+    previewControlTitle = 'Loading link preview';
+  }
 
   const didPreviewChange = Boolean(editingMessage?.disableLinkPreview) !== isPreviewDisabled;
   const hasContent =
@@ -278,6 +299,12 @@ export function MessageComposer({
       return;
     }
 
+    // Escape dismisses the visible helper before touching the underlying reply or edit.
+    if (preview) {
+      toggleLinkPreview();
+      return;
+    }
+
     if (contextMessage || forwardMessages?.length) {
       requestCancelContext();
       return;
@@ -349,9 +376,8 @@ export function MessageComposer({
       className={styles.composer}
       data-message-composer
       data-dragging={attachments.isDragging}
-      data-has-context={Boolean(contextMessage || forwardMessages?.length)}
+      data-has-context={Boolean(preview || contextMessage || forwardMessages?.length)}
       data-has-attachment={Boolean((attachment || mediaAttachment) && !editingMessage)}
-      data-has-link-preview={isPreviewVisible}
       onDragOver={isTextOnly ? (event) => event.preventDefault() : attachments.dragOver}
       onDragLeave={isTextOnly ? undefined : attachments.dragLeave}
       onDrop={(event) => {
@@ -364,19 +390,21 @@ export function MessageComposer({
       }}
     >
       <ComposerContextBar
+        linkPreview={
+          preview && (
+            <ComposerLinkPreviewBar
+              preview={preview}
+              isDisabled={isDisabled}
+              onDismiss={toggleLinkPreview}
+            />
+          )
+        }
         replyMessage={replyMessage}
         editingMessage={editingMessage}
         forwardMessages={forwardMessages}
         onJumpToMessage={onJumpToMessage}
         onCancel={requestCancelContext}
       />
-      {isPreviewVisible && (
-        <ComposerLinkPreviewBar
-          preview={existingPreview ?? loadedPreview}
-          isDisabled={isDisabled}
-          onDismiss={toggleLinkPreview}
-        />
-      )}
       {(attachment || mediaAttachment) && !editingMessage && (
         <AttachmentPreview
           attachment={attachment}
@@ -471,14 +499,15 @@ export function MessageComposer({
             canSelectSticker ? (sticker) => onSubmit({ text: '', sticker }) : undefined
           }
         />
-        {canShowPreviewControl && isPreviewDisabled && (
+        {isCompactPreviewControl && (
           <IconButton
-            label="Restore link preview"
+            label={previewControlLabel}
+            title={previewControlTitle}
             disabled={isDisabled}
             onMouseDown={(event) => event.preventDefault()}
             onClick={toggleLinkPreview}
           >
-            <Link />
+            <PreviewControlIcon />
           </IconButton>
         )}
         <ComposerSendButton

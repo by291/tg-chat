@@ -4,7 +4,7 @@ import type { components } from '@/api/schema';
 import styles from './ComposerContextBar.module.css';
 
 interface ComposerLinkPreviewBarProps {
-  preview?: components['schemas']['LinkPreviewView'];
+  preview: components['schemas']['LinkPreviewView'];
   isDisabled: boolean;
   onDismiss: () => void;
 }
@@ -15,9 +15,9 @@ export function ComposerLinkPreviewBar({
   isDisabled,
   onDismiss,
 }: ComposerLinkPreviewBarProps) {
-  const title = preview?.site_name || preview?.title || 'Link preview';
-  const pageTitle = preview?.site_name ? preview.title : '';
-  const detail = [pageTitle, preview?.summary].filter(Boolean).join(' · ');
+  const title = preview.site_name.trim() || preview.title.trim() || 'Link preview';
+  const pageTitle = preview.site_name.trim() ? preview.title.trim() : '';
+  const detail = [pageTitle, preview.summary.trim()].filter(Boolean).join(' · ');
 
   return (
     <div className={styles.bar} role="group" aria-label="Link preview">

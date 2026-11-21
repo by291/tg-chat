@@ -1,5 +1,5 @@
 import { Forward, Pencil, Reply, X } from 'lucide-react';
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import { CustomEmojiText } from '@/features/emoji/CustomEmojiText';
@@ -9,6 +9,7 @@ import { findSticker } from '@/features/stickers/stickerCatalog';
 import styles from './ComposerContextBar.module.css';
 
 interface ComposerContextBarProps {
+  linkPreview?: ReactNode;
   replyMessage?: Message;
   editingMessage?: Message;
   forwardMessages?: Message[];
@@ -93,62 +94,78 @@ function ContextContent({ context }: { context: ComposerContext }) {
   );
 }
 
-/** Keep the preview mounted during collapse so its height animates the floating composer. */
-export function ComposerContextBar(props: ComposerContextBarProps) {
-  const context = getContext(props);
-  const lastContextRef = useRef(context);
-  useLayoutEffect(() => {
-    if (context) {
-      lastContextRef.current = context;
-    }
-  }, [context]);
-
-  const displayed = context ?? lastContextRef.current;
-  const isOpen = Boolean(context);
+function ContextActions({
+  context,
+  onJumpToMessage,
+  onCancel,
+}: Pick<ComposerContextBarProps, 'onJumpToMessage' | 'onCancel'> & { context: ComposerContext }) {
   let ContextIcon = Reply;
-  if (displayed?.kind === 'edit') {
+  if (context.kind === 'edit') {
     ContextIcon = Pencil;
-  } else if (displayed?.kind === 'forward') {
+  } else if (context.kind === 'forward') {
     ContextIcon = Forward;
   }
 
   return (
-    <div className={styles.slot} data-open={isOpen} aria-hidden={!isOpen} inert={!isOpen}>
-      {displayed && (
-        <div
-          className={styles.bar}
-          data-reply-author={displayed.kind === 'reply' ? displayed.message?.authorId : undefined}
+    <div
+      className={styles.bar}
+      data-reply-author={context.kind === 'reply' ? context.message?.authorId : undefined}
+    >
+      <ContextIcon className={styles.icon} size={24} aria-hidden="true" />
+      {context.message ? (
+        <button
+          type="button"
+          className={styles.preview}
+          aria-label={
+            context.kind === 'edit' ? 'Jump to edited message' : 'Jump to replied message'
+          }
+          onClick={() => {
+            if (context.message) {
+              onJumpToMessage(context.message.id);
+            }
+          }}
         >
-          <ContextIcon className={styles.icon} size={24} aria-hidden="true" />
-          {displayed.message ? (
-            <button
-              type="button"
-              className={styles.preview}
-              aria-label={
-                displayed.kind === 'edit' ? 'Jump to edited message' : 'Jump to replied message'
-              }
-              onClick={() => {
-                if (displayed.message) {
-                  props.onJumpToMessage(displayed.message.id);
-                }
-              }}
-            >
-              <ContextContent context={displayed} />
-              <Ripple />
-            </button>
-          ) : (
-            <div className={styles.preview}>
-              <ContextContent context={displayed} />
-            </div>
-          )}
-          <IconButton
-            label={displayed.kind === 'forward' ? 'Cancel forwarding' : 'Cancel reply or edit'}
-            onClick={props.onCancel}
-          >
-            <X />
-          </IconButton>
+          <ContextContent context={context} />
+          <Ripple />
+        </button>
+      ) : (
+        <div className={styles.preview}>
+          <ContextContent context={context} />
         </div>
       )}
+      <IconButton
+        label={context.kind === 'forward' ? 'Cancel forwarding' : 'Cancel reply or edit'}
+        onClick={onCancel}
+      >
+        <X />
+      </IconButton>
+    </div>
+  );
+}
+
+/** Keep a single animated slot for the visible preview, reply, forward or edit. */
+export function ComposerContextBar(props: ComposerContextBarProps) {
+  const context = getContext(props);
+  const previousContext = useRef(context);
+  useLayoutEffect(() => {
+    // Retain the reply during collapse, while dismissed link metadata is removed immediately.
+    if (context) {
+      previousContext.current = context;
+    }
+  }, [context]);
+
+  const displayed = context ?? previousContext.current;
+  const contextBar = displayed && (
+    <ContextActions
+      context={displayed}
+      onJumpToMessage={props.onJumpToMessage}
+      onCancel={props.onCancel}
+    />
+  );
+  const isOpen = Boolean(props.linkPreview || context);
+  return (
+    <div className={styles.slot} data-open={isOpen} aria-hidden={!isOpen} inert={!isOpen}>
+      {props.linkPreview ?? contextBar}
     </div>
   );
 }
