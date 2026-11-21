@@ -26,7 +26,7 @@ export function useViewerMediaTransition({
   onSettled,
 }: ViewerMediaTransitionOptions) {
   const animationRef = useRef<Animation | undefined>(undefined);
-  const sourceRef = useRef<HTMLElement | null>(null);
+  const sourceRef = useRef<WeakRef<HTMLElement>>(undefined);
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
 
@@ -37,11 +37,10 @@ export function useViewerMediaTransition({
         return;
       }
 
-      const previousSource = sourceRef.current;
-      const hasCurrentSource =
-        previousSource?.isConnected && previousSource.dataset.photoId === messageId;
-      const source = hasCurrentSource ? previousSource : findPhotoSource(messageId);
-      sourceRef.current = source;
+      const previousSource = sourceRef.current?.deref();
+      const source = findPhotoSource(messageId, previousSource);
+      const remembered = source ? new WeakRef(source) : undefined;
+      sourceRef.current = remembered;
 
       // Capture an interrupted opening before cancellation removes its visible transform.
       const currentStyle = getComputedStyle(element);
@@ -96,7 +95,7 @@ export function useViewerMediaTransition({
 
       return () => {
         isDisposed = true;
-        source?.removeAttribute('data-viewer-source');
+        remembered?.deref()?.removeAttribute('data-viewer-source');
       };
     },
     // prettier-ignore

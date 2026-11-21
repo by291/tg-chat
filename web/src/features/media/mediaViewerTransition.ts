@@ -11,7 +11,7 @@ interface PhotoTransitionOptions {
   startFrame?: Keyframe;
 }
 
-let clickedPhotoSource: { messageId: string; element: HTMLElement } | undefined;
+let clickedPhotoSource: { messageId: string; element: WeakRef<HTMLElement> } | undefined;
 
 function readRestingMediaBounds(image: HTMLElement) {
   const layer = image.closest<HTMLElement>('[data-viewer-transform]');
@@ -36,7 +36,7 @@ function readRestingMediaBounds(image: HTMLElement) {
 
 /** Record the clicked copy because mouse clicks do not focus buttons in every browser. */
 export function rememberPhotoSource(messageId: string, element: HTMLElement) {
-  clickedPhotoSource = { messageId, element };
+  clickedPhotoSource = { messageId, element: new WeakRef(element) };
 }
 
 function getScaledCorners(source: HTMLElement, scale: number) {
@@ -77,38 +77,45 @@ function getScaledCorners(source: HTMLElement, scale: number) {
   return radii.map((radius) => `${radius / scale}px`).join(' ');
 }
 
+function isVisibleOccurrence(element: HTMLElement | undefined | null, messageId: string) {
+  if (!element?.isConnected || element.dataset.photoId !== messageId) {
+    return false;
+  }
+  const bounds = element.getBoundingClientRect();
+  return (
+    bounds.width > 0 &&
+    bounds.height > 0 &&
+    bounds.bottom > 0 &&
+    bounds.top < window.innerHeight &&
+    bounds.right > 0 &&
+    bounds.left < window.innerWidth
+  );
+}
+
 /** Resolve a visible thumbnail without retaining a virtual history row. */
-export function findPhotoSource(messageId: string): HTMLElement | null {
-  const clickedSource = clickedPhotoSource;
+export function findPhotoSource(messageId: string, retained?: HTMLElement): HTMLElement | null {
+  const clicked = clickedPhotoSource;
   clickedPhotoSource = undefined;
-  if (clickedSource?.messageId === messageId && clickedSource.element.isConnected) {
-    return clickedSource.element;
-  }
-
-  const focusedSource = document.activeElement?.closest<HTMLElement>('[data-photo-id]');
-  if (focusedSource?.dataset.photoId === messageId) {
-    return focusedSource;
-  }
-
-  const candidates = document.querySelectorAll<HTMLElement>('[data-photo-id]');
-
-  for (const candidate of candidates) {
-    if (candidate.dataset.photoId !== messageId) {
-      continue;
-    }
-
-    const bounds = candidate.getBoundingClientRect();
-    const isVisible =
-      bounds.bottom > 0 &&
-      bounds.top < window.innerHeight &&
-      bounds.right > 0 &&
-      bounds.left < window.innerWidth &&
-      bounds.width > 0;
-    if (isVisible) {
+  // Authorization and closing can both finish after a virtual row moves or is reassigned.
+  const clickedElement = clicked?.messageId === messageId ? clicked.element.deref() : undefined;
+  const focused = document.activeElement?.closest<HTMLElement>('[data-photo-id]');
+  // prettier-ignore
+  const preferred = [
+    retained,
+    clickedElement,
+    focused,
+  ];
+  for (const candidate of preferred) {
+    if (candidate && isVisibleOccurrence(candidate, messageId)) {
       return candidate;
     }
   }
-
+  const candidates = document.querySelectorAll<HTMLElement>('[data-photo-id]');
+  for (const candidate of candidates) {
+    if (isVisibleOccurrence(candidate, messageId)) {
+      return candidate;
+    }
+  }
   return null;
 }
 

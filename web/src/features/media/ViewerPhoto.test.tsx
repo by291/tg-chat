@@ -110,6 +110,45 @@ describe('photo viewer transitions', () => {
     sharedSource.remove();
   });
 
+  it('ignores a thumbnail recycled for a different occurrence during authorization', () => {
+    const thumbnail = document.createElement('button');
+    thumbnail.dataset.photoId = photoMessage.id;
+    thumbnail.append(document.createElement('img'));
+    document.body.append(thumbnail);
+    rememberPhotoSource(photoMessage.id, thumbnail);
+    thumbnail.dataset.photoId = 'new-occurrence';
+
+    try {
+      render(<ViewerPhoto message={photoMessage} isOpen activeIndex={0} />);
+      expect(thumbnail.hasAttribute('data-viewer-source')).toBe(false);
+    } finally {
+      thumbnail.remove();
+    }
+  });
+
+  it('fades on close when the source remains mounted outside the viewport', () => {
+    const thumbnail = document.createElement('button');
+    thumbnail.dataset.photoId = photoMessage.id;
+    thumbnail.append(document.createElement('img'));
+    const visible = DOMRect.fromRect({ width: 200, height: 400 });
+    thumbnail.getBoundingClientRect = () => visible;
+    document.body.append(thumbnail);
+    try {
+      const view = render(<ViewerPhoto message={photoMessage} isOpen activeIndex={0} />);
+      expect(thumbnail.hasAttribute('data-viewer-source')).toBe(true);
+      thumbnail.getBoundingClientRect = () =>
+        DOMRect.fromRect({
+          y: window.innerHeight + 1,
+          width: visible.width,
+          height: visible.height,
+        });
+      view.rerender(<ViewerPhoto message={photoMessage} isOpen={false} activeIndex={0} />);
+      expect(thumbnail.hasAttribute('data-viewer-source')).toBe(false);
+    } finally {
+      thumbnail.remove();
+    }
+  });
+
   it('starts a rapid close at the currently displayed scale and position', () => {
     const view = render(<ViewerPhoto message={photoMessage} isOpen activeIndex={0} />);
     const image = screen.getByAltText('Landscape');
