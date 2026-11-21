@@ -9,6 +9,7 @@ import {
 import {
   galleryMessage,
   isVisualKind,
+  mediaSourceId,
   previewVariant,
   urlFor,
   type MediaReference,
@@ -29,23 +30,41 @@ interface GalleryResult {
   error?: string;
 }
 
-async function loadOccurrence(reference: MediaReference, signal: AbortSignal) {
+interface GalleryEntry {
+  reference: MediaReference;
+  placeholder: Message;
+}
+
+async function loadOccurrence(entry: GalleryEntry, signal: AbortSignal): Promise<Message> {
+  const { reference, placeholder } = entry;
   const variant = previewVariant(reference.attachment);
   const preview = await urlFor({
     reference,
     variant,
     signal,
   });
-  if (reference.attachment.file.kind !== 'video') {
-    return galleryMessage(reference, { preview });
+  // Keep the original signer stable while the same occurrence gains its renderable URLs.
+  if (placeholder.attachment) {
+    return { ...placeholder, attachment: { ...placeholder.attachment, url: preview } };
   }
 
+  const video = placeholder.media;
+  if (video?.kind !== 'video') {
+    throw new Error('Unsupported gallery media.');
+  }
   const playback = await urlFor({
     reference,
     variant: 'playback',
     signal,
   });
-  return galleryMessage(reference, { preview, playback });
+  return {
+    ...placeholder,
+    media: {
+      ...video,
+      url: playback,
+      poster: preview,
+    },
+  };
 }
 
 function GallerySession({
@@ -57,7 +76,8 @@ function GallerySession({
   actions: MediaActions;
   onDiscard: () => void;
 }) {
-  const [activeId, setActiveId] = useState(request.occurrenceId);
+  const selectedId = mediaSourceId(request.message.id, request.occurrenceId);
+  const [activeId, setActiveId] = useState(selectedId);
   const [isOpen, setIsOpen] = useState(true);
   const [results, setResults] = useState<Record<string, GalleryResult>>({});
   const lifetime = useRef<AbortController>(undefined);
@@ -75,15 +95,15 @@ function GallerySession({
     });
   }, [request]);
 
-  function load(reference: MediaReference, signal: AbortSignal) {
-    const id = reference.attachment.occurrence_id;
+  function load(entry: GalleryEntry, signal: AbortSignal) {
+    const id = entry.placeholder.id;
     function publish(result: GalleryResult) {
       // Uncooperative transports may complete after navigation, close, or a session change.
       if (!signal.aborted) {
         setResults((current) => ({ ...current, [id]: result }));
       }
     }
-    void loadOccurrence(reference, signal).then(
+    void loadOccurrence(entry, signal).then(
       (message) => publish({ message }),
       (failure: unknown) => {
         const error = failure instanceof Error ? failure.message : 'Media unavailable.';
@@ -96,17 +116,17 @@ function GallerySession({
     const controller = new AbortController();
     lifetime.current = controller;
     // Start the clicked occurrence first. Each neighbor publishes independently.
-    const selected = entries.find((entry) => entry.placeholder.id === request.occurrenceId);
+    const selected = entries.find((entry) => entry.placeholder.id === selectedId);
     if (selected) {
-      load(selected.reference, controller.signal);
+      load(selected, controller.signal);
     }
     for (const entry of entries) {
       if (entry !== selected) {
-        load(entry.reference, controller.signal);
+        load(entry, controller.signal);
       }
     }
     return () => controller.abort();
-  }, [entries, request.occurrenceId]);
+  }, [entries, selectedId]);
 
   function close() {
     lifetime.current?.abort();
@@ -123,7 +143,7 @@ function GallerySession({
       return;
     }
     setResults((current) => ({ ...current, [active.placeholder.id]: {} }));
-    load(active.reference, signal);
+    load(active, signal);
   }
   const loadState =
     active && !result?.message ? { error: result?.error, retry: retryActive } : undefined;
@@ -188,10 +208,10 @@ export function ConnectedMediaScope({
     },
     // prettier-ignore
     [
-    owner,
-    request,
-    hasAccess,
-  ],
+      owner,
+      request,
+      hasAccess,
+    ],
   );
 
   const value = actions && {

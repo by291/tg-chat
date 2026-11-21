@@ -5,6 +5,7 @@ import { ConnectedMediaContext } from '@/features/media/ConnectedMediaContext';
 import {
   isVisualKind,
   mediaDuration,
+  mediaSourceId,
   previewVariant,
   visualDimensions,
   type MediaReference,
@@ -123,7 +124,7 @@ function RemoteVisual({
   const playback = useSignedRendition(reference, isVideo && !isAlbum ? 'playback' : undefined);
   const dimensions = visualDimensions(attachment.file);
   const hasCaption = Boolean(message.text || message.replyToId);
-  const id = attachment.occurrence_id;
+  const id = mediaSourceId(message.id, attachment.occurrence_id);
   const name = attachment.file_name;
 
   if (isAlbum) {

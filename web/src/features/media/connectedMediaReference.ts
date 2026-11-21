@@ -26,6 +26,11 @@ export function isVisualKind(kind: AttachmentView['file']['kind']): boolean {
   return kind === 'image' || kind === 'video';
 }
 
+/** Match a thumbnail to its viewer within the message that owns the occurrence UUID. */
+export function mediaSourceId(messageId: string, occurrenceId: string): string {
+  return `media:${messageId}:${occurrenceId}`;
+}
+
 /** Select the signed rendition suitable for a history thumbnail. */
 export function previewVariant(attachment: AttachmentView): MediaVariant {
   switch (attachment.file.kind) {
@@ -63,17 +68,13 @@ export function urlFor(input: {
 }
 
 /** Project a signed occurrence into the shared viewer, reserving its geometry while loading. */
-export function galleryMessage(
-  reference: MediaReference,
-  sources: { preview?: string; playback?: string } = {},
-): Message {
+export function galleryMessage(reference: MediaReference): Message {
   const { message, attachment } = reference;
   const file = attachment.file;
   const { width, height } = visualDimensions(file);
-  const preview = sources.preview ?? '';
   const base: Message = {
     ...message,
-    id: attachment.occurrence_id,
+    id: mediaSourceId(message.id, attachment.occurrence_id),
     remoteAttachments: undefined,
     downloadOriginalUrl: (signal) =>
       urlFor({
@@ -87,7 +88,7 @@ export function galleryMessage(
       ...base,
       attachment: {
         name: attachment.file_name,
-        url: preview,
+        url: '',
         width,
         height,
       },
@@ -106,13 +107,12 @@ export function galleryMessage(
       variant: 'playback',
       signal: nextSignal,
     });
-  const url = sources.playback ?? '';
   return {
     ...base,
     media: {
       kind: 'video',
-      url,
-      poster: preview,
+      url: '',
+      poster: '',
       width,
       height,
       duration: mediaDuration(attachment),
