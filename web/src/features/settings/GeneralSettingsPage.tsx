@@ -118,7 +118,13 @@ export function GeneralSettingsPage({ onBack }: GeneralSettingsPageProps) {
         primary={generalPage}
         secondary={
           closingPage === 'wallpaper' ? (
-            <WallpaperSettingsPage onBack={() => navigation.openSettingsPage(undefined)} />
+            <WallpaperSettingsPage
+              onBack={() => navigation.openSettingsPage(undefined)}
+              colorNavigation={{
+                isOpen: navigation.isWallpaperColorOpen,
+                setOpen: navigation.setWallpaperColorOpen,
+              }}
+            />
           ) : (
             <PowerSavingPage onBack={() => navigation.openSettingsPage(undefined)} />
           )

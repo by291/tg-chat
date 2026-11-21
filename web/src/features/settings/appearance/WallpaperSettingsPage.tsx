@@ -29,9 +29,27 @@ const WALLPAPER_COLORS = [
 ];
 
 /** Change the current mode's background without replacing its bubble or accent colors. */
-export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
+export function WallpaperSettingsPage({
+  onBack,
+  colorNavigation,
+}: {
+  onBack: () => void;
+  colorNavigation?: {
+    isOpen: boolean;
+    setOpen: (options: { isOpen: boolean }) => void;
+  };
+}) {
   const { variant, choice } = useResolvedAppearance();
-  const [isColorOpen, setIsColorOpen] = useState(false);
+  const [isLocalColorOpen, setLocalColorOpen] = useState(false);
+  const isColorOpen = colorNavigation?.isOpen ?? isLocalColorOpen;
+  function showColor({ isOpen }: { isOpen: boolean }) {
+    if (colorNavigation) {
+      colorNavigation.setOpen({ isOpen });
+    } else {
+      setLocalColorOpen(isOpen);
+    }
+  }
+
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wallpaper = choice.wallpaper;
@@ -97,7 +115,7 @@ export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
             label="Set a color"
             icon={Palette}
             color="purple"
-            onClick={() => setIsColorOpen(true)}
+            onClick={() => showColor({ isOpen: true })}
           />
           <SettingsRow
             label="Reset to Defaults"
@@ -151,14 +169,14 @@ export function WallpaperSettingsPage({ onBack }: { onBack: () => void }) {
         if (event.key === 'Escape' && isColorOpen && !event.defaultPrevented) {
           event.preventDefault();
           event.stopPropagation();
-          setIsColorOpen(false);
+          showColor({ isOpen: false });
         }
       }}
     >
       <SidebarNavigation
         isSecondaryOpen={isColorOpen}
         primary={overview}
-        secondary={<WallpaperColorPage onBack={() => setIsColorOpen(false)} />}
+        secondary={<WallpaperColorPage onBack={() => showColor({ isOpen: false })} />}
       />
     </div>
   );
