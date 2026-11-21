@@ -33,7 +33,9 @@ interface RecordingPreviewProps {
 }
 
 function formatRecordingTime(seconds: number): string {
-  const totalCentiseconds = Math.floor(seconds * CENTISECONDS_PER_SECOND);
+  const scaled = seconds * CENTISECONDS_PER_SECOND;
+  // Decimal slider steps can land one floating-point unit below a whole centisecond.
+  const totalCentiseconds = Math.floor(scaled + scaled * Number.EPSILON);
   const wholeSeconds = Math.floor(totalCentiseconds / CENTISECONDS_PER_SECOND);
   const minutes = Math.floor(wholeSeconds / SECONDS_PER_MINUTE);
   const remainingSeconds = String(wholeSeconds % SECONDS_PER_MINUTE).padStart(2, '0');

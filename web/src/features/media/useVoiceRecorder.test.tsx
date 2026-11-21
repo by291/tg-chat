@@ -337,10 +337,10 @@ it.each(['pending', 'rejected'])(
     await act(() => result.current.start());
     // prettier-ignore
     recordSamples({
-    durationMs: 100,
-    pulseAtMs: 70,
-    pulse: 192,
-  });
+      durationMs: 100,
+      pulseAtMs: 70,
+      pulse: 192,
+    });
     await act(async () => result.current.pause());
     const take = result.current.preview;
     expect(take?.size).toBe(100);
@@ -408,9 +408,10 @@ it('shows preview playback time and seeks the underlying paused take', async () 
   expect(screen.getByText('0:01,25')).toBeTruthy();
   expect(seekControl).toHaveProperty('value', '1.25');
 
-  fireEvent.change(seekControl, { target: { value: '2.5' } });
-  expect(audio.currentTime).toBe(2.5);
-  expect(screen.getByText('0:02,50')).toBeTruthy();
+  fireEvent.change(seekControl, { target: { value: '2.51' } });
+  expect(audio.currentTime).toBe(2.51);
+  expect(seekControl.getAttribute('aria-valuetext')).toBe('0:02,51 of 0:04,00');
+  expect(screen.getByText('0:02,51')).toBeTruthy();
 
   fireEvent.pause(audio);
   fireEvent.change(seekControl, { target: { value: '0' } });
