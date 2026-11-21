@@ -183,7 +183,15 @@ function CallPanelContents({
 
   async function collapse() {
     // Keep fullscreen bound to the expanded panel until the browser confirms its exit.
-    if (fullscreen.isFullscreen && !(await fullscreen.exit())) {
+    const panel = fullscreen.panelRef.current;
+    if (!panel) {
+      return;
+    }
+    if (document.fullscreenElement === panel && !(await fullscreen.exit())) {
+      return;
+    }
+    // A rediscovered call gets a fresh element even when its server ID is unchanged.
+    if (fullscreen.panelRef.current !== panel) {
       return;
     }
     onCollapse();

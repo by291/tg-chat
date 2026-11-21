@@ -262,8 +262,8 @@ it('restores compact chrome after leaving the call fullscreen', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
     expect(await screen.findByRole('button', { name: 'Exit fullscreen' })).toBeTruthy();
     await act(async () => changeFullscreen(null));
-    fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
-    await screen.findByRole('button', { name: 'Exit fullscreen' });
+    // Native state can change before its queued fullscreenchange reaches React.
+    fullscreenElement = panel;
     fireEvent.click(screen.getByRole('button', { name: 'Collapse call panel' }));
     expect(await screen.findByRole('button', { name: 'Restore call panel' })).toBeTruthy();
     expect(document.fullscreenElement).toBeNull();
@@ -312,4 +312,28 @@ it('opens expanded for fresh media consent when the same call is rediscovered', 
   // Queued input on a departing control cannot end the newly admitted call.
   await act(async () => previousHangup.click());
   expect(screen.getByRole('button', { name: 'Enable microphone and camera' })).toBeTruthy();
+});
+
+it('keeps a rediscovered call expanded after an older native exit completes', async () => {
+  const { owner, updateCall } = setup(connecting);
+  await act(async () => owner.refresh());
+  const panel = screen.getByRole('region', { name: 'Call' });
+  let completeExit!: () => void;
+  const previousExit = document.exitFullscreen;
+  document.exitFullscreen = () =>
+    new Promise<void>((resolve) => {
+      completeExit = resolve;
+    });
+  Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: panel });
+  try {
+    act(() => document.dispatchEvent(new Event('fullscreenchange')));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse call panel' }));
+    await updateCall(null);
+    await updateCall(connecting);
+    await act(async () => completeExit());
+    expect(screen.getByRole('button', { name: 'Enable microphone and camera' })).toBeTruthy();
+  } finally {
+    document.exitFullscreen = previousExit;
+    Reflect.deleteProperty(document, 'fullscreenElement');
+  }
 });
