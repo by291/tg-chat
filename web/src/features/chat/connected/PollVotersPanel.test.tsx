@@ -12,6 +12,13 @@ import { PollVotersPanel } from './PollVotersPanel';
 
 type PollView = components['schemas']['PollView'];
 
+// prettier-ignore
+const VOTER_RESTORATION_SCENARIOS = [
+  'an available row',
+  'a withdrawn row',
+  'a failed first page',
+] as const;
+
 const poll: PollView = {
   question: 'When should we meet?',
   version: '5',
@@ -177,9 +184,9 @@ function HandheldResults({ owner }: { owner: Pick<ChatOwner, 'loadPollVoters'> }
   );
 }
 
-it.each(['available', 'withdrawn'])(
-  'reauthorizes a later-page voter on Forward when the row is %s',
-  async (availability) => {
+it.each(VOTER_RESTORATION_SCENARIOS)(
+  'reauthorizes a later-page voter on Forward with %s',
+  async (scenario) => {
     window.history.replaceState(null, '', '/');
     const handheld = Object.assign(new EventTarget(), { matches: true });
     vi.stubGlobal('matchMedia', () => handheld);
@@ -188,10 +195,16 @@ it.each(['available', 'withdrawn'])(
     let laterVoters = [grace];
     let hasReadRestoredPage = false;
     let isRestoring = false;
+    const shouldRetryFirstPage = scenario === 'a failed first page';
+    let canReadFirstPage = true;
     const owner: Pick<ChatOwner, 'loadPollVoters'> = {
       async loadPollVoters({ optionId, after }) {
         if (optionId !== 'morning') {
           return { voters: [], next_after: null };
+        }
+        if (!after && !canReadFirstPage) {
+          canReadFirstPage = true;
+          throw new Error('Temporary voter lookup failure.');
         }
         if (isRestoring && after === 'next-morning') {
           hasReadRestoredPage = true;
@@ -226,12 +239,15 @@ it.each(['available', 'withdrawn'])(
       await click('Browser Back');
       await waitFor(() => expect(results()).toBeNull());
       isRestoring = true;
-      laterVoters = availability === 'available' ? [grace] : [];
+      const isWithdrawn = scenario === 'a withdrawn row';
+      laterVoters = isWithdrawn ? [] : [grace];
+      canReadFirstPage = !shouldRetryFirstPage;
 
       await click('Browser Forward');
-      await screen.findByRole('button', { name: 'Ada' });
+      const firstPageAction = shouldRetryFirstPage ? 'Retry' : 'Ada';
+      await screen.findByRole('button', { name: firstPageAction });
       await click('Browser Forward');
-      if (availability === 'available') {
+      if (!isWithdrawn) {
         await screen.findByText('@grace_hopper');
         await click('Browser Back');
         await waitFor(expectVoterFocus);
@@ -240,6 +256,15 @@ it.each(['available', 'withdrawn'])(
         // A missing private target returns to results without consuming the next user Back.
         await waitFor(() => expect(window.history.state?.usr?.chatPanels?.voter).toBeUndefined());
         expect(screen.queryByText('@grace_hopper')).toBeNull();
+      }
+      if (shouldRetryFirstPage) {
+        await click('Retry');
+        await screen.findByRole('button', { name: 'Ada' });
+        const morning = within(screen.getByRole('region', { name: 'Morning' }));
+        expect(morning.getAllByRole('button')).toEqual([
+          morning.getByRole('button', { name: 'Ada' }),
+          morning.getByRole('button', { name: 'Grace' }),
+        ]);
       }
       await click('Browser Back');
       await waitFor(() => expect(results()).toBeNull());

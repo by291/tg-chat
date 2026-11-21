@@ -34,8 +34,7 @@ interface PollVotersPanelProps {
 interface VoterPage {
   optionId: string;
   after?: string;
-  nextAfter?: string | null;
-  voters: Voter[];
+  result: components['schemas']['PollVoterPage'] | null;
 }
 
 interface VoterRowTarget {
@@ -110,16 +109,16 @@ function optionVoters(pages: VoterPage[]) {
   let page = remaining.get(undefined);
 
   // Forward can restore a page ahead of normal pagination. Keep the missing pages reachable.
-  while (page) {
+  while (page?.result) {
     ordered.push(page);
     remaining.delete(page.after);
-    nextAfter = page.nextAfter ?? undefined;
+    nextAfter = page.result.next_after ?? undefined;
     page = nextAfter ? remaining.get(nextAfter) : undefined;
   }
 
   const rows = new Map<string, VoterRowTarget>();
   for (const admitted of [...ordered, ...remaining.values()]) {
-    for (const voter of admitted.voters) {
+    for (const voter of admitted.result?.voters ?? []) {
       rows.set(voter.user_id, {
         voter,
         optionId: admitted.optionId,
@@ -144,13 +143,13 @@ function VoterList({
   const { rows, nextAfter } = optionVoters(pages);
   const [request, setRequest] = useState<{ after?: string }>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  // Keep each failed cursor recoverable when Forward authorizes a different page.
+  const failedPage = pages.find((page) => page.result === null);
 
   // prettier-ignore
   useEffect(() => {
     if (restoreAfter && !isLoading && request.after !== restoreAfter) {
       setIsLoading(true);
-      setError('');
       setRequest({ after: restoreAfter });
     }
   }, [
@@ -179,8 +178,7 @@ function VoterList({
         onLoadPage({
           optionId,
           after: request.after,
-          nextAfter: page.next_after,
-          voters: page.voters,
+          result: page,
         });
       } catch (failure) {
         if (controller.signal.aborted) {
@@ -191,13 +189,11 @@ function VoterList({
           onAccessLost();
           return;
         }
-        // A failed restoration has no authorized row. Keep the ordinary Retry action available.
         onLoadPage({
           optionId,
           after: request.after,
-          voters: [],
+          result: null,
         });
-        setError('Unable to load voters.');
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false);
@@ -218,8 +214,7 @@ function VoterList({
 
   function requestPage() {
     setIsLoading(true);
-    setError('');
-    const after = error ? request.after : (nextAfter ?? undefined);
+    const after = failedPage ? failedPage.after : nextAfter;
     setRequest({ after });
   }
 
@@ -238,10 +233,10 @@ function VoterList({
         </ul>
       )}
       {isLoading && <p role="status">Loading voters…</p>}
-      {error && <p role="alert">{error}</p>}
-      {!isLoading && (nextAfter || error) && (
+      {failedPage && <p role="alert">Unable to load voters.</p>}
+      {!isLoading && (nextAfter || failedPage) && (
         <button className={styles.action} type="button" onClick={requestPage}>
-          {error ? 'Retry' : 'Load more'}
+          {failedPage ? 'Retry' : 'Load more'}
         </button>
       )}
     </>
@@ -291,7 +286,7 @@ export function PollVotersPanel({
     }
     // A remounted panel must reauthorize this exact option and cursor before showing its profile.
     const page = authorizedPage(target);
-    return !page || page.voters.some((voter) => voter.user_id === target.id);
+    return !page || Boolean(page.result?.voters.some((voter) => voter.user_id === target.id));
   }
   const layer = useHandheldPanel<VoterTarget>({
     remembered: rememberedVoter,
@@ -303,7 +298,9 @@ export function PollVotersPanel({
   const resultsRef = useRef<HTMLDivElement>(null);
   const lastVoter = useRef<VoterTarget>(undefined);
   const selectedPage = selection && authorizedPage(selection);
-  const selectedVoter = selectedPage?.voters.find((voter) => voter.user_id === selection?.id);
+  const selectedVoter = selectedPage?.result?.voters.find(
+    (voter) => voter.user_id === selection?.id,
+  );
   const wasProfileOpen = useRef(false);
   const recordPage = useCallback(
     (page: VoterPage) => {
