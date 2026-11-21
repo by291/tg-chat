@@ -10,6 +10,7 @@ import { chatReducer } from '../../../state/reducer';
 import { getConversations } from '../../../state/conversations';
 import { parseSavedState } from '../../../state/storage';
 import { CurrentUserProvider } from '../../../CurrentUser';
+import { SessionOwner } from '@/features/auth/SessionOwner';
 import { ConnectedContactLinks } from '../../../connected/ConnectedContactLinks';
 import { createChatOwnerFixture, USER } from '../../../data/chatOwner.test-support';
 import { ContactActionsProvider } from './ContactActions';
@@ -76,6 +77,60 @@ afterEach(() => {
 });
 
 describe('shared contacts', () => {
+  it('keeps the card action current after another tab saves or removes the contact', async () => {
+    const fixture = createChatOwnerFixture({});
+    const grant = fixture.session.getSnapshot().auth!;
+    fixture.session.dispose();
+    const contacts = new Set<string>();
+    const fetch = async (request: Request) => {
+      if (request.url.endsWith('/bootstrap')) {
+        return Response.json({ contacts: Array.from(contacts, (id) => ({ id })), blocks: [] });
+      }
+      if (request.url.endsWith('/auth/session')) {
+        return Response.json(grant);
+      }
+      const { target_id: id } = await request.json();
+      if (request.method === 'PUT') {
+        contacts.add(id);
+      } else {
+        contacts.delete(id);
+      }
+      return new Response(null, { status: 204 });
+    };
+
+    const reader = new SessionOwner({ baseUrl: 'http://localhost:8080', fetch });
+    const writer = new SessionOwner({ baseUrl: 'http://localhost:8080', fetch });
+    try {
+      for (const owner of [reader, writer]) {
+        owner.accept(grant, { shouldBroadcast: false });
+        owner.connectBroadcast();
+        await owner.loadChatBootstrap();
+      }
+      render(
+        <ConnectedContactLinks session={reader} onOpen={vi.fn()}>
+          <ContactCard media={{ ...contact, userId: 'peer' }} />
+        </ConnectedContactLinks>,
+      );
+      const add = () => screen.queryByRole('button', { name: 'Add' });
+      expect(add()).toBeTruthy();
+      await writer.setRelationship({
+        kind: 'contacts',
+        id: 'peer',
+        shouldInclude: true,
+      });
+      await waitFor(() => expect(add()).toBeNull());
+
+      // A sleeping tab can miss the broadcast and must converge on return.
+      contacts.clear();
+      await act(() => reader.refresh({ shouldRefreshRelationships: true }));
+      expect(add()).toBeTruthy();
+      expect(screen.getByText(contact.name)).toBeTruthy();
+    } finally {
+      reader.dispose();
+      writer.dispose();
+    }
+  });
+
   it('preserves the card through denial, addition, removal and blocking', async () => {
     const denied = Response.json(
       {

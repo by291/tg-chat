@@ -125,6 +125,12 @@ export class SessionOwner {
     this.channel.onmessage = (event: MessageEvent<unknown>) => {
       if (event.data === 'invalidate') {
         this.invalidate({ shouldBroadcast: false });
+        return;
+      }
+      const userId = this.snapshot.auth?.user.id;
+      const isChatAccount = this.snapshot.relationships || this.bootstrapChanges;
+      if (userId && event.data === `relationships:${userId}` && isChatAccount) {
+        void this.loadChatBootstrap().catch(() => undefined);
       }
     };
   }
@@ -172,7 +178,7 @@ export class SessionOwner {
   }
 
   /** Refresh an existing cookie session without causing cross-tab invalidation loops. */
-  async refresh(): Promise<void> {
+  async refresh({ shouldRefreshRelationships = false } = {}): Promise<void> {
     const revision = this.snapshot.revision;
     try {
       const reply = await this.client.GET('/api/v1/auth/session');
@@ -189,6 +195,10 @@ export class SessionOwner {
       };
       this.snapshot = { ...this.snapshot, auth };
       this.notify();
+      if (shouldRefreshRelationships && this.snapshot.relationships) {
+        // Returning tabs may have missed invalidations while suspended or disconnected.
+        await this.loadChatBootstrap();
+      }
     } catch (error) {
       if (isCancelled(error) || (error instanceof ApiError && error.code === 'unauthenticated')) {
         return;
@@ -239,6 +249,10 @@ export class SessionOwner {
       const relationships = changedRelationships(this.snapshot.relationships, change);
       this.snapshot = { ...this.snapshot, relationships };
       this.notify();
+      const userId = this.snapshot.auth?.user.id;
+      if (userId) {
+        this.channel?.postMessage(`relationships:${userId}`);
+      }
     };
 
     const pending = previous ? previous.then(write, write) : write();

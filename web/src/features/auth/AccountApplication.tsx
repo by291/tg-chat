@@ -52,19 +52,20 @@ export function AccountApplication() {
       }
     }
     void bootstrap();
-    function refreshActiveSession() {
+    function refreshActiveSession(options?: { shouldRefreshRelationships: boolean }) {
       if (!owner.getSnapshot().auth) {
         return;
       }
-      void owner.refresh().catch(() => undefined);
+      void owner.refresh(options).catch(() => undefined);
     }
-    window.addEventListener('focus', refreshActiveSession);
+    const refreshOnReturn = () => refreshActiveSession({ shouldRefreshRelationships: true });
+    window.addEventListener('focus', refreshOnReturn);
     const timer = window.setInterval(refreshActiveSession, SESSION_REFRESH_INTERVAL_MS);
 
     return () => {
       isCurrent = false;
       window.clearInterval(timer);
-      window.removeEventListener('focus', refreshActiveSession);
+      window.removeEventListener('focus', refreshOnReturn);
       owner.dispose();
     };
   }, [owner, isEmailLink]);

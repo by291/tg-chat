@@ -123,7 +123,9 @@ Search and admission capture account navigation intent at activation. History an
 joins can complete after navigation, while the newer route, focus and query retain ownership.
 
 The session owner publishes admitted contact and block changes to the directory and shared cards.
-It serializes writes for the same person and reconciles changes admitted during bootstrap. A card
+Returning to the account or receiving a same-account tab invalidation refreshes membership from
+the authorized bootstrap. The owner serializes writes for each person and replays admissions that
+overlap a refresh. Directory search and pagination describe only the displayed page. A card
 keeps its original shared identity even after a rejected mutation. Profile text saves compare
 the edited fields with their baseline, adopt newer clean fields and surface conflicting edits.
 
