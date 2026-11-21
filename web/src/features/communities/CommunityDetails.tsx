@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { isDismissKey } from '@/lib/keyboardEvent';
 import { IconButton } from '@/components/IconButton';
 import overlays from '@/components/overlays/overlays.module.css';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
@@ -317,7 +318,17 @@ export function CommunityDetails(props: CommunityDetailsProps) {
   const sectionHasHeading = activePage === 'invitations' || activePage === 'requests';
 
   return (
-    <div className={styles.details} ref={details}>
+    <div
+      className={styles.details}
+      ref={details}
+      onKeyDown={(event) => {
+        const ownsTarget = event.currentTarget.contains(event.target as Node);
+        if (activePage && ownsTarget && !confirmation && isDismissKey(event.nativeEvent)) {
+          event.preventDefault();
+          setPage(undefined);
+        }
+      }}
+    >
       {activeSection && (
         <button type="button" className={styles.back} onClick={() => setPage(undefined)}>
           <ArrowLeft size={20} aria-hidden="true" />

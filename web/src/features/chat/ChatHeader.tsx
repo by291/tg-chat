@@ -102,7 +102,7 @@ interface ChatHeaderFrameProps {
   pinnedCount?: number;
   detailsLabel?: string;
   backLabel?: string;
-  onOpenDetails?: () => void;
+  onOpenDetails?: (trigger: HTMLButtonElement) => void;
   onBack: () => void;
 }
 
@@ -180,7 +180,7 @@ export function ChatHeaderFrame({
         {!isPinnedView && onOpenDetails && (
           <button
             className={styles.identity}
-            onClick={onOpenDetails}
+            onClick={(event) => onOpenDetails(event.currentTarget)}
             aria-label={detailsLabel}
             disabled={isSearchOpen}
           >

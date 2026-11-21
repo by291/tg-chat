@@ -99,12 +99,12 @@ export async function openCommunity(page: Page, title: string) {
 export async function openProfile(options: { page: Page; title: string; section?: string }) {
   const { page, title, section } = options;
   await page.getByRole('button', { name: `View ${title} profile`, exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: /^(Group|Channel) info$/ });
-  await expect(dialog).toBeVisible();
+  const profile = page.getByRole('complementary', { name: /^(Group|Channel) info$/ });
+  await expect(profile).toBeVisible();
   if (section) {
-    await dialog.getByRole('button', { name: section, exact: true }).click();
+    await profile.getByRole('button', { name: section, exact: true }).click();
   }
-  return dialog;
+  return profile;
 }
 
 /** Close the community profile without changing the conversation. */

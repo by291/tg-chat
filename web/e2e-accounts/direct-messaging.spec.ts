@@ -60,7 +60,7 @@ test('two accounts exchange rich messages, recover pending sends, page history, 
     const row = page.getByRole('button', { name: /^Bobby Messaging/ });
     await expect(row.locator('time')).toBeVisible();
     await page.getByRole('button', { name: 'View Bobby Messaging profile' }).click();
-    const profile = page.getByRole('dialog', { name: 'User Info' });
+    const profile = page.getByRole('complementary', { name: 'User Info' });
     await expect(profile.getByText(`@${bobby.username}`, { exact: true })).toBeVisible();
     await profile.getByRole('button', { name: 'Close profile' }).click();
 

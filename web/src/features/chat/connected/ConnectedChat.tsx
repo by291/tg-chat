@@ -48,6 +48,7 @@ import { connectionStatusLabel } from '../data/connectionStatus';
 import { MessageReadTimeScope } from '../messages/menu/MessageReadTimeScope';
 import { DraftRecovery } from './DraftRecovery';
 import { PendingConversationActions } from './PendingConversationActions';
+import { useConversationInformation } from './useConversationInformation';
 import { ConnectedPeerProfile } from './ConnectedPeerProfile';
 import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
@@ -230,17 +231,12 @@ export function ConnectedChat({
   );
   const isHandheld = useHandheldLayout();
   const isMobileChatOpen = Boolean(snapshot.selection && isConversationOpen && !accountPage);
-  // Desktop keeps the selected conversation visible beside account pages, except administration.
-  const isChatVisible =
-    Boolean(snapshot.selection) && !isWorkspaceHidden && (!isHandheld || isMobileChatOpen);
   const overlays = useChatOverlayInsets();
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const { variant, choice } = useResolvedAppearance();
   const textSize = useAppPreferences((preferences) => preferences.messageTextSize);
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
-  const [profilePeerId, setProfilePeerId] = useState<string>();
-  const [profileCommunityId, setProfileCommunityId] = useState<string>();
   const [latestSendRequest, setLatestSendRequest] = useState(0);
   const [searchConversationId, setSearchConversationId] = useState<string>();
   const [editing, setEditing] = useState<CanonicalMessage>();
@@ -289,6 +285,28 @@ export function ConnectedChat({
   const conversationName = conversation
     ? title(conversation)
     : (selection?.title ?? 'Your messages');
+  const selectedKey = selection ? destinationKey(selection.destination) : '';
+  const isCommunity = conversation?.kind === 'group' || conversation?.kind === 'channel';
+  const canShowChat = !isWorkspaceHidden && (!isHandheld || isMobileChatOpen);
+  const information = useConversationInformation({
+    scope: {
+      owner,
+      destination: selectedKey,
+      generation: conversation?.generation,
+    },
+    canDisplay: (target) => {
+      if (!canShowChat || !session) {
+        return false;
+      }
+      if (target.kind === 'community') {
+        return isCommunity && target.id === conversation.id;
+      }
+      return target.id === peerIdForProfile;
+    },
+  });
+  // Desktop chat remains visible beside information. A handheld panel covers the timeline.
+  const isChatCovered = isHandheld && information.isOpen;
+  const isChatVisible = Boolean(selection) && canShowChat && !isChatCovered;
   const activeAlertId = isChatVisible ? conversation?.id : undefined;
   useEffect(() => owner.setAlertConversation(activeAlertId), [owner, activeAlertId]);
   const isViewingDirect = conversation?.kind === 'direct' && isChatVisible;
@@ -308,7 +326,6 @@ export function ConnectedChat({
   }, [activity, directId, peerId, generation]);
   const isCurrentActivity =
     presence.view?.conversationId === directId && presence.view?.generation === generation;
-  const isCommunity = conversation?.kind === 'group' || conversation?.kind === 'channel';
   let conversationStatus = isCommunity
     ? communityAudienceLabel({
         kind: conversation.kind === 'channel' ? 'channel' : 'group',
@@ -324,7 +341,6 @@ export function ConnectedChat({
   const canStartCall = hasCallActions && Boolean(calls) && canPost && !isCallBusy;
   const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
   const canReportCommunity = Boolean(session && isCommunity && conversation.role !== 'owner');
-  const selectedKey = selection ? destinationKey(selection.destination) : '';
 
   const {
     selectedIds,
@@ -413,8 +429,6 @@ export function ConnectedChat({
     setSearchConversationId(undefined);
     setConfirmation(undefined);
     setContactDestination(undefined);
-    setProfilePeerId(undefined);
-    setProfileCommunityId(undefined);
     setVoterMessageId(undefined);
     setPollEditor(undefined);
     setChecklistEditor(undefined);
@@ -487,12 +501,14 @@ export function ConnectedChat({
     onShowConversation();
   }
 
-  function openConversationProfile() {
+  function openConversationProfile(trigger: HTMLButtonElement) {
     if (isCommunity) {
-      setProfileCommunityId(conversation.id);
+      information.open({ kind: 'community', id: conversation.id }, trigger);
       return;
     }
-    setProfilePeerId(peerIdForProfile);
+    if (peerIdForProfile) {
+      information.open({ kind: 'peer', id: peerIdForProfile }, trigger);
+    }
   }
 
   function toggleChannelMute() {
@@ -1091,7 +1107,7 @@ export function ConnectedChat({
                 isMuted={isConversationMuted(conversation)}
                 latestRequest={latestSendRequest}
                 onReachMessage={(messageId) => {
-                  if (isChatVisible && !editing && !profilePeerId && !profileCommunityId) {
+                  if (isChatVisible && !editing) {
                     void owner.markReached(messageId).catch(report);
                   }
                 }}
@@ -1232,7 +1248,7 @@ export function ConnectedChat({
       <div className={styles.workspace}>
         <ChatLayout
           messageTextSize={textSize}
-          isDetailsOpen={false}
+          isDetailsOpen={information.isOpen}
           isMobileChatOpen={isMobileChatOpen}
           background={<ChatWallpaper variant={variant} choice={choice} />}
           sidebar={sidebar}
@@ -1241,6 +1257,8 @@ export function ConnectedChat({
               ref={overlays.containerRef}
               className={`${surface.conversation} ${styles.chat}`}
               aria-label="Chat"
+              inert={isChatCovered}
+              aria-hidden={isChatCovered || undefined}
               onKeyDown={(event) => {
                 if (!isDismissKey(event.nativeEvent)) {
                   return;
@@ -1259,27 +1277,32 @@ export function ConnectedChat({
               {footer}
             </main>
           }
-          details={null}
+          details={
+            <>
+              {session && information.target?.kind === 'community' && (
+                <CommunityProfile
+                  key={information.target.id}
+                  session={session}
+                  chat={owner}
+                  id={information.target.id}
+                  isAvatarAvailable={isAvatarAvailable}
+                  isOpen={information.isOpen}
+                  onClose={information.close}
+                />
+              )}
+              {session && information.target?.kind === 'peer' && (
+                <ConnectedPeerProfile
+                  key={information.target.id}
+                  session={session}
+                  peerId={information.target.id}
+                  title={conversationName}
+                  isOpen={information.isOpen}
+                  onClose={information.close}
+                />
+              )}
+            </>
+          }
         >
-          {session && isCommunity && profileCommunityId === conversation.id && (
-            <CommunityProfile
-              key={`${conversation.id}:${conversation.generation}`}
-              session={session}
-              chat={owner}
-              id={conversation.id}
-              isAvatarAvailable={isAvatarAvailable}
-              onClose={() => setProfileCommunityId(undefined)}
-            />
-          )}
-          {session && profilePeerId && profilePeerId === peerIdForProfile && (
-            <ConnectedPeerProfile
-              key={profilePeerId}
-              session={session}
-              peerId={profilePeerId}
-              title={conversationName}
-              onClose={() => setProfilePeerId(undefined)}
-            />
-          )}
           {session && contactDestination === selectedKey && (
             <ShareContactDialog
               key={contactDestination}

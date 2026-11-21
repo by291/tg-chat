@@ -36,32 +36,8 @@
   opacity: 0.5;
 }
 
-.profilePositioner {
-  justify-items: end;
-  padding: 0;
-}
-
-.profileBackdrop {
-  background: rgb(16 18 26 / 20%);
-  backdrop-filter: none;
-}
-
-.profileDialog {
-  width: min(390px, 100%);
-  height: 100dvh;
-  overflow: auto;
-  padding: 16px 20px;
-  border-radius: 0;
-}
-
-.profileDialog > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.profileDialog > header h2 {
-  margin: 0;
+.peerInformation {
+  padding-inline: 16px;
 }
 
 .profileIdentity {

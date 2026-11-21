@@ -1,19 +1,14 @@
-import { Dialog } from '@ark-ui/react/dialog';
-import { Portal } from '@ark-ui/react/portal';
-import { X } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
-import { IconButton } from '@/components/IconButton';
-import dialogs from '@/components/overlays/dialogs.module.css';
-import overlays from '@/components/overlays/overlays.module.css';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
 import { CommunityDetails } from './CommunityDetails';
-import styles from './CommunityProfile.module.css';
+import { InformationPanel } from '@/features/chat/details/InformationPanel';
 
 interface CommunityProfileProps {
   session: SessionOwner;
   chat: ChatOwner;
   id: string;
+  isOpen: boolean;
   isAvatarAvailable?: boolean;
   onClose: () => void;
 }
@@ -23,6 +18,7 @@ export function CommunityProfile({
   session,
   chat,
   id,
+  isOpen,
   isAvatarAvailable,
   onClose,
 }: CommunityProfileProps) {
@@ -31,38 +27,19 @@ export function CommunityProfile({
   const title = conversation?.kind === 'channel' ? 'Channel info' : 'Group info';
 
   return (
-    <Dialog.Root
-      open
-      onOpenChange={({ open }) => {
-        if (!open) {
-          onClose();
-        }
-      }}
+    <InformationPanel
+      title={title}
+      closeLabel="Close community info"
+      isOpen={isOpen}
+      onClose={onClose}
     >
-      <Portal>
-        <Dialog.Backdrop className={`${dialogs.backdrop} ${styles.profileBackdrop}`} />
-        <Dialog.Positioner className={`${overlays.dialogPositioner} ${styles.profilePositioner}`}>
-          <Dialog.Content className={`${overlays.dialog} ${styles.profileDialog}`}>
-            <header className={styles.profileHeader}>
-              <Dialog.Title>{title}</Dialog.Title>
-              <Dialog.CloseTrigger asChild>
-                <IconButton label="Close community info">
-                  <X />
-                </IconButton>
-              </Dialog.CloseTrigger>
-            </header>
-            <div className={styles.profileBody}>
-              <CommunityDetails
-                session={session}
-                chat={chat}
-                id={id}
-                isAvatarAvailable={isAvatarAvailable}
-                onBack={onClose}
-              />
-            </div>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+      <CommunityDetails
+        session={session}
+        chat={chat}
+        id={id}
+        isAvatarAvailable={isAvatarAvailable}
+        onBack={onClose}
+      />
+    </InformationPanel>
   );
 }

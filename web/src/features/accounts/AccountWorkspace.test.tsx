@@ -230,6 +230,50 @@ it('tracks peer activity for the visible pane across desktop Back and a narrow s
   expect(await screen.findByText('Online')).toBeTruthy();
 });
 
+it('keeps desktop chat editable beside a profile and returns focus to its trigger', async () => {
+  const user = renderWorkspace({ chat: { conversation: READERS } });
+  await user.click(await screen.findByRole('button', { name: /Readers.*Start a conversation/ }));
+  const trigger = screen.getByRole('button', { name: 'View Readers profile' });
+  const editor = screen.getByRole('textbox', { name: 'Message' });
+  await user.click(trigger);
+  const close = screen.getByRole('button', { name: 'Close community info' });
+  expect(document.activeElement).toBe(close);
+
+  await user.click(editor);
+  expect(document.activeElement).toBe(editor);
+  expect(close.isConnected).toBe(true);
+  await user.click(close);
+  expect(document.activeElement).toBe(trigger);
+  expect(screen.getByRole('textbox', { name: 'Message' })).toBe(editor);
+});
+
+it('suspends mobile peer activity until Escape uncovers the same conversation', async () => {
+  const handheld = Object.assign(new EventTarget(), { matches: true });
+  const user = renderWorkspace({
+    handheldQuery: handheld,
+    chat: {
+      conversation: { ...DIRECT, peer_name: 'Bob' },
+      transport: async (request) => {
+        if (request.url.includes('/activity/presence/')) {
+          return Response.json({ online_for_ms: 30_000, typing_for_ms: 0 });
+        }
+        return Response.json({ items: [] });
+      },
+    },
+  });
+  await user.click(await screen.findByRole('button', { name: /Bob.*Start a conversation/ }));
+  await screen.findByText('Online');
+  const trigger = screen.getByRole('button', { name: 'View Bob profile' });
+  await user.click(trigger);
+  await waitFor(() => expect(screen.queryByText('Online')).toBeNull());
+  expect(trigger.closest('[inert]')).toBeTruthy();
+
+  await user.keyboard('{Escape}');
+  await screen.findByText('Online');
+  expect(document.activeElement).toBe(trigger);
+  expect(window.location.search).toContain('conversation=open');
+});
+
 it('opens an authorized notification after clearing a previously selected chat', async () => {
   const lookup = pendingNotificationLookup();
   const user = renderWorkspace({ chat: { additionalConversations: [READERS] } });
@@ -268,6 +312,7 @@ it('returns to the inbox when the server confirms leaving the selected group', a
   await waitFor(() => expect(window.location.search).toBe(''));
   expect(screen.getByRole('heading', { name: 'Your messages' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: /Readers.*Start a conversation/ })).toBeNull();
+  expect(screen.queryByText('Leave community')).toBeNull();
 });
 
 it('keeps Settings when notification lookup finishes after a later navigation', async () => {

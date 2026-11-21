@@ -387,7 +387,7 @@ async function deleteOwnedCommunity(page: Page, title: string) {
   const committed = waitForPost(page, '/api/v1/communities/commands');
   await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
   expect((await committed).status()).toBe(200);
-  await expect(page.getByRole('dialog', { name: 'Group info' })).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Group info' })).toHaveCount(0);
 }
 
 async function requestDeletion(page: Page, expectedStatus: number) {

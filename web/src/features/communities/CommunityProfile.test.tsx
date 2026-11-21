@@ -65,7 +65,15 @@ function renderProfile(changes: Partial<Conversation>) {
     client: { GET: get },
   } as unknown as SessionOwner;
 
-  render(<CommunityProfile session={session} chat={chat} id={conversation.id} onClose={vi.fn()} />);
+  render(
+    <CommunityProfile
+      isOpen
+      session={session}
+      chat={chat}
+      id={conversation.id}
+      onClose={vi.fn()}
+    />,
+  );
 
   return { get, command, conversation };
 }
@@ -73,7 +81,7 @@ function renderProfile(changes: Partial<Conversation>) {
 it('opens the member directory from the profile and confirms a ban from the row menu', async () => {
   const user = userEvent.setup();
   const { get, command, conversation } = renderProfile({});
-  const profile = screen.getByRole('dialog', { name: 'Group info' });
+  const profile = screen.getByRole('complementary', { name: 'Group info' });
   expect(get).not.toHaveBeenCalled();
   await user.click(within(profile).getByRole('button', { name: 'Members' }));
 
@@ -92,7 +100,7 @@ it('opens the member directory from the profile and confirms a ban from the row 
     });
   });
   expect(within(profile).getByRole('button', { name: 'Close community info' })).toBeTruthy();
-  await user.click(within(profile).getByRole('button', { name: 'Back to community info' }));
+  await user.keyboard('{Escape}');
   expect(document.activeElement).toBe(within(profile).getByRole('button', { name: 'Members' }));
 });
 

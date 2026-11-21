@@ -174,6 +174,6 @@ test('group admission, moderation and private invitations preserve membership bo
     .getByRole('dialog', { name: 'Leave community?' })
     .getByRole('button', { name: 'Confirm', exact: true })
     .click();
-  await expect(outsider.page.getByRole('dialog', { name: 'Group info' })).toHaveCount(0);
+  await expect(outsider.page.getByRole('complementary', { name: 'Group info' })).toHaveCount(0);
   await expect(chatHeading(outsider.page, group.title)).toHaveCount(0);
 });
