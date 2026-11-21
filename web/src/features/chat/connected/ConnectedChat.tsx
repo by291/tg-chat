@@ -1119,7 +1119,7 @@ export function ConnectedChat({
               </div>
               <footer className={styles.composer} hidden={isChoosingReportMessages}>
                 <DraftRecovery
-                  key={selectedKey}
+                  key={`recovery:${selectedKey}`}
                   local={snapshot.draft}
                   conflict={snapshot.draftConflict}
                   alternatives={snapshot.draftAlternatives}
@@ -1167,7 +1167,7 @@ export function ConnectedChat({
                 )}
                 {canPost && (
                   <MessageComposer
-                    key={selectedKey}
+                    key={`composer:${selectedKey}`}
                     isTextOnly
                     canSendSticker
                     onShareContact={session ? () => setContactDestination(selectedKey) : undefined}
