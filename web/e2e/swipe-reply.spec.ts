@@ -133,11 +133,21 @@ test.describe('gallery thumbnail gestures', () => {
     // A drag on the reaction belongs to that button; it must never act on the gallery row.
     const reaction = row.getByRole('button', { name: /reaction$/ });
     const controlOrigin = await startSwipe(protocol, reaction);
-    await moveSwipe({ protocol, origin: controlOrigin, distance: { x: -SWIPE_DISTANCE, y: 0 } });
+    // prettier-ignore
+    await moveSwipe({
+      protocol,
+      origin: controlOrigin,
+      distance: { x: -SWIPE_DISTANCE, y: 0 },
+    });
     await protocol.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(page.getByRole('button', { name: 'Jump to replied message' })).toHaveCount(0);
     const origin = await startSwipe(protocol, photo);
-    await moveSwipe({ protocol, origin, distance: { x: -SWIPE_DISTANCE, y: 0 } });
+    // prettier-ignore
+    await moveSwipe({
+      protocol,
+      origin,
+      distance: { x: -SWIPE_DISTANCE, y: 0 },
+    });
     await expect(row).toHaveAttribute('data-reply-swiping', 'true');
     await protocol.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(page.getByRole('button', { name: 'Jump to replied message' })).toBeVisible();
