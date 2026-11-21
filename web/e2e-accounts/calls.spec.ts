@@ -1,6 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { get } from 'node:http';
-import { expect, test, type BrowserContext, type Page, type Request } from '@playwright/test';
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Page,
+  type Request,
+  type Route,
+} from '@playwright/test';
 import type { components } from '../src/api/schema';
 import { verifyInterruptedCallEntry } from './callPanelMotion';
 
@@ -208,13 +215,37 @@ async function verifyFirstAnswer(input: { caller: Device; first: Device; second:
   const secondAnswer = button(second.page, 'Answer');
   await Promise.all([expect(firstAnswer).toBeVisible(), expect(secondAnswer).toBeVisible()]);
 
-  // Deliver both clicks before waiting for either answer's HTTP result.
+  let releaseAnswers: () => void = () => undefined;
+  const answersReleased = new Promise<void>((resolve) => {
+    releaseAnswers = resolve;
+  });
+  const answerPath = '**/api/v1/calls/*/commands';
+  async function holdAnswer(route: Route) {
+    if (isAnswer(route.request())) {
+      await answersReleased;
+    }
+    await route.continue();
+  }
   await Promise.all([
-    first.page.waitForRequest(isAnswer),
-    second.page.waitForRequest(isAnswer),
-    firstAnswer.evaluate((element) => (element as HTMLButtonElement).click()),
-    secondAnswer.evaluate((element) => (element as HTMLButtonElement).click()),
+    first.page.route(answerPath, holdAnswer),
+    second.page.route(answerPath, holdAnswer),
   ]);
+  try {
+    // Neither response may close the peer's Answer button before both requests exist.
+    await Promise.all([
+      first.page.waitForRequest(isAnswer),
+      second.page.waitForRequest(isAnswer),
+      firstAnswer.evaluate((element) => (element as HTMLButtonElement).click()),
+      secondAnswer.evaluate((element) => (element as HTMLButtonElement).click()),
+    ]);
+  } finally {
+    releaseAnswers();
+    // Disabling interception must wait for both held continuations to finish.
+    await Promise.all([
+      first.page.unrouteAll({ behavior: 'wait' }),
+      second.page.unrouteAll({ behavior: 'wait' }),
+    ]);
+  }
   const call = await waitForPhase(caller, 'active');
   expect(call.active_at).toBeTruthy();
   const [firstGrant, secondGrant] = await Promise.all([
@@ -291,6 +322,11 @@ async function verifyPermissionDenied(input: { caller: Device; recipient: Device
       call,
       summary: 'Voice call · media permission denied',
     });
+    // Both peers retain the terminal notice until the user dismisses it.
+    for (const device of [caller, recipient]) {
+      await button(device.page, 'Dismiss call message').click();
+      await expect(device.page.getByRole('region', { name: 'Call', exact: true })).toHaveCount(0);
+    }
   } finally {
     await session.send('Browser.setPermission', { ...permission, setting: 'granted' });
     await session.detach();
