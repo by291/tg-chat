@@ -77,6 +77,6 @@ COPY web ./
 COPY contracts /app/contracts
 RUN VITE_APP_MODE=connected pnpm build
 
-FROM caddy:2.11.8-alpine AS gateway
+FROM caddy:2.11.9-alpine AS gateway
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=frontend /app/web/dist /srv
