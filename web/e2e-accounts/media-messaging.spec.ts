@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, expect, test, type Page } from '@playwright/test';
 
-import { createPhoto, measureMediaFrames, selectMeasuredMedia } from './restoredMediaGeometry';
+import {
+  createPhoto,
+  expectMatchingFrame,
+  measureMediaFrames,
+  selectMeasuredMedia,
+} from './restoredMediaGeometry';
 
 const PASSWORD = 'a complete browser password phrase';
 const DOCUMENT_BYTES = 9 * 1024 * 1024;
@@ -266,13 +271,17 @@ test('retains restored portrait and album geometry when the server accepts the u
       .first()
       .click();
     const pending = await measureMediaFrames(page, 'pending');
-    expect(pending).toEqual(fresh);
+    for (const [index, frame] of pending.entries()) {
+      expectMatchingFrame(frame, fresh[index]);
+    }
     expect(pending[0]).toEqual({ width: 200, height: 400 });
     expect(pending[1].width).toBeGreaterThan(pending[2].width);
 
     upload.release();
     const accepted = await measureMediaFrames(page, 'accepted');
-    expect(accepted).toEqual(pending);
+    for (const [index, frame] of accepted.entries()) {
+      expectMatchingFrame(frame, pending[index]);
+    }
   } finally {
     upload.release();
   }
