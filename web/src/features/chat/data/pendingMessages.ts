@@ -457,10 +457,14 @@ export class PendingMessages {
       if (bytes - (item.blob?.size ?? 0) + input.file.size > MAX_PENDING_MEDIA_BYTES) {
         throw new Error('Pending media storage is full. Retry or discard an upload first.');
       }
+      const hasKnownGeometry = isOriginal && (!item.blob || item.sha256 === input.sha256);
       const replacement: PendingMedia = {
         ...item,
         filename: isOriginal ? item.filename : input.file.name,
         sizeBytes: input.file.size,
+        // A replacement file may have a different aspect ratio from the original selection.
+        width: hasKnownGeometry ? item.width : undefined,
+        height: hasKnownGeometry ? item.height : undefined,
         sourceSavedAt: Date.now(),
         uploadId: !item.blob && isOriginal ? item.uploadId : crypto.randomUUID(),
         sha256: input.sha256,

@@ -12,12 +12,16 @@ const PROCESSING_POLL_MS = 1000;
 const HEX_DIGITS_PER_BYTE = 2;
 
 export interface MediaSelection {
+  width?: number;
+  height?: number;
   filename: string;
   kind: UploadPurpose;
   blob: Blob;
 }
 
 export interface PendingMedia {
+  width?: number;
+  height?: number;
   occurrenceId: string;
   uploadId: string;
   filename: string;
@@ -103,6 +107,8 @@ export function pendingMedia(selection: MediaSelection): PendingMedia {
     filename: selection.filename,
     kind: selection.kind,
     sizeBytes: selection.blob.size,
+    width: selection.width,
+    height: selection.height,
     blob: selection.blob,
   };
 }

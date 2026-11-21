@@ -228,7 +228,15 @@ describe('outgoing message status', () => {
         pendingMedia: {
           status: 'Upload failed',
           activeOccurrenceId: 'upload',
-          items: [{ occurrenceId: 'upload', filename: 'photo.jpg', kind: 'image', isReady: false }],
+          items: [
+            {
+              occurrenceId: 'upload',
+              filename: 'photo.jpg',
+              kind: 'image',
+              sizeBytes: 1234,
+              isReady: false,
+            },
+          ],
         },
       },
       onRetry: vi.fn(),

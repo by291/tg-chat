@@ -360,6 +360,9 @@ function pendingUploadDisplay(pending: PendingMessage): PendingMediaDisplay | un
     return {
       occurrenceId: item.occurrenceId,
       filename: item.filename,
+      width: item.width,
+      height: item.height,
+      sizeBytes: item.sizeBytes,
       kind: item.kind,
       previewSource: hasLocalPreview ? item.blob : undefined,
       isReady: Boolean(item.fileId),

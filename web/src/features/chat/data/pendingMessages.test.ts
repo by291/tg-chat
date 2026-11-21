@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
+import { pendingMedia } from '@/features/media/uploadTransfer';
+import { renderPending } from './messageModels';
 import { PendingMessages, type PendingMessage } from './pendingMessages';
 
 function pending(): PendingMessage {
@@ -231,6 +233,44 @@ it('recovers an ambiguous community action with its original identity across rel
 });
 
 describe('pending media ownership', () => {
+  it('restores portrait geometry alongside a legacy attachment with missing bytes', async () => {
+    const key = crypto.randomUUID();
+    const store = new PendingMessages({ key });
+    await store.open();
+    const portrait = pendingMedia({
+      filename: 'portrait.jpg',
+      kind: 'image',
+      blob: new Blob(['portrait']),
+      width: 600,
+      height: 1200,
+    });
+    const legacy = {
+      occurrenceId: 'legacy',
+      uploadId: 'missing-source',
+      kind: 'image' as const,
+      filename: 'legacy.jpg',
+      sizeBytes: 4,
+    };
+    const message = { ...pending(), media: [portrait, legacy] };
+    await store.enqueue({ message });
+
+    const restored = await new PendingMessages({ key }).open();
+    const displayed = renderPending({
+      pending: restored.pending[0],
+      user: { id: 'self', display_name: 'Me' },
+      conversationId: 'saved',
+    });
+    const items = displayed.pendingMedia!.items;
+    expect(items[0]).toMatchObject({
+      occurrenceId: portrait.occurrenceId,
+      width: 600,
+      height: 1200,
+    });
+    expect(items[1].occurrenceId).toBe('legacy');
+    expect(items[1].previewSource).toBeUndefined();
+    expect(items[1].width).toBeUndefined();
+  });
+
   it('fences a competing tab and discards late checkpoints after cancellation', async () => {
     const key = crypto.randomUUID();
     const first = new PendingMessages({ key });

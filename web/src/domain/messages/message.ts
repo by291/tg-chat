@@ -59,6 +59,9 @@ export const messageSchema = z.object({
 });
 
 export interface PendingMediaDisplayItem {
+  width?: number;
+  height?: number;
+  sizeBytes: number;
   occurrenceId: string;
   filename: string;
   kind: components['schemas']['UploadPurpose'];
