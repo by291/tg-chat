@@ -23,7 +23,8 @@ interface MediaFrame {
   height: number;
 }
 
-async function createPhoto(page: Page, source: typeof PORTRAIT) {
+/** Encode a PNG with known intrinsic dimensions through the browser canvas. */
+export async function createPhoto(page: Page, source: typeof PORTRAIT) {
   const encoded = await page.evaluate(({ width, height }) => {
     const canvas = document.createElement('canvas');
     canvas.width = width;

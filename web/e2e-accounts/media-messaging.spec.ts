@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, expect, test, type Page } from '@playwright/test';
 
-import { measureMediaFrames, selectMeasuredMedia } from './restoredMediaGeometry';
+import { createPhoto, measureMediaFrames, selectMeasuredMedia } from './restoredMediaGeometry';
 
 const PASSWORD = 'a complete browser password phrase';
 const DOCUMENT_BYTES = 9 * 1024 * 1024;
@@ -210,6 +210,27 @@ test('records and plays a voice message and publishes a profile avatar', async (
   await removePhoto.click();
   await expect(removePhoto).toHaveCount(0);
   await expect(biography).toHaveValue(unsavedBiography);
+});
+
+test('removes a one-pixel photo by pointer at its original size', async ({ page }) => {
+  const source = {
+    filename: 'single-pixel.png',
+    width: 1,
+    height: 1,
+  };
+  await register(page, account('Small Photo'));
+  await page.getByRole('button', { name: /Saved Messages/ }).click();
+  const photo = await createPhoto(page, source);
+  await page.getByLabel('Choose an attachment').setInputFiles(photo);
+
+  const dialog = page.getByRole('dialog', { name: 'Send attachments' });
+  const image = dialog.getByRole('img', { name: source.filename });
+  await expect(image).toHaveJSProperty('clientWidth', source.width);
+  await expect(image).toHaveJSProperty('clientHeight', source.height);
+
+  await dialog.getByRole('button', { name: `Remove ${source.filename}` }).click();
+  await expect(image).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Send attachments' })).toBeDisabled();
 });
 
 test('retains restored portrait and album geometry when the server accepts the upload', async ({

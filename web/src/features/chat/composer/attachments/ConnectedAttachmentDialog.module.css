@@ -37,17 +37,29 @@
 .preview {
   position: relative;
   max-width: 100%;
+  border-radius: inherit;
+}
+
+.preview[data-file='false'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+}
+
+.thumbnail {
+  max-width: 100%;
   overflow: hidden;
   border-radius: inherit;
   background: var(--input-color);
 }
 
-.preview[data-album='true'] {
+.preview[data-album='true'],
+.preview[data-album='true'] .thumbnail {
   width: 100%;
   height: 100%;
 }
 
-.preview :is(img, video) {
+.thumbnail :is(img, video) {
   display: block;
   width: 100%;
   height: 100%;
@@ -64,6 +76,15 @@
   inset-inline-end: 4px;
   color: white;
   background: rgb(0 0 0 / 55%);
+}
+
+.preview[data-separate-control='true'] {
+  gap: 4px;
+}
+
+.preview[data-separate-control='true'] > button {
+  position: static;
+  justify-self: end;
 }
 
 .preview[data-file='true'] {

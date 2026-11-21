@@ -10,6 +10,7 @@ import styles from './ConnectedAttachmentDialog.module.css';
 
 const PREVIEW_WIDTH = 384;
 const PREVIEW_HEIGHT = 320;
+const REMOVE_CONTROL_SPACE = 48;
 const MAX_ATTACHMENTS = 10;
 const IMAGE_BYTES = 25 * 1024 * 1024;
 const FILE_BYTES = 100 * 1024 * 1024;
@@ -166,6 +167,8 @@ export function ConnectedAttachmentPreview(props: AttachmentPreviewProps) {
       maximumWidth: PREVIEW_WIDTH,
       maximumHeight: PREVIEW_HEIGHT,
     });
+    const needsSeparateControl =
+      isSingleVisual && (fit.width < REMOVE_CONTROL_SPACE || fit.height < REMOVE_CONTROL_SPACE);
     const style = isSingleVisual
       ? { width: fit.width, aspectRatio: `${fit.width} / ${fit.height}` }
       : undefined;
@@ -175,15 +178,17 @@ export function ConnectedAttachmentPreview(props: AttachmentPreviewProps) {
         key={id}
         className={styles.preview}
         data-file={isFile}
+        data-separate-control={needsSeparateControl}
         data-album={props.isAlbum}
-        style={style}
         role="group"
         aria-label={filename}
       >
         {isFile ? (
           <DocumentMessage media={{ name: filename, size: blob.size }} />
         ) : (
-          <SourcePreview item={item} onMeasure={props.onMeasure} />
+          <div className={styles.thumbnail} style={style}>
+            <SourcePreview item={item} onMeasure={props.onMeasure} />
+          </div>
         )}
         <IconButton
           label={`Remove ${filename}`}
