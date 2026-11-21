@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { isDismissKey } from '@/lib/keyboardEvent';
 import { isHandheldLayout } from '@/layouts/chat/useHandheldLayout';
 import { useSearchDestination } from '@/routes/useSearchDestination';
@@ -47,6 +47,7 @@ function parseAccountPage(value: string | null, fallback: AccountPage): AccountP
 /** Own account and handheld panel history without applying settings changes to ChatOwner. */
 export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvailable: boolean }) {
   const { searchParams, changeDestination, entryState } = useSearchDestination();
+  const intentVersion = useRef(0);
   const rootPage = isMessagingAvailable ? 'messages' : 'settings';
   const page = parseAccountPage(searchParams.get('account'), rootPage);
   const view = searchParams.get('community');
@@ -54,10 +55,21 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   const communityView: CommunityView = isKnownView ? view : 'discover';
   const isChatOpen = searchParams.has('conversation');
 
+  function navigate(destination: Parameters<typeof changeDestination>[0]) {
+    intentVersion.current += 1;
+    changeDestination(destination);
+  }
+
+  function openNotificationInbox() {
+    openMessages('directory');
+    const version = intentVersion.current;
+    return () => intentVersion.current === version;
+  }
+
   function openPage(next: AccountPage, options?: { isReturning?: boolean; view?: CommunityView }) {
     const account = next === rootPage ? undefined : next;
     const community = options?.view === 'discover' ? undefined : options?.view;
-    changeDestination({
+    navigate({
       changes: {
         account,
         community,
@@ -71,7 +83,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   }
 
   function openMessages(view: 'conversation' | 'directory') {
-    changeDestination({
+    navigate({
       changes: {
         account: undefined,
         community: undefined,
@@ -85,12 +97,15 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   }
 
   function closeConversation() {
-    changeDestination({ changes: { conversation: undefined }, isReturning: true });
+    if (!isChatOpen) {
+      return;
+    }
+    navigate({ changes: { conversation: undefined }, isReturning: true });
   }
 
   function openDetail(value?: string) {
     // Session identifiers are kept in the browser entry rather than included in shareable URLs.
-    changeDestination({
+    navigate({
       changes: { detail: value ? 'open' : undefined },
       entryState: value ? { accountDetail: value } : undefined,
       isReturning: !value,
@@ -103,11 +118,11 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
       return;
     }
     if (searchParams.has('color')) {
-      changeDestination({ changes: { color: undefined }, isReturning: true });
+      navigate({ changes: { color: undefined }, isReturning: true });
       return;
     }
     if (searchParams.has('settingsPage')) {
-      changeDestination({ changes: { settingsPage: undefined }, isReturning: true });
+      navigate({ changes: { settingsPage: undefined }, isReturning: true });
       return;
     }
     openPage(PARENT_PAGE[page] ?? rootPage, { isReturning: true });
@@ -133,8 +148,16 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   });
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onEscape(event);
+    const interruptLookup = () => {
+      // Back or Forward can supersede a pending lookup even when returning to the same inbox.
+      intentVersion.current += 1;
+    };
     window.addEventListener('keydown', listener);
-    return () => window.removeEventListener('keydown', listener);
+    window.addEventListener('popstate', interruptLookup);
+    return () => {
+      window.removeEventListener('keydown', listener);
+      window.removeEventListener('popstate', interruptLookup);
+    };
   }, []);
 
   return {
@@ -147,7 +170,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
     isChatOpen,
     openPage,
     openConversation: () => openMessages('conversation'),
-    openInbox: () => openMessages('directory'),
+    openNotificationInbox,
     closeConversation,
     goBack,
   };

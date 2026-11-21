@@ -89,7 +89,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
     isMessagingAvailable: capabilities.messaging_available,
   });
   const { page, communityView, openPage, goBack } = navigation;
-  const showNotificationInbox = useEffectEvent(navigation.openInbox);
+  const showNotificationInbox = useEffectEvent(navigation.openNotificationInbox);
   const showNotificationChat = useEffectEvent(() => navigation.openConversation());
   const operatorRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -122,23 +122,22 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
 
       const request = ++notificationGeneration;
       chat.showInbox();
-      showNotificationInbox();
+      const isInboxCurrent = showNotificationInbox();
       const conversation = await resolveNotificationTarget({ target, session: owner, chat });
 
       // Leave a newer user selection in place if notification lookup finishes after navigation.
       const isCurrent =
         notificationGeneration === request && owner.getSnapshot().revision === revision;
-      if (!isCurrent || !conversation || chat.getSnapshot().selection) {
+      if (!isCurrent || !isInboxCurrent() || !conversation || chat.getSnapshot().selection) {
         return;
       }
 
+      // Admit the route before asynchronous history work so its completion cannot steal focus.
+      showNotificationChat();
       await chat.select({
         destination: conversationDestination(conversation),
         title: conversation.title || conversation.peer_name,
       });
-      if (notificationGeneration === request && owner.getSnapshot().revision === revision) {
-        showNotificationChat();
-      }
     }
 
     function navigate() {
@@ -185,11 +184,9 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       return;
     }
     setChatError('');
+    navigation.openConversation();
     void chat
       .select({ destination: conversationDestination(conversation), title: conversation.title })
-      .then(() => {
-        navigation.openConversation();
-      })
       .catch((error: unknown) => {
         if (!isCancelled(error)) {
           setChatError(error instanceof Error ? error.message : 'The community is unavailable.');

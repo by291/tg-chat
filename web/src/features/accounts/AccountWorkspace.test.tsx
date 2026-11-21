@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createChatOwnerFixture, DIRECT, SAVED } from '../chat/data/chatOwner.test-support';
+import * as notificationNavigation from '../settings/notifications/notificationNavigation';
 import { AccountWorkspace } from './AccountWorkspace';
 
 vi.mock('../settings/appearance/ThemeEmoji', () => ({ ThemeEmoji: () => null }));
@@ -21,7 +22,39 @@ afterEach(() => {
   cleanup();
   window.history.replaceState(null, '', '/');
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
+
+function deferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
+async function dispatchNotification(started: Promise<void>) {
+  await screen.findByRole('button', { name: /Saved Messages/ });
+  await act(async () => {
+    window.history.replaceState(window.history.state, '', '/#notification=inbox');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await started;
+  });
+}
+
+function pendingHistory() {
+  const history = deferred<Response>();
+  const requested = deferred<void>();
+  function load() {
+    requested.resolve();
+    return history.promise;
+  }
+  return {
+    load,
+    requested: requested.promise,
+    complete: () => history.resolve(Response.json({ messages: [] })),
+  };
+}
 
 function renderWorkspace(
   options: {
@@ -175,4 +208,58 @@ it('tracks peer activity for the visible pane across desktop Back and a narrow s
     handheld.dispatchEvent(new Event('change'));
   });
   expect(await screen.findByText('Online')).toBeTruthy();
+});
+
+it('keeps Settings when notification lookup finishes after a later navigation', async () => {
+  const lookup = deferred<typeof SAVED>();
+  const requested = deferred<void>();
+  vi.spyOn(notificationNavigation, 'resolveNotificationTarget').mockImplementation(() => {
+    requested.resolve();
+    return lookup.promise;
+  });
+  const user = renderWorkspace();
+  await dispatchNotification(requested.promise);
+  await user.click(screen.getByRole('button', { name: 'Account settings' }));
+  const back = screen.getByRole('button', { name: 'Back to chats' });
+  expect(document.activeElement).toBe(back);
+
+  await act(async () => lookup.resolve(SAVED));
+  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Saved Messages' })).toBeNull());
+  expect(document.activeElement).toBe(back);
+  expect(window.location.search).toContain('account=settings');
+});
+
+it('keeps Settings when an admitted community finishes loading its history', async () => {
+  const history = pendingHistory();
+  const user = renderWorkspace({
+    chat: {
+      conversation: { ...SAVED, kind: 'group', title: 'Readers' },
+      history: history.load,
+    },
+  });
+  await user.click(await screen.findByRole('button', { name: 'Communities' }));
+  await user.click(await screen.findByRole('button', { name: 'Open Readers' }));
+  await history.requested;
+  await user.keyboard('{Escape}');
+  await user.click(await screen.findByRole('button', { name: 'Account settings' }));
+  const back = screen.getByRole('button', { name: 'Back to chats' });
+  await act(async () => history.complete());
+  expect(window.location.search).toContain('account=settings');
+  expect(document.activeElement).toBe(back);
+});
+
+it('keeps Settings when notification history arrives after chat admission', async () => {
+  const history = pendingHistory();
+  vi.spyOn(notificationNavigation, 'resolveNotificationTarget').mockResolvedValue(SAVED);
+  const user = renderWorkspace({
+    chat: {
+      history: history.load,
+    },
+  });
+  await dispatchNotification(history.requested);
+  await user.click(screen.getByRole('button', { name: 'Account settings' }));
+  const back = screen.getByRole('button', { name: 'Back to chats' });
+  await act(async () => history.complete());
+  expect(window.location.search).toContain('account=settings');
+  expect(document.activeElement).toBe(back);
 });
