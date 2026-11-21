@@ -3,15 +3,21 @@ import { useEffect, useLayoutEffect, useReducer, useRef } from 'react';
 const SIDEBAR_EXIT_MS = 300;
 
 /** Retain outgoing content for the slide, then release its DOM and subscriptions. */
-export function useExitingSidebarPage<Value>(value: Value | undefined) {
+export function useExitingSidebarPage<Value>(
+  value: Value | undefined,
+  canDisplay?: (candidate: Value) => boolean,
+) {
   const retained = useRef(value);
   const [, release] = useReducer((revision: number) => revision + 1, 0);
   const isPresent = value !== undefined;
+  const candidate = isPresent ? value : retained.current;
+  const isAllowed = candidate !== undefined && (!canDisplay || canDisplay(candidate));
+  const displayed = isAllowed ? candidate : undefined;
+
   useLayoutEffect(() => {
-    if (value !== undefined) {
-      retained.current = value;
-    }
-  }, [value]);
+    // A revoked page must be forgotten before a subsequent render can readmit the same target.
+    retained.current = displayed;
+  }, [displayed]);
   useEffect(() => {
     if (isPresent || retained.current === undefined) {
       return;
@@ -23,5 +29,5 @@ export function useExitingSidebarPage<Value>(value: Value | undefined) {
     return () => window.clearTimeout(timer);
   }, [isPresent]);
 
-  return value ?? retained.current;
+  return displayed;
 }

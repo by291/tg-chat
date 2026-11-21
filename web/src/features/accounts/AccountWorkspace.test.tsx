@@ -274,6 +274,50 @@ it('suspends mobile peer activity until Escape uncovers the same conversation', 
   expect(window.location.search).toContain('conversation=open');
 });
 
+it.each(['open', 'exiting'] as const)(
+  'discards an %s profile when a handheld account page covers its chat',
+  async (panelState) => {
+    const handheld = Object.assign(new EventTarget(), { matches: false });
+    let profileReads = 0;
+    const user = renderWorkspace({
+      handheldQuery: handheld,
+      chat: {
+        conversation: { ...DIRECT, peer_name: 'Bob' },
+        transport: async (request) => {
+          if (new URL(request.url).pathname === `/api/v1/users/${DIRECT.peer_id}`) {
+            profileReads += 1;
+            return Response.json({ display_name: 'Bob', username: 'bob' });
+          }
+          return Response.json({ items: [] });
+        },
+      },
+    });
+    await user.click(await screen.findByRole('button', { name: /Bob.*Start a conversation/ }));
+    await user.click(screen.getByRole('button', { name: 'View Bob profile' }));
+    await screen.findByText('@bob');
+    await user.click(screen.getByRole('button', { name: 'Account settings' }));
+    if (panelState === 'exiting') {
+      fireEvent.click(screen.getByRole('button', { name: 'Close profile' }));
+    }
+
+    // Both layout changes commit before the exit timeout can run.
+    act(() => {
+      handheld.matches = true;
+      handheld.dispatchEvent(new Event('change'));
+    });
+    const panelSelector = 'aside[aria-label="User Info"]';
+    expect(document.querySelector(panelSelector)).toBeNull();
+    act(() => {
+      handheld.matches = false;
+      handheld.dispatchEvent(new Event('change'));
+    });
+    expect({
+      hasProfile: Boolean(document.querySelector(panelSelector)),
+      profileReads,
+    }).toEqual({ hasProfile: false, profileReads: 1 });
+  },
+);
+
 it('opens an authorized notification after clearing a previously selected chat', async () => {
   const lookup = pendingNotificationLookup();
   const user = renderWorkspace({ chat: { additionalConversations: [READERS] } });

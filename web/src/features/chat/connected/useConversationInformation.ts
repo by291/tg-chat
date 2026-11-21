@@ -22,17 +22,23 @@ export function useConversationInformation(options: {
 }) {
   const { scope, canDisplay, fallbackFocus } = options;
   const [selection, setSelection] = useState<InformationSelection>();
-  const retained = useExitingSidebarPage(selection);
   const trigger = useRef<HTMLElement | null>(null);
   const shouldRestoreFocus = useRef(false);
-  const ownsSelection =
-    retained?.owner === scope.owner &&
-    retained.destination === scope.destination &&
-    retained.generation === scope.generation &&
-    canDisplay(retained.target);
-  const target = ownsSelection ? retained.target : undefined;
+
+  function isSelectionOwned(candidate: InformationSelection) {
+    return (
+      candidate.owner === scope.owner &&
+      candidate.destination === scope.destination &&
+      candidate.generation === scope.generation &&
+      canDisplay(candidate.target)
+    );
+  }
+
+  const retained = useExitingSidebarPage(selection, isSelectionOwned);
+  const target = retained?.target;
   const isOpen = Boolean(selection && target);
 
+  // prettier-ignore
   useLayoutEffect(() => {
     // Clearing invalid selections prevents a later re-admission from reopening the old panel.
     if (selection && !target) {
@@ -50,7 +56,12 @@ export function useConversationInformation(options: {
     const canFocusButton = button?.isConnected && !button.closest('[inert], [hidden]');
     const destination = canFocusButton ? button : fallbackFocus.current;
     destination?.focus({ preventScroll: true });
-  }, [selection, target, isOpen, fallbackFocus]);
+  }, [
+    selection,
+    target,
+    isOpen,
+    fallbackFocus,
+  ]);
 
   function open(nextTarget: InformationTarget, opener: HTMLElement | null) {
     trigger.current = opener;

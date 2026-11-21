@@ -322,8 +322,8 @@ export function CommunityDetails(props: CommunityDetailsProps) {
       className={styles.details}
       ref={details}
       onKeyDown={(event) => {
-        const ownsTarget = event.currentTarget.contains(event.target as Node);
-        if (activePage && ownsTarget && !confirmation && isDismissKey(event.nativeEvent)) {
+        const isTargetInside = event.currentTarget.contains(event.target as Node);
+        if (activePage && isTargetInside && !confirmation && isDismissKey(event.nativeEvent)) {
           event.preventDefault();
           setPage(undefined);
         }
