@@ -151,7 +151,8 @@ test('two accounts keep profiles and relationships isolated while device and tab
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Privacy settings saved.')).toBeVisible();
     await page.reload();
-    await openPrivacy(page);
+    await expect(page.getByRole('radio', { name: 'Nobody' })).toBeChecked();
+    await page.getByRole('button', { name: 'Back to privacy and security' }).click();
     await page.getByRole('button', { name: 'Calls Nobody' }).click();
     await expect(page.getByRole('radio', { name: 'Nobody' })).toBeChecked();
 
@@ -215,8 +216,8 @@ test('real SMTP verification and single-use recovery links replace credentials a
       'Email verified. Your recovery address is ready.',
     );
     await page.reload();
-    await openSecurity(page);
-    await expect(page.getByText(recipient, { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Password & recovery' })).toBeVisible();
+    await expect(page.getByRole('paragraph').filter({ hasText: recipient })).toBeVisible();
 
     await recoveryPage.goto('/');
     await recoveryPage.getByRole('button', { name: 'Forgot password' }).click();
