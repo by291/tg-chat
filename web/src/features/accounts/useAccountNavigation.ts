@@ -3,7 +3,7 @@ import { isDismissKey } from '@/lib/keyboardEvent';
 import { isHandheldLayout } from '@/layouts/chat/useHandheldLayout';
 import { useSearchDestination } from '@/routes/useSearchDestination';
 import type { CommunityKind } from '../communities/communityModels';
-import type { SettingsPage } from './AccountSettingsHome';
+import type { SettingsPage } from './accountSettingsCatalog';
 
 export type CommunityView = 'discover' | 'invitations' | CommunityKind;
 export type AccountPage =
@@ -55,6 +55,22 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   const communityView: CommunityView = isKnownView ? view : 'discover';
   const isChatOpen = searchParams.has('conversation');
 
+  const isSearchingSettings = searchParams.has('accountSearch');
+  const canonicalizeGeneral = useEffectEvent(() => {
+    changeDestination({ changes: { settings: 'general' }, isReturning: true });
+  });
+  const needsGeneralDestination = page === 'general' && !searchParams.has('settings');
+  useEffect(() => {
+    if (needsGeneralDestination) {
+      canonicalizeGeneral();
+    }
+  }, [needsGeneralDestination]);
+
+  function captureIntent() {
+    const version = intentVersion.current;
+    return () => intentVersion.current === version;
+  }
+
   function navigate(destination: Parameters<typeof changeDestination>[0]) {
     intentVersion.current += 1;
     changeDestination(destination);
@@ -62,19 +78,33 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
 
   function openNotificationInbox() {
     openMessages('directory');
-    const version = intentVersion.current;
-    return () => intentVersion.current === version;
+    return captureIntent();
   }
 
-  function openPage(next: AccountPage, options?: { isReturning?: boolean; view?: CommunityView }) {
+  function setSettingsSearch({ shouldOpen }: { shouldOpen: boolean }) {
+    navigate({
+      changes: { accountSearch: shouldOpen ? 'open' : undefined },
+      isReturning: !shouldOpen,
+    });
+  }
+
+  function openPage(
+    next: AccountPage,
+    options?: {
+      isReturning?: boolean;
+      view?: CommunityView;
+      settingsPage?: 'wallpaper' | 'power';
+      settingsItem?: string;
+    },
+  ) {
     const account = next === rootPage ? undefined : next;
     const community = options?.view === 'discover' ? undefined : options?.view;
     navigate({
       changes: {
         account,
         community,
-        settings: next === 'general' ? 'general' : undefined,
-        settingsPage: undefined,
+        settings: options?.settingsItem ?? (next === 'general' ? 'general' : undefined),
+        settingsPage: options?.settingsPage,
         color: undefined,
         detail: undefined,
       },
@@ -86,6 +116,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
     navigate({
       changes: {
         account: undefined,
+        accountSearch: undefined,
         community: undefined,
         settings: undefined,
         settingsPage: undefined,
@@ -113,6 +144,10 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   }
 
   function goBack() {
+    if (page === 'settings' && isSearchingSettings) {
+      setSettingsSearch({ shouldOpen: false });
+      return;
+    }
     if (searchParams.has('detail')) {
       openDetail();
       return;
@@ -136,7 +171,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
     if (document.querySelector('[role="dialog"]:not([hidden]), [role="menu"][data-state="open"]')) {
       return;
     }
-    if (page !== rootPage || searchParams.has('settingsPage')) {
+    if (page !== rootPage || isSearchingSettings || searchParams.has('settingsPage')) {
       event.preventDefault();
       goBack();
       return;
@@ -163,6 +198,10 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   return {
     page,
     communityView,
+    isSearchingSettings,
+    settingsItem: searchParams.get('settings'),
+    setSettingsSearch,
+    captureIntent,
     detail: {
       value: searchParams.has('detail') ? entryState?.accountDetail : undefined,
       open: openDetail,

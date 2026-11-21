@@ -32,6 +32,8 @@ import { PrivacyPanel } from './PrivacyPanel';
 import { ProfilePanel } from './ProfilePanel';
 import { SecurityPanel } from './SecurityPanel';
 import { useWorkspaceConnections } from './useWorkspaceConnections';
+import { SETTINGS_SEARCH_ITEMS } from '../settings/settingsSearch';
+import { useSettingsSearchTarget } from '../settings/useSettingsSearchTarget';
 import { GeneralSettingsPage } from '../settings/GeneralSettingsPage';
 import { KeyboardSettingsPage } from '../settings/keyboard/KeyboardSettingsPage';
 import {
@@ -91,6 +93,9 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const { page, communityView, openPage, goBack } = navigation;
   const showNotificationInbox = useEffectEvent(navigation.openNotificationInbox);
   const showNotificationChat = useEffectEvent(() => navigation.openConversation());
+  const detailPageRef = useRef<HTMLDivElement>(null);
+  const searchTarget = SETTINGS_SEARCH_ITEMS.find((item) => item.id === navigation.settingsItem);
+  useSettingsSearchTarget({ rootRef: detailPageRef, item: searchTarget });
   const operatorRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     if (page === 'operator') {
@@ -211,6 +216,9 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
           <AccountSettingsHome
             owner={owner}
             profile={profile}
+            isCovered={page !== 'settings'}
+            isSearching={navigation.isSearchingSettings}
+            onSetSearch={navigation.setSettingsSearch}
             onOpenPage={openPage}
             onBack={capabilities.messaging_available ? goBack : undefined}
             onOpenContacts={chat ? undefined : () => openPage('contacts')}
@@ -352,7 +360,11 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
         ? SUBPAGE_NAVIGATION[currentPage as keyof typeof SUBPAGE_NAVIGATION]
         : undefined;
     return (
-      <div className={styles.accountPage} data-page={currentPage}>
+      <div
+        className={styles.accountPage}
+        data-page={currentPage}
+        ref={currentPage === page ? detailPageRef : undefined}
+      >
         {subpage && (
           <SettingsHeader title={subpage.title} backLabel={subpage.backLabel} onBack={goBack} />
         )}

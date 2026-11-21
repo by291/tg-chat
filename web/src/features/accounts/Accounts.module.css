@@ -220,6 +220,7 @@
 }
 
 .accountPage:is(
+  [data-page='settings'],
   [data-page='general'],
   [data-page='shortcuts'],
   [data-page='devices'],
@@ -237,35 +238,12 @@
   background: var(--surface-color);
 }
 
-.standaloneTitle {
-  margin: 0;
-  padding: 16px;
-}
-
 .accountPage .panel {
   padding: 12px 16px;
 }
 
 .accountPage .card {
   padding: 16px;
-}
-
-.identity {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 20px 16px;
-}
-
-.identity h3 {
-  margin: 0 0 4px;
-  font-size: 20px;
-  overflow-wrap: anywhere;
-}
-
-.identity p {
-  margin: 0;
-  color: var(--secondary-color);
 }
 
 .settingsGroup {

@@ -79,6 +79,7 @@ function pendingHistory() {
 function renderWorkspace(
   options: {
     chat?: Parameters<typeof createChatOwnerFixture>[0];
+    profilePhoto?: string;
     handheldQuery?: EventTarget & { matches: boolean };
   } = {},
 ) {
@@ -120,7 +121,9 @@ function renderWorkspace(
       }),
     ...options.chat,
   });
-  const auth = session.getSnapshot().auth!;
+  const grant = session.getSnapshot().auth!;
+  const profile = { ...grant.user, avatar_file_id: options.profilePhoto };
+  const auth = { ...grant, user: profile };
   render(
     <BrowserRouter>
       <AccountWorkspace owner={session} auth={auth} capabilities={CAPABILITIES} />
@@ -406,4 +409,43 @@ it('keeps Settings when notification history arrives after chat admission', asyn
   await act(async () => history.complete());
   expect(window.location.search).toContain('account=settings');
   expect(document.activeElement).toBe(back);
+});
+
+it('expands the authorized account photo and restores its settings search after Back', async () => {
+  window.history.replaceState(null, '', '/?account=settings');
+  const user = renderWorkspace({
+    profilePhoto: 'avatar',
+    chat: {
+      transport: async () => Response.json({ url: '/signed-photo' }),
+    },
+  });
+  await waitFor(() => expect(document.querySelector('[aria-label="Conversations"]')).toBeTruthy());
+  const photo = await screen.findByAltText('Your profile photo');
+  expect(photo.getAttribute('src')).toBe('/signed-photo');
+  fireEvent.load(photo);
+  const expand = screen.getByRole('button', { name: 'Expand profile photo' });
+  await user.click(expand);
+  expect(expand.getAttribute('aria-expanded')).toBe('true');
+  const search = screen.getByRole('button', { name: 'Search settings' });
+  await user.click(search);
+  const input = screen.getByRole('textbox', { name: 'Search settings' });
+  await user.type(input, 'privacy');
+  await user.click(screen.getByRole('button', { name: 'Privacy and Security' }));
+  expect(await screen.findByRole('heading', { name: 'Privacy and Security' })).toBeTruthy();
+
+  await act(async () => window.history.back());
+  await waitFor(() => expect(document.activeElement).toBe(input));
+  expect(input).toHaveProperty('value', 'privacy');
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(document.activeElement).toBe(search));
+});
+
+it('opens both nested pages from a direct General Settings destination', async () => {
+  window.history.replaceState(null, '', '/?account=general');
+  const user = renderWorkspace();
+  await waitFor(() => expect(document.querySelector('[aria-label="Conversations"]')).toBeTruthy());
+  await user.click(await screen.findByRole('button', { name: 'Chat Wallpaper' }));
+  await user.click(await screen.findByRole('button', { name: 'Back from wallpaper' }));
+  await user.click(await screen.findByRole('button', { name: /Power Saving Mode/ }));
+  expect(await screen.findByRole('button', { name: /Back from power saving/i })).toBeTruthy();
 });

@@ -1,71 +1,35 @@
-import {
-  Gavel,
-  Keyboard,
-  Settings,
-  LogOut,
-  Shield,
-  SlidersHorizontal,
-  Smartphone,
-  UserRound,
-} from 'lucide-react';
+import { LogOut, Search } from 'lucide-react';
 import type { components } from '@/api/schema';
-import { RemoteAvatar } from '@/features/media/RemoteAvatar';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { IconButton } from '@/components/IconButton';
+import { avatarUrl } from '@/features/media/mediaAccess';
+import { useAuthorizedMediaUrl } from '@/features/media/useAuthorizedMediaUrl';
+import { SettingsProfile } from '@/features/settings/profile/SettingsProfile';
+import { SettingsAccountDetails } from '@/features/settings/profile/SettingsAccountDetails';
+import { SettingsSearchResults } from '@/features/settings/SettingsSearchPanel';
+import { accountSettingsCatalog, type SettingsPage } from './accountSettingsCatalog';
+import searchStyles from '@/features/settings/SettingsSearchPanel.module.css';
+import settingsStyles from '@/features/settings/SettingsPage.module.css';
 import { SettingsHeader, SettingsRow } from '@/features/settings/SettingsControls';
 import type { SessionOwner } from '../auth/SessionOwner';
 import { useOperation } from './AccountForm';
 import styles from './Accounts.module.css';
 
-const SETTINGS_ENTRIES = [
-  {
-    page: 'profile',
-    label: 'Edit Profile',
-    icon: UserRound,
-    color: 'blue',
-  },
-  {
-    page: 'general',
-    label: 'General Settings',
-    icon: Settings,
-    color: 'gray',
-  },
-  {
-    page: 'shortcuts',
-    label: 'Keyboard Shortcuts',
-    icon: Keyboard,
-    color: 'orange',
-  },
-  {
-    page: 'privacy',
-    label: 'Privacy and Security',
-    icon: Shield,
-    color: 'green',
-  },
-  {
-    page: 'devices',
-    label: 'Devices',
-    icon: Smartphone,
-    color: 'purple',
-  },
-  {
-    page: 'preferences',
-    label: 'Preferences',
-    icon: SlidersHorizontal,
-    color: 'blue',
-  },
-  {
-    page: 'operator',
-    label: 'Administration',
-    icon: Gavel,
-    color: 'blue',
-  },
-] as const;
-
-export type SettingsPage = (typeof SETTINGS_ENTRIES)[number]['page'];
+const INITIALS_LENGTH = 2;
 
 interface AccountSettingsHomeProps {
   owner: SessionOwner;
   profile: components['schemas']['PrivateProfile'];
-  onOpenPage: (page: SettingsPage) => void;
+  onOpenPage: (
+    page: SettingsPage,
+    options?: {
+      settingsPage?: 'wallpaper' | 'power';
+      settingsItem?: string;
+    },
+  ) => void;
+  isSearching: boolean;
+  isCovered: boolean;
+  onSetSearch: (options: { shouldOpen: boolean }) => void;
   onBack?: () => void;
   onOpenContacts?: () => void;
 }
@@ -75,66 +39,116 @@ export function AccountSettingsHome({
   owner,
   profile,
   onOpenPage,
+  isSearching,
+  isCovered,
+  onSetSearch,
   onBack,
   onOpenContacts,
 }: AccountSettingsHomeProps) {
   const logout = useOperation();
-  const entries = SETTINGS_ENTRIES.filter((entry) => {
-    return entry.page !== 'operator' || profile.is_operator;
-  });
+
+  const authorize = useCallback(
+    (signal: AbortSignal) => {
+      // prettier-ignore
+      return avatarUrl({
+        session: owner,
+        owner: 'user',
+        id: profile.id,
+        signal,
+      });
+    },
+    [owner, profile.id],
+  );
+  const photo = useAuthorizedMediaUrl({ key: profile.avatar_file_id ?? undefined, authorize });
+  const searchButton = useRef<HTMLButtonElement>(null);
+  const wasSearching = useRef(isSearching);
+  useLayoutEffect(() => {
+    if (wasSearching.current && !isSearching && !isCovered) {
+      searchButton.current?.focus({ preventScroll: true });
+    }
+    wasSearching.current = isSearching;
+  }, [isSearching, isCovered]);
+
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+  const { entries, catalog, search } = accountSettingsCatalog(profile);
+  const searchAction = (
+    <IconButton
+      ref={searchButton}
+      label="Search settings"
+      onClick={() => onSetSearch({ shouldOpen: true })}
+    >
+      <Search />
+    </IconButton>
+  );
+  const header = onBack ? (
+    <SettingsHeader title="Settings" backLabel="Back to chats" onBack={onBack}>
+      {searchAction}
+    </SettingsHeader>
+  ) : (
+    <header className={settingsStyles.header}>
+      <h2>Settings</h2>
+      {searchAction}
+    </header>
+  );
 
   return (
-    <>
-      {onBack ? (
-        <SettingsHeader title="Settings" backLabel="Back to chats" onBack={onBack} />
-      ) : (
-        <h2 className={styles.standaloneTitle}>Settings</h2>
-      )}
-      <div className={styles.identity}>
-        <RemoteAvatar
-          session={owner}
-          owner="user"
-          id={profile.id}
-          fileId={profile.avatar_file_id}
-          initials={profile.display_name.slice(0, 2).toUpperCase()}
-          size="large"
-        />
-        <div>
-          <h3>{profile.display_name}</h3>
-          <p>@{profile.username}</p>
-        </div>
-      </div>
-      <nav className={styles.settingsGroup} aria-label="Account settings">
-        {entries.map(({ page, label, icon, color }) => (
-          <SettingsRow
-            key={page}
-            label={label}
-            icon={icon}
-            color={color}
-            onClick={() => onOpenPage(page)}
-          />
-        ))}
-        {onOpenContacts && (
-          <button type="button" className={styles.textButton} onClick={onOpenContacts}>
-            Contacts
-          </button>
-        )}
-      </nav>
-      <div className={styles.panel}>
-        <button
-          type="button"
-          className={styles.textButton}
-          disabled={logout.isPending}
-          onClick={() => void logout.run({ operation: () => owner.logout() })}
+    <section className={searchStyles.layers} data-searching={isSearching} aria-label="Settings">
+      <div className={searchStyles.mainLayer} inert={isSearching} aria-hidden={isSearching}>
+        <SettingsProfile
+          header={header}
+          identity={{
+            name: profile.display_name,
+            initials: profile.display_name.slice(0, INITIALS_LENGTH).toUpperCase(),
+            photoUrl: photo.url,
+            subtitle: `@${profile.username}`,
+          }}
         >
-          <LogOut size={16} aria-hidden="true" /> Sign out
-        </button>
-        {logout.error && (
-          <p role="alert" className={styles.error}>
-            {logout.error}
-          </p>
-        )}
+          <SettingsAccountDetails profile={profile} />
+          <nav className={settingsStyles.section} aria-label="Account settings">
+            {entries.map(({ page, label, icon, color }) => (
+              <SettingsRow
+                key={page}
+                label={label}
+                icon={icon}
+                color={color}
+                onClick={() => onOpenPage(page)}
+              />
+            ))}
+            {onOpenContacts && (
+              <button type="button" className={styles.textButton} onClick={onOpenContacts}>
+                Contacts
+              </button>
+            )}
+          </nav>
+          <div className={styles.panel}>
+            <button
+              type="button"
+              className={styles.textButton}
+              disabled={logout.isPending}
+              onClick={() => void logout.run({ operation: () => owner.logout() })}
+            >
+              <LogOut size={16} aria-hidden="true" /> Sign out
+            </button>
+            {logout.error && (
+              <p role="alert" className={styles.error}>
+                {logout.error}
+              </p>
+            )}
+          </div>
+        </SettingsProfile>
       </div>
-    </>
+      <SettingsSearchResults
+        isOpen={isSearching}
+        isCovered={isCovered}
+        search={search}
+        categoryFor={(entry) => entry}
+        recent={recentIds.flatMap((id) => catalog.filter((item) => item.id === id))}
+        onClose={() => onSetSearch({ shouldOpen: false })}
+        onSelect={(item) => {
+          setRecentIds((previous) => [item.id, ...previous.filter((id) => id !== item.id)]);
+          onOpenPage(item.page, { settingsPage: item.subpage, settingsItem: item.anchorId });
+        }}
+      />
+    </section>
   );
 }

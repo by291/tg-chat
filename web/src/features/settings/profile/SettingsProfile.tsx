@@ -5,6 +5,7 @@ import styles from './SettingsProfile.module.css';
 
 interface ProfileIdentity {
   name: string;
+  subtitle?: string;
   initials: string;
   photoUrl?: string;
 }
@@ -69,7 +70,7 @@ export function SettingsProfile({ identity, header, children }: SettingsProfileP
           )}
           <div className={styles.identity}>
             <h3>{identity.name}</h3>
-            <p>online</p>
+            <p>{identity.subtitle ?? 'online'}</p>
           </div>
         </div>
         <div className={styles.content}>{children}</div>

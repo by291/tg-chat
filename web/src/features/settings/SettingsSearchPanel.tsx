@@ -1,5 +1,6 @@
-import { ArrowLeft, Search, SearchX, X } from 'lucide-react';
+import { ArrowLeft, Search, SearchX, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { isDismissKey } from '@/lib/keyboardEvent';
 import { IconButton } from '@/components/IconButton';
 import { Ripple } from '@/components/Ripple';
 import {
@@ -12,32 +13,63 @@ import {
 import settings from './SettingsPage.module.css';
 import styles from './SettingsSearchPanel.module.css';
 
-interface SettingsSearchPanelProps {
+interface SearchResult {
+  id: string;
+  title: string;
+  category: string;
+  path: string;
+}
+
+interface SearchPanelProps<Item extends SearchResult> {
   isOpen: boolean;
   isCovered: boolean;
   onClose: () => void;
-  onSelect: (item: SettingsSearchItem) => void;
+  onSelect: (item: Item) => void;
 }
 
-/** Keep queries and result scroll position when returning from a selected settings page. */
-export function SettingsSearchPanel({
+interface SearchCatalog<Item extends SearchResult> {
+  search: (query: string) => Item[];
+  recent: Item[];
+  categoryFor: (item: Item) => { icon: LucideIcon; color: string };
+}
+
+/** Restore the local demo's recent destinations whenever its search opens. */
+export function SettingsSearchPanel(props: SearchPanelProps<SettingsSearchItem>) {
+  const [recent, setRecent] = useState<SettingsSearchItem[]>([]);
+  useEffect(() => {
+    if (props.isOpen) {
+      const ids = readRecentSettings();
+      setRecent(ids.flatMap((id) => SETTINGS_SEARCH_ITEMS.filter((item) => item.id === id)));
+    }
+  }, [props.isOpen]);
+
+  return (
+    <SettingsSearchResults
+      {...props}
+      recent={recent}
+      search={searchSettings}
+      categoryFor={(item) => SETTINGS_CATEGORIES.find((entry) => entry.id === item.category)!}
+    />
+  );
+}
+
+/** Search the destinations supplied by the current account or demo settings owner. */
+export function SettingsSearchResults<Item extends SearchResult>({
   isOpen,
   isCovered,
   onClose,
   onSelect,
-}: SettingsSearchPanelProps) {
+  recent,
+  search,
+  categoryFor,
+}: SearchPanelProps<Item> & SearchCatalog<Item>) {
   const [query, setQuery] = useState('');
-  const [recentIds, setRecentIds] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasQuery = Boolean(query.trim());
-  const items = hasQuery
-    ? searchSettings(query)
-    : recentIds.flatMap((id) => SETTINGS_SEARCH_ITEMS.filter((item) => item.id === id));
+  const items = hasQuery ? search(query) : recent;
 
   useEffect(() => {
-    if (isOpen) {
-      setRecentIds(readRecentSettings());
-    } else {
+    if (!isOpen) {
       setQuery('');
     }
   }, [isOpen]);
@@ -65,7 +97,7 @@ export function SettingsSearchPanel({
       aria-hidden={!isOpen}
       inert={!isOpen}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && !event.defaultPrevented) {
+        if (isDismissKey(event.nativeEvent)) {
           event.preventDefault();
           event.stopPropagation();
           onClose();
@@ -101,7 +133,7 @@ export function SettingsSearchPanel({
           >
             {!hasQuery && <h3>Recent</h3>}
             {items.map((item, index) => {
-              const category = SETTINGS_CATEGORIES.find((entry) => entry.id === item.category)!;
+              const category = categoryFor(item);
               const Icon = category.icon;
               const isFirstInCategory = index === 0 || items[index - 1].category !== item.category;
 
