@@ -47,5 +47,9 @@ export function useSearchDestination() {
     );
   }
 
-  return { searchParams, changeDestination, entryState: location.state };
+  return {
+    searchParams,
+    changeDestination,
+    entryState: location.state,
+  };
 }

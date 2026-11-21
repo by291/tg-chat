@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 const FRAME_DECIMAL_PRECISION = 1;
 const SERVER_PROCESSING_TIMEOUT_MS = 30_000;
@@ -67,6 +67,34 @@ function observeAdmission(page: Page, filenames: string[]) {
   }, filenames);
 }
 
+async function hasMeasuredPreview(dialog: Locator) {
+  const wide = await dialog.getByRole('img', { name: WIDE.filename }).boundingBox();
+  const narrow = await dialog.getByRole('img', { name: NARROW.filename }).boundingBox();
+  if (!wide || !narrow) {
+    return false;
+  }
+  return wide.width / wide.height > narrow.width / narrow.height;
+}
+
+async function verifyFirstFrame(options: {
+  page: Page;
+  filename: string;
+  admission: Awaited<ReturnType<typeof observeAdmission>>;
+}) {
+  const { page, filename, admission } = options;
+  const pending = page.getByRole('group', {
+    name: filename,
+    exact: true,
+  });
+  await expect(pending).toBeVisible();
+  const first = await admission.evaluate((record, name) => record.frames.get(name), filename);
+  const settled = await pending.boundingBox();
+  if (!first || !settled) {
+    throw new Error('Expected a visible tile from the first pending layout.');
+  }
+  expectMatchingFrame(first, settled);
+}
+
 /** Send measured photos and compare the first pending frame with its settled size. */
 export async function selectMeasuredMedia(page: Page) {
   for (const group of FILE_GROUPS) {
@@ -81,13 +109,8 @@ export async function selectMeasuredMedia(page: Page) {
     const send = dialog.getByRole('button', { name: 'Send attachments' });
     await expect(send).toBeEnabled();
     if (group.length > 1) {
-      const wide = await dialog.getByRole('img', { name: WIDE.filename }).boundingBox();
-      const narrow = await dialog.getByRole('img', { name: NARROW.filename }).boundingBox();
-      if (!wide || !narrow) {
-        throw new Error('Both selected album images must have visible frames.');
-      }
-      // A narrow dialog may stack the images at equal widths.
-      expect(wide.width / wide.height).toBeGreaterThan(narrow.width / narrow.height);
+      // Intrinsic measurement can finish after Send enables and before the first admitted tile.
+      await expect.poll(() => hasMeasuredPreview(dialog)).toBe(true);
     }
 
     const admission = await observeAdmission(
@@ -98,17 +121,11 @@ export async function selectMeasuredMedia(page: Page) {
       await send.click();
       await expect(dialog).toHaveCount(0);
       for (const source of group) {
-        const pending = page.getByRole('group', { name: source.filename, exact: true });
-        await expect(pending).toBeVisible();
-        const first = await admission.evaluate(
-          (record, name) => record.frames.get(name),
-          source.filename,
-        );
-        const settled = await pending.boundingBox();
-        if (!first || !settled) {
-          throw new Error('Expected a visible tile from the first pending layout.');
-        }
-        expectMatchingFrame(first, settled);
+        await verifyFirstFrame({
+          page,
+          filename: source.filename,
+          admission,
+        });
       }
     } finally {
       await admission.evaluate((record) => record.observer.disconnect());

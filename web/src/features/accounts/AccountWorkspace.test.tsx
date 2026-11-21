@@ -388,7 +388,11 @@ it('keeps Settings when an admitted community finishes loading its history', asy
   const history = pendingHistory();
   const user = renderWorkspace({
     chat: {
-      conversation: { ...SAVED, kind: 'group', title: 'Readers' },
+      conversation: {
+        ...SAVED,
+        kind: 'group',
+        title: 'Readers',
+      },
       history: history.load,
     },
   });

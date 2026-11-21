@@ -121,6 +121,7 @@ export function useLinkPreview({ url, scope, onLoad }: LinkLookup) {
   const [result, setResult] = useState<LinkLookupResult>();
   const current = result && result.url === url && result.scope === scope ? result : undefined;
 
+  // prettier-ignore
   useEffect(() => {
     if (current) {
       return;
@@ -160,7 +161,13 @@ export function useLinkPreview({ url, scope, onLoad }: LinkLookup) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [current, onLoad, result, scope, url]);
+  }, [
+    current,
+    onLoad,
+    result,
+    scope,
+    url,
+  ]);
 
   const isLoading = Boolean(url && onLoad && !current);
   return { preview: current?.preview, isLoading };

@@ -123,6 +123,7 @@ export function ChatHeaderFrame({
   onBack,
 }: ChatHeaderFrameProps) {
   const wasSearchOpenRef = useRef(isSearchOpen);
+  // prettier-ignore
   useLayoutEffect(() => {
     // The actions must leave their inert state before the search trigger can receive focus.
     const active = document.activeElement;
@@ -133,7 +134,11 @@ export function ChatHeaderFrame({
       searchButtonRef.current?.focus({ preventScroll: true });
     }
     wasSearchOpenRef.current = isSearchOpen;
-  }, [isSearchOpen, searchButtonRef, canRestoreSearchFocus]);
+  }, [
+    isSearchOpen,
+    searchButtonRef,
+    canRestoreSearchFocus,
+  ]);
 
   const shouldReduceMotion = useReducedMotion();
   const isPinnedView = pinnedCount !== undefined;

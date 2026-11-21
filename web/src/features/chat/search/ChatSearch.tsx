@@ -187,6 +187,7 @@ export function ChatSearch(props: ChatSearchProps) {
     }
   }, [isPresent]);
 
+  // prettier-ignore
   useEffect(() => {
     function closeFromKeyboard(event: KeyboardEvent) {
       if (!isDismissKey(event) || isChoosingDate || !isPresent) {
@@ -206,7 +207,12 @@ export function ChatSearch(props: ChatSearchProps) {
     document.addEventListener('keydown', closeFromKeyboard);
 
     return () => document.removeEventListener('keydown', closeFromKeyboard);
-  }, [closeSearch, isChoosingDate, isPresent, canDismissFromPage]);
+  }, [
+    closeSearch,
+    isChoosingDate,
+    isPresent,
+    canDismissFromPage,
+  ]);
 
   function jumpToDate(timestamp: number) {
     if (source) {
