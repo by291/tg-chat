@@ -121,8 +121,11 @@ test('two accounts keep profiles and relationships isolated while device and tab
     await bobbyPage.getByRole('button', { name: 'Add contact', exact: true }).click();
     await expect(bobbyPage.getByText(`${alice.displayName} added to contacts.`)).toBeVisible();
     await bobbyPage.getByRole('button', { name: 'Back to contacts' }).click();
-    await expect(bobbyPage.getByText(`@${alice.username}`, { exact: true })).toBeVisible();
-    await bobbyPage.getByText(`@${alice.username}`, { exact: true }).click({ button: 'right' });
+    const aliceContact = bobbyPage.getByRole('listitem').filter({
+      has: bobbyPage.getByRole('button', { name: `Actions for ${alice.displayName}` }),
+    });
+    await expect(aliceContact.getByText(`@${alice.username}`, { exact: true })).toBeVisible();
+    await aliceContact.getByText(`@${alice.username}`, { exact: true }).click({ button: 'right' });
     await bobbyPage.getByRole('menuitem', { name: 'Remove contact' }).click();
     const removeDialog = bobbyPage.getByRole('dialog', {
       name: `Remove ${alice.displayName} from contacts?`,

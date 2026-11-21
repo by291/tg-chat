@@ -18,6 +18,8 @@
 }
 
 .menu {
+  /* Ark copies the content layer to its portal, above the sliding sidebar. */
+  z-index: 40;
   min-width: 208px;
   padding: 4px;
   border: 0;
