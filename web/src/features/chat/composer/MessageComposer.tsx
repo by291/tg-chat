@@ -175,7 +175,7 @@ export function MessageComposer({
   const preview = isPreviewEnabled ? (publishedMetadata ?? lookup.preview) : undefined;
   const isCompactPreviewControl = canShowPreviewControl && !preview;
   let PreviewControlIcon = Link2Off;
-  let previewControlLabel = 'Disable link preview';
+  let previewControlLabel = 'Disable link preview. Link preview unavailable';
   let previewControlTitle = 'Link preview unavailable';
   if (isPreviewDisabled) {
     PreviewControlIcon = Link;

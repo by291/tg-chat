@@ -216,7 +216,7 @@ it('leaves the editor usable when the server returns no displayable metadata', a
     onSubmit,
   });
 
-  await screen.findByTitle('Link preview unavailable');
+  expect(await screen.findByRole('button', { name: /Link preview unavailable/ })).toBeTruthy();
   expect(screen.queryByRole('group', { name: 'Link preview' })).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Send message' }));
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ text: FIRST_PREVIEW.url }));
@@ -233,8 +233,8 @@ it('recovers a failed metadata lookup when the sender restores the preview', asy
     onLoadLinkPreview,
   });
 
-  await screen.findByTitle('Link preview unavailable');
-  await userEvent.click(screen.getByRole('button', { name: 'Disable link preview' }));
+  const unavailable = await screen.findByRole('button', { name: /Link preview unavailable/ });
+  await userEvent.click(unavailable);
   await userEvent.click(screen.getByRole('button', { name: 'Restore link preview' }));
   expect(await screen.findByText('Meeting notes', { exact: false })).toBeTruthy();
 });
@@ -420,8 +420,11 @@ describe('image composition', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Document' }));
 
     const file = new File(['image'], 'dropped.png', { type: 'image/png' });
+    // Lexical checks the native event type before reading the dropped files.
+    class DragEvent extends MouseEvent {}
+    vi.stubGlobal('DragEvent', DragEvent);
     fireEvent.drop(screen.getByRole('textbox', { name: 'Message' }), {
-      dataTransfer: { files: [file] },
+      dataTransfer: { files: [file], types: ['Files'] },
     });
     await finishDecoding('dropped.png');
 
