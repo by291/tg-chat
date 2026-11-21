@@ -117,7 +117,9 @@ decodes the paused take for its waveform and seeks the same audio used for playb
 speed applies to subsequent messages.
 
 Connected message menus copy the selected text when available and offer poll management only
-with the current server permissions. Voter rows open the authorized user profile.
+with the current server permissions. The open editor observes the poll deadline and checks the
+live permission again before submitting the version captured when editing began. Voter rows open
+the authorized user profile.
 
 See [architecture](./architecture.md) for state lifetime and
 [messages and history](./message-history.md) for rendering and scroll ownership.

@@ -155,6 +155,15 @@ function renderPoll(poll: components['schemas']['PollView']): PollMedia {
   };
 }
 
+/** Resolve the current canonical poll for a management dialog or its final submission. */
+export function findLivePoll(messages: CanonicalMessage[], messageId?: string) {
+  const message = messages.find((entry) => entry.id === messageId);
+  if (!message || message.is_deleted || message.body?.kind !== 'poll') {
+    return;
+  }
+  return renderPoll(message.body);
+}
+
 function renderPendingPoll(poll: components['schemas']['PollInput']): PollMedia {
   return {
     kind: 'poll',

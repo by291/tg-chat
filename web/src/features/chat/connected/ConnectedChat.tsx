@@ -55,6 +55,8 @@ import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
 import { PinnedMessages } from './PinnedMessages';
+import { pollManagement } from '../messages/content/poll/pollManagement';
+import { usePollClock } from '../messages/content/poll/usePollClock';
 import { PollCloseConfirmation } from './PollCloseConfirmation';
 import { PollVotersPanel } from './PollVotersPanel';
 import { ComposerListDialog, type ListSubmitOptions } from '../composer/forms/ComposerListDialog';
@@ -64,6 +66,7 @@ import {
   compareCounter,
   conversationMuteChange,
   destinationKey,
+  findLivePoll,
   isConversationMuted,
   type CanonicalMessage,
   type MessageBodyInput,
@@ -210,10 +213,6 @@ function publicPoll(messages: CanonicalMessage[], messageId: string) {
   return canViewResults ? poll : undefined;
 }
 
-function canEditPoll(message: CanonicalMessage | undefined): boolean {
-  return message?.body?.kind === 'poll' && !message.is_deleted && message.body.can_edit;
-}
-
 /** Reuse the editor and bounded virtual timeline with authenticated, server-owned message state. */
 export function ConnectedChat({
   owner,
@@ -272,10 +271,9 @@ export function ConnectedChat({
     version: string;
     initialPoll: PollMedia;
   }>();
-  const currentEditorMessage = snapshot.messages.find(
-    (entry) => entry.id === pollEditor?.messageId,
-  );
-  const canShowPollEditor = canEditPoll(currentEditorMessage);
+  const editorPoll = findLivePoll(snapshot.messages, pollEditor?.messageId);
+  const pollClock = usePollClock(editorPoll?.closesAt);
+  const canShowPollEditor = editorPoll && pollManagement(editorPoll, pollClock).canEdit;
   const currentChecklist = snapshot.messages.find(
     (entry) => entry.id === checklistEditor?.messageId,
   );
@@ -358,6 +356,21 @@ export function ConnectedChat({
     conversationStatus = 'Online';
   }
   const canPost = conversation?.can_post ?? selection?.destination.kind !== 'conversation';
+  function endPollEdit() {
+    setPollEditor(undefined);
+    setError('This poll can no longer be edited.');
+  }
+  // A capability or deadline change ends this edit even when no new message has arrived.
+  // prettier-ignore
+  useEffect(() => {
+    if (pollEditor && (!canShowPollEditor || !canPost)) {
+      endPollEdit();
+    }
+  }, [
+    pollEditor,
+    canShowPollEditor,
+    canPost,
+  ]);
   const canStartCall = hasCallActions && Boolean(calls) && canPost && !isCallBusy;
   const canForward = Boolean(conversation && conversation.is_forwarding_enabled !== false);
   const canReportCommunity = Boolean(session && isCommunity && conversation.role !== 'owner');
@@ -652,6 +665,11 @@ export function ConnectedChat({
       return false;
     }
 
+    const poll = findLivePoll(owner.getSnapshot().messages, pollEditor.messageId);
+    if (!poll || !pollManagement(poll).canEdit || !owner.selectedConversation()?.can_post) {
+      endPollEdit();
+      return false;
+    }
     await owner.command({
       kind: 'edit_poll',
       message_id: pollEditor.messageId,
@@ -762,7 +780,7 @@ export function ConnectedChat({
           break;
         case 'edit-poll': {
           const poll = renderMessage(message).media;
-          if (poll?.kind === 'poll' && body.can_edit) {
+          if (poll?.kind === 'poll' && pollManagement(poll).canEdit) {
             // prettier-ignore
             setPollEditor({
               messageId,

@@ -844,3 +844,80 @@ it.each(SEARCH_COMPLETIONS)(
     }
   },
 );
+
+it.each(['timer', 'submit'])(
+  'ends poll editing at the deadline on %s without admitting an edit',
+  async (boundary) => {
+    const durationMs = 60_000;
+    const deadline = Date.now() + durationMs;
+    const question = 'Choose a weekday';
+    const message = canonicalFixture({
+      conversation_id: SAVED.id,
+      body: {
+        kind: 'poll',
+        question,
+        version: '1',
+        is_anonymous: true,
+        is_multiple_choice: false,
+        can_vote: true,
+        can_revote: false,
+        can_add_options: false,
+        can_close: true,
+        can_edit: true,
+        hide_results_until_close: false,
+        is_closed: false,
+        is_quiz: false,
+        selected_option_ids: [],
+        voter_count: 0,
+        closes_at: new Date(deadline).toISOString(),
+        options: [
+          { id: 'monday', text: 'Monday' },
+          { id: 'friday', text: 'Friday' },
+        ],
+      },
+    });
+    const commands: string[] = [];
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200);
+    const user = renderWorkspace({
+      chat: {
+        history: async () =>
+          Response.json({
+            messages: [message],
+            generation: SAVED.generation,
+            has_older: false,
+            has_newer: false,
+            observation_cursor: cursorFixture(0),
+          }),
+        commands: async (request) => {
+          commands.push((await request.json()).action.kind);
+          return Response.json({ observation_cursor: cursorFixture(0) });
+        },
+      },
+    });
+    await user.click(await screen.findByRole('button', { name: /Saved Messages/ }));
+    const wakeAtDeadline: Array<() => void> = [];
+    const schedule = window.setTimeout.bind(window);
+    const browserWindow: Window = window;
+    vi.spyOn(browserWindow, 'setTimeout').mockImplementation((callback, delay, ...args) => {
+      if (typeof callback === 'function' && delay && delay > durationMs / 2) {
+        wakeAtDeadline.push(() => callback(...args));
+      }
+      return schedule(callback, delay, ...args);
+    });
+    fireEvent.contextMenu(await screen.findByText(question));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit poll' }));
+    const save = await screen.findByRole('button', { name: 'Save' });
+    expect(save).toBeTruthy();
+
+    // The clock can pass the deadline before the throttled timer or the next sync arrives.
+    vi.spyOn(Date, 'now').mockReturnValue(deadline);
+    if (boundary === 'submit') {
+      await user.click(save);
+    } else {
+      act(() => wakeAtDeadline.forEach((wake) => wake()));
+    }
+    await screen.findByText('This poll can no longer be edited.');
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(commands).not.toContain('edit_poll');
+  },
+);
