@@ -1,8 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { useExitingSidebarPage } from '@/layouts/sidebar/useExitingSidebarPage';
 import type { ChatOwner } from '../data/ChatOwner';
 
-type InformationTarget = { kind: 'peer' | 'community'; id: string };
+type InformationTarget = { kind: 'peer' | 'community' | 'poll'; id: string };
 
 interface InformationScope {
   owner: ChatOwner;
@@ -17,9 +17,10 @@ interface InformationSelection extends InformationScope {
 /** Keep the exiting panel mounted only while its original session and membership still own it. */
 export function useConversationInformation(options: {
   scope: InformationScope;
+  fallbackFocus: RefObject<HTMLElement | null>;
   canDisplay: (target: InformationTarget) => boolean;
 }) {
-  const { scope, canDisplay } = options;
+  const { scope, canDisplay, fallbackFocus } = options;
   const [selection, setSelection] = useState<InformationSelection>();
   const retained = useExitingSidebarPage(selection);
   const trigger = useRef<HTMLElement | null>(null);
@@ -42,10 +43,14 @@ export function useConversationInformation(options: {
     }
     shouldRestoreFocus.current = false;
     const button = trigger.current;
-    if (target && button?.isConnected && !button.closest('[inert], [hidden]')) {
-      button.focus({ preventScroll: true });
+    if (!target) {
+      return;
     }
-  }, [selection, target, isOpen]);
+    // A virtualized poll can lose its original button while the sidebar is open.
+    const canFocusButton = button?.isConnected && !button.closest('[inert], [hidden]');
+    const destination = canFocusButton ? button : fallbackFocus.current;
+    destination?.focus({ preventScroll: true });
+  }, [selection, target, isOpen, fallbackFocus]);
 
   function open(nextTarget: InformationTarget, opener: HTMLElement | null) {
     trigger.current = opener;

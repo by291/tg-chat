@@ -1,35 +1,32 @@
-import { Dialog } from '@ark-ui/react/dialog';
-import { Portal } from '@ark-ui/react/portal';
-import { X } from 'lucide-react';
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { components } from '@/api/schema';
-import { Avatar } from '@/components/Avatar';
-import { IconButton } from '@/components/IconButton';
-import dialogs from '@/components/overlays/dialogs.module.css';
-import overlays from '@/components/overlays/overlays.module.css';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { ChatOwner } from '../data/ChatOwner';
 import { getPollPercentages } from '../messages/content/poll/pollResults';
-import styles from './PollVotersDialog.module.css';
+import { InformationPanel } from '../details/InformationPanel';
+import { ConnectedPeerProfile } from './ConnectedPeerProfile';
+import styles from './PollVotersPanel.module.css';
 
 type Voter = components['schemas']['PollVoter'];
 type PollOption = components['schemas']['PollOptionView'];
 
-interface PollVotersDialogProps {
+interface PollVotersPanelProps {
   owner: Pick<ChatOwner, 'loadPollVoters'>;
-  session?: SessionOwner;
+  session: SessionOwner;
   messageId: string;
   poll: components['schemas']['PollView'];
+  isOpen: boolean;
   onClose: () => void;
 }
 
 interface VoterListProps {
-  owner: PollVotersDialogProps['owner'];
-  session?: SessionOwner;
+  owner: PollVotersPanelProps['owner'];
+  session: SessionOwner;
   messageId: string;
   optionId: string;
   onAccessLost: () => void;
+  onSelectVoter: (voter: Voter, trigger: HTMLButtonElement) => void;
 }
 
 interface OptionResultsProps extends Omit<VoterListProps, 'optionId'> {
@@ -48,11 +45,16 @@ function isAccessFailure(failure: unknown): boolean {
   return failure.status === 401 || failure.status === 403 || failure.status === 404;
 }
 
-function VoterRow({ voter, session }: { voter: Voter; session?: SessionOwner }) {
+function VoterRow(props: Pick<VoterListProps, 'session' | 'onSelectVoter'> & { voter: Voter }) {
+  const { voter, session, onSelectVoter } = props;
   const initials = voter.display_name.slice(0, 2).toUpperCase();
   return (
-    <li className={styles.voter}>
-      {session && voter.avatar_file_id ? (
+    <li>
+      <button
+        type="button"
+        className={styles.voter}
+        onClick={(event) => onSelectVoter(voter, event.currentTarget)}
+      >
         <RemoteAvatar
           session={session}
           owner="user"
@@ -61,15 +63,20 @@ function VoterRow({ voter, session }: { voter: Voter; session?: SessionOwner }) 
           initials={initials}
           size="small"
         />
-      ) : (
-        <Avatar initials={initials} size="small" />
-      )}
-      <span dir="auto">{voter.display_name}</span>
+        <span dir="auto">{voter.display_name}</span>
+      </button>
     </li>
   );
 }
 
-function VoterList({ owner, session, messageId, optionId, onAccessLost }: VoterListProps) {
+function VoterList({
+  owner,
+  session,
+  messageId,
+  optionId,
+  onAccessLost,
+  onSelectVoter,
+}: VoterListProps) {
   const [voters, setVoters] = useState<Map<string, Voter>>(new Map());
   const [nextAfter, setNextAfter] = useState<string | null>(null);
   const [request, setRequest] = useState<{ after?: string }>({});
@@ -140,7 +147,12 @@ function VoterList({ owner, session, messageId, optionId, onAccessLost }: VoterL
       {voters.size > 0 && (
         <ul className={styles.voterList}>
           {Array.from(voters.values(), (voter) => (
-            <VoterRow key={voter.user_id} session={session} voter={voter} />
+            <VoterRow
+              key={voter.user_id}
+              session={session}
+              voter={voter}
+              onSelectVoter={onSelectVoter}
+            />
           ))}
         </ul>
       )}
@@ -175,15 +187,42 @@ function OptionResults({ option, percentage, ...voterList }: OptionResultsProps)
 }
 
 /** Show results and paginated voters for each option in a public poll. */
-export function PollVotersDialog({
+export function PollVotersPanel({
   owner,
   session,
   messageId,
   poll,
+  isOpen,
   onClose,
-}: PollVotersDialogProps) {
+}: PollVotersPanelProps) {
   const [isAccessLost, setIsAccessLost] = useState(false);
-  const clearResults = useCallback(() => setIsAccessLost(true), []);
+  const [selection, setSelection] = useState<{ voter: Voter; version: string }>();
+  const rowTrigger = useRef<HTMLButtonElement>(null);
+  const shouldRestoreRow = useRef(false);
+  const selectedVoter = selection?.version === poll.version ? selection.voter : undefined;
+  const canShowProfile = !isAccessLost && Boolean(selectedVoter);
+  const clearResults = useCallback(() => {
+    // A denied page revokes names across every option, including an already-open profile.
+    setSelection(undefined);
+    setIsAccessLost(true);
+  }, []);
+  useLayoutEffect(() => {
+    if (shouldRestoreRow.current && !canShowProfile && isOpen) {
+      shouldRestoreRow.current = false;
+      rowTrigger.current?.focus({ preventScroll: true });
+    }
+  }, [canShowProfile, isOpen]);
+
+  function selectVoter(voter: Voter, trigger: HTMLButtonElement) {
+    rowTrigger.current = trigger;
+    setSelection({ voter, version: poll.version });
+  }
+
+  function returnToResults() {
+    shouldRestoreRow.current = true;
+    setSelection(undefined);
+  }
+
   const count = poll.voter_count;
   if (poll.is_anonymous || count == null) {
     return null;
@@ -194,52 +233,49 @@ export function PollVotersDialog({
   const total = `${memberLabel} ${poll.is_quiz ? 'answered' : 'voted'}`;
 
   return (
-    <Dialog.Root
-      open
-      onOpenChange={({ open }) => {
-        if (!open) {
-          onClose();
-        }
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className={dialogs.backdrop} />
-        <Dialog.Positioner className={`${overlays.dialogPositioner} ${styles.positioner}`}>
-          <Dialog.Content className={styles.panel}>
-            <header className={styles.header}>
-              <div>
-                <Dialog.Title>Poll voters</Dialog.Title>
-                {!isAccessLost && <Dialog.Description>{total}</Dialog.Description>}
-              </div>
-              <Dialog.CloseTrigger asChild>
-                <IconButton label="Close poll results">
-                  <X />
-                </IconButton>
-              </Dialog.CloseTrigger>
-            </header>
-            {isAccessLost ? (
-              <p className={styles.unavailable} role="alert">
-                Poll results are unavailable.
-              </p>
-            ) : (
-              <div className={styles.results}>
-                <h3 dir="auto">{poll.question}</h3>
-                {poll.options.map((option, index) => (
-                  <OptionResults
-                    key={`${poll.version}:${option.id}`}
-                    option={option}
-                    percentage={percentages[index]}
-                    owner={owner}
-                    session={session}
-                    messageId={messageId}
-                    onAccessLost={clearResults}
-                  />
-                ))}
-              </div>
-            )}
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <>
+      {/* Keep authorized pages and their requests alive under the selected voter's profile. */}
+      <div hidden={canShowProfile} className={styles.panelSlot}>
+        <InformationPanel
+          title="Poll voters"
+          closeLabel="Close poll results"
+          isOpen={isOpen && !canShowProfile}
+          onClose={onClose}
+        >
+          {!isAccessLost && <p className={styles.summary}>{total}</p>}
+          {isAccessLost ? (
+            <p className={styles.unavailable} role="alert">
+              Poll results are unavailable.
+            </p>
+          ) : (
+            <div className={styles.results}>
+              <h3 dir="auto">{poll.question}</h3>
+              {poll.options.map((option, index) => (
+                <OptionResults
+                  key={`${poll.version}:${option.id}`}
+                  option={option}
+                  percentage={percentages[index]}
+                  owner={owner}
+                  session={session}
+                  messageId={messageId}
+                  onAccessLost={clearResults}
+                  onSelectVoter={selectVoter}
+                />
+              ))}
+            </div>
+          )}
+        </InformationPanel>
+      </div>
+      {canShowProfile && selectedVoter && (
+        <ConnectedPeerProfile
+          key={selectedVoter.user_id}
+          session={session}
+          peerId={selectedVoter.user_id}
+          title={selectedVoter.display_name}
+          isOpen={isOpen}
+          onClose={returnToResults}
+        />
+      )}
+    </>
   );
 }

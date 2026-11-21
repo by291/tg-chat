@@ -238,7 +238,11 @@ export function PollMessage({
             className={styles.action}
             aria-label="View voters"
             aria-describedby={resultCountId}
-            onClick={() => onInteract({ type: 'view-voters' })}
+            onClick={(event) => {
+              // Pointer activation does not focus buttons in every browser. Preserve this opener.
+              event.currentTarget.focus({ preventScroll: true });
+              void onInteract({ type: 'view-voters' });
+            }}
           >
             <span id={resultCountId}>{resultLabel}</span>
             <Ripple />

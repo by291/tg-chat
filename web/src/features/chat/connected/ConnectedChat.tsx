@@ -54,7 +54,7 @@ import { MessageRetryContext } from '../messages/messageRetryContext';
 import { ActionConfirmation, type Confirmation } from './ActionConfirmation';
 import { ConversationControls } from './ConversationControls';
 import { PinnedMessages } from './PinnedMessages';
-import { PollVotersDialog } from './PollVotersDialog';
+import { PollVotersPanel } from './PollVotersPanel';
 import { ComposerListDialog, type ListSubmitOptions } from '../composer/forms/ComposerListDialog';
 import { pollInput } from '../data/pollInput';
 import { ChatOwner } from '../data/ChatOwner';
@@ -194,6 +194,14 @@ function profilePeer(input: { conversation?: Conversation; destination?: Destina
   return destination?.kind === 'recipient' ? destination.user_id : undefined;
 }
 
+function publicPoll(messages: CanonicalMessage[], messageId: string) {
+  const message = messages.find((entry) => entry.id === messageId);
+  const poll = message?.body;
+  const canViewResults =
+    !message?.is_deleted && poll?.kind === 'poll' && !poll.is_anonymous && poll.voter_count != null;
+  return canViewResults ? poll : undefined;
+}
+
 function canEditPoll(message: CanonicalMessage | undefined): boolean {
   return message?.body?.kind === 'poll' && !message.is_deleted && message.body.can_edit;
 }
@@ -244,7 +252,6 @@ export function ConnectedChat({
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [isPinsOpen, setIsPinsOpen] = useState(false);
   const [contactDestination, setContactDestination] = useState<string>();
-  const [voterMessageId, setVoterMessageId] = useState<string>();
   const [checklistEditor, setChecklistEditor] = useState<{
     messageId: string;
     version: string;
@@ -255,10 +262,6 @@ export function ConnectedChat({
     version: string;
     initialPoll: PollMedia;
   }>();
-  const voterMessage = snapshot.messages.find((entry) => entry.id === voterMessageId);
-  const voterPoll = voterMessage?.is_deleted ? undefined : voterMessage?.body;
-  const canViewVoters =
-    voterPoll?.kind === 'poll' && !voterPoll.is_anonymous && voterPoll.voter_count != null;
   const currentEditorMessage = snapshot.messages.find(
     (entry) => entry.id === pollEditor?.messageId,
   );
@@ -289,6 +292,7 @@ export function ConnectedChat({
   const isCommunity = conversation?.kind === 'group' || conversation?.kind === 'channel';
   const canShowChat = !isWorkspaceHidden && (!isHandheld || isMobileChatOpen);
   const information = useConversationInformation({
+    fallbackFocus: overlays.containerRef,
     scope: {
       owner,
       destination: selectedKey,
@@ -298,12 +302,17 @@ export function ConnectedChat({
       if (!canShowChat || !session) {
         return false;
       }
+      if (target.kind === 'poll') {
+        return Boolean(publicPoll(snapshot.messages, target.id));
+      }
       if (target.kind === 'community') {
         return isCommunity && target.id === conversation.id;
       }
       return target.id === peerIdForProfile;
     },
   });
+  const pollId = information.target?.kind === 'poll' ? information.target.id : undefined;
+  const voterPoll = pollId ? publicPoll(snapshot.messages, pollId) : undefined;
   // Desktop chat remains visible beside information. A handheld panel covers the timeline.
   const isChatCovered = isHandheld && information.isOpen;
   const isChatVisible = Boolean(selection) && canShowChat && !isChatCovered;
@@ -429,7 +438,6 @@ export function ConnectedChat({
     setSearchConversationId(undefined);
     setConfirmation(undefined);
     setContactDestination(undefined);
-    setVoterMessageId(undefined);
     setPollEditor(undefined);
     setChecklistEditor(undefined);
   }, [selectedKey, conversation?.generation]);
@@ -760,9 +768,12 @@ export function ConnectedChat({
             ],
           });
           break;
-        case 'view-voters':
-          setVoterMessageId(messageId);
+        case 'view-voters': {
+          const trigger = document.activeElement;
+          const opener = trigger instanceof HTMLButtonElement ? trigger : null;
+          information.open({ kind: 'poll', id: messageId }, opener);
           break;
+        }
       }
       return true;
     } catch (failure) {
@@ -1257,6 +1268,7 @@ export function ConnectedChat({
               ref={overlays.containerRef}
               className={`${surface.conversation} ${styles.chat}`}
               aria-label="Chat"
+              tabIndex={-1}
               inert={isChatCovered}
               aria-hidden={isChatCovered || undefined}
               onKeyDown={(event) => {
@@ -1296,6 +1308,17 @@ export function ConnectedChat({
                   session={session}
                   peerId={information.target.id}
                   title={conversationName}
+                  isOpen={information.isOpen}
+                  onClose={information.close}
+                />
+              )}
+              {session && pollId && voterPoll && (
+                <PollVotersPanel
+                  key={pollId}
+                  owner={owner}
+                  session={session}
+                  messageId={pollId}
+                  poll={voterPoll}
                   isOpen={information.isOpen}
                   onClose={information.close}
                 />
@@ -1351,16 +1374,6 @@ export function ConnectedChat({
               initialChecklist={checklistEditor.initialChecklist}
               onClose={() => setChecklistEditor(undefined)}
               onSubmit={saveChecklist}
-            />
-          )}
-          {voterMessageId && canViewVoters && (
-            <PollVotersDialog
-              key={`${conversation?.generation}:${voterMessageId}`}
-              owner={owner}
-              session={session}
-              messageId={voterMessageId}
-              poll={voterPoll}
-              onClose={() => setVoterMessageId(undefined)}
             />
           )}
           <ActionConfirmation

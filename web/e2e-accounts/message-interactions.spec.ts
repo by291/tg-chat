@@ -243,18 +243,22 @@ test('votes and checklist tasks converge, and revocation removes private history
 
     try {
       await participantPoll.getByRole('button', { name: 'View voters', exact: true }).click();
-      const voters = participant.page.getByRole('dialog', { name: 'Poll voters' });
+      const voters = participant.page.getByRole('complementary', { name: 'Poll voters' });
       const afternoon = voters.getByRole('region', { name: 'Afternoon' });
       await expect(afternoon.getByText(owner.grant.user.display_name)).toBeVisible();
       await expect(afternoon.getByText('50%')).toBeVisible();
       await expect(afternoon.getByText('1 vote', { exact: true })).toBeVisible();
+      await afternoon.getByRole('button', { name: owner.grant.user.display_name }).click();
+      const profile = participant.page.getByRole('complementary', { name: 'User Info' });
+      await expect(profile.getByText(`@${owner.grant.user.username}`)).toBeVisible();
       const voterPath = await captured.ready;
       await commandCommunity({
         account: owner,
         conversationId: group.id,
         action: { kind: 'ban', user_id: participant.grant.user.id },
       });
-      await expect(voters).toHaveCount(0, { timeout: CONVERGENCE_TIMEOUT_MS });
+      await expect(profile).toHaveCount(0, { timeout: CONVERGENCE_TIMEOUT_MS });
+      await expect(voters).toHaveCount(0);
       await expect(participantPoll).toHaveCount(0);
       await expect(participantChecklist).toHaveCount(0);
 
