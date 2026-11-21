@@ -195,12 +195,38 @@ function receipt(request: components['schemas']['SendMessage']) {
   };
 }
 
-function deferredResponse() {
-  let release: (response: Response) => void = () => undefined;
-  const promise = new Promise<Response>((resolve) => {
+function deferredValue<Value>() {
+  let release: (value: Value) => void = () => {};
+  const promise = new Promise<Value>((resolve) => {
     release = resolve;
   });
   return { promise, release };
+}
+
+function deferredResponse() {
+  return deferredValue<Response>();
+}
+
+async function beginDelayedDraftRecovery(owner: ChatOwner, store: PendingMessages) {
+  const readFinished = deferredValue<void>();
+  const publication = deferredValue<void>();
+  const read = store.read.bind(store);
+  vi.spyOn(store, 'read').mockImplementationOnce(async () => {
+    const persisted = await read();
+    readFinished.release();
+    await publication.promise;
+    return persisted;
+  });
+
+  const restoring = owner.restoreDraft({
+    id: 'recovered-draft',
+    value: { text: 'Recovered words' },
+  });
+  await readFinished.promise;
+  return async () => {
+    publication.release();
+    await restoring;
+  };
 }
 
 function historyMessage(sequence: number): components['schemas']['CanonicalMessage'] {
@@ -2012,6 +2038,90 @@ it('scrubs revoked community reply excerpts during bootstrap after an offline re
     const persisted = await store.read();
     expect(persisted.drafts[destination].reply?.quote).toBeNull();
     expect(persisted.drafts[destination].value.text).toBe('My own words');
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('keeps a recovered draft in its original conversation after switching chats', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const { owner } = fixture({ store, conversation: DIRECT });
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    const finishRecovery = await beginDelayedDraftRecovery(owner, store);
+    await owner.select({
+      destination: { kind: 'recipient', user_id: 'other-person' },
+      title: 'Other',
+    });
+    await finishRecovery();
+
+    expect(owner.getSnapshot().draft.value.text).toBe('');
+    await owner.select(SELECTION);
+    expect(owner.getSnapshot().draft.value.text).toBe('Recovered words');
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('preserves typing that follows a draft recovery choice', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const { owner } = fixture({ store, conversation: DIRECT });
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    const finishRecovery = await beginDelayedDraftRecovery(owner, store);
+    await owner.setDraft({ text: 'Newer words' });
+    await finishRecovery();
+
+    expect(owner.getSnapshot().draft.value.text).toBe('Newer words');
+    const persisted = await store.read();
+    expect(persisted.drafts[`conversation:${DIRECT.id}`].value.text).toBe('Newer words');
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('discards a pending restore when the same chat changes membership generation', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const conversation = { ...DIRECT, kind: 'group' };
+  const changedMembership = {
+    ...conversation,
+    generation: '2',
+    version: '2',
+  };
+  const { owner } = fixture({
+    store,
+    conversation,
+    transport: syncTransport(changePage({ position: 2, conversation: changedMembership })),
+  });
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    const finishRecovery = await beginDelayedDraftRecovery(owner, store);
+    await owner.catchUp();
+    await finishRecovery();
+
+    expect(owner.selectedConversation()?.generation).toBe('2');
+    expect(owner.getSnapshot().draft.value.text).toBe('');
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('keeps a logged-out session clear when a stored draft finishes restoring', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const { owner, session } = fixture({ store, conversation: DIRECT });
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    const finishRecovery = await beginDelayedDraftRecovery(owner, store);
+    session.invalidate({ shouldBroadcast: false });
+    await finishRecovery();
+
+    expect(owner.getSnapshot().selection).toBeUndefined();
+    expect(owner.getSnapshot().draft.value.text).toBe('');
+    await expect(store.read()).rejects.toThrow();
   } finally {
     owner.dispose();
   }

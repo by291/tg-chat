@@ -801,22 +801,33 @@ export class ChatOwner {
     if (!selection) {
       return;
     }
-    const previous = this.snapshot.draft;
+    const destination = destinationKey(selection.destination);
+    const generation = this.viewGeneration;
+    const previousId = this.snapshot.draft.id;
     const restored = { ...draft, id: crypto.randomUUID() };
     await this.requireStore().saveDraft({
-      destination: destinationKey(selection.destination),
+      destination,
       draft: restored,
-      expectedId: previous.id,
+      expectedId: previousId,
     });
     await this.requireStore().resolveAlternative({
-      destination: destinationKey(selection.destination),
+      destination,
       id: draft.id,
     });
     const persisted = await this.requireStore().read();
+
+    // Persistence belongs to the original destination even if its editor was replaced meanwhile.
+    const canRestoreEditor =
+      this.isCurrentView(generation) &&
+      this.snapshot.selection === selection &&
+      this.snapshot.draft.id === previousId;
+    if (!canRestoreEditor) {
+      return;
+    }
     this.publish({
       draft: restored,
       draftConflict: undefined,
-      draftAlternatives: persisted.draftAlternatives?.[destinationKey(selection.destination)] ?? [],
+      draftAlternatives: persisted.draftAlternatives?.[destination] ?? [],
     });
   }
 
