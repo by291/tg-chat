@@ -1,16 +1,46 @@
 import { Search } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { Avatar } from '@/components/Avatar';
+import { ActionConfirmation, type Confirmation } from '../chat/connected/ActionConfirmation';
 import type { components } from '@/api/schema';
 import { SessionOwner, requirePayload } from '../auth/SessionOwner';
 import { useOperation } from './AccountForm';
+import {
+  ContactRow,
+  type DirectoryPerson,
+  type DirectoryScope,
+  type RelationshipAction,
+} from './ContactRow';
 import { useAccountResource } from './useAccountResource';
 import styles from './Accounts.module.css';
 
-type DirectoryPage = components['schemas']['DirectoryPage'];
 const SEARCH_DELAY_MS = 300;
+const DIRECTORY_PAGE_SIZE = 20;
+const MINIMUM_SEARCH_LENGTH = 2;
 
-type DirectoryScope = 'contacts' | 'blocks' | 'search';
+const RELATIONSHIPS = {
+  add: {
+    path: '/api/v1/contacts',
+    method: 'PUT',
+    result: 'added to contacts',
+  },
+  remove: {
+    path: '/api/v1/contacts',
+    method: 'DELETE',
+    result: 'removed from contacts',
+  },
+  block: {
+    path: '/api/v1/blocks',
+    method: 'PUT',
+    result: 'blocked',
+  },
+  unblock: {
+    path: '/api/v1/blocks',
+    method: 'DELETE',
+    result: 'unblocked',
+  },
+} as const;
+
+type DirectoryPage = components['schemas']['DirectoryPage'];
 
 /** Browse account-owned relationships and search only bounded public directory fields. */
 export function ContactsPanel({
@@ -20,12 +50,13 @@ export function ContactsPanel({
 }: {
   owner: SessionOwner;
   scope: DirectoryScope;
-  onStartChat?: (person: components['schemas']['PublicProfile']) => void;
+  onStartChat?: (person: DirectoryPerson) => void;
 }) {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string>();
   const action = useOperation();
+  const [confirmation, setConfirmation] = useState<Confirmation>();
   const term = query.trim();
   useEffect(() => {
     if (term === search) {
@@ -42,7 +73,7 @@ export function ContactsPanel({
 
   const load = useCallback(
     async (): Promise<DirectoryPage> => {
-      if (scope === 'search' && search.length < 2) {
+      if (scope === 'search' && search.length < MINIMUM_SEARCH_LENGTH) {
         return { users: [], next_cursor: null };
       }
       const parameters = {
@@ -50,7 +81,7 @@ export function ContactsPanel({
           query: {
             search: search || undefined,
             cursor,
-            limit: 20,
+            limit: DIRECTORY_PAGE_SIZE,
           },
         },
       };
@@ -73,24 +104,41 @@ export function ContactsPanel({
   );
   const directory = useAccountResource(load);
 
-  function changeRelationship(options: {
-    targetId: string;
-    kind: 'contact' | 'block';
-    operation: 'add' | 'remove';
-  }) {
-    void action.run({
-      operation: async () => {
-        const path = options.kind === 'contact' ? '/api/v1/contacts' : '/api/v1/blocks';
-        const parameters = { body: { target_id: options.targetId } };
-        if (options.operation === 'add') {
-          await owner.client.PUT(path, parameters);
-        } else {
-          await owner.client.DELETE(path, parameters);
-        }
-        directory.reload();
-      },
-      successMessage: 'Relationship saved.',
-    });
+  function selectAction(kind: RelationshipAction, person: DirectoryPerson) {
+    const relationship = RELATIONSHIPS[kind];
+    const name = person.display_name;
+
+    function commit() {
+      return action.run({
+        operation: async () => {
+          const parameters = { body: { target_id: person.id } };
+          if (relationship.method === 'PUT') {
+            await owner.client.PUT(relationship.path, parameters);
+          } else {
+            await owner.client.DELETE(relationship.path, parameters);
+          }
+          directory.reload();
+        },
+        successMessage: `${name} ${relationship.result}.`,
+      });
+    }
+
+    if (kind === 'remove' || kind === 'block') {
+      const isRemoval = kind === 'remove';
+      const title = isRemoval ? `Remove ${name} from contacts?` : `Block ${name}?`;
+      const username = `@${person.username}`;
+      const description = isRemoval
+        ? `Remove ${username} from your contact list.`
+        : `Add ${username} to your blocked users.`;
+      setConfirmation({
+        title,
+        description,
+        choices: [{ label: isRemoval ? 'Remove contact' : 'Block', action: commit }],
+      });
+      return;
+    }
+
+    void commit();
   }
 
   const isSearching = term !== search;
@@ -99,7 +147,8 @@ export function ContactsPanel({
   if (scope === 'blocks') {
     emptyMessage = 'No blocked users.';
   } else if (scope === 'search') {
-    emptyMessage = search.length < 2 ? 'Enter at least two characters.' : 'No people found.';
+    emptyMessage =
+      search.length < MINIMUM_SEARCH_LENGTH ? 'Enter at least two characters.' : 'No people found.';
   }
 
   return (
@@ -133,73 +182,15 @@ export function ContactsPanel({
         <ul className={styles.list}>
           {canShowResults &&
             directory.value?.users.map((person) => (
-              <li key={person.id} className={styles.listRow}>
-                <div className={styles.contactIdentity}>
-                  <Avatar initials={person.display_name.slice(0, 2).toUpperCase()} />
-                  <div>
-                    <strong>{person.display_name}</strong>
-                    <p>@{person.username}</p>
-                    {person.biography && <p className={styles.hint}>{person.biography}</p>}
-                  </div>
-                </div>
-                <div className={styles.rowActions}>
-                  {onStartChat && scope !== 'blocks' && (
-                    <button
-                      type="button"
-                      className={styles.textButton}
-                      onClick={() => onStartChat(person)}
-                    >
-                      Message
-                    </button>
-                  )}
-                  {scope === 'search' && (
-                    <button
-                      type="button"
-                      className={styles.textButton}
-                      disabled={action.isPending}
-                      onClick={() =>
-                        changeRelationship({
-                          targetId: person.id,
-                          kind: 'contact',
-                          operation: 'add',
-                        })
-                      }
-                    >
-                      Add contact
-                    </button>
-                  )}
-                  {scope === 'contacts' && (
-                    <button
-                      type="button"
-                      className={styles.textButton}
-                      disabled={action.isPending}
-                      onClick={() =>
-                        changeRelationship({
-                          targetId: person.id,
-                          kind: 'contact',
-                          operation: 'remove',
-                        })
-                      }
-                    >
-                      Remove contact
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.textButton}
-                    disabled={action.isPending}
-                    onClick={() =>
-                      changeRelationship({
-                        targetId: person.id,
-                        kind: 'block',
-                        operation: scope === 'blocks' ? 'remove' : 'add',
-                      })
-                    }
-                  >
-                    {scope === 'blocks' ? 'Unblock' : 'Block'}
-                  </button>
-                </div>
-              </li>
+              <ContactRow
+                key={person.id}
+                owner={owner}
+                person={person}
+                scope={scope}
+                isPending={action.isPending}
+                onAction={selectAction}
+                onStartChat={onStartChat}
+              />
             ))}
         </ul>
         <div className={styles.rowActions}>
@@ -223,6 +214,15 @@ export function ContactsPanel({
           )}
         </div>
       </section>
+      <ActionConfirmation
+        confirmation={confirmation}
+        isBusy={action.isPending}
+        onCancel={() => setConfirmation(undefined)}
+        onChoose={(commit) => {
+          setConfirmation(undefined);
+          void commit();
+        }}
+      />
     </div>
   );
 }

@@ -65,7 +65,7 @@ async function findPeer(page: Page, peer: Identity) {
 async function addContact(page: Page, peer: Identity) {
   await findPeer(page, peer);
   await button(page, 'Add contact').click();
-  await expect(page.getByText('Relationship saved.')).toBeVisible();
+  await expect(page.getByText(`${peer.displayName} added to contacts.`)).toBeVisible();
 }
 
 async function openRecipient(page: Page, peer: Identity) {

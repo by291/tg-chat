@@ -119,10 +119,20 @@ test('two accounts keep profiles and relationships isolated while device and tab
     await expect(bobbyPage.getByText('A public Alice biography.')).toBeVisible();
     await expect(bobbyPage.getByText('private-alice-phone')).toHaveCount(0);
     await bobbyPage.getByRole('button', { name: 'Add contact', exact: true }).click();
-    await expect(bobbyPage.getByText('Relationship saved.')).toBeVisible();
+    await expect(bobbyPage.getByText(`${alice.displayName} added to contacts.`)).toBeVisible();
     await bobbyPage.getByRole('button', { name: 'Back to contacts' }).click();
     await expect(bobbyPage.getByText(`@${alice.username}`, { exact: true })).toBeVisible();
-    await bobbyPage.getByRole('button', { name: 'Block', exact: true }).click();
+    await bobbyPage.getByText(`@${alice.username}`, { exact: true }).click({ button: 'right' });
+    await bobbyPage.getByRole('menuitem', { name: 'Remove contact' }).click();
+    const removeDialog = bobbyPage.getByRole('dialog', {
+      name: `Remove ${alice.displayName} from contacts?`,
+    });
+    await removeDialog.getByRole('button', { name: 'Cancel' }).click();
+    await bobbyPage.getByRole('button', { name: `Actions for ${alice.displayName}` }).click();
+    await bobbyPage.getByRole('menuitem', { name: 'Block', exact: true }).click();
+    const blockDialog = bobbyPage.getByRole('dialog', { name: `Block ${alice.displayName}?` });
+    await blockDialog.getByRole('button', { name: 'Block', exact: true }).click();
+    await expect(bobbyPage.getByText(`${alice.displayName} blocked.`)).toBeVisible();
     await bobbyPage.getByRole('button', { name: 'Back to chats' }).click();
     await openPrivacy(bobbyPage);
     await bobbyPage.getByRole('button', { name: 'Blocked users', exact: true }).click();
