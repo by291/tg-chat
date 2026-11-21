@@ -14,6 +14,7 @@ import {
 const PASSWORD = 'a complete browser password phrase';
 const DOCUMENT_BYTES = 9 * 1024 * 1024;
 const DOCUMENT_NAME = 'resumable-document.bin';
+const RECOVERED_CAPTION = 'Recovered caption';
 const VOICE_SAMPLE_MS = 1200;
 
 interface Account {
@@ -98,7 +99,7 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
     const bubble = page.locator('article[data-own="true"]').filter({ hasText: DOCUMENT_NAME });
     await expect(bubble).toHaveCount(0);
     await expect(preview.getByRole('textbox', { name: 'Caption' })).toBeFocused();
-    await page.keyboard.type('Recovered caption');
+    await page.keyboard.type(RECOVERED_CAPTION);
     await page.keyboard.press('Enter');
     await expect(bubble).toBeVisible();
     const bubbleId = await bubble.getAttribute('id');
@@ -132,7 +133,7 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
     });
     await reopened.goto('/');
     const pending = reopened.getByRole('region', { name: 'Pending messages' });
-    await pending.getByRole('button', { name: DOCUMENT_NAME, exact: true }).click();
+    await pending.getByRole('button', { name: RECOVERED_CAPTION, exact: true }).click();
     const recovered = reopened
       .locator('article[data-own="true"]')
       .filter({ hasText: DOCUMENT_NAME });
@@ -152,7 +153,7 @@ test('resumes after the last tab closes without retransmitting or duplicating', 
       .locator('article[data-own="false"]')
       .filter({ hasText: DOCUMENT_NAME });
     await expect(received).toHaveCount(1);
-    await expect(received).toContainText('Recovered caption');
+    await expect(received).toContainText(RECOVERED_CAPTION);
     await expect(received.getByRole('button', { name: `Download ${DOCUMENT_NAME}` })).toBeVisible();
   } finally {
     await context.close();
@@ -218,11 +219,16 @@ test('records and plays a voice message and publishes a profile avatar', async (
   await page.getByLabel('Choose avatar photo').setInputFiles('public/assets/settings-avatar.jpg');
   const profile = page.getByRole('complementary', { name: 'Account pages' });
   const removePhoto = profile.getByRole('button', { name: 'Remove photo', exact: true });
+  const avatarEditor = profile.locator('section').filter({
+    has: page.getByRole('button', { name: 'Change photo', exact: true }),
+  });
+  const avatar = avatarEditor.locator('img');
   await expect(removePhoto).toBeVisible();
   await expect(biography).toHaveValue(unsavedBiography);
+  await expect(avatar).toBeVisible();
   await expect
     .poll(async () => {
-      return profile.locator('img').evaluate((image) => (image as HTMLImageElement).naturalWidth);
+      return avatar.evaluate((image) => (image as HTMLImageElement).naturalWidth);
     })
     .toBeGreaterThan(0);
   await removePhoto.click();
