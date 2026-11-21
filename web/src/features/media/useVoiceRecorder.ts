@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { readRecordedVoicePeaks } from './recordedVoicePeaks';
 import type { MediaSelection } from './uploadTransfer';
 import { createVoiceRecordingMeter, type VoiceRecordingMeter } from './voiceRecordingMeter';
 
@@ -92,6 +93,7 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
   const currentView = useRef(EMPTY_VIEW);
   const active = useRef<Recording>(undefined);
   const readySelection = useRef<MediaSelection>(undefined);
+  const waveformAnalysis = useRef(Promise.resolve());
   const generation = useRef(0);
   const submit = useRef(onFinish);
   const isSupported =
@@ -113,8 +115,37 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
     };
   }, []);
 
+  useEffect(() => {
+    const preview = view.preview;
+    if (!preview) {
+      return;
+    }
+
+    let isCurrent = true;
+    const canPublishPeaks = () => isCurrent && currentView.current.preview === preview;
+    // Native decoding cannot be aborted. Serialize it and drop superseded work at both boundaries.
+    waveformAnalysis.current = waveformAnalysis.current.then(async () => {
+      if (!canPublishPeaks()) {
+        return;
+      }
+      const peaks = await readRecordedVoicePeaks(preview);
+      if (canPublishPeaks()) {
+        publish({ previewPeaks: peaks });
+      }
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [view.preview]);
+
   function publish(patch: Partial<RecordingView>) {
-    const next = { ...currentView.current, ...patch };
+    const previous = currentView.current;
+    const next = { ...previous, ...patch };
+    // Every replacement needs its own analysis, including a native stop during pause.
+    if (next.preview !== previous.preview) {
+      next.previewPeaks = undefined;
+    }
     currentView.current = next;
     setView(next);
   }
@@ -167,7 +198,11 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
     }
 
     stopClock(recording);
-    publish({ phase: 'finalizing', elapsedMs: recording.elapsedMs, preview: undefined });
+    publish({
+      phase: 'finalizing',
+      elapsedMs: recording.elapsedMs,
+      preview: undefined,
+    });
     try {
       recording.recorder.stop();
     } catch {
@@ -238,7 +273,6 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
     publish({
       phase: 'recording',
       preview: undefined,
-      previewPeaks: undefined,
       error: '',
     });
     try {
@@ -273,7 +307,6 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
       phase: 'ready',
       elapsedMs: recording.elapsedMs,
       preview: blob,
-      previewPeaks: recording.meter?.getPeaks(),
     });
     if (recording.shouldSend) {
       void submitReady(selection);
@@ -283,7 +316,7 @@ export function useVoiceRecorder(onFinish: RecordingSubmission) {
   function watchRecording(recording: Recording) {
     const { recorder } = recording;
     function publishPausedPreview() {
-      publish({ preview: recordingBlob(recording), previewPeaks: recording.meter?.getPeaks() });
+      publish({ preview: recordingBlob(recording) });
     }
 
     recorder.addEventListener('dataavailable', (event) => {

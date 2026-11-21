@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { Blob as NodeBlob } from 'node:buffer';
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { MediaSelection } from './uploadTransfer';
@@ -35,7 +36,11 @@ class RecordingFixture extends EventTarget {
   }
 
   requestData(): void {
-    const blob = new Blob(['voice sample'], { type: this.mimeType });
+    this.emitData(new Blob(['voice sample'], { type: this.mimeType }));
+  }
+
+  /** Deliver the recorded bytes through the same boundary as a native timeslice. */
+  protected emitData(blob: Blob): void {
     const event = Object.assign(new Event('dataavailable'), { data: blob });
     this.dispatchEvent(event);
   }
@@ -47,39 +52,105 @@ class RecordingFixture extends EventTarget {
   }
 }
 
-function mockMicrophone() {
+function mockMicrophone(recorder = RecordingFixture) {
   const stopTrack = vi.fn();
   const stream = { getTracks: () => [{ stop: stopTrack }] };
   const getUserMedia = vi.fn(async () => stream);
-  vi.stubGlobal('MediaRecorder', RecordingFixture);
+  vi.stubGlobal('MediaRecorder', recorder);
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
-  return { getUserMedia, stopTrack, stream };
+  // prettier-ignore
+  return {
+    getUserMedia,
+    stopTrack,
+    stream,
+  };
 }
 
-function mockMicrophoneLevels() {
-  let sample = 128;
-  class AudioContextFixture {
-    createAnalyser() {
-      return {
-        fftSize: 4,
-        getByteTimeDomainData(samples: Uint8Array) {
-          samples.fill(sample);
-        },
-        disconnect() {},
-      };
-    }
+const FIXTURE_SAMPLE_RATE = 1000;
+const SILENCE_SAMPLE = 128;
 
-    createMediaStreamSource() {
-      return { connect() {}, disconnect() {} };
-    }
+function decodeFixtureSamples(bytes: ArrayBuffer) {
+  const samples = Float32Array.from(new Uint8Array(bytes), (sample) => {
+    return (sample - SILENCE_SAMPLE) / SILENCE_SAMPLE;
+  });
+  return {
+    length: samples.length,
+    duration: samples.length / FIXTURE_SAMPLE_RATE,
+    sampleRate: FIXTURE_SAMPLE_RATE,
+    numberOfChannels: 1,
+    getChannelData: () => samples,
+  };
+}
 
-    async resume() {}
-    async close() {}
+class QuietMeterFixture {
+  createAnalyser() {
+    return {
+      fftSize: 2048,
+      getByteTimeDomainData(samples: Uint8Array) {
+        samples.fill(SILENCE_SAMPLE);
+      },
+      disconnect() {},
+    };
   }
 
-  vi.stubGlobal('AudioContext', AudioContextFixture);
-  return (nextSample: number) => {
-    sample = nextSample;
+  createMediaStreamSource() {
+    return { connect() {}, disconnect() {} };
+  }
+
+  async resume() {}
+  async close() {}
+}
+
+function mockRecordedAudio() {
+  const decode = vi.fn(async (bytes: ArrayBuffer) => decodeFixtureSamples(bytes));
+  let chunks: Uint8Array<ArrayBuffer>[] = [];
+  let capture: FixtureRecorder;
+  class FixtureRecorder extends RecordingFixture {
+    constructor() {
+      super();
+      capture = this;
+    }
+
+    /** Emit recorded samples independently of the composer's live meter timer. */
+    requestData() {
+      this.emitData(new Blob(chunks, { type: this.mimeType }));
+      chunks = [];
+    }
+  }
+
+  mockMicrophone(FixtureRecorder);
+  vi.stubGlobal('Blob', NodeBlob);
+  vi.stubGlobal('AudioContext', QuietMeterFixture);
+  vi.stubGlobal(
+    'OfflineAudioContext',
+    class {
+      decodeAudioData = decode;
+    },
+  );
+
+  function recordSamples({
+    durationMs,
+    pulseAtMs,
+    pulse,
+  }: {
+    durationMs: number;
+    pulseAtMs: number;
+    pulse: number;
+  }) {
+    if (capture.state !== 'recording') {
+      return;
+    }
+
+    const frames = new Uint8Array(durationMs).fill(SILENCE_SAMPLE);
+    frames[pulseAtMs] = pulse;
+    chunks.push(frames);
+  }
+
+  // prettier-ignore
+  return {
+    decode,
+    recordSamples,
+    stopCapture: () => capture.stop(),
   };
 }
 
@@ -102,7 +173,12 @@ function renderRecorder() {
     return <button onClick={() => void recorder.start()}>Record</button>;
   }
 
-  return { ...render(<Recorder />), previewUrl, revokeObjectURL };
+  // prettier-ignore
+  return {
+    ...render(<Recorder />),
+    previewUrl,
+    revokeObjectURL,
+  };
 }
 
 it('releases the microphone when a recording is cancelled', async () => {
@@ -149,35 +225,169 @@ it('previews a paused recording and excludes pauses from elapsed time', async ()
   expect(result.current.isActive).toBe(false);
 });
 
-it('keeps peaks from the beginning of a long take and across capture pauses', async () => {
+it('places short pulses at their recorded times even between live meter updates', async () => {
   vi.useFakeTimers();
-  mockMicrophone();
-  const setMicrophoneLevel = mockMicrophoneLevels();
+  const { recordSamples } = mockRecordedAudio();
   const { result } = renderHook(() => useVoiceRecorder(() => undefined));
 
-  setMicrophoneLevel(160);
   await act(() => result.current.start());
-  act(() => vi.advanceTimersByTime(400));
-  setMicrophoneLevel(128);
-  act(() => vi.advanceTimersByTime(3_600));
-  act(() => result.current.pause());
+  // The pulse falls after the 1120ms tick and before the 1200ms meter window.
+  // prettier-ignore
+  recordSamples({
+    durationMs: 2400,
+    pulseAtMs: 1150,
+    pulse: 224,
+  });
+  act(() => vi.advanceTimersByTime(2_400));
+  await act(async () => result.current.pause());
 
+  const firstWaveform = result.current.previewPeaks ?? [];
   expect(result.current.waveform.every((level) => level === 0)).toBe(true);
-  const firstTakeLength = result.current.previewPeaks?.length ?? 0;
-  expect(firstTakeLength).toBeGreaterThan(result.current.waveform.length);
-  expect(result.current.previewPeaks?.[0]).toBe(1);
-  expect(result.current.previewPeaks?.at(-1)).toBe(0);
+  expect(firstWaveform).toContain(0.75);
+  expect(firstWaveform).toContain(0);
+  expect(firstWaveform.indexOf(0.75) / firstWaveform.length).toBeCloseTo(0.479, 1);
 
+  // Audio from a paused interval has no place in the recording or its waveform.
+  // prettier-ignore
+  recordSamples({
+    durationMs: 3000,
+    pulseAtMs: 1000,
+    pulse: 255,
+  });
   act(() => vi.advanceTimersByTime(3_000));
   act(() => result.current.resume());
   expect(result.current.previewPeaks).toBeUndefined();
-  setMicrophoneLevel(144);
-  act(() => vi.advanceTimersByTime(400));
-  act(() => result.current.pause());
 
-  expect(result.current.previewPeaks?.length).toBe(firstTakeLength + 5);
-  expect(result.current.previewPeaks?.[0]).toBe(1);
-  expect(result.current.previewPeaks?.at(-1)).toBe(0.625);
+  // The resumed audio arrives before the UI executes another metering callback.
+  // prettier-ignore
+  recordSamples({
+    durationMs: 800,
+    pulseAtMs: 140,
+    pulse: 192,
+  });
+  act(() => vi.advanceTimersByTime(800));
+  await act(async () => result.current.pause());
+
+  const fullWaveform = result.current.previewPeaks ?? [];
+  expect(fullWaveform).toContain(0.75);
+  expect(fullWaveform).toContain(0.5);
+  expect(fullWaveform).not.toContain(127 / 128);
+  expect(fullWaveform.indexOf(0.75) / fullWaveform.length).toBeCloseTo(0.359, 1);
+  expect(fullWaveform.indexOf(0.5) / fullWaveform.length).toBeCloseTo(0.794, 1);
+});
+
+it('keeps an obsolete decode out of a newer paused take', async () => {
+  vi.useFakeTimers();
+  const { decode, recordSamples } = mockRecordedAudio();
+  let finishPrevious = () => {};
+  let finishCurrent = () => {};
+  decode.mockImplementationOnce(
+    (bytes) =>
+      new Promise((resolve) => {
+        finishPrevious = () => resolve(decodeFixtureSamples(bytes));
+      }),
+  );
+  decode.mockImplementationOnce(
+    (bytes) =>
+      new Promise((resolve) => {
+        finishCurrent = () => resolve(decodeFixtureSamples(bytes));
+      }),
+  );
+  const { result } = renderHook(() => useVoiceRecorder(() => undefined));
+
+  await act(() => result.current.start());
+  // prettier-ignore
+  recordSamples({
+    durationMs: 100,
+    pulseAtMs: 35,
+    pulse: 224,
+  });
+  await act(async () => result.current.pause());
+  act(() => result.current.cancel());
+  await act(() => result.current.start());
+  // prettier-ignore
+  recordSamples({
+    durationMs: 100,
+    pulseAtMs: 70,
+    pulse: 192,
+  });
+  await act(async () => result.current.pause());
+  await act(async () => finishPrevious());
+  expect(result.current.previewPeaks).toBeUndefined();
+
+  await act(async () => finishCurrent());
+  expect(result.current.previewPeaks).toContain(0.5);
+  expect(result.current.previewPeaks).not.toContain(0.75);
+});
+
+it.each(['pending', 'rejected'])(
+  'sends the original bytes when waveform decoding is %s',
+  async (state) => {
+    const { decode, recordSamples } = mockRecordedAudio();
+    let failDecode = () => {};
+    decode.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          failDecode = () => reject(new Error('Preview codec unavailable'));
+        }),
+    );
+    const finish = vi.fn(async (_selection: MediaSelection) => true);
+    const { result } = renderHook(() => useVoiceRecorder(finish));
+
+    await act(() => result.current.start());
+    // prettier-ignore
+    recordSamples({
+    durationMs: 100,
+    pulseAtMs: 70,
+    pulse: 192,
+  });
+    await act(async () => result.current.pause());
+    const take = result.current.preview;
+    expect(take?.size).toBe(100);
+
+    if (state === 'rejected') {
+      await act(async () => failDecode());
+    }
+    expect(result.current.isPaused).toBe(true);
+    expect(result.current.canPause).toBe(true);
+    expect(result.current.canSend).toBe(true);
+    expect(result.current.previewPeaks).toBeUndefined();
+
+    await act(async () => result.current.send());
+    const submittedBytes = await finish.mock.calls[0][0].blob.arrayBuffer();
+    expect(submittedBytes).toEqual(await take?.arrayBuffer());
+    expect(result.current.isActive).toBe(false);
+
+    if (state === 'pending') {
+      await act(async () => failDecode());
+    }
+    expect(result.current.previewPeaks).toBeUndefined();
+    expect(result.current.error).toBe('');
+  },
+);
+
+it('clears the old peaks when native capture stops on a paused take', async () => {
+  vi.useFakeTimers();
+  const { decode, recordSamples, stopCapture } = mockRecordedAudio();
+  decode.mockImplementationOnce(async (bytes) => decodeFixtureSamples(bytes));
+  decode.mockImplementationOnce(() => new Promise(() => {}));
+  const { result } = renderHook(() => useVoiceRecorder(() => undefined));
+
+  await act(() => result.current.start());
+  // prettier-ignore
+  recordSamples({
+    durationMs: 100,
+    pulseAtMs: 70,
+    pulse: 192,
+  });
+  await act(async () => result.current.pause());
+  const pausedBlob = result.current.preview;
+  expect(result.current.previewPeaks).toContain(0.5);
+
+  await act(async () => stopCapture());
+  expect(result.current.isRecording).toBe(false);
+  expect(result.current.preview).not.toBe(pausedBlob);
+  expect(result.current.previewPeaks).toBeUndefined();
 });
 
 it('shows preview playback time and seeks the underlying paused take', async () => {
