@@ -452,35 +452,56 @@ it('opens both nested pages from a direct General Settings destination', async (
   expect(await screen.findByRole('button', { name: /Back from power saving/i })).toBeTruthy();
 });
 
-it.each(['group', 'channel'] as const)('retries the avatar on the created %s', async (kind) => {
+type CreationKind = 'group' | 'channel';
+
+function communityCreationFixture(kind: CreationKind) {
   window.history.replaceState(null, '', '/?account=communities&community=' + kind);
-  const created: string[] = [];
+  const creates: Array<{ operation_id: string; conversation_id: string }> = [];
   const assigned: string[] = [];
   const uploadIds: string[] = [];
-  const finishAssignment = deferred<Response>();
+  const assignment = deferred<Response>();
+  const state = {
+    shouldLoseCreate: false,
+    canManage: true,
+    shouldRevoke: false,
+  };
+  let syncPosition = 0;
   const user = renderWorkspace({
     areAvatarsAvailable: true,
     chat: {
       transport: async (request) => {
         const path = new URL(request.url).pathname;
         if (path.endsWith('/sync')) {
+          const groups = [];
+          if (state.shouldRevoke) {
+            syncPosition += 1;
+            groups.push({
+              position: String(syncPosition),
+              conversation_id: creates[0].conversation_id,
+              conversation: null,
+            });
+            state.shouldRevoke = false;
+          }
           return Response.json({
-            groups: [],
-            cursor: cursorFixture(2),
-            observation_cursor: cursorFixture(2),
+            groups,
+            cursor: cursorFixture(syncPosition),
+            observation_cursor: cursorFixture(syncPosition),
             has_more: false,
           });
         }
         if (path.endsWith('/communities') && request.method === 'POST') {
           const settings = await request.json();
-          created.push(settings.conversation_id);
-          // prettier-ignore
+          creates.push(settings);
+          if (state.shouldLoseCreate && creates.length === 1) {
+            throw new TypeError('The server response was lost.');
+          }
           const conversation = {
             ...READERS,
             ...settings,
             id: settings.conversation_id,
+            can_manage: state.canManage,
           };
-          return Response.json({ conversation, observation_cursor: cursorFixture(1) });
+          return Response.json({ conversation, observation_cursor: cursorFixture(syncPosition) });
         }
         if (path.includes('/media/uploads/')) {
           uploadIds.push(path);
@@ -499,13 +520,11 @@ it.each(['group', 'channel'] as const)('retries the avatar on the created %s', a
           expected_version: READERS.settings_version,
           file_id: 'portrait',
         });
-        return finishAssignment.promise;
+        return assignment.promise;
       },
     },
   });
 
-  const title = await screen.findByLabelText('Community title');
-  await user.type(title, 'Readers');
   vi.stubGlobal(
     'URL',
     class extends URL {
@@ -515,26 +534,148 @@ it.each(['group', 'channel'] as const)('retries the avatar on the created %s', a
       static revokeObjectURL() {}
     },
   );
-  const file = new File(['photo'], 'portrait.png', { type: 'image/png' });
-  await user.upload(screen.getByLabelText('Choose community photo'), file);
-  await user.click(screen.getByRole('button', { name: 'Next' }));
+  async function selectPhoto(file: File) {
+    await user.upload(screen.getByLabelText('Choose community photo'), file);
+  }
+  async function fillForm() {
+    const title = await screen.findByLabelText('Community title');
+    await user.type(title, 'Readers');
+    await selectPhoto(new File(['photo'], 'portrait.png', { type: 'image/png' }));
+    return title;
+  }
+  async function submit(name: string) {
+    await user.click(screen.getByRole('button', { name }));
+  }
+  async function finishAssignment() {
+    await act(async () => {
+      const conversation = {
+        ...READERS,
+        id: creates[0].conversation_id,
+        title: 'Current readers',
+        avatar_file_id: 'portrait',
+        settings_version: '2',
+        version: '2',
+      };
+      assignment.resolve(
+        Response.json({ conversation, observation_cursor: cursorFixture(syncPosition) }),
+      );
+    });
+  }
+  return {
+    state,
+    creates,
+    assigned,
+    uploadIds,
+    fillForm,
+    selectPhoto,
+    submit,
+    finishAssignment,
+    user,
+  };
+}
+
+it.each(['group', 'channel'] as const)('retries the avatar on the created %s', async (kind) => {
+  const form = communityCreationFixture(kind);
+  const title = await form.fillForm();
+  await form.submit('Next');
   await screen.findByRole('alert');
   expect(title.matches(':disabled')).toBe(true);
-  await user.click(screen.getByRole('button', { name: 'Retry photo' }));
-  await waitFor(() => expect(assigned).toEqual([created[0]]));
-  expect(created).toHaveLength(1);
-  expect(uploadIds).toEqual([uploadIds[0], uploadIds[0]]);
+  await form.submit('Retry photo');
+  await waitFor(() => expect(form.assigned).toEqual([form.creates[0].conversation_id]));
+  expect(form.creates).toHaveLength(1);
+  expect(form.uploadIds).toEqual([form.uploadIds[0], form.uploadIds[0]]);
 
-  // A newer route owns focus even when the authoritative write finishes during the exit.
   if (kind === 'channel') {
-    await user.keyboard('{Escape}');
+    await form.user.keyboard('{Escape}');
   }
-  await act(async () => {
-    finishAssignment.resolve(Response.json({ observation_cursor: cursorFixture(2) }));
-  });
+  await form.finishAssignment();
   if (kind === 'channel') {
     expect(window.location.search).toBe('');
   } else {
-    await waitFor(() => expect(window.location.search).toBe('?conversation=open'));
+    expect(await screen.findByRole('heading', { name: 'Current readers' })).toBeTruthy();
+    expect(window.location.search).toBe('?conversation=open');
   }
+});
+
+it.each(['group', 'channel'] as const)(
+  'uses the recovered %s for its pending photo',
+  async (kind) => {
+    const form = communityCreationFixture(kind);
+    form.state.shouldLoseCreate = true;
+    const title = await form.fillForm();
+    await form.submit('Next');
+    await screen.findByRole('alert');
+    await form.submit('Retry community action');
+    await waitFor(() => expect(screen.queryByText('Retry community action')).toBeNull());
+
+    expect(title.matches(':disabled')).toBe(true);
+    await form.submit('Retry photo');
+    await waitFor(() => expect(form.uploadIds).toHaveLength(1));
+    await form.submit('Retry photo');
+    const [original, replay] = form.creates;
+    await waitFor(() => expect(form.assigned).toEqual([original.conversation_id]));
+    expect(form.creates).toHaveLength(2);
+    expect(replay).toEqual(original);
+    await form.finishAssignment();
+    await waitFor(() => expect(window.location.search).toBe('?conversation=open'));
+  },
+);
+
+it('keeps the form open when assignment catch-up removes its community', async () => {
+  const form = communityCreationFixture('group');
+  await form.fillForm();
+  await form.submit('Next');
+  await screen.findByRole('alert');
+  await form.submit('Retry photo');
+  await waitFor(() => expect(form.assigned).toHaveLength(1));
+  form.state.shouldRevoke = true;
+  await form.finishAssignment();
+
+  await waitFor(() => expect(form.state.shouldRevoke).toBe(false));
+  expect(await screen.findByText('This community is no longer available.')).toBeTruthy();
+  expect(window.location.search).toBe('?account=communities&community=group');
+  await form.submit('Retry photo');
+  expect(await screen.findByText('Community management is unavailable.')).toBeTruthy();
+  expect(form.assigned).toHaveLength(1);
+  expect(form.uploadIds).toHaveLength(2);
+});
+
+it('skips transfer when the admitted community denies management', async () => {
+  const form = communityCreationFixture('group');
+  form.state.canManage = false;
+  await form.fillForm();
+  await form.submit('Next');
+  await screen.findByRole('alert');
+  expect(form.uploadIds).toEqual([]);
+  await form.submit('Retry photo');
+  await screen.findByRole('alert');
+  expect(form.uploadIds).toEqual([]);
+  expect(form.assigned).toEqual([]);
+});
+
+it('blocks an invalid replacement until the creator clears or replaces it', async () => {
+  const form = communityCreationFixture('channel');
+  await form.fillForm();
+  const invalid = new File([], 'empty.png', { type: 'image/png' });
+  await form.selectPhoto(invalid);
+  await form.submit('Next');
+  expect(form.creates).toHaveLength(0);
+  expect(form.uploadIds).toHaveLength(0);
+  expect(screen.queryByAltText('Selected community photo')).toBeNull();
+
+  await form.selectPhoto(new File(['new'], 'valid.png', { type: 'image/png' }));
+  await form.submit('Next');
+  await screen.findByRole('alert');
+  expect(form.creates).toHaveLength(1);
+  expect(form.uploadIds).toHaveLength(1);
+  await form.selectPhoto(invalid);
+  await form.submit('Retry photo');
+  expect(form.uploadIds).toHaveLength(1);
+  expect(form.assigned).toEqual([]);
+
+  await form.submit('Clear community photo');
+  await form.submit('Continue');
+  await waitFor(() => expect(window.location.search).toBe('?conversation=open'));
+  expect(form.creates).toHaveLength(1);
+  expect(form.assigned).toEqual([]);
 });

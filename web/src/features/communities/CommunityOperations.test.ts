@@ -39,12 +39,26 @@ it('recovers the original create identity after an uncertain response and reload
     is_public: false,
     requires_approval: false,
   };
-  await expect(first.create(settings)).rejects.toThrow('Network response lost');
+  const remembered = vi.fn();
+  const admitted = vi.fn();
+  first.observeCreation(admitted);
+  await expect(first.create(settings, remembered)).rejects.toThrow('Network response lost');
   const persisted = first.getSnapshot()[0];
+  const identity = {
+    operationId: persisted.request.operation_id,
+    conversationId: persisted.request.conversation_id,
+  };
+  expect(remembered).toHaveBeenCalledWith(identity);
+  expect(admitted).not.toHaveBeenCalled();
+
   const recovered = new CommunityOperations(options);
+  recovered.observeCreation(admitted);
+  const replayIdentity = vi.fn();
   const receipt = { observation_cursor: 'cursor', conversation: conversationFixture() };
   post.mockResolvedValueOnce({ data: receipt, response: new Response() });
-  await expect(recovered.create(settings)).resolves.toEqual(receipt);
+  await expect(recovered.create(settings, replayIdentity)).resolves.toEqual(receipt);
+  expect(replayIdentity).toHaveBeenCalledWith(identity);
+  expect(admitted).toHaveBeenCalledWith(identity);
   expect(post.mock.calls[1][1].body).toEqual(persisted.request);
   expect((await store.read()).communities).toEqual([]);
 });

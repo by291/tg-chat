@@ -19,6 +19,13 @@ type CreateSettings = Omit<
   'operation_id' | 'conversation_id'
 >;
 
+export interface CreationIdentity {
+  operationId: string;
+  conversationId: string;
+}
+
+type CreationListener = (identity: CreationIdentity) => void;
+
 interface CommunityOperationOptions {
   session: SessionOwner;
   store: PendingMessages;
@@ -35,6 +42,7 @@ export class CommunityOperations {
   private readonly options: CommunityOperationOptions;
   private operations: PendingCommunityOperation[] = [];
   private readonly listeners = new Set<() => void>();
+  private readonly creationListeners = new Set<CreationListener>();
 
   /** Reuse the chat session's existing durable ownership and revocation tombstone. */
   constructor(options: CommunityOperationOptions) {
@@ -50,6 +58,12 @@ export class CommunityOperations {
     return () => this.listeners.delete(listener);
   };
 
+  /** Notify mounted forms when submission or explicit recovery confirms creation. */
+  observeCreation(listener: CreationListener): () => void {
+    this.creationListeners.add(listener);
+    return () => this.creationListeners.delete(listener);
+  }
+
   /** Recover unresolved operations from the active session store. */
   async refresh(): Promise<void> {
     const persisted = await this.options.store.read();
@@ -60,7 +74,7 @@ export class CommunityOperations {
   }
 
   /** Create a community only after its operation and conversation identities are durable. */
-  async create(settings: CreateSettings): Promise<Receipt> {
+  async create(settings: CreateSettings, onRemembered?: CreationListener): Promise<Receipt> {
     const remembered = await this.options.store.rememberCommunity({
       kind: 'create',
       createdAt: Date.now(),
@@ -70,7 +84,10 @@ export class CommunityOperations {
         conversation_id: crypto.randomUUID(),
       },
     });
-    return this.retry(remembered.request.operation_id);
+    const { operation_id, conversation_id } = remembered.request;
+    // A recovered identical intent can already own different IDs from the proposed request.
+    onRemembered?.({ operationId: operation_id, conversationId: conversation_id });
+    return this.retry(operation_id);
   }
 
   /** Submit a desired membership or management action using one stable operation identity. */
@@ -124,6 +141,13 @@ export class CommunityOperations {
       receipt,
       epoch,
     });
+    if (operation.kind === 'create') {
+      // Publish admission before removing the recovery row, including when catch-up revoked access.
+      const identity = { operationId, conversationId: operation.request.conversation_id };
+      for (const listener of this.creationListeners) {
+        listener(identity);
+      }
+    }
     await this.dismiss(operationId);
     return receipt;
   }

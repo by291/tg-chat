@@ -20,21 +20,31 @@ export function readCommunitySettings(fields: FormData): Settings {
 /** Share metadata controls while keeping create and expected-version saves independently owned. */
 export function CommunitySettingsForm(props: {
   initial?: Settings;
-  creation?: { avatar: ReactNode; isCreated: boolean };
+  creation?: {
+    avatar: ReactNode;
+    isCreated: boolean;
+    hasPhotoChoice: boolean;
+    isWaitingForReceipt: boolean;
+    isInvalid: boolean;
+  };
   onSubmit: (fields: FormData) => Promise<void>;
 }) {
   const [isPublic, setIsPublic] = useState(props.initial?.is_public ?? false);
   const creation = props.creation;
-  const submitLabel = creation?.isCreated ? 'Retry photo' : 'Next';
+  let submitLabel = 'Next';
+  if (creation?.isCreated) {
+    submitLabel = creation.hasPhotoChoice ? 'Retry photo' : 'Continue';
+  }
 
   return (
     <AccountForm
       submitLabel={creation ? submitLabel : 'Save community settings'}
+      isSubmitDisabled={creation?.isInvalid || creation?.isWaitingForReceipt}
       submitIcon={creation && <ArrowRight aria-hidden="true" />}
       onSubmit={props.onSubmit}
     >
       {creation?.avatar}
-      <fieldset disabled={creation?.isCreated}>
+      <fieldset disabled={creation?.isCreated || creation?.isWaitingForReceipt}>
         <Field
           label="Community title"
           name="title"
