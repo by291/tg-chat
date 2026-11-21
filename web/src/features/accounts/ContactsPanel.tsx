@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ActionConfirmation, type Confirmation } from '../chat/connected/ActionConfirmation';
 import type { components } from '@/api/schema';
 import { SessionOwner, requirePayload } from '../auth/SessionOwner';
@@ -71,6 +71,9 @@ export function ContactsPanel({
     return () => window.clearTimeout(timer);
   }, [term, search]);
 
+  const { relationships } = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
+  // Writes from cards or another directory invalidate the same query and cursor.
+  const membership = scope === 'search' ? relationships : relationships?.[scope];
   const load = useCallback(
     async (): Promise<DirectoryPage> => {
       if (scope === 'search' && search.length < MINIMUM_SEARCH_LENGTH) {
@@ -100,6 +103,7 @@ export function ContactsPanel({
       scope,
       search,
       cursor,
+      membership,
     ],
   );
   const directory = useAccountResource(load);
@@ -116,7 +120,6 @@ export function ContactsPanel({
             id: person.id,
             shouldInclude: relationship.shouldInclude,
           });
-          directory.reload();
         },
         successMessage: `${name} ${relationship.result}.`,
       });
