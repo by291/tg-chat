@@ -63,7 +63,14 @@ function setup(initialCall: CallView, options: { canOwnTab?: boolean } = {}) {
     createMedia: (events): CallMedia => ({
       prepare: async () => undefined,
       join: async () => {
-        events.onVideo([{ id: 'peer', stream: cameraStream, isLocal: false }]);
+        events.onVideo([
+          {
+            id: 'peer',
+            stream: cameraStream,
+            isLocal: false,
+            isMirrored: false,
+          },
+        ]);
       },
       dispose: () => undefined,
       setCamera: async () => undefined,

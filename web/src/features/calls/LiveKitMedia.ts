@@ -31,6 +31,7 @@ export class LiveKitMedia implements CallMedia {
   private readonly remoteAudio = new Map<RemoteTrack, HTMLAudioElement>();
   private readonly remoteVideo = new Map<RemoteTrack, CallVideo>();
   private readonly capturedTracks = new Set<MediaStreamTrack>();
+  private localVideo?: CallVideo;
   private connection?: RoomConnection;
   private isDisposed = false;
 
@@ -85,6 +86,7 @@ export class LiveKitMedia implements CallMedia {
     }
     this.capturedTracks.clear();
     this.inputs.clear();
+    this.localVideo = undefined;
     this.selectedDevices.clear();
 
     for (const track of this.remoteAudio.keys()) {
@@ -282,6 +284,7 @@ export class LiveKitMedia implements CallMedia {
       id: remote.id,
       stream: new MediaStream([remote]),
       isLocal: false,
+      isMirrored: false,
     });
     this.emitVideos();
   };
@@ -305,8 +308,19 @@ export class LiveKitMedia implements CallMedia {
   private emitVideos(): void {
     const videos = Array.from(this.remoteVideo.values());
     const local = this.inputs.get('videoinput')?.track;
-    if (local) {
-      videos.push({ id: local.id, stream: new MediaStream([local]), isLocal: true });
+    // Remote subscription changes must not restart playback of the same local camera.
+    if (!local) {
+      this.localVideo = undefined;
+    } else if (this.localVideo?.id !== local.id) {
+      this.localVideo = {
+        id: local.id,
+        stream: new MediaStream([local]),
+        isLocal: true,
+        isMirrored: local.getSettings().facingMode === 'user',
+      };
+    }
+    if (this.localVideo) {
+      videos.push(this.localVideo);
     }
     this.events.onVideo(videos);
   }

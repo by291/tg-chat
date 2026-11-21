@@ -15,6 +15,7 @@ export interface CallVideo {
   id: string;
   stream: MediaStream;
   isLocal: boolean;
+  isMirrored: boolean;
 }
 
 export interface CallMediaEvents {
