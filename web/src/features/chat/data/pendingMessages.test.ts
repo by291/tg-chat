@@ -333,6 +333,56 @@ it('does not write expired source bytes back from a late checkpoint', async () =
   expect(restored.pending[0].media?.[0].uploadId).toBe(source.uploadId);
 });
 
+it.each([
+  {
+    fingerprint: undefined,
+    expectedWidth: undefined,
+    expectedHeight: undefined,
+  },
+  {
+    fingerprint: 'verified',
+    expectedWidth: 600,
+    expectedHeight: 1200,
+  },
+])(
+  'recovers geometry only for verified bytes after expiry ($fingerprint)',
+  async ({ fingerprint, expectedWidth, expectedHeight }) => {
+    const store = new PendingMessages({ key: crypto.randomUUID() });
+    await store.open();
+    const message = pending();
+    const original = pendingMedia({
+      filename: 'portrait.jpg',
+      kind: 'image',
+      blob: new Blob(['old']),
+      width: 600,
+      height: 1200,
+    });
+    await store.enqueue({
+      message: {
+        ...message,
+        createdAt: 0,
+        isPrepared: false,
+        status: 'failed',
+        media: [{ ...original, sha256: fingerprint }],
+      },
+    });
+    const pruned = await store.pruneMedia();
+    expect(pruned.pending[0].media?.[0].blob).toBeUndefined();
+
+    const restored = await store.restoreMediaSource({
+      messageId: message.request.message_id,
+      occurrenceId: original.occurrenceId,
+      file: new File(['new'], 'landscape.jpg'),
+      sha256: fingerprint ?? 'fingerprint-of-replacement',
+    });
+    const replacement = restored!.media![0];
+    expect(replacement.occurrenceId).toBe(original.occurrenceId);
+    expect(replacement.uploadId).toBe(original.uploadId);
+    expect(replacement.width).toBe(expectedWidth);
+    expect(replacement.height).toBe(expectedHeight);
+  },
+);
+
 it('restarts a confirmed rejection without losing the caption or upload identity', async () => {
   const store = new PendingMessages({ key: crypto.randomUUID() });
   await store.open();

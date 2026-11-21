@@ -457,7 +457,8 @@ export class PendingMessages {
       if (bytes - (item.blob?.size ?? 0) + input.file.size > MAX_PENDING_MEDIA_BYTES) {
         throw new Error('Pending media storage is full. Retry or discard an upload first.');
       }
-      const hasKnownGeometry = isOriginal && (!item.blob || item.sha256 === input.sha256);
+      // Legacy recovery accepts equal sizes, but only a fingerprint identifies the image.
+      const hasKnownGeometry = isOriginal && Boolean(item.sha256);
       const replacement: PendingMedia = {
         ...item,
         filename: isOriginal ? item.filename : input.file.name,
