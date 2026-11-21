@@ -256,6 +256,7 @@ export class ChatOwner {
   private mediaQueue?: ChatMediaQueue;
   private readonly mediaTransport: UploadTransport;
   private draftPromise?: Promise<void>;
+  private latestDraftRecoveryId?: string;
   private draftTimer?: ReturnType<typeof setTimeout>;
   private expiryTimer?: ReturnType<typeof setTimeout>;
   private readonly summaryExpirations = new Map<string, string>();
@@ -805,6 +806,8 @@ export class ChatOwner {
     const generation = this.viewGeneration;
     const previousId = this.snapshot.draft.id;
     const restored = { ...draft, id: crypto.randomUUID() };
+    // Both choices may start from the same input revision before either write can publish.
+    this.latestDraftRecoveryId = restored.id;
     await this.requireStore().saveDraft({
       destination,
       draft: restored,
@@ -818,6 +821,7 @@ export class ChatOwner {
 
     // Persistence belongs to the original destination even if its editor was replaced meanwhile.
     const canRestoreEditor =
+      this.latestDraftRecoveryId === restored.id &&
       this.isCurrentView(generation) &&
       this.snapshot.selection === selection &&
       this.snapshot.draft.id === previousId;

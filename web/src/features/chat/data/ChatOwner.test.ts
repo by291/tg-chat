@@ -12,7 +12,7 @@ import {
   SELECTION,
   USER,
 } from './chatOwner.test-support';
-import { PendingMessages } from './pendingMessages';
+import { PendingMessages, type Draft } from './pendingMessages';
 import { CanonicalCache } from './canonicalCache';
 import { cursorFixture } from './messageFixtures.test-support';
 
@@ -72,7 +72,11 @@ function deferredResponse() {
   return deferredValue<Response>();
 }
 
-async function beginDelayedDraftRecovery(owner: ChatOwner, store: PendingMessages) {
+async function beginDelayedDraftRecovery(
+  owner: ChatOwner,
+  store: PendingMessages,
+  draft: Draft = { id: 'recovered-draft', value: { text: 'Recovered words' } },
+) {
   const readFinished = deferredValue<void>();
   const publication = deferredValue<void>();
   const read = store.read.bind(store);
@@ -83,10 +87,7 @@ async function beginDelayedDraftRecovery(owner: ChatOwner, store: PendingMessage
     return persisted;
   });
 
-  const restoring = owner.restoreDraft({
-    id: 'recovered-draft',
-    value: { text: 'Recovered words' },
-  });
+  const restoring = owner.restoreDraft(draft);
   await readFinished.promise;
   return async () => {
     publication.release();
@@ -1924,6 +1925,28 @@ it('keeps a recovered draft in its original conversation after switching chats',
     expect(owner.getSnapshot().draft.value.text).toBe('');
     await owner.select(SELECTION);
     expect(owner.getSnapshot().draft.value.text).toBe('Recovered words');
+  } finally {
+    owner.dispose();
+  }
+});
+
+it('keeps the newer of two pending recovery choices in the editor and storage', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  const { owner } = fixture({ store, conversation: DIRECT });
+  try {
+    await owner.start();
+    await owner.select(SELECTION);
+    const finishFirst = await beginDelayedDraftRecovery(owner, store);
+    const finishSecond = await beginDelayedDraftRecovery(owner, store, {
+      id: 'second-choice',
+      value: { text: 'Last choice' },
+    });
+    await finishFirst();
+    await finishSecond();
+
+    const persisted = await store.read();
+    expect(persisted.drafts[`conversation:${DIRECT.id}`].value.text).toBe('Last choice');
+    expect(owner.getSnapshot().draft.value.text).toBe('Last choice');
   } finally {
     owner.dispose();
   }
