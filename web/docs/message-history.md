@@ -102,7 +102,8 @@ the reader's online status privacy setting. The conversation row menu can also e
 known history as read without opening the chat.
 
 The chat header previews the latest accessible pin and can jump to it or open the pin list.
-Touch users can swipe a message to reply. A vertical scroll keeps its normal behavior.
+A horizontal touch swipe or trackpad gesture can reply from an ordinary message or media bubble.
+Vertical scrolling, text selection and playback controls retain their native input.
 Connected lifecycle controls use authoritative commands and retain editor text when an
 expected-version edit conflicts.
 
@@ -114,3 +115,12 @@ rows even during a network outage. Connected attachments retain their occurrence
 geometry across pending, accepted, and viewer states. Signed URLs are requested through the current
 message or avatar reference and stay outside the durable cache. See
 [private media](../../docs/media.md) for upload and download ownership.
+
+Date navigation can request a remote anchor beyond the loaded window. A missing search hit removes
+only that message from results. Opening a hit highlights the keyword in the full conversation.
+Gallery authorization starts with the selected slide. Each neighbor can load or retry independently,
+and access removal closes the private viewer even after the original row unmounts.
+
+Viewer transitions resolve the selected occurrence again when closing. The thumbnail must still
+intersect both the history scrollport and the browser viewport. Virtualized, reassigned or fully
+clipped sources use the viewer's fade transition.

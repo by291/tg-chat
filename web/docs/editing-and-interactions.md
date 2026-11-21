@@ -102,5 +102,20 @@ Validation and submission guards live at the form boundary. The resulting domain
 depend on the form library's internal representation. Local permissions and participation remain
 frontend behavior until a backend supplies authoritative rules.
 
+## Connected composition
+
+Draft recovery rechecks the active session, destination, view and editor input after storage
+completes. A reply or edit keeps its context while link metadata loads. Displayable metadata uses
+the shared helper slot, and dismissal restores the underlying action. An unavailable result leaves
+the editor usable and exposes its state to assistive technology.
+
+Attachment confirmation measures the selected sources before durable enqueue. Desktop focuses
+the caption while touch keeps the keyboard closed until the user selects it. Recording preview
+decodes the paused take for its waveform and seeks the same audio used for playback. Shared voice
+speed applies to subsequent messages.
+
+Connected message menus copy the selected text when available and offer poll management only
+with the current server permissions. Voter rows open the authorized user profile.
+
 See [architecture](./architecture.md) for state lifetime and
 [messages and history](./message-history.md) for rendering and scroll ownership.

@@ -113,6 +113,20 @@ composer. Successful HTTP catch-up can keep it current while realtime wakeups ar
 The initial chat load can retry in place with the same authenticated session. See
 [durable messaging](../../docs/messaging.md) for acceptance, cursor, and recovery guarantees.
 
+Account navigation also owns focus and visibility. Profiles and voter lists slide alongside a
+desktop conversation and cover it at handheld widths. A closing detail restores the original
+control when it still exists. Only the visible surface receives global shortcuts and activity
+updates. Session or membership changes withdraw details for which access was lost.
+
+The session owner publishes admitted contact and block changes to the directory and shared cards.
+It serializes writes for the same person and reconciles changes admitted during bootstrap. A card
+keeps its original shared identity even after a rejected mutation. Profile text saves compare
+the edited fields with their baseline, adopt newer clean fields and surface conflicting edits.
+
+One tab owns call media. Collapsing the call preserves its media elements while the compact controls
+remain reachable. Native fullscreen belongs to the expanded panel. A delayed fullscreen exit can
+collapse only that same mounted panel. Rediscovering the call requires fresh consent.
+
 ## Connected communities
 
 Community workflows share SessionOwner, ChatOwner, and the existing durable pending store. The
@@ -133,3 +147,8 @@ through the same cache epoch fence as message commands. Unconfirmed operations h
 recovery panel. Forms capture settings revisions with their local edits, so incoming changes cannot
 silently overwrite an administrator's draft. Details and controls disappear when the authorized
 directory removes a membership. See [community ownership](../../docs/communities.md).
+
+Creation retains the admitted community while publishing its optional photo. A retry resumes the
+same transfer and assigns the ready file using the community's current management permission and
+settings revision. Completing a request can update the session cache after leaving the form.
+Opening the conversation also requires the navigation intent that submitted the form.

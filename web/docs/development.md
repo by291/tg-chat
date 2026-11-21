@@ -156,3 +156,10 @@ Chromium's fake microphone, checks the received voice player's speed, and upload
 Run microphone permission, recording, cancellation, and playback on physical iOS Safari and
 Android Chrome when validating a deployment for mobile users. The Chromium fixture does not
 establish microphone behavior on physical devices.
+
+The account browser suite exercises credential focus on a short viewport with controlled
+capabilities. The media suite stalls uploads to compare the first pending layout against its
+restored and accepted sizes. Run the disposable service suites for upload authorization,
+processing, persisted receipts and cross-account behavior. Browser viewport emulation covers
+layout and input routing. Physical keyboards, mobile browser chrome and media devices require
+device checks.

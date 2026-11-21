@@ -34,8 +34,9 @@ variant. Switching modes does not overwrite the choices belonging to another var
 resolves against the operating-system preference while keeping the user's saved choices intact.
 
 The initial document can read enough existing preferences to choose a suitable background without
-writing storage. Custom images resolve later, so startup uses an immediate fallback rather than
-blocking first paint on an IndexedDB read and image decode.
+writing storage. A fresh connected account follows the system setting. Previously saved modes,
+including Classic, keep their chosen palette and wallpaper. Custom images resolve later, so startup
+uses an immediate fallback while IndexedDB and image decoding complete.
 
 ## Treat an appearance change as one transition
 
@@ -60,3 +61,13 @@ a selected theme must not scroll an invisible ancestor or move the whole applica
 
 See [architecture](./architecture.md) for state boundaries and
 [development](./development.md) for verification guidance.
+
+## Connected account screens
+
+The credential card owns its scroll area so password managers and keyboard navigation can reveal
+a focused field even on a short viewport. Floating labels remain associated with native inputs.
+Server capabilities determine whether registration and recovery are available.
+
+Settings resolves the signed-in user's photo through the session. The cover can expand after that
+image loads. Search presents the account's available destinations, including local appearance
+controls, and retains the query while a result is open. Browser Back returns to that search.
