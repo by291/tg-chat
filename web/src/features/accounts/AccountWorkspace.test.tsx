@@ -5,10 +5,18 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createChatOwnerFixture, DIRECT, SAVED } from '../chat/data/chatOwner.test-support';
+import { cursorFixture } from '../chat/data/messageFixtures.test-support';
 import * as notificationNavigation from '../settings/notifications/notificationNavigation';
 import { AccountWorkspace } from './AccountWorkspace';
 
 vi.mock('../settings/appearance/ThemeEmoji', () => ({ ThemeEmoji: () => null }));
+
+const READERS: typeof SAVED = {
+  ...SAVED,
+  id: '00000000-0000-4000-8000-000000000006',
+  title: 'Readers',
+  kind: 'group',
+};
 
 const CAPABILITIES = {
   avatars_available: false,
@@ -36,10 +44,22 @@ function deferred<Value>() {
 async function dispatchNotification(started: Promise<void>) {
   await screen.findByRole('button', { name: /Saved Messages/ });
   await act(async () => {
-    window.history.replaceState(window.history.state, '', '/#notification=inbox');
+    const destination = new URL(window.location.href);
+    destination.hash = 'notification=inbox';
+    window.history.replaceState(window.history.state, '', destination);
     window.dispatchEvent(new HashChangeEvent('hashchange'));
     await started;
   });
+}
+
+function pendingNotificationLookup() {
+  const lookup = deferred<typeof SAVED>();
+  const requested = deferred<void>();
+  vi.spyOn(notificationNavigation, 'resolveNotificationTarget').mockImplementation(() => {
+    requested.resolve();
+    return lookup.promise;
+  });
+  return { requested: requested.promise, complete: lookup.resolve };
 }
 
 function pendingHistory() {
@@ -210,20 +230,55 @@ it('tracks peer activity for the visible pane across desktop Back and a narrow s
   expect(await screen.findByText('Online')).toBeTruthy();
 });
 
-it('keeps Settings when notification lookup finishes after a later navigation', async () => {
-  const lookup = deferred<typeof SAVED>();
-  const requested = deferred<void>();
-  vi.spyOn(notificationNavigation, 'resolveNotificationTarget').mockImplementation(() => {
-    requested.resolve();
-    return lookup.promise;
+it('opens an authorized notification after clearing a previously selected chat', async () => {
+  const lookup = pendingNotificationLookup();
+  const user = renderWorkspace({ chat: { additionalConversations: [READERS] } });
+  await user.click(await screen.findByRole('button', { name: /Saved Messages/ }));
+  await screen.findByRole('heading', { name: 'Saved Messages' });
+
+  await dispatchNotification(lookup.requested);
+  await screen.findByRole('heading', { name: 'Your messages' });
+  await act(async () => lookup.complete(READERS));
+
+  expect(await screen.findByRole('heading', { name: 'Readers' })).toBeTruthy();
+  expect(window.location.search).toContain('conversation=open');
+});
+
+it('returns to the inbox when the server confirms leaving the selected group', async () => {
+  const cursor = cursorFixture(0);
+  const user = renderWorkspace({
+    chat: {
+      conversation: READERS,
+      commands: async () => Response.json({ observation_cursor: cursor, conversation: null }),
+      transport: async () =>
+        Response.json({
+          account_settings_version: '0',
+          groups: [],
+          cursor,
+          observation_cursor: cursor,
+          has_more: false,
+        }),
+    },
   });
+  await user.click(await screen.findByRole('button', { name: /Readers.*Start a conversation/ }));
+  await user.click(await screen.findByRole('button', { name: 'View Readers profile' }));
+  await user.click(screen.getByRole('button', { name: 'Leave community' }));
+  await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+
+  await waitFor(() => expect(window.location.search).toBe(''));
+  expect(screen.getByRole('heading', { name: 'Your messages' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /Readers.*Start a conversation/ })).toBeNull();
+});
+
+it('keeps Settings when notification lookup finishes after a later navigation', async () => {
+  const lookup = pendingNotificationLookup();
   const user = renderWorkspace();
-  await dispatchNotification(requested.promise);
+  await dispatchNotification(lookup.requested);
   await user.click(screen.getByRole('button', { name: 'Account settings' }));
   const back = screen.getByRole('button', { name: 'Back to chats' });
   expect(document.activeElement).toBe(back);
 
-  await act(async () => lookup.resolve(SAVED));
+  await act(async () => lookup.complete(SAVED));
   await waitFor(() => expect(screen.queryByRole('heading', { name: 'Saved Messages' })).toBeNull());
   expect(document.activeElement).toBe(back);
   expect(window.location.search).toContain('account=settings');

@@ -100,6 +100,8 @@ interface Selection {
   title: string;
 }
 
+type SelectionClearReason = 'inbox' | 'membership-loss';
+
 export interface ChatSnapshot {
   conversations: Conversation[];
   messages: CanonicalMessage[];
@@ -108,6 +110,7 @@ export interface ChatSnapshot {
   pendingCommands: PendingCommand[];
   pendingForwards: PendingForward[];
   selection?: Selection;
+  selectionClearReason?: SelectionClearReason;
   draft: Draft;
   draftConflict?: Draft;
   draftAlternatives?: Draft[];
@@ -528,14 +531,15 @@ export class ChatOwner {
   showInbox(): void {
     this.ensureCurrent();
     void this.flushDraft().catch((error) => this.report(error));
-    this.clearSelection();
+    this.clearSelection('inbox');
   }
 
-  private clearSelection(): void {
+  private clearSelection(reason: SelectionClearReason): void {
     this.viewGeneration += 1;
     this.historyLoad = undefined;
     this.publish({
       selection: undefined,
+      selectionClearReason: reason,
       messages: [],
       precedingMessage: undefined,
       draft: emptyDraft(),
@@ -683,6 +687,7 @@ export class ChatOwner {
     this.historyLoad = undefined;
     this.publish({
       selection,
+      selectionClearReason: undefined,
       isLoading: false,
       messages: [],
       precedingMessage: undefined,
@@ -2148,7 +2153,7 @@ export class ChatOwner {
       this.redactAccessReplies();
       if (conversation?.kind === 'group' || conversation?.kind === 'channel') {
         // A revoked membership cannot keep a draft chat open or send a final draft update.
-        this.clearSelection();
+        this.clearSelection('membership-loss');
       } else {
         this.viewGeneration += 1;
         this.historyLoad = undefined;

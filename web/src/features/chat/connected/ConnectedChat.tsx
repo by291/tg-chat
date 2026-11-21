@@ -399,15 +399,13 @@ export function ConnectedChat({
     };
   }
   const acceptedIds = new Set(messages.map((message) => message.id));
-  const previousSelection = useRef(selectedKey);
   const returnToDirectory = useEffectEvent(onShowDirectory);
   useEffect(() => {
-    // Losing access clears the handheld destination without reopening the revoked conversation.
-    if (previousSelection.current && !selectedKey) {
+    // Notification lookup already owns its inbox transition. Only lost access requires another.
+    if (snapshot.selectionClearReason === 'membership-loss') {
       returnToDirectory();
     }
-    previousSelection.current = selectedKey;
-  }, [selectedKey]);
+  }, [snapshot.selectionClearReason]);
   useEffect(() => {
     // An updated membership can revoke access even when the conversation ID is unchanged.
     setEditing(undefined);

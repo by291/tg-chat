@@ -61,6 +61,7 @@ export const SELECTION = {
 /** Create an authenticated chat owner with isolated storage and configurable HTTP responses. */
 export function createChatOwnerFixture(options: {
   conversation?: components['schemas']['ConversationView'];
+  additionalConversations?: components['schemas']['ConversationView'][];
   transport?: (request: Request) => Promise<Response>;
   store?: PendingMessages;
   mediaTransport?: UploadTransport;
@@ -86,7 +87,10 @@ export function createChatOwnerFixture(options: {
           },
           contacts: [],
           blocks: [],
-          conversations: [options.conversation ?? SAVED],
+          conversations: [
+            options.conversation ?? SAVED,
+            ...(options.additionalConversations ?? []),
+          ],
           cursor: cursorFixture(0),
         });
       }
