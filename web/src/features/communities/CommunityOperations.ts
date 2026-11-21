@@ -5,6 +5,7 @@ import {
   type PendingCommunityOperation,
 } from '@/features/chat/data/pendingMessages';
 
+const SERVER_ERROR_STATUS = 500;
 const RETRY_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 // prettier-ignore
 const TRANSIENT_CODES = new Set([
@@ -24,7 +25,11 @@ export interface CreationIdentity {
   conversationId: string;
 }
 
-type CreationListener = (identity: CreationIdentity) => void;
+interface CreationResult extends CreationIdentity {
+  outcome: 'confirmed' | 'rejected';
+}
+
+type CreationListener = (result: CreationResult) => void;
 
 interface CommunityOperationOptions {
   session: SessionOwner;
@@ -35,6 +40,17 @@ interface CommunityOperationOptions {
     receipt: Receipt;
     epoch?: string;
   }) => Promise<void>;
+}
+
+function wasRejected(error: unknown, operation: PendingCommunityOperation): boolean {
+  if (!(error instanceof ApiError) || TRANSIENT_CODES.has(error.code)) {
+    return false;
+  }
+  if (operation.kind !== 'create') {
+    return true;
+  }
+  // Missing success bodies and server failures cannot release a form to allocate new IDs.
+  return error.status !== undefined && error.status < SERVER_ERROR_STATUS;
 }
 
 /** Persist uncertain membership changes and reuse their identity through explicit recovery. */
@@ -58,7 +74,7 @@ export class CommunityOperations {
     return () => this.listeners.delete(listener);
   };
 
-  /** Notify mounted forms when submission or explicit recovery confirms creation. */
+  /** Report a definitive server outcome to the matching mounted creation form. */
   observeCreation(listener: CreationListener): () => void {
     this.creationListeners.add(listener);
     return () => this.creationListeners.delete(listener);
@@ -74,7 +90,10 @@ export class CommunityOperations {
   }
 
   /** Create a community only after its operation and conversation identities are durable. */
-  async create(settings: CreateSettings, onRemembered?: CreationListener): Promise<Receipt> {
+  async create(
+    settings: CreateSettings,
+    onRemembered?: (identity: CreationIdentity) => void,
+  ): Promise<Receipt> {
     const remembered = await this.options.store.rememberCommunity({
       kind: 'create',
       createdAt: Date.now(),
@@ -130,7 +149,8 @@ export class CommunityOperations {
             });
       receipt = requirePayload(reply);
     } catch (error) {
-      if (error instanceof ApiError && !TRANSIENT_CODES.has(error.code)) {
+      if (wasRejected(error, operation)) {
+        this.publishCreation(operation, 'rejected');
         await this.dismiss(operationId);
       }
       throw error;
@@ -141,15 +161,27 @@ export class CommunityOperations {
       receipt,
       epoch,
     });
-    if (operation.kind === 'create') {
-      // Publish admission before removing the recovery row, including when catch-up revoked access.
-      const identity = { operationId, conversationId: operation.request.conversation_id };
-      for (const listener of this.creationListeners) {
-        listener(identity);
-      }
-    }
+    // Reconciliation can revoke access even when the server confirmed the original create.
+    this.publishCreation(operation, 'confirmed');
     await this.dismiss(operationId);
     return receipt;
+  }
+
+  private publishCreation(
+    operation: PendingCommunityOperation,
+    outcome: CreationResult['outcome'],
+  ) {
+    if (operation.kind !== 'create') {
+      return;
+    }
+    const result = {
+      operationId: operation.request.operation_id,
+      conversationId: operation.request.conversation_id,
+      outcome,
+    };
+    for (const listener of this.creationListeners) {
+      listener(result);
+    }
   }
 
   /** Dismiss an operation after reconciliation without claiming to cancel a committed action. */

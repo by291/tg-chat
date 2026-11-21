@@ -148,9 +148,12 @@ recovery panel. Forms capture settings revisions with their local edits, so inco
 silently overwrite an administrator's draft. Details and controls disappear when the authorized
 directory removes a membership. See [community ownership](../../docs/communities.md).
 
-The creation form keeps its pending operation identity. A receipt confirmed through the recovery
-panel admits the same community to the mounted form. A photo retry checks current management
-access before resuming the transfer and again before assigning the ready file against the current
-settings revision. An invalid replacement requires another selection or an explicit clear.
+The creation form keeps the operation and conversation IDs while another tab can recover or
+dismiss the pending request. Confirmation comes from a receipt or the authorized directory.
+After the recovery record disappears, the form can check sync and shared storage for the original
+community. An unresolved check keeps the original IDs and makes no writes. A photo retry checks
+current management access before resuming the transfer and again before assigning the ready file
+against the current settings revision. An invalid replacement requires another selection or an
+explicit clear.
 Completing a request can update the session cache after leaving the form. Opening the conversation
 requires the submitting navigation intent and an authorized projection after reconciliation.

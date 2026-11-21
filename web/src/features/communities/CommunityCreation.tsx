@@ -8,6 +8,10 @@ import type { CommunityOperations, CreationIdentity } from './CommunityOperation
 import type { CommunityKind, Conversation } from './communityModels';
 import styles from './Communities.module.css';
 
+interface CreationIntent extends CreationIdentity {
+  isConfirmed: boolean;
+}
+
 interface CommunityCreationProps {
   kind: CommunityKind;
   session: SessionOwner;
@@ -20,14 +24,13 @@ interface CommunityCreationProps {
 
 /** Retain the admitted community while its optional photo is prepared and assigned. */
 export function CommunityCreation(props: CommunityCreationProps) {
-  const { session, operations } = props;
+  const { chat, session, operations } = props;
   const active = useRef<AbortController>(undefined);
-  const intendedCreate = useRef<CreationIdentity>(undefined);
-  const [createdId, setCreatedId] = useState<string>();
+  const [intent, setIntent] = useState<CreationIntent>();
+  const isCreated = Boolean(intent?.isConfirmed);
   const pending = useSyncExternalStore(operations.subscribe, operations.getSnapshot);
-  const hasUnconfirmedCreate = pending.some(
-    (entry) => entry.request.operation_id === intendedCreate.current?.operationId,
-  );
+  const hasUnconfirmedCreate =
+    !isCreated && pending.some((entry) => entry.request.operation_id === intent?.operationId);
   const [selection, setSelection] = useState<File>();
   const [preview, setPreview] = useState<string>();
   const transfer = useRef<ReturnType<typeof prepareAvatar>>(undefined);
@@ -36,13 +39,37 @@ export function CommunityCreation(props: CommunityCreationProps) {
   useEffect(() => () => active.current?.abort(), []);
   useEffect(
     () =>
-      operations.observeCreation((identity) => {
-        if (identity.operationId === intendedCreate.current?.operationId) {
-          setCreatedId(identity.conversationId);
-        }
+      operations.observeCreation((result) => {
+        setIntent((current) => {
+          if (result.operationId !== current?.operationId || current.isConfirmed) {
+            return current;
+          }
+          // Only a definitive rejection releases this form to edit and start a new operation.
+          return result.outcome === 'confirmed' ? { ...current, isConfirmed: true } : undefined;
+        });
       }),
     [operations],
   );
+  useEffect(() => {
+    if (!intent || intent.isConfirmed) {
+      return;
+    }
+    const remembered = intent;
+    function confirmFromDirectory() {
+      const hasProjection = chat
+        .getSnapshot()
+        .conversations.some((entry) => entry.id === remembered.conversationId);
+      if (hasProjection) {
+        // Keep the admission fact if another tab's later sync withdraws management or membership.
+        setIntent((current) =>
+          current === remembered ? { ...remembered, isConfirmed: true } : current,
+        );
+      }
+    }
+    const unsubscribe = chat.subscribe(confirmFromDirectory);
+    confirmFromDirectory();
+    return unsubscribe;
+  }, [chat, intent]);
   useEffect(() => {
     if (!selection) {
       setPreview(undefined);
@@ -124,13 +151,26 @@ export function CommunityCreation(props: CommunityCreationProps) {
     const hasIntent = props.captureIntent();
     const isCurrent = () => hasIntent() && !controller.signal.aborted;
     try {
-      let conversationId = createdId;
+      let conversationId = intent?.conversationId;
+      if (conversationId && !isCreated) {
+        // A different tab may have recovered or dismissed the same pending record.
+        const conversation = await props.chat.checkCommunityCreation(conversationId);
+        if (!conversation && isCurrent()) {
+          throw new ApiError({
+            code: 'unconfirmed_creation',
+            message:
+              'Creation is still unconfirmed. Review your communities before starting again.',
+          });
+        }
+        return;
+      }
+
       if (!conversationId) {
         const settings = { ...readCommunitySettings(fields), kind: props.kind };
         await operations.create(settings, (identity) => {
-          intendedCreate.current = identity;
+          conversationId = identity.conversationId;
+          setIntent({ ...identity, isConfirmed: false });
         });
-        conversationId = intendedCreate.current?.conversationId;
       }
       if (!conversationId || !isCurrent()) {
         return;
@@ -183,7 +223,7 @@ export function CommunityCreation(props: CommunityCreationProps) {
           Clear community photo
         </button>
       )}
-      {createdId && selection && <p role="status">Community created. Finish adding its photo.</p>}
+      {isCreated && selection && <p role="status">Community created. Finish adding its photo.</p>}
       {selectionError && <p role="alert">{selectionError}</p>}
     </>
   );
@@ -193,7 +233,8 @@ export function CommunityCreation(props: CommunityCreationProps) {
       <CommunitySettingsForm
         creation={{
           avatar,
-          isCreated: Boolean(createdId),
+          isCreated,
+          hasIntent: Boolean(intent),
           hasPhotoChoice: Boolean(selection || selectionError),
           isWaitingForReceipt: hasUnconfirmedCreate,
           isInvalid: Boolean(selectionError),

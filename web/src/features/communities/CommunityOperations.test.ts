@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { expect, it, vi } from 'vitest';
-import type { SessionOwner } from '@/features/auth/SessionOwner';
+import { ApiError, type SessionOwner } from '@/features/auth/SessionOwner';
 import { PendingMessages } from '@/features/chat/data/pendingMessages';
 import { conversationFixture } from '@/features/chat/data/messageFixtures.test-support';
 import { CommunityOperations } from './CommunityOperations';
@@ -58,8 +58,48 @@ it('recovers the original create identity after an uncertain response and reload
   post.mockResolvedValueOnce({ data: receipt, response: new Response() });
   await expect(recovered.create(settings, replayIdentity)).resolves.toEqual(receipt);
   expect(replayIdentity).toHaveBeenCalledWith(identity);
-  expect(admitted).toHaveBeenCalledWith(identity);
+  expect(admitted).toHaveBeenCalledWith({ ...identity, outcome: 'confirmed' });
   expect(post.mock.calls[1][1].body).toEqual(persisted.request);
+  expect((await store.read()).communities).toEqual([]);
+});
+
+it('retains an unreadable create receipt until the server rejects the request', async () => {
+  const store = new PendingMessages({ key: crypto.randomUUID() });
+  await store.open();
+  const post = vi.fn().mockResolvedValueOnce({ response: new Response(null, { status: 204 }) });
+  const operations = new CommunityOperations({
+    session: { client: { POST: post } } as unknown as SessionOwner,
+    store,
+    currentEpoch: () => 'epoch',
+    applyReceipt: async () => undefined,
+  });
+  const reported = vi.fn();
+  operations.observeCreation(reported);
+  const settings = {
+    title: 'Readers',
+    kind: 'group',
+    description: '',
+    is_public: false,
+    requires_approval: false,
+  };
+  await expect(operations.create(settings)).rejects.toThrow('invalid response');
+  expect(reported).not.toHaveBeenCalled();
+  const original = post.mock.calls[0][1].body;
+
+  post.mockRejectedValueOnce(
+    new ApiError({
+      code: 'validation_failed',
+      message: 'Choose a different handle.',
+      status: 400,
+    }),
+  );
+  await expect(operations.retry(original.operation_id)).rejects.toThrow('different handle');
+  expect(post.mock.calls[1][1].body).toEqual(original);
+  expect(reported).toHaveBeenCalledWith({
+    operationId: original.operation_id,
+    conversationId: original.conversation_id,
+    outcome: 'rejected',
+  });
   expect((await store.read()).communities).toEqual([]);
 });
 

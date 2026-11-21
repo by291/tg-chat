@@ -1196,6 +1196,13 @@ export class ChatOwner {
     }
   }
 
+  /** Resolve a remembered creation against sync and the same-session tabs' committed directory. */
+  async checkCommunityCreation(conversationId: string): Promise<Conversation | undefined> {
+    await this.catchUp();
+    await this.reloadSharedCache();
+    return this.snapshot.conversations.find((entry) => entry.id === conversationId);
+  }
+
   private async applyCommunityReceipt(input: {
     conversationId: string;
     receipt: components['schemas']['CommandReceipt'];

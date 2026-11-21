@@ -23,6 +23,7 @@ export function CommunitySettingsForm(props: {
   creation?: {
     avatar: ReactNode;
     isCreated: boolean;
+    hasIntent: boolean;
     hasPhotoChoice: boolean;
     isWaitingForReceipt: boolean;
     isInvalid: boolean;
@@ -34,6 +35,8 @@ export function CommunitySettingsForm(props: {
   let submitLabel = 'Next';
   if (creation?.isCreated) {
     submitLabel = creation.hasPhotoChoice ? 'Retry photo' : 'Continue';
+  } else if (creation?.hasIntent && !creation.isWaitingForReceipt) {
+    submitLabel = 'Check creation';
   }
 
   return (
@@ -44,7 +47,7 @@ export function CommunitySettingsForm(props: {
       onSubmit={props.onSubmit}
     >
       {creation?.avatar}
-      <fieldset disabled={creation?.isCreated || creation?.isWaitingForReceipt}>
+      <fieldset disabled={creation?.hasIntent}>
         <Field
           label="Community title"
           name="title"

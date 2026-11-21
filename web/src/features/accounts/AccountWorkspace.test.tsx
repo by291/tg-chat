@@ -466,64 +466,63 @@ function communityCreationFixture(kind: CreationKind) {
     shouldRevoke: false,
   };
   let syncPosition = 0;
-  const user = renderWorkspace({
-    areAvatarsAvailable: true,
-    chat: {
-      transport: async (request) => {
-        const path = new URL(request.url).pathname;
-        if (path.endsWith('/sync')) {
-          const groups = [];
-          if (state.shouldRevoke) {
-            syncPosition += 1;
-            groups.push({
-              position: String(syncPosition),
-              conversation_id: creates[0].conversation_id,
-              conversation: null,
-            });
-            state.shouldRevoke = false;
-          }
-          return Response.json({
-            groups,
-            cursor: cursorFixture(syncPosition),
-            observation_cursor: cursorFixture(syncPosition),
-            has_more: false,
+  const chat: Parameters<typeof createChatOwnerFixture>[0] = {
+    sessionId: crypto.randomUUID(),
+    transport: async (request) => {
+      const path = new URL(request.url).pathname;
+      if (path.endsWith('/sync')) {
+        const groups = [];
+        if (state.shouldRevoke) {
+          syncPosition += 1;
+          groups.push({
+            position: String(syncPosition),
+            conversation_id: creates[0].conversation_id,
+            conversation: null,
           });
+          state.shouldRevoke = false;
         }
-        if (path.endsWith('/communities') && request.method === 'POST') {
-          const settings = await request.json();
-          creates.push(settings);
-          if (state.shouldLoseCreate && creates.length === 1) {
-            throw new TypeError('The server response was lost.');
-          }
-          const conversation = {
-            ...READERS,
-            ...settings,
-            id: settings.conversation_id,
-            can_manage: state.canManage,
-          };
-          return Response.json({ conversation, observation_cursor: cursorFixture(syncPosition) });
-        }
-        if (path.includes('/media/uploads/')) {
-          uploadIds.push(path);
-          if (uploadIds.length === 1) {
-            return Response.json({ error: { message: 'Unavailable' } }, { status: 503 });
-          }
-          return Response.json({ state: 'ready', file_id: 'portrait' });
-        }
-        return Response.json({ items: [] });
-      },
-      commands: async (request) => {
-        const command = await request.json();
-        assigned.push(command.conversation_id);
-        expect(command.action).toEqual({
-          kind: 'avatar',
-          expected_version: READERS.settings_version,
-          file_id: 'portrait',
+        return Response.json({
+          groups,
+          cursor: cursorFixture(syncPosition),
+          observation_cursor: cursorFixture(syncPosition),
+          has_more: false,
         });
-        return assignment.promise;
-      },
+      }
+      if (path.endsWith('/communities') && request.method === 'POST') {
+        const settings = await request.json();
+        creates.push(settings);
+        if (state.shouldLoseCreate && creates.length === 1) {
+          throw new TypeError('The server response was lost.');
+        }
+        const conversation = {
+          ...READERS,
+          ...settings,
+          id: settings.conversation_id,
+          can_manage: state.canManage,
+        };
+        return Response.json({ conversation, observation_cursor: cursorFixture(syncPosition) });
+      }
+      if (path.includes('/media/uploads/')) {
+        uploadIds.push(path);
+        if (uploadIds.length === 1) {
+          return Response.json({ error: { message: 'Unavailable' } }, { status: 503 });
+        }
+        return Response.json({ state: 'ready', file_id: 'portrait' });
+      }
+      return Response.json({ items: [] });
     },
-  });
+    commands: async (request) => {
+      const command = await request.json();
+      assigned.push(command.conversation_id);
+      expect(command.action).toEqual({
+        kind: 'avatar',
+        expected_version: READERS.settings_version,
+        file_id: 'portrait',
+      });
+      return assignment.promise;
+    },
+  };
+  const user = renderWorkspace({ areAvatarsAvailable: true, chat });
 
   vi.stubGlobal(
     'URL',
@@ -534,6 +533,11 @@ function communityCreationFixture(kind: CreationKind) {
       static revokeObjectURL() {}
     },
   );
+  async function openSecondTab() {
+    const { owner } = createChatOwnerFixture(chat);
+    await owner.start();
+    return owner;
+  }
   async function selectPhoto(file: File) {
     await user.upload(screen.getByLabelText('Choose community photo'), file);
   }
@@ -570,6 +574,7 @@ function communityCreationFixture(kind: CreationKind) {
     selectPhoto,
     submit,
     finishAssignment,
+    openSecondTab,
     user,
   };
 }
@@ -678,4 +683,67 @@ it('blocks an invalid replacement until the creator clears or replaces it', asyn
   await waitFor(() => expect(window.location.search).toBe('?conversation=open'));
   expect(form.creates).toHaveLength(1);
   expect(form.assigned).toEqual([]);
+});
+
+it.each(['group', 'channel'] as const)(
+  'finishes a photo on the externally recovered %s',
+  async (kind) => {
+    const form = communityCreationFixture(kind);
+    form.state.shouldLoseCreate = true;
+    await form.fillForm();
+    await form.submit('Next');
+    await screen.findByRole('alert');
+    const other = await form.openSecondTab();
+    try {
+      const [original] = form.creates;
+      await other.communities!.retry(original.operation_id);
+      await form.submit('Retry community action');
+      await form.submit('Check creation');
+      expect(form.creates).toEqual([original, original]);
+      const retry = await screen.findByRole('button', { name: 'Retry photo' });
+      await waitFor(() => expect(retry.matches(':disabled')).toBe(false));
+      await form.user.click(retry);
+      await waitFor(() => expect(form.uploadIds).toHaveLength(1));
+      await waitFor(() => expect(retry.matches(':disabled')).toBe(false));
+      await form.user.click(retry);
+      await waitFor(() => expect(form.assigned).toEqual([original.conversation_id]));
+      expect(form.creates).toHaveLength(2);
+      form.state.shouldRevoke = kind === 'channel';
+      await form.finishAssignment();
+      if (kind === 'group') {
+        expect(await screen.findByRole('heading', { name: 'Current readers' })).toBeTruthy();
+        return;
+      }
+      expect(await screen.findByText('This community is no longer available.')).toBeTruthy();
+      await form.submit('Retry photo');
+      expect(await screen.findByText('Community management is unavailable.')).toBeTruthy();
+      expect(form.uploadIds).toHaveLength(2);
+      expect(form.assigned).toHaveLength(1);
+      expect(window.location.search).toBe('?account=communities&community=channel');
+    } finally {
+      other.dispose();
+    }
+  },
+);
+
+it('holds the creation identity when another tab dismisses an uncertain request', async () => {
+  const form = communityCreationFixture('channel');
+  form.state.shouldLoseCreate = true;
+  const title = await form.fillForm();
+  await form.submit('Next');
+  await screen.findByRole('alert');
+  const other = await form.openSecondTab();
+  try {
+    await other.communities!.dismiss(form.creates[0].operation_id);
+    await form.submit('Retry community action');
+    await form.submit('Check creation');
+    expect(form.creates).toHaveLength(1);
+    expect(await screen.findByText(/Creation is still unconfirmed/)).toBeTruthy();
+    expect(title.matches(':disabled')).toBe(true);
+    expect(form.uploadIds).toEqual([]);
+    expect(form.assigned).toEqual([]);
+    expect(window.location.search).toBe('?account=communities&community=channel');
+  } finally {
+    other.dispose();
+  }
 });
