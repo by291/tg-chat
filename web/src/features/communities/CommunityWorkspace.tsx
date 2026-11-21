@@ -80,7 +80,12 @@ export function CommunityWorkspace(props: CommunityWorkspaceProps) {
   const { chat, session, view } = props;
   const operations = chat.communities;
   const isCreating = view === 'group' || view === 'channel';
-  const admission = { session, chat, onAdmitted: props.onOpen };
+  const admission = {
+    session,
+    chat,
+    captureIntent: props.captureIntent,
+    onAdmitted: props.onOpen,
+  };
 
   return (
     <div className={`${styles.panel} ${communityStyles.workspace}`}>

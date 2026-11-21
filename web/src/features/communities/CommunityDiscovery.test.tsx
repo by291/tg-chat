@@ -140,7 +140,7 @@ it('restores an approval request from the server without opening community histo
   await within(restored).findByRole('button', { name: 'Request to join' });
 });
 
-it('keeps a newer search open when an earlier admission finishes', async () => {
+it.each(['filter', 'route'])('preserves a newer %s when admission finishes', async (change) => {
   const { chat, session, command } = discoveryFixture();
   const onAdmitted = vi.fn();
   const accepted = conversationFixture({
@@ -155,12 +155,23 @@ it('keeps a newer search open when an earlier admission finishes', async () => {
         completeAdmission = () => resolve({ conversation: accepted });
       }),
   );
-  render(<CommunityDiscovery chat={chat} session={session} onAdmitted={onAdmitted} />);
-
+  let isCurrent = true;
+  render(
+    <CommunityDiscovery
+      chat={chat}
+      session={session}
+      captureIntent={() => () => isCurrent}
+      onAdmitted={onAdmitted}
+    />,
+  );
   const original = await screen.findByRole('article', { name: newsChannel.title });
   fireEvent.click(within(original).getByRole('button', { name: 'Subscribe' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
-  await screen.findByRole('article', { name: readingGroup.title });
+  if (change === 'filter') {
+    fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
+    await screen.findByRole('article', { name: readingGroup.title });
+  } else {
+    isCurrent = false;
+  }
 
   completeAdmission();
   const join = await screen.findByRole('button', { name: 'Request to join' });

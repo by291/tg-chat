@@ -67,7 +67,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
   }, [needsGeneralDestination]);
 
   function captureIntent() {
-    const version = intentVersion.current;
+    const version = ++intentVersion.current;
     return () => intentVersion.current === version;
   }
 
@@ -190,6 +190,7 @@ export function useAccountNavigation({ isMessagingAvailable }: { isMessagingAvai
     window.addEventListener('keydown', listener);
     window.addEventListener('popstate', interruptLookup);
     return () => {
+      intentVersion.current += 1;
       window.removeEventListener('keydown', listener);
       window.removeEventListener('popstate', interruptLookup);
     };

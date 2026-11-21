@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { SessionOwner } from '@/features/auth/SessionOwner';
 import type { ChatOwner } from '@/features/chat/data/ChatOwner';
-import { CommunityInviteLink } from './CommunityAdmission';
+import { CommunityAdmission, CommunityInviteLink } from './CommunityAdmission';
 
 const INVITE_TOKEN = '32'.repeat(32);
 const PREVIEW = {
@@ -94,4 +94,44 @@ it('opens a validated invitation for a current member without sending another jo
   });
   expect(command).not.toHaveBeenCalled();
   expect(window.location.hash).toBe('');
+});
+
+it('keeps a newer account route after a direct invitation is accepted', async () => {
+  let isCurrent = true;
+  const { chat, command, conversation, get, onAdmitted, session } = fixture();
+  get.mockResolvedValue({
+    data: {
+      items: [
+        {
+          id: 'invitation',
+          conversation_id: PREVIEW.id,
+          title: PREVIEW.title,
+        },
+      ],
+    },
+  });
+  let finish!: () => void;
+  command.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve({ conversation });
+      }),
+  );
+  const user = userEvent.setup();
+  render(
+    <CommunityAdmission
+      chat={chat}
+      session={session}
+      onAdmitted={onAdmitted}
+      captureIntent={() => () => isCurrent}
+    />,
+  );
+  await user.click(await screen.findByRole('button', { name: 'Accept invitation' }));
+  isCurrent = false;
+  await act(async () => finish());
+  expect(onAdmitted).not.toHaveBeenCalled();
+  expect(command).toHaveBeenCalledWith({
+    conversationId: PREVIEW.id,
+    action: { kind: 'join', invitation_id: 'invitation' },
+  });
 });

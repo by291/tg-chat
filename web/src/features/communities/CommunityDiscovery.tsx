@@ -30,6 +30,7 @@ type CommunitySummary = components['schemas']['CommunitySummary'];
 interface CommunityDiscoveryProps {
   session: SessionOwner;
   chat: ChatOwner;
+  captureIntent?: () => () => boolean;
   onAdmitted: (conversation: Conversation) => void;
   query?: string;
 }
@@ -121,7 +122,13 @@ function CommunityResult({ session, result, action }: CommunityResultProps) {
 }
 
 /** Browse public community metadata and open only conversations the account has joined. */
-export function CommunityDiscovery({ session, chat, onAdmitted, query }: CommunityDiscoveryProps) {
+export function CommunityDiscovery({
+  session,
+  chat,
+  captureIntent,
+  onAdmitted,
+  query,
+}: CommunityDiscoveryProps) {
   const [input, setInput] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const normalizedQuery = (query ?? input).trim().normalize('NFC');
@@ -197,6 +204,7 @@ export function CommunityDiscovery({ session, chat, onAdmitted, query }: Communi
       return;
     }
     const scope = actionScope.current;
+    const hasIntent = captureIntent?.();
     const admission = Symbol();
     pendingAdmission.current = admission;
     void operation.run({
@@ -210,7 +218,8 @@ export function CommunityDiscovery({ session, chat, onAdmitted, query }: Communi
           if (pendingAdmission.current === admission) {
             refresh();
           }
-          if (scope === actionScope.current && receipt.conversation) {
+          const canPresent = scope === actionScope.current && hasIntent?.() !== false;
+          if (canPresent && receipt.conversation) {
             onAdmitted(receipt.conversation);
           }
         } catch (error) {

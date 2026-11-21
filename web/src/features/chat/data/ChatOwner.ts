@@ -674,11 +674,12 @@ export class ChatOwner {
   }
 
   /** Resolve a shared account link while the initiating conversation still owns navigation. */
-  async openContact(accountId: string): Promise<boolean> {
+  async openContact(accountId: string, hasIntent?: () => boolean): Promise<boolean> {
     this.ensureCurrent();
     const contactGeneration = ++this.contactOpenGeneration;
     const viewGeneration = this.viewGeneration;
-    const isCurrentContact = () => contactGeneration === this.contactOpenGeneration;
+    const isCurrentContact = () =>
+      contactGeneration === this.contactOpenGeneration && hasIntent?.() !== false;
 
     // Profile lookup is asynchronous, so a newer navigation must take precedence.
     const response = await this.session.client

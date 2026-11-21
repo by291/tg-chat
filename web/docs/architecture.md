@@ -117,6 +117,8 @@ Account navigation also owns focus and visibility. Profiles and voter lists slid
 desktop conversation and cover it at handheld widths. A closing detail restores the original
 control when it still exists. Only the visible surface receives global shortcuts and activity
 updates. Session or membership changes withdraw details for which access was lost.
+Search and admission capture account navigation intent at activation. History and successful
+joins can complete after navigation, while the newer route, focus and query retain ownership.
 
 The session owner publishes admitted contact and block changes to the directory and shared cards.
 It serializes writes for the same person and reconciles changes admitted during bootstrap. A card

@@ -7,7 +7,7 @@ import {
   Settings,
   Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ApiError, type SessionOwner } from '@/features/auth/SessionOwner';
 import { CommunityDiscovery } from '@/features/communities/CommunityDiscovery';
 import type { CommunityKind } from '@/features/communities/communityModels';
@@ -35,7 +35,8 @@ interface ConnectedDirectoryProps {
     messageId: string;
     keyword: string;
   }) => Promise<void>;
-  onOpenPending: () => void;
+  captureIntent?: () => () => boolean;
+  onShowConversation: () => void;
   onSettings: () => void;
   onContacts: () => void;
   onCommunities: () => void;
@@ -68,7 +69,8 @@ export function ConnectedDirectory({
   isConversationVisible,
   onOpen,
   onOpenMessage,
-  onOpenPending,
+  captureIntent,
+  onShowConversation,
   onSettings,
   onContacts,
   onCommunities,
@@ -77,7 +79,13 @@ export function ConnectedDirectory({
   onError: report,
 }: ConnectedDirectoryProps) {
   const [folder, setFolder] = useState<'inbox' | 'archived' | 'hidden'>('inbox');
-  const [directoryQuery, setDirectoryQuery] = useState('');
+  const [directoryQuery, changeQuery] = useState('');
+  const queryVersion = useRef(0);
+
+  function setDirectoryQuery(value: string) {
+    queryVersion.current += 1;
+    changeQuery(value);
+  }
 
   const normalizedDirectoryQuery = directoryQuery.trim().toLowerCase();
   const isDiscovering = Boolean(normalizedDirectoryQuery && session && snapshot.isReady);
@@ -145,12 +153,18 @@ export function ConnectedDirectory({
     if (!entry) {
       throw new ApiError({ code: 'not_found', message: 'Message unavailable' });
     }
+    const hasIntent = captureIntent?.();
+    const version = queryVersion.current;
     await onOpenMessage({
       conversation: entry,
       messageId: result.messageId,
       keyword: directoryQuery.trim().normalize('NFC'),
     });
-    setDirectoryQuery('');
+    // History can finish caching after the account page or the search input has changed.
+    if (version === queryVersion.current && hasIntent?.() !== false) {
+      setDirectoryQuery('');
+      onShowConversation();
+    }
   }
 
   return (
@@ -246,6 +260,7 @@ export function ConnectedDirectory({
           session={session}
           chat={owner}
           query={directoryQuery}
+          captureIntent={captureIntent}
           onAdmitted={openDiscoveryResult}
         />
       )}
@@ -277,7 +292,7 @@ export function ConnectedDirectory({
                       title: entry.title ?? 'Pending conversation',
                     })
                     .catch(report);
-                  onOpenPending();
+                  onShowConversation();
                 }}
               >
                 {entry.request.content.text ||

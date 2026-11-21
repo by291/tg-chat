@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createChatOwnerFixture, DIRECT, SAVED } from '../chat/data/chatOwner.test-support';
-import { cursorFixture } from '../chat/data/messageFixtures.test-support';
+import { canonicalFixture, cursorFixture } from '../chat/data/messageFixtures.test-support';
 import * as notificationNavigation from '../settings/notifications/notificationNavigation';
 import { AccountWorkspace } from './AccountWorkspace';
 
@@ -747,3 +747,94 @@ it('holds the creation identity when another tab dismisses an uncertain request'
     other.dispose();
   }
 });
+
+// prettier-ignore
+const SEARCH_COMPLETIONS = [
+  'settings',
+  'back',
+  'new query',
+  'unchanged',
+] as const;
+
+it.each(SEARCH_COMPLETIONS)(
+  'respects %s when a selected search hit finishes loading',
+  async (intent) => {
+    const message = canonicalFixture({ conversation_id: SAVED.id, author_name: 'Search author' });
+    const requested = deferred<void>();
+    const history = deferred<Response>();
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200);
+    const user = renderWorkspace({
+      chat: {
+        history: async (request) => {
+          if (!new URL(request.url).searchParams.has('around')) {
+            return Response.json({
+              messages: [],
+              preceding_message: null,
+              has_older: false,
+              has_newer: false,
+              generation: '1',
+              observation_cursor: cursorFixture(0),
+            });
+          }
+          requested.resolve();
+          return (await history.promise).clone();
+        },
+        transport: async (request) => {
+          if (new URL(request.url).pathname.endsWith('/chat/search')) {
+            return Response.json({
+              hits: [message],
+              is_truncated: false,
+              observation_cursor: cursorFixture(0),
+            });
+          }
+          return Response.json({
+            items: [],
+            users: [],
+            messages: [],
+          });
+        },
+      },
+    });
+    const box = await screen.findByRole('textbox', { name: 'Search chats and messages' });
+    await user.type(box, 'Visible');
+    await user.click(await screen.findByRole('button', { name: /Search author/ }));
+    await requested.promise;
+    let back: HTMLElement | undefined;
+    if (intent === 'settings' || intent === 'back') {
+      await user.click(screen.getByRole('button', { name: 'Account settings' }));
+      back = screen.getByRole('button', { name: 'Back to chats' });
+      if (intent === 'back') {
+        await act(async () => window.history.back());
+        await waitFor(() => expect(window.location.search).toBe(''));
+      }
+    } else if (intent === 'new query') {
+      await user.type(box, ' today');
+    }
+    await act(async () => {
+      history.resolve(
+        Response.json({
+          messages: [message],
+          anchor_id: message.id,
+          preceding_message: null,
+          has_older: false,
+          has_newer: false,
+          generation: '1',
+          observation_cursor: cursorFixture(0),
+        }),
+      );
+    });
+    await waitFor(() =>
+      expect(document.querySelector('[data-message-id="message-1"]')).toBeTruthy(),
+    );
+    if (intent === 'settings') {
+      expect(window.location.search).toContain('account=settings');
+      expect(document.activeElement).toBe(back);
+    } else if (intent === 'unchanged') {
+      await waitFor(() => expect(window.location.search).toContain('conversation=open'));
+      expect(box).toHaveProperty('value', '');
+    } else {
+      expect(window.location.search).toBe('');
+      expect(box).toHaveProperty('value', intent === 'new query' ? 'Visible today' : 'Visible');
+    }
+  },
+);

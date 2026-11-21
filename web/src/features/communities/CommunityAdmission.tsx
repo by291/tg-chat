@@ -1,6 +1,6 @@
 import { Dialog } from '@ark-ui/react/dialog';
 import { Portal } from '@ark-ui/react/portal';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { components } from '@/api/schema';
 import { Avatar } from '@/components/Avatar';
 import dialogs from '@/components/overlays/dialogs.module.css';
@@ -19,6 +19,7 @@ type Invitation = components['schemas']['InvitationView'];
 interface AdmissionProps {
   session: SessionOwner;
   chat: ChatOwner;
+  captureIntent?: () => () => boolean;
   onAdmitted: (conversation: Conversation) => void;
 }
 
@@ -78,10 +79,19 @@ async function findCurrentMemberChat(
   }
 }
 
-function CommunityInvitePreview({ session, chat, token, onAdmitted, onClose }: InviteDialogProps) {
+function CommunityInvitePreview({
+  session,
+  chat,
+  token,
+  captureIntent,
+  onAdmitted,
+  onClose,
+}: InviteDialogProps) {
   const [hasRequested, setHasRequested] = useState(false);
   const isCurrent = useRef(false);
   const hasOpenedMemberChat = useRef(false);
+  const beginPreview = useEffectEvent(() => captureIntent?.());
+  const previewIntent = useRef<() => boolean>(undefined);
   const action = useOperation();
   const load = useCallback(async () => {
     const reply = await session.client.POST('/api/v1/community-invitations/preview', {
@@ -100,6 +110,7 @@ function CommunityInvitePreview({ session, chat, token, onAdmitted, onClose }: I
   const memberChat = preview.value?.memberChat;
 
   useEffect(() => {
+    previewIntent.current = beginPreview();
     isCurrent.current = true;
     return () => {
       isCurrent.current = false;
@@ -112,7 +123,9 @@ function CommunityInvitePreview({ session, chat, token, onAdmitted, onClose }: I
     }
 
     hasOpenedMemberChat.current = true;
-    onAdmitted(memberChat);
+    if (previewIntent.current?.() !== false) {
+      onAdmitted(memberChat);
+    }
     onClose();
   }, [memberChat, onAdmitted, onClose]);
 
@@ -122,13 +135,14 @@ function CommunityInvitePreview({ session, chat, token, onAdmitted, onClose }: I
       throw new Error('Community commands are unavailable.');
     }
 
+    const hasIntent = captureIntent?.();
     const receipt = await operations.command({
       conversationId: community.id,
       action: { kind: 'join', token },
     });
 
     // A second link can replace this dialog while the first action is in flight.
-    if (!isCurrent.current) {
+    if (!isCurrent.current || hasIntent?.() === false) {
       return;
     }
     if (!receipt.conversation) {
@@ -272,11 +286,15 @@ export function CommunityAdmission(props: AdmissionProps) {
       throw new Error('Community commands are unavailable.');
     }
 
+    const hasIntent = props.captureIntent?.();
     const receipt = await operations.command({
       conversationId: invitation.conversation_id,
       action: { kind: 'join', invitation_id: invitation.id },
     });
     inbox.reload();
+    if (hasIntent?.() === false) {
+      return;
+    }
     if (receipt.conversation) {
       props.onAdmitted(receipt.conversation);
     } else {

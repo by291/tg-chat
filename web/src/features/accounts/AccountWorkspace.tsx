@@ -402,7 +402,12 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
   const callPanel = canUseCalls && <CallPanel owner={calls} />;
 
   const inviteLink = chat && (
-    <CommunityInviteLink session={owner} chat={chat} onAdmitted={openCommunity} />
+    <CommunityInviteLink
+      session={owner}
+      chat={chat}
+      captureIntent={navigation.captureIntent}
+      onAdmitted={openCommunity}
+    />
   );
 
   return (
@@ -423,6 +428,7 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
               accountPage={page === 'messages' ? undefined : accountPage}
               isConversationOpen={navigation.isChatOpen}
               isWorkspaceHidden={isOperatorOpen}
+              captureIntent={navigation.captureIntent}
               onShowConversation={navigation.openConversation}
               onShowDirectory={navigation.closeConversation}
               onSettings={() => openPage('settings')}

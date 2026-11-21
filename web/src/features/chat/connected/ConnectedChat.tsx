@@ -138,6 +138,7 @@ interface ConnectedChatProps {
   accountPage?: ReactNode;
   isConversationOpen: boolean;
   isWorkspaceHidden?: boolean;
+  captureIntent?: () => () => boolean;
   onShowConversation: () => void;
   onShowDirectory: () => void;
   onCommunities: () => void;
@@ -224,6 +225,7 @@ export function ConnectedChat({
   accountPage,
   isConversationOpen,
   isWorkspaceHidden = false,
+  captureIntent,
   onShowConversation,
   onShowDirectory,
   onSettings,
@@ -558,7 +560,6 @@ export function ConnectedChat({
     const { conversation, messageId, keyword } = input;
     const destination = conversationDestination(conversation);
     await owner.select({ destination, title: title(conversation) }, { messageId, keyword });
-    onShowConversation();
   }
 
   async function persistComposition(message: ComposedMessage) {
@@ -788,7 +789,8 @@ export function ConnectedChat({
   }
 
   async function openContactLink(accountId: string) {
-    if (await owner.openContact(accountId)) {
+    const hasIntent = captureIntent?.();
+    if (await owner.openContact(accountId, hasIntent)) {
       onShowConversation();
     }
   }
@@ -952,7 +954,8 @@ export function ConnectedChat({
       isConversationVisible={isChatVisible}
       onOpen={openConversation}
       onOpenMessage={openGlobalResult}
-      onOpenPending={onShowConversation}
+      captureIntent={captureIntent}
+      onShowConversation={onShowConversation}
       onSettings={onSettings}
       onContacts={onContacts}
       onCommunities={onCommunities}
