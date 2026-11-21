@@ -222,6 +222,23 @@ it('leaves the editor usable when the server returns no displayable metadata', a
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ text: FIRST_PREVIEW.url }));
 });
 
+it('recovers a failed metadata lookup when the sender restores the preview', async () => {
+  const onLoadLinkPreview = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Connection interrupted'))
+    .mockResolvedValue(FIRST_PREVIEW);
+  renderComposer({
+    draft: FIRST_PREVIEW.url,
+    isTextOnly: true,
+    onLoadLinkPreview,
+  });
+
+  await screen.findByTitle('Link preview unavailable');
+  await userEvent.click(screen.getByRole('button', { name: 'Disable link preview' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Restore link preview' }));
+  expect(await screen.findByText('Meeting notes', { exact: false })).toBeTruthy();
+});
+
 it('keeps a late lookup from replacing the preview of the current link', async () => {
   const previous = deferredPreview();
   const onLoadLinkPreview = vi.fn((url: string) =>

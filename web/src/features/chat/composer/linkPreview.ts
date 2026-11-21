@@ -122,7 +122,15 @@ export function useLinkPreview({ url, scope, onLoad }: LinkLookup) {
   const current = result && result.url === url && result.scope === scope ? result : undefined;
 
   useEffect(() => {
-    if (!url || !onLoad || current) {
+    if (current) {
+      return;
+    }
+    if (result && !result.preview) {
+      // A negative result settles only its active attempt. A later restoration can retry it.
+      setResult(undefined);
+      return;
+    }
+    if (!url || !onLoad) {
       return;
     }
 
@@ -152,7 +160,7 @@ export function useLinkPreview({ url, scope, onLoad }: LinkLookup) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [current, onLoad, scope, url]);
+  }, [current, onLoad, result, scope, url]);
 
   const isLoading = Boolean(url && onLoad && !current);
   return { preview: current?.preview, isLoading };
