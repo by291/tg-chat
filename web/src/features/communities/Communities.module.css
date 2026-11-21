@@ -63,6 +63,10 @@
   overflow-y: auto;
 }
 
+.creation input[type='checkbox'] {
+  accent-color: var(--accent-color);
+}
+
 .creation button[type='submit'] {
   position: absolute;
   bottom: max(8px, env(safe-area-inset-bottom));
