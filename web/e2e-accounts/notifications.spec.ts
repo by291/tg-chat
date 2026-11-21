@@ -213,12 +213,18 @@ async function assertLiveActivity(input: {
   await expect(chat.getByText('Typing…', { exact: true })).toHaveCount(0);
 }
 
+function installSyntheticSubscription() {
+  // Provider delivery stays disabled in Compose. Only the browser subscription is synthetic.
+  PushManager.prototype.getSubscription = async () => ({}) as PushSubscription;
+}
+
 async function seedLocalPush(input: { page: Page; sessionId: string; subscriptionId: string }) {
   const { page, sessionId, subscriptionId } = input;
+  // Notification navigation can reload the document before the authorized history check.
+  await page.addInitScript(installSyntheticSubscription);
+  await page.evaluate(installSyntheticSubscription);
   await page.evaluate(
     async (mapping) => {
-      // Provider delivery stays disabled in Compose. Only the browser subscription is synthetic.
-      PushManager.prototype.getSubscription = async () => ({}) as PushSubscription;
       await new Promise<void>((resolve, reject) => {
         const request = indexedDB.open('tg-chat-notifications-v1');
         request.onupgradeneeded = () => request.result.createObjectStore('notification-state');
