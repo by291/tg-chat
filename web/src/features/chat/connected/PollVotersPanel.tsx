@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import type { components } from '@/api/schema';
 import { ApiError, isCancelled, type SessionOwner } from '@/features/auth/SessionOwner';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import type { ChatOwner } from '../data/ChatOwner';
 import { getPollPercentages } from '../messages/content/poll/pollResults';
 import { InformationPanel } from '../details/InformationPanel';
+import type { VoterTarget } from './useConversationInformation';
+import { useHandheldPanel, type PanelEntry } from './HandheldPanelHistory';
 import { ConnectedPeerProfile } from './ConnectedPeerProfile';
 import styles from './PollVotersPanel.module.css';
 
@@ -16,6 +26,7 @@ interface PollVotersPanelProps {
   session: SessionOwner;
   messageId: string;
   poll: components['schemas']['PollView'];
+  rememberedVoter?: RefObject<PanelEntry<VoterTarget> | undefined>;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -26,6 +37,7 @@ interface VoterListProps {
   messageId: string;
   optionId: string;
   onAccessLost: () => void;
+  onLoadVoters: (voters: Voter[]) => void;
   onSelectVoter: (voter: Voter, trigger: HTMLButtonElement) => void;
 }
 
@@ -53,6 +65,7 @@ function VoterRow(props: Pick<VoterListProps, 'session' | 'onSelectVoter'> & { v
       <button
         type="button"
         className={styles.voter}
+        data-voter-id={voter.user_id}
         onClick={(event) => onSelectVoter(voter, event.currentTarget)}
       >
         <RemoteAvatar
@@ -75,6 +88,7 @@ function VoterList({
   messageId,
   optionId,
   onAccessLost,
+  onLoadVoters,
   onSelectVoter,
 }: VoterListProps) {
   const [voters, setVoters] = useState<Map<string, Voter>>(new Map());
@@ -100,6 +114,7 @@ function VoterList({
           return;
         }
 
+        onLoadVoters(page.voters);
         setVoters((current) => {
           const updated = new Map(current);
           for (const voter of page.voters) {
@@ -132,7 +147,8 @@ function VoterList({
     messageId,
     optionId,
     request,
-    onAccessLost
+    onAccessLost,
+    onLoadVoters,
   ]);
 
   function requestPage() {
@@ -192,35 +208,68 @@ export function PollVotersPanel({
   session,
   messageId,
   poll,
+  rememberedVoter,
   isOpen,
   onClose,
 }: PollVotersPanelProps) {
   const [isAccessLost, setIsAccessLost] = useState(false);
-  const [selection, setSelection] = useState<{ voter: Voter; version: string }>();
+  const [authorized, setAuthorized] = useState<{ version: string; voters: Map<string, Voter> }>();
+  const layer = useHandheldPanel<VoterTarget>({
+    remembered: rememberedVoter,
+    kind: 'voter',
+    isValid: (entry) => !isAccessLost && entry.version === poll.version,
+  });
+  const selection = isOpen ? layer.selection : undefined;
   const rowTrigger = useRef<HTMLButtonElement>(null);
-  const shouldRestoreRow = useRef(false);
-  const selectedVoter = selection?.version === poll.version ? selection.voter : undefined;
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const lastVoter = useRef<string>(undefined);
+  const wasProfileOpen = useRef(false);
+  const selectedVoter =
+    selection && authorized?.version === poll.version
+      ? authorized.voters.get(selection.id)
+      : undefined;
+  // Forward may remount this list. Authorize the identity from its current voter response first.
+  const recordVoters = useCallback(
+    (voters: Voter[]) => {
+      setAuthorized((previous) => {
+        const current = new Map(previous?.version === poll.version ? previous.voters : undefined);
+        for (const voter of voters) {
+          current.set(voter.user_id, voter);
+        }
+        return { version: poll.version, voters: current };
+      });
+    },
+    [poll.version],
+  );
   const canShowProfile = !isAccessLost && Boolean(selectedVoter);
   const clearResults = useCallback(() => {
     // A denied page revokes names across every option, including an already-open profile.
-    setSelection(undefined);
+    setAuthorized(undefined);
     setIsAccessLost(true);
   }, []);
+  // prettier-ignore
   useLayoutEffect(() => {
-    if (shouldRestoreRow.current && !canShowProfile && isOpen) {
-      shouldRestoreRow.current = false;
-      rowTrigger.current?.focus({ preventScroll: true });
+    const didClose = wasProfileOpen.current && !canShowProfile;
+    wasProfileOpen.current = canShowProfile;
+    if (selectedVoter) {
+      lastVoter.current = selectedVoter.user_id;
     }
-  }, [canShowProfile, isOpen]);
+    if (didClose && isOpen) {
+      // Forward can restore a profile after the original button and its ref were unmounted.
+      const rows = resultsRef.current?.querySelectorAll<HTMLButtonElement>('[data-voter-id]') ?? [];
+      const restored = Array.from(rows).find((row) => row.dataset.voterId === lastVoter.current);
+      const trigger = rowTrigger.current?.isConnected ? rowTrigger.current : restored;
+      trigger?.focus({ preventScroll: true });
+    }
+  }, [
+    canShowProfile,
+    isOpen,
+    selectedVoter,
+  ]);
 
   function selectVoter(voter: Voter, trigger: HTMLButtonElement) {
     rowTrigger.current = trigger;
-    setSelection({ voter, version: poll.version });
-  }
-
-  function returnToResults() {
-    shouldRestoreRow.current = true;
-    setSelection(undefined);
+    layer.open({ id: voter.user_id, version: poll.version });
   }
 
   const count = poll.voter_count;
@@ -235,7 +284,7 @@ export function PollVotersPanel({
   return (
     <>
       {/* Keep authorized pages and their requests alive under the selected voter's profile. */}
-      <div hidden={canShowProfile} className={styles.panelSlot}>
+      <div ref={resultsRef} hidden={canShowProfile} className={styles.panelSlot}>
         <InformationPanel
           title="Poll voters"
           closeLabel="Close poll results"
@@ -259,6 +308,7 @@ export function PollVotersPanel({
                   session={session}
                   messageId={messageId}
                   onAccessLost={clearResults}
+                  onLoadVoters={recordVoters}
                   onSelectVoter={selectVoter}
                 />
               ))}
@@ -273,7 +323,7 @@ export function PollVotersPanel({
           peerId={selectedVoter.user_id}
           title={selectedVoter.display_name}
           isOpen={isOpen}
-          onClose={returnToResults}
+          onClose={layer.close}
         />
       )}
     </>

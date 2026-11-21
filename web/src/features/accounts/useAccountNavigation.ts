@@ -184,6 +184,10 @@ export function useAccountNavigation({
     }
     if (isChatOpen && isHandheldLayout()) {
       event.preventDefault();
+      if (entryState?.chatPanels) {
+        window.history.back();
+        return;
+      }
       closeConversation();
     }
   });

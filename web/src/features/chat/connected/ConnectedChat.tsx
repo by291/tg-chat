@@ -309,7 +309,8 @@ export function ConnectedChat({
       generation: conversation?.generation,
     },
     canDisplay: (target) => {
-      if (!canShowChat || !session) {
+      const isAccountCoveringChat = isHandheld && Boolean(accountPage);
+      if (isWorkspaceHidden || isAccountCoveringChat || !session) {
         return false;
       }
       if (target.kind === 'poll') {
@@ -1343,6 +1344,7 @@ export function ConnectedChat({
                   session={session}
                   messageId={pollId}
                   poll={voterPoll}
+                  rememberedVoter={information.voterEntry}
                   isOpen={information.isOpen}
                   onClose={information.close}
                 />

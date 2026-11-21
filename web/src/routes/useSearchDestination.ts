@@ -31,7 +31,8 @@ export function useSearchDestination() {
     }
 
     // Only traverse entries created by this navigation owner; a deep link has no known parent.
-    if (isReturning && location.state?.previousSearch === nextSearch) {
+    const hasParent = !location.state?.chatPanels && location.state?.previousSearch === nextSearch;
+    if (isReturning && hasParent) {
       navigate(-1);
       return;
     }

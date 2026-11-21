@@ -1,6 +1,12 @@
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
 import { useExitingSidebarPage } from '@/layouts/sidebar/useExitingSidebarPage';
+import { useHandheldPanel, type PanelEntry } from './HandheldPanelHistory';
 import type { ChatOwner } from '../data/ChatOwner';
+
+export interface VoterTarget {
+  id: string;
+  version: string;
+}
 
 type InformationTarget = { kind: 'peer' | 'community' | 'poll'; id: string };
 
@@ -11,7 +17,18 @@ interface InformationScope {
 }
 
 interface InformationSelection extends InformationScope {
+  voterEntry: RefObject<PanelEntry<VoterTarget> | undefined>;
   target: InformationTarget;
+}
+
+function restoredTrigger(container: HTMLElement | null, target: InformationTarget) {
+  if (!container || target.kind !== 'poll') {
+    return container;
+  }
+  // Back may have unmounted and then recreated this exact virtual row.
+  const rows = container.querySelectorAll<HTMLElement>('[data-message-id]');
+  const row = Array.from(rows).find((candidate) => candidate.dataset.messageId === target.id);
+  return row?.querySelector<HTMLElement>('[data-poll-voters]') ?? container;
 }
 
 /** Keep the exiting panel mounted only while its original session and membership still own it. */
@@ -21,9 +38,8 @@ export function useConversationInformation(options: {
   canDisplay: (target: InformationTarget) => boolean;
 }) {
   const { scope, canDisplay, fallbackFocus } = options;
-  const [selection, setSelection] = useState<InformationSelection>();
   const trigger = useRef<HTMLElement | null>(null);
-  const shouldRestoreFocus = useRef(false);
+  const wasOpen = useRef(false);
 
   function isSelectionOwned(candidate: InformationSelection) {
     return (
@@ -34,27 +50,29 @@ export function useConversationInformation(options: {
     );
   }
 
+  const layer = useHandheldPanel<InformationSelection>({
+    kind: 'information',
+    isValid: isSelectionOwned,
+  });
+  const selection = layer.selection;
   const retained = useExitingSidebarPage(selection, isSelectionOwned);
   const target = retained?.target;
   const isOpen = Boolean(selection && target);
 
   // prettier-ignore
   useLayoutEffect(() => {
-    // Clearing invalid selections prevents a later re-admission from reopening the old panel.
-    if (selection && !target) {
-      setSelection(undefined);
-    }
-    if (isOpen || !shouldRestoreFocus.current) {
+    const didClose = wasOpen.current && !isOpen;
+    wasOpen.current = isOpen;
+    if (!didClose) {
       return;
     }
-    shouldRestoreFocus.current = false;
     const button = trigger.current;
     if (!target) {
       return;
     }
     // A virtualized poll can lose its original button while the sidebar is open.
     const canFocusButton = button?.isConnected && !button.closest('[inert], [hidden]');
-    const destination = canFocusButton ? button : fallbackFocus.current;
+    const destination = canFocusButton ? button : restoredTrigger(fallbackFocus.current, target);
     destination?.focus({ preventScroll: true });
   }, [
     selection,
@@ -65,19 +83,19 @@ export function useConversationInformation(options: {
 
   function open(nextTarget: InformationTarget, opener: HTMLElement | null) {
     trigger.current = opener;
-    setSelection({ ...scope, target: nextTarget });
-  }
-
-  function close() {
-    shouldRestoreFocus.current = true;
-    setSelection(undefined);
+    layer.open({
+      ...scope,
+      target: nextTarget,
+      voterEntry: { current: undefined },
+    });
   }
 
   // prettier-ignore
   return {
     target,
+    voterEntry: retained?.voterEntry,
     isOpen,
     open,
-    close,
+    close: layer.close,
   };
 }

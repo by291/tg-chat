@@ -273,10 +273,16 @@ it('suspends mobile peer activity until Escape uncovers the same conversation', 
   await waitFor(() => expect(screen.queryByText('Online')).toBeNull());
   expect(trigger.closest('[inert]')).toBeTruthy();
 
-  await user.keyboard('{Escape}');
+  await act(async () => window.history.back());
   await screen.findByText('Online');
   expect(document.activeElement).toBe(trigger);
   expect(window.location.search).toContain('conversation=open');
+
+  await act(async () => window.history.forward());
+  await waitFor(() => expect(trigger.closest('[inert]')).toBeTruthy());
+  await user.keyboard('{Escape}');
+  await screen.findByText('Online');
+  expect(document.activeElement).toBe(trigger);
 });
 
 it.each(['open', 'exiting'] as const)(

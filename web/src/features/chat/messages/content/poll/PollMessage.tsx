@@ -239,6 +239,7 @@ export function PollMessage({
             type="button"
             className={styles.action}
             aria-label="View voters"
+            data-poll-voters
             aria-describedby={resultCountId}
             onClick={(event) => {
               // Pointer activation does not focus buttons in every browser. Preserve this opener.

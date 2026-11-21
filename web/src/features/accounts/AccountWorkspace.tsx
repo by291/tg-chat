@@ -24,6 +24,7 @@ import { CommunityInviteLink } from '../communities/CommunityAdmission';
 import { CommunityWorkspace } from '../communities/CommunityWorkspace';
 import { conversationDestination, type Conversation } from '../communities/communityModels';
 import { connectionStatusLabel } from '../chat/data/connectionStatus';
+import { HandheldPanelHistory } from '../chat/connected/HandheldPanelHistory';
 import { ConnectedChat } from '../chat/connected/ConnectedChat';
 import { CallPanel } from '../calls/CallPanel';
 import { AccountSettingsHome } from './AccountSettingsHome';
@@ -418,28 +419,30 @@ export function AccountWorkspace({ owner, auth, capabilities }: WorkspaceProps) 
       {chat ? (
         <ConnectedStickerPackScope packIds={preferences?.sticker_pack_ids}>
           <div className={styles.chatSlot} hidden={isOperatorOpen} inert={callCoverage.isCovered}>
-            <ConnectedChat
-              owner={chat}
-              session={owner}
-              activity={activity}
-              calls={canUseCalls ? calls : undefined}
-              areCallsAvailable={areCallsAvailable}
-              user={profile}
-              isMediaAvailable={capabilities.media_uploads_available === true}
-              isAvatarAvailable={capabilities.avatars_available}
-              accountPage={page === 'messages' ? undefined : accountPage}
-              isConversationOpen={navigation.isChatOpen}
-              isWorkspaceHidden={isOperatorOpen}
-              isCallCoveringChat={callCoverage.isCovered}
-              captureIntent={navigation.captureIntent}
-              onShowConversation={navigation.openConversation}
-              onShowDirectory={navigation.closeConversation}
-              onSettings={() => openPage('settings')}
-              onContacts={() => openPage('contacts')}
-              onCommunities={() => showCommunities()}
-              onCreateCommunity={showCommunities}
-              onOpenCommunity={openCommunity}
-            />
+            <HandheldPanelHistory captureIntent={navigation.captureIntent}>
+              <ConnectedChat
+                owner={chat}
+                session={owner}
+                activity={activity}
+                calls={canUseCalls ? calls : undefined}
+                areCallsAvailable={areCallsAvailable}
+                user={profile}
+                isMediaAvailable={capabilities.media_uploads_available === true}
+                isAvatarAvailable={capabilities.avatars_available}
+                accountPage={page === 'messages' ? undefined : accountPage}
+                isConversationOpen={navigation.isChatOpen}
+                isWorkspaceHidden={isOperatorOpen}
+                isCallCoveringChat={callCoverage.isCovered}
+                captureIntent={navigation.captureIntent}
+                onShowConversation={navigation.openConversation}
+                onShowDirectory={navigation.closeConversation}
+                onSettings={() => openPage('settings')}
+                onContacts={() => openPage('contacts')}
+                onCommunities={() => showCommunities()}
+                onCreateCommunity={showCommunities}
+                onOpenCommunity={openCommunity}
+              />
+            </HandheldPanelHistory>
           </div>
           {isOperatorOpen && (
             <main

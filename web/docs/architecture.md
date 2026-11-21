@@ -116,7 +116,9 @@ The initial chat load can retry in place with the same authenticated session. Se
 Account navigation also owns focus and visibility. Profiles and voter lists slide alongside a
 desktop conversation and cover it at handheld widths. A closing detail restores the original
 control when it still exists. Only the visible surface receives global shortcuts and activity
-updates. Session or membership changes withdraw details for which access was lost.
+updates. Handheld Back traverses from a voter profile to the results, the conversation and then
+the directory. Browser entries carry opaque tokens. The session owns the targets, validates their
+membership on traversal and resolves voter identities from the currently authorized results.
 Search and admission capture account navigation intent at activation. History and successful
 joins can complete after navigation, while the newer route, focus and query retain ownership.
 
