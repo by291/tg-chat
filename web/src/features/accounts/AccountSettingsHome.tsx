@@ -1,4 +1,13 @@
-import { Gavel, LogOut, Shield, SlidersHorizontal, Smartphone, UserRound } from 'lucide-react';
+import {
+  Gavel,
+  Keyboard,
+  Settings,
+  LogOut,
+  Shield,
+  SlidersHorizontal,
+  Smartphone,
+  UserRound,
+} from 'lucide-react';
 import type { components } from '@/api/schema';
 import { RemoteAvatar } from '@/features/media/RemoteAvatar';
 import { SettingsHeader, SettingsRow } from '@/features/settings/SettingsControls';
@@ -12,6 +21,18 @@ const SETTINGS_ENTRIES = [
     label: 'Edit Profile',
     icon: UserRound,
     color: 'blue',
+  },
+  {
+    page: 'general',
+    label: 'General Settings',
+    icon: Settings,
+    color: 'gray',
+  },
+  {
+    page: 'shortcuts',
+    label: 'Keyboard Shortcuts',
+    icon: Keyboard,
+    color: 'orange',
   },
   {
     page: 'privacy',

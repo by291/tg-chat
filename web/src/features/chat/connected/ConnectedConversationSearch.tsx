@@ -22,7 +22,7 @@ export function ConnectedConversationSearch({
   onClose,
 }: ConnectedConversationSearchProps) {
   return (
-    <div className={styles.searchSlot} data-conversation-search data-chat-controls>
+    <div className={styles.searchSlot} data-conversation-search>
       <ChatSearch
         key={conversation.id}
         messages={messages}

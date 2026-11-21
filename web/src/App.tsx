@@ -15,7 +15,11 @@ export function App() {
 
   const isConnected = import.meta.env.VITE_APP_MODE === 'connected';
   if (isConnected && window.location.pathname !== '/demo') {
-    return <AccountApplication />;
+    return (
+      <BrowserRouter>
+        <AccountApplication />
+      </BrowserRouter>
+    );
   }
   if (isConnected) {
     return (

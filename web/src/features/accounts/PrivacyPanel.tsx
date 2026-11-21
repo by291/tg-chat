@@ -1,6 +1,8 @@
 import { Ban, Clock, LockKeyhole, MessageCircle, Phone } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import type { components } from '@/api/schema';
+import { SidebarNavigation } from '@/layouts/sidebar/SidebarNavigation';
+import { useAccountDetail, type AccountDetailNavigation } from './accountDetail';
 import { SettingsHeader, SettingsRadio, SettingsRow } from '@/features/settings/SettingsControls';
 import { ApiError, SessionOwner, requirePayload } from '../auth/SessionOwner';
 import { AccountForm, textField } from './AccountForm';
@@ -11,7 +13,12 @@ type Privacy = components['schemas']['PrivacySettings'];
 type Audience = components['schemas']['Audience'];
 type PrivacySetting = keyof Privacy;
 
-const AUDIENCE_OPTIONS = ['everyone', 'contacts', 'nobody'] as const;
+// prettier-ignore
+const AUDIENCE_OPTIONS = [
+  'everyone',
+  'contacts',
+  'nobody',
+] as const;
 
 const AUDIENCES: Record<Audience, string> = {
   everyone: 'Everyone',
@@ -43,6 +50,7 @@ const PRIVACY_SETTINGS = [
 interface PrivacyPanelProps {
   owner: SessionOwner;
   settingsVersion?: string;
+  navigation?: AccountDetailNavigation;
   onBack?: () => void;
   onOpenBlocked?: () => void;
   onOpenSecurity?: () => void;
@@ -93,11 +101,12 @@ function PrivacyAudience({
 export function PrivacyPanel({
   owner,
   settingsVersion,
+  navigation,
   onBack,
   onOpenBlocked,
   onOpenSecurity,
 }: PrivacyPanelProps) {
-  const [selection, setSelection] = useState<PrivacySetting>();
+  const { value: selection, open: setSelection } = useAccountDetail(navigation);
   const load = useCallback(
     async () => requirePayload(await owner.client.GET('/api/v1/account/privacy')),
     [owner],
@@ -113,16 +122,9 @@ export function PrivacyPanel({
     privacy.reload();
   }
 
-  return (
-    <>
-      {setting && (
-        <SettingsHeader
-          title={setting.label}
-          backLabel="Back to privacy and security"
-          onBack={() => setSelection(undefined)}
-        />
-      )}
-      {!setting && onBack && (
+  const overview = (
+    <div className={styles.accountPage}>
+      {onBack && (
         <SettingsHeader title="Privacy and Security" backLabel="Back to settings" onBack={onBack} />
       )}
       <div className={styles.panel}>
@@ -132,45 +134,66 @@ export function PrivacyPanel({
           </p>
         )}
         {privacy.isLoading && <p role="status">Loading privacy settings…</p>}
-        {setting && savedPolicy && (
-          <PrivacyAudience
-            key={setting.key}
-            setting={setting}
-            audience={savedPolicy[setting.key]}
-            onSave={(audience) => save(setting.key, audience)}
-          />
-        )}
-        {!setting && (
-          <>
-            <section className={styles.settingsGroup} aria-label="Privacy">
-              {savedPolicy &&
-                PRIVACY_SETTINGS.map(({ key, label, icon }) => (
-                  <SettingsRow
-                    key={key}
-                    label={label}
-                    icon={icon}
-                    color="blue"
-                    value={AUDIENCES[savedPolicy[key]]}
-                    onClick={() => setSelection(key)}
-                  />
-                ))}
-              {onOpenBlocked && (
-                <SettingsRow label="Blocked users" icon={Ban} color="red" onClick={onOpenBlocked} />
-              )}
-            </section>
-            {onOpenSecurity && (
-              <section className={styles.settingsGroup} aria-label="Security">
-                <SettingsRow
-                  label="Password & recovery"
-                  icon={LockKeyhole}
-                  color="purple"
-                  onClick={onOpenSecurity}
-                />
-              </section>
-            )}
-          </>
+        <section className={styles.settingsGroup} aria-label="Privacy">
+          {savedPolicy &&
+            PRIVACY_SETTINGS.map(({ key, label, icon }) => (
+              <SettingsRow
+                key={key}
+                label={label}
+                icon={icon}
+                color="blue"
+                value={AUDIENCES[savedPolicy[key]]}
+                onClick={() => setSelection(key)}
+              />
+            ))}
+          {onOpenBlocked && (
+            <SettingsRow label="Blocked users" icon={Ban} color="red" onClick={onOpenBlocked} />
+          )}
+        </section>
+        {onOpenSecurity && (
+          <section className={styles.settingsGroup} aria-label="Security">
+            <SettingsRow
+              label="Password & recovery"
+              icon={LockKeyhole}
+              color="purple"
+              onClick={onOpenSecurity}
+            />
+          </section>
         )}
       </div>
-    </>
+    </div>
+  );
+
+  return (
+    <SidebarNavigation
+      isSecondaryOpen={Boolean(setting)}
+      primary={overview}
+      secondary={
+        setting && (
+          <div className={styles.accountPage}>
+            <SettingsHeader
+              title={setting.label}
+              backLabel="Back to privacy and security"
+              onBack={() => setSelection(undefined)}
+            />
+            <div className={styles.panel}>
+              {privacy.error && (
+                <p role="alert" className={styles.error}>
+                  {privacy.error}
+                </p>
+              )}
+              {savedPolicy && (
+                <PrivacyAudience
+                  key={setting.key}
+                  setting={setting}
+                  audience={savedPolicy[setting.key]}
+                  onSave={(audience) => save(setting.key, audience)}
+                />
+              )}
+            </div>
+          </div>
+        )
+      }
+    />
   );
 }

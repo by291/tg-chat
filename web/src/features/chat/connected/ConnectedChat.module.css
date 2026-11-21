@@ -1,39 +1,23 @@
 .workspace {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  height: 100dvh;
   color: var(--text-color);
-  background: var(--panel-color);
 }
 
+.sidebar,
 .accountSidebar {
-  overflow: auto;
-  border-right: 1px solid var(--border-color);
-  background: var(--surface-color);
-}
-
-.chatHeader {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 72px;
-  padding: 12px 20px;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.sidebar {
+  overflow: clip;
+  border-radius: 24px;
   background: var(--surface-color);
+  box-shadow: var(--surface-shadow);
 }
 
-.chatHeader h2 {
-  flex: 1;
-  margin: 0;
-  font-size: 20px;
-}
-
-.chatHeader p {
-  margin: 4px 0 0;
-  color: var(--secondary-color);
-  font-size: 13px;
-}
-
-.workspace :where([data-chat-controls]) button {
+:where([data-directory-panel], .pins) button {
   border: 0;
   border-radius: 12px;
   padding: 10px;
@@ -42,45 +26,14 @@
   cursor: pointer;
 }
 
-.workspace :where([data-chat-controls]) button:hover,
-.workspace :where([data-chat-controls]) button[aria-pressed='true'] {
+:where([data-directory-panel], .pins) button:hover,
+:where([data-directory-panel], .pins) button[aria-pressed='true'] {
   background: var(--panel-color);
 }
 
-.workspace :where([data-chat-controls]) button:disabled {
+:where([data-directory-panel], .pins) button:disabled {
   cursor: wait;
   opacity: 0.5;
-}
-
-.chatIdentity {
-  position: relative;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.chatHeader .peerProfile {
-  position: absolute;
-  inset: 0;
-  padding: 0;
-}
-
-.chatHeader .peerProfile:hover {
-  background: color-mix(in srgb, var(--hover-color) 40%, transparent);
-}
-
-.chatIdentityText {
-  flex: 1;
-  min-width: 0;
-}
-
-.chatIdentityText h2,
-.chatIdentityText p {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .profilePositioner {
@@ -135,23 +88,6 @@
   margin: 0;
 }
 
-.chat {
-  --chat-edge-inset: 16px;
-  --chat-content-width: min(696px, calc(100% - 32px));
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-
-.historyPane {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .historyLoading {
   position: absolute;
   z-index: 5;
@@ -166,12 +102,13 @@
   pointer-events: none;
 }
 
-.composer {
-  width: var(--chat-content-width);
-  margin: 12px auto 16px;
+.error {
+  padding: 12px 20px;
+  margin: 0;
+  color: var(--danger-color, #c43745);
+  background: var(--surface-color);
 }
 
-.historyControls,
 .actions {
   display: flex;
   align-items: center;
@@ -180,87 +117,13 @@
   font-size: 13px;
 }
 
-.historyControls {
-  flex-wrap: wrap;
-  padding-inline: var(--chat-edge-inset);
-}
-
-.error {
-  padding: 12px 20px;
-  margin: 0;
-  color: var(--danger-color, #c43745);
-  background: var(--surface-color);
-}
-
 .empty {
   display: grid;
-  flex: 1;
+  height: 100%;
   padding: 24px;
   color: var(--secondary-color);
   text-align: center;
   place-items: center;
-}
-
-@media (max-width: 720px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .chatHeader {
-    gap: 6px;
-    padding-inline: 10px;
-  }
-
-  .chat .chatHeader > button {
-    flex: none;
-    min-width: 40px;
-    padding: 8px;
-  }
-
-  .workspace[data-directory-visible='true'] .chat,
-  .workspace[data-directory-visible='false'] .accountSidebar {
-    display: none;
-  }
-}
-
-.pinPreview {
-  display: flex;
-  flex: none;
-  align-items: center;
-  padding: 0 12px;
-  border-top: 1px solid var(--border-color);
-  background: var(--surface-color);
-}
-
-.pinPreview .pinJump {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  text-align: start;
-}
-
-.pinJump > svg {
-  flex: none;
-  color: var(--accent-color);
-}
-
-.pinJump > span {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  font-size: 13px;
-}
-
-.pinJump strong {
-  color: var(--accent-color);
-}
-
-.pinJump span span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pins {
@@ -305,9 +168,8 @@
   }
 
   /* Keep the timeline and composer mounted while the narrow search covers them. */
-  .chat:has([data-conversation-search]) .chatHeader,
-  .chat:has([data-conversation-search]) .composer,
-  .chat:has([data-narrow-results='true']) .historyPane {
+  .chat:has([data-conversation-search]) [data-selecting],
+  .chat:has([data-narrow-results='true']) [data-narrow-history] {
     visibility: hidden;
   }
 }
@@ -377,7 +239,7 @@ summary.recoveryToggle {
   overflow-wrap: anywhere;
 }
 
-.composer .recoveryPanel {
+.chat .recoveryPanel {
   position: absolute;
   z-index: 6;
   inset-inline: 0;
@@ -431,7 +293,7 @@ summary.recoveryToggle {
   cursor: pointer;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .mobileConnection {
     display: flex;
   }

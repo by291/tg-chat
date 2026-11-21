@@ -67,7 +67,9 @@ it('opens the remote date anchor when the selected day precedes the loaded timel
       <ConnectedChat
         owner={owner}
         user={USER}
-        conversationRequest={0}
+        isConversationOpen
+        onShowDirectory={() => {}}
+        onShowConversation={() => {}}
         onSettings={() => {}}
         onContacts={() => {}}
         onCommunities={() => {}}

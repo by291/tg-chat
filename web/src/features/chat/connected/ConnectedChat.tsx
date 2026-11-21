@@ -1,5 +1,24 @@
-import { ArrowLeft, Bell, BellOff, LoaderCircle, Phone, Search, Video } from 'lucide-react';
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Bell, BellOff, LoaderCircle, Phone, Search, Video } from 'lucide-react';
+import {
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
+import { ChatLayout } from '@/layouts/chat/ChatLayout';
+import { useExitingSidebarPage } from '@/layouts/sidebar/useExitingSidebarPage';
+import { SidebarNavigation } from '@/layouts/sidebar/SidebarNavigation';
+import { ChatWallpaper } from '@/features/settings/appearance/ChatWallpaper';
+import { useResolvedAppearance } from '@/features/settings/appearance/useAppearanceTheme';
+import { useAppPreferences } from '@/features/settings/appPreferences';
+import { IconButton } from '@/components/IconButton';
+import { ChatHeaderFrame } from '../ChatHeader';
+import { MessageSelectionToolbar } from '../MessageSelectionToolbar';
+import { useChatOverlayInsets } from '../useChatOverlayInsets';
+import surface from '../ConversationPane.module.css';
 import { Avatar } from '@/components/Avatar';
 import type { components } from '@/api/schema';
 import {
@@ -109,7 +128,9 @@ interface ConnectedChatProps {
   onSettings: () => void;
   onContacts: () => void;
   accountPage?: ReactNode;
-  conversationRequest: number;
+  isConversationOpen: boolean;
+  onShowConversation: () => void;
+  onShowDirectory: () => void;
   onCommunities: () => void;
   onCreateCommunity: (kind: CommunityKind) => void;
   onOpenCommunity: (conversation: Conversation) => void;
@@ -184,7 +205,9 @@ export function ConnectedChat({
   isAvatarAvailable,
   user,
   accountPage,
-  conversationRequest,
+  isConversationOpen,
+  onShowConversation,
+  onShowDirectory,
   onSettings,
   onContacts,
   onCommunities,
@@ -201,7 +224,11 @@ export function ConnectedChat({
     calls?.subscribe ?? subscribeToNothing,
     calls?.isCallBusy ?? isCallIdle,
   );
-  const [isDirectoryVisible, setIsDirectoryVisible] = useState(!snapshot.selection);
+  const isDirectoryVisible = !isConversationOpen || !snapshot.selection;
+  const overlays = useChatOverlayInsets();
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const { variant, choice } = useResolvedAppearance();
+  const textSize = useAppPreferences((preferences) => preferences.messageTextSize);
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState('');
   const [profilePeerId, setProfilePeerId] = useState<string>();
@@ -364,9 +391,15 @@ export function ConnectedChat({
     };
   }
   const acceptedIds = new Set(messages.map((message) => message.id));
+  const previousSelection = useRef(selectedKey);
+  const returnToDirectory = useEffectEvent(onShowDirectory);
   useEffect(() => {
-    setIsDirectoryVisible(!selectedKey);
-  }, [selectedKey, conversationRequest]);
+    // Losing access clears the handheld destination without reopening the revoked conversation.
+    if (previousSelection.current && !selectedKey) {
+      returnToDirectory();
+    }
+    previousSelection.current = selectedKey;
+  }, [selectedKey]);
   useEffect(() => {
     // An updated membership can revoke access even when the conversation ID is unchanged.
     setEditing(undefined);
@@ -434,12 +467,18 @@ export function ConnectedChat({
   }
 
   function openConversation(entry: Conversation) {
+    if (conversation?.id === entry.id && selection) {
+      // Returning from the handheld directory keeps the existing history and draft generation.
+      onShowConversation();
+      return;
+    }
+
     setEditing(undefined);
     setIsPinsOpen(false);
     setError('');
     const destination = conversationDestination(entry);
     void owner.select({ destination, title: title(entry) }).catch(report);
-    setIsDirectoryVisible(false);
+    onShowConversation();
   }
 
   function openConversationProfile() {
@@ -478,7 +517,7 @@ export function ConnectedChat({
     const { conversation, messageId } = input;
     const destination = conversationDestination(conversation);
     await owner.select({ destination, title: title(conversation) }, { messageId });
-    setIsDirectoryVisible(false);
+    onShowConversation();
   }
 
   async function persistComposition(message: ComposedMessage) {
@@ -712,7 +751,7 @@ export function ConnectedChat({
 
   async function openContactLink(accountId: string) {
     if (await owner.openContact(accountId)) {
-      setIsDirectoryVisible(false);
+      onShowConversation();
     }
   }
 
@@ -859,128 +898,115 @@ export function ConnectedChat({
       }
     : undefined;
 
-  return (
-    <CurrentUserProvider value={user.id}>
-      <main
-        className={styles.workspace}
-        data-directory-visible={isDirectoryVisible || Boolean(accountPage)}
-      >
-        <ConnectedDirectory
-          owner={owner}
-          session={session}
-          snapshot={snapshot}
-          conversationId={conversation?.id}
-          connectionLabel={connectionLabel}
-          outbox={outbox}
-          isVisible={isDirectoryVisible}
-          isHidden={Boolean(accountPage)}
-          onOpen={openConversation}
-          onOpenMessage={openGlobalResult}
-          onOpenPending={() => setIsDirectoryVisible(false)}
-          onSettings={onSettings}
-          onContacts={onContacts}
-          onCommunities={onCommunities}
-          onCreateCommunity={onCreateCommunity}
-          onOpenCommunity={onOpenCommunity}
-          onError={report}
-        />
-        {accountPage && (
+  const directory = (
+    <ConnectedDirectory
+      owner={owner}
+      session={session}
+      snapshot={snapshot}
+      conversationId={conversation?.id}
+      connectionLabel={connectionLabel}
+      outbox={outbox}
+      isVisible={isDirectoryVisible}
+      onOpen={openConversation}
+      onOpenMessage={openGlobalResult}
+      onOpenPending={onShowConversation}
+      onSettings={onSettings}
+      onContacts={onContacts}
+      onCommunities={onCommunities}
+      onCreateCommunity={onCreateCommunity}
+      onOpenCommunity={onOpenCommunity}
+      onError={report}
+    />
+  );
+  const exitingAccountPage = useExitingSidebarPage(accountPage);
+  const sidebar = (
+    <div className={styles.sidebar}>
+      <SidebarNavigation
+        isSecondaryOpen={Boolean(accountPage)}
+        primary={directory}
+        secondary={
           <aside className={styles.accountSidebar} aria-label="Account pages">
-            {accountPage}
+            {exitingAccountPage}
           </aside>
-        )}
-        <section className={styles.chat} aria-label="Chat">
-          <header className={styles.chatHeader} data-chat-controls>
-            <button
-              type="button"
-              aria-label="Back to conversations"
-              onClick={() => {
-                owner.cancelContactOpen();
-                setIsDirectoryVisible(true);
-              }}
-            >
-              <ArrowLeft />
-            </button>
-            <div className={styles.chatIdentity}>
-              {selection && (
-                <ChatIdentityAvatar
-                  name={conversationName}
-                  conversation={conversation}
-                  session={session}
-                />
-              )}
-              <div className={styles.chatIdentityText}>
-                <h2>{conversationName}</h2>
-                <p aria-live="polite">{conversationStatus}</p>
-              </div>
-              {session && (peerIdForProfile || isCommunity) && (
-                <button
-                  type="button"
-                  className={styles.peerProfile}
-                  aria-label={`View ${conversationName} profile`}
-                  aria-haspopup="dialog"
-                  onClick={openConversationProfile}
-                />
-              )}
-            </div>
-            {hasCallActions && (
-              <>
-                <button
-                  type="button"
-                  aria-label="Start voice call"
-                  disabled={!canStartCall}
-                  onClick={() => startCall('voice')}
-                >
-                  <Phone />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Start video call"
-                  disabled={!canStartCall}
-                  onClick={() => startCall('video')}
-                >
-                  <Video />
-                </button>
-              </>
-            )}
-            {conversation && (
-              <button
-                type="button"
-                aria-label="Search this conversation"
-                aria-pressed={searchConversationId === conversation.id}
-                onClick={() => {
-                  setIsPinsOpen(false);
-                  setSearchConversationId((current) => {
-                    return current === conversation.id ? undefined : conversation.id;
-                  });
-                }}
-              >
-                <Search />
-              </button>
-            )}
-            {conversation && (
-              <ConversationControls
-                conversation={conversation}
-                onCommand={(action) => owner.command(action)}
-                onConfirm={setConfirmation}
-                onError={report}
-                onPins={() => setIsPinsOpen(true)}
-                onReport={canReportCommunity ? startReportSelection : undefined}
-              />
-            )}
-          </header>
-          {connectionLabel && (
-            <p className={styles.mobileConnection} role="status">
-              <LoaderCircle size={16} className={styles.connectionSpinner} aria-hidden="true" />
-              {connectionLabel}
-            </p>
-          )}
-          {hasCallActions && !calls && (
-            <p role="status" className={styles.callUnavailable}>
-              Calls are unavailable in this browser.
-            </p>
-          )}
-          {conversation && searchConversationId === conversation.id && (
+        }
+      />
+    </div>
+  );
+  const actions = (
+    <>
+      {hasCallActions && (
+        <>
+          <IconButton
+            label="Start voice call"
+            disabled={!canStartCall}
+            onClick={() => startCall('voice')}
+          >
+            <Phone />
+          </IconButton>
+          <IconButton
+            label="Start video call"
+            disabled={!canStartCall}
+            onClick={() => startCall('video')}
+          >
+            <Video />
+          </IconButton>
+        </>
+      )}
+      {conversation && (
+        <IconButton
+          ref={searchButtonRef}
+          label="Search this conversation"
+          aria-pressed={searchConversationId === conversation.id}
+          onClick={() => {
+            setIsPinsOpen(false);
+            setSearchConversationId((current) => {
+              return current === conversation.id ? undefined : conversation.id;
+            });
+          }}
+        >
+          <Search />
+        </IconButton>
+      )}
+      {conversation && (
+        <ConversationControls
+          conversation={conversation}
+          onCommand={(action) => owner.command(action)}
+          onConfirm={setConfirmation}
+          onError={report}
+          onPins={() => setIsPinsOpen(true)}
+          onReport={canReportCommunity ? startReportSelection : undefined}
+        />
+      )}
+    </>
+  );
+  const isSearchOpen = Boolean(conversation && searchConversationId === conversation.id);
+  const canOpenProfile = Boolean(session && (peerIdForProfile || isCommunity));
+  const header = (
+    <div ref={overlays.headerRef} className={surface.headerOverlay}>
+      <ChatHeaderFrame
+        title={conversationName}
+        subtitle={conversationStatus}
+        avatar={
+          selection && (
+            <ChatIdentityAvatar
+              name={conversationName}
+              conversation={conversation}
+              session={session}
+            />
+          )
+        }
+        actions={actions}
+        isSearchOpen={isSearchOpen}
+        searchButtonRef={searchButtonRef}
+        detailsLabel={`View ${conversationName} profile`}
+        onOpenDetails={canOpenProfile ? openConversationProfile : undefined}
+        backLabel="Back to conversations"
+        onBack={() => {
+          owner.cancelContactOpen();
+          onShowDirectory();
+        }}
+        search={
+          conversation && (
             <ConnectedConversationSearch
               owner={owner}
               conversation={conversation}
@@ -988,312 +1014,332 @@ export function ConnectedChat({
               user={user}
               onClose={() => setSearchConversationId(undefined)}
             />
+          )
+        }
+      />
+      {connectionLabel && (
+        <p className={styles.mobileConnection} role="status">
+          <LoaderCircle size={16} className={styles.connectionSpinner} aria-hidden="true" />
+          {connectionLabel}
+        </p>
+      )}
+      {hasCallActions && !calls && (
+        <p role="status" className={styles.callUnavailable}>
+          Calls are unavailable in this browser.
+        </p>
+      )}
+      {conversation && searchConversationId !== conversation.id && (
+        <PinnedMessages
+          key={`${conversation.id}:${conversation.generation}`}
+          owner={owner}
+          version={conversation.version}
+          isListOpen={isPinsOpen}
+          onOpen={() => setIsPinsOpen(true)}
+          onClose={() => setIsPinsOpen(false)}
+          onError={report}
+        />
+      )}
+      {(error || snapshot.error) && (
+        <p className={styles.error} role="alert">
+          {error || snapshot.error}
+        </p>
+      )}
+    </div>
+  );
+  const history = selection ? (
+    <div className={surface.historyPage} data-narrow-history>
+      {snapshot.isLoading && (
+        <div className={styles.historyLoading} role="status">
+          Loading messages…
+        </div>
+      )}
+      <ConnectedMediaContext.Provider value={mediaActions}>
+        <ContactLinkContext.Provider
+          value={session ? (id) => void openContactLink(id).catch(report) : undefined}
+        >
+          <MessageReadTimeScope session={session} isDirect={conversation?.kind === 'direct'}>
+            <MessageRetryContext.Provider value={retryPendingMessage}>
+              <MessageTimeline
+                key={selectedKey}
+                overlayInsets={overlays.insets}
+                messages={messages}
+                precedingMessage={
+                  snapshot.precedingMessage ? renderMessage(snapshot.precedingMessage) : undefined
+                }
+                shouldShowSender={conversation?.kind === 'group'}
+                allowedActions={allowedActions}
+                selectedIds={selectedIds}
+                canSelectMessage={
+                  isChoosingReportMessages
+                    ? (message) => reportableMessageIds.has(message.id)
+                    : undefined
+                }
+                onToggleSelection={toggleSelection}
+                onSetSelection={setMessageSelection}
+                reactionChoices={REACTIONS}
+                navigation={snapshot.navigation}
+                firstUnreadMessageId={snapshot.firstUnreadMessageId}
+                unreadCount={Number(conversation?.unread_count ?? 0)}
+                isMuted={isConversationMuted(conversation)}
+                latestRequest={latestSendRequest}
+                onReachMessage={(messageId) => {
+                  if (!isDirectoryVisible && !editing && !profilePeerId && !profileCommunityId) {
+                    void owner.markReached(messageId).catch(report);
+                  }
+                }}
+                remoteHistory={{
+                  hasOlder: snapshot.hasOlder,
+                  hasNewer: snapshot.hasNewer,
+                  isLoading: snapshot.isLoading,
+                  loadOlder: () => void owner.loadHistory('older'),
+                  loadNewer: () => void owner.loadHistory('newer'),
+                  jumpToLatest,
+                }}
+                searchQuery=""
+                onCommand={messageCommand}
+                onReact={react}
+                onInteract={interact}
+                onOpenMedia={() => undefined}
+                onRedial={canStartCall ? startCall : undefined}
+                onJumpToDate={jumpToDate}
+                onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+              />
+            </MessageRetryContext.Provider>
+          </MessageReadTimeScope>
+        </ContactLinkContext.Provider>
+      </ConnectedMediaContext.Provider>
+    </div>
+  ) : (
+    <div className={styles.empty}>Choose a conversation or find someone to message.</div>
+  );
+  const footer = (
+    <div
+      ref={overlays.footerRef}
+      className={surface.footerOverlay}
+      data-selecting={Boolean(selectedIds)}
+    >
+      {selection && (
+        <div className={surface.composerSlot} inert={Boolean(selectedIds)}>
+          <DraftRecovery
+            key={`recovery:${selectedKey}`}
+            local={snapshot.draft}
+            conflict={snapshot.draftConflict}
+            alternatives={snapshot.draftAlternatives}
+            onKeep={() => void owner.keepLocalDraft().catch(report)}
+            onRestore={(draft) => void owner.restoreDraft(draft).catch(report)}
+          />
+          <PendingConversationActions
+            commands={chatCommands}
+            messages={snapshot.messages}
+            onRetry={retryCommand}
+            onDismiss={dismissCommand}
+          />
+          {canPost &&
+            editing &&
+            snapshot.editConflict?.id === editing.id &&
+            snapshot.editConflict.version !== editVersion && (
+              <details className={styles.recovery}>
+                <summary className={styles.recoveryToggle}>Review conflicting edit</summary>
+                <div className={styles.recoveryPanel}>
+                  <p>Current message: {snapshot.editConflict.content.text}</p>
+                  <p>
+                    Your edit is still in the editor. Choose whether to save it over this version.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditVersion(snapshot.editConflict!.version)}
+                  >
+                    Keep my edit for next save
+                  </button>
+                  <button type="button" onClick={() => setEditing(undefined)}>
+                    Discard my edit
+                  </button>
+                </div>
+              </details>
+            )}
+          {shouldShowChannelMute && (
+            <button type="button" className={styles.channelMute} onClick={toggleChannelMute}>
+              {isChannelMuted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+              {isChannelMuted ? 'Unmute channel' : 'Mute channel for one day'}
+            </button>
           )}
-          {conversation && searchConversationId !== conversation.id && (
-            <PinnedMessages
-              key={`${conversation.id}:${conversation.generation}`}
-              owner={owner}
-              version={conversation.version}
-              isListOpen={isPinsOpen}
-              onOpen={() => setIsPinsOpen(true)}
-              onClose={() => setIsPinsOpen(false)}
-              onError={report}
+          {!canPost && !shouldShowChannelMute && (
+            <p role="status">You cannot post in this conversation.</p>
+          )}
+          {canPost && (
+            <MessageComposer
+              key={`composer:${selectedKey}`}
+              isTextOnly
+              canSendSticker
+              onShareContact={session ? () => setContactDestination(selectedKey) : undefined}
+              isPollAnonymousOnly={conversation?.kind === 'channel'}
+              onPollSubmit={queuePoll}
+              onChecklistSubmit={queueChecklist}
+              isMediaAvailable={isMediaAvailable}
+              onMediaSubmit={submit}
+              onLoadLinkPreview={session?.previewLink}
+              editingMessage={editingMessage}
+              replyMessage={replyMessage}
+              isDisabled={isPersisting || !snapshot.isReady || !canPost}
+              draft={snapshot.draft.value.text}
+              draftIdentity={snapshot.draft.id}
+              draftCustomEmoji={snapshot.draft.value.customEmoji}
+              draftRichText={snapshot.draft.value.richText}
+              onDraftChange={(value) => {
+                activity?.recordComposerChange({ isTyping: value.text.trim().length > 0 });
+                void owner.setDraft(value).catch(report);
+              }}
+              onSubmit={(message) => void submit(message)}
+              onCancelContext={() => {
+                setEditing(undefined);
+                void owner.setReply(undefined).catch(report);
+              }}
+              onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
+              onNotify={setError}
             />
           )}
-          {(error || snapshot.error) && (
-            <p className={styles.error} role="alert">
-              {error || snapshot.error}
-            </p>
-          )}
-          {selection ? (
-            <>
-              {selectedIds && (
-                <div
-                  className={styles.historyControls}
-                  data-chat-controls
-                  role="region"
-                  aria-label="Message selection"
-                >
-                  <button type="button" onClick={cancelMessageSelection}>
-                    Cancel selection
-                  </button>
-                  {isChoosingReportMessages && !selectedIds.length ? (
-                    <span>Select messages to report</span>
-                  ) : (
-                    <span>{selectedIds.length} selected</span>
-                  )}
-                  {(canReportSelection || isChoosingReportMessages) && (
-                    <button
-                      type="button"
-                      disabled={!canReportSelection}
-                      onClick={reportSelectedMessages}
-                    >
-                      Report selected messages
-                    </button>
-                  )}
-                  {!isChoosingReportMessages && canForward && (
-                    <button
-                      type="button"
-                      disabled={!selectedIds.length}
-                      onClick={() => setForwardIds(selectedIds)}
-                    >
-                      Forward selected messages
-                    </button>
-                  )}
-                  {!isChoosingReportMessages && (
-                    <button
-                      type="button"
-                      disabled={!selectedIds.length}
-                      onClick={confirmSelectedRemoval}
-                    >
-                      Delete selected messages
-                    </button>
-                  )}
-                </div>
-              )}
-              <div className={styles.historyPane}>
-                {snapshot.isLoading && (
-                  <div className={styles.historyLoading} role="status">
-                    Loading messages…
-                  </div>
-                )}
-                <ConnectedMediaContext.Provider value={mediaActions}>
-                  <ContactLinkContext.Provider
-                    value={session ? (id) => void openContactLink(id).catch(report) : undefined}
-                  >
-                    <MessageReadTimeScope
-                      session={session}
-                      isDirect={conversation?.kind === 'direct'}
-                    >
-                      <MessageRetryContext.Provider value={retryPendingMessage}>
-                        <MessageTimeline
-                          key={selectedKey}
-                          messages={messages}
-                          precedingMessage={
-                            snapshot.precedingMessage
-                              ? renderMessage(snapshot.precedingMessage)
-                              : undefined
-                          }
-                          shouldShowSender={conversation?.kind === 'group'}
-                          allowedActions={allowedActions}
-                          selectedIds={selectedIds}
-                          canSelectMessage={
-                            isChoosingReportMessages
-                              ? (message) => reportableMessageIds.has(message.id)
-                              : undefined
-                          }
-                          onToggleSelection={toggleSelection}
-                          onSetSelection={setMessageSelection}
-                          reactionChoices={REACTIONS}
-                          navigation={snapshot.navigation}
-                          firstUnreadMessageId={snapshot.firstUnreadMessageId}
-                          unreadCount={Number(conversation?.unread_count ?? 0)}
-                          isMuted={isConversationMuted(conversation)}
-                          latestRequest={latestSendRequest}
-                          onReachMessage={(messageId) => {
-                            if (
-                              !isDirectoryVisible &&
-                              !editing &&
-                              !profilePeerId &&
-                              !profileCommunityId
-                            ) {
-                              void owner.markReached(messageId).catch(report);
-                            }
-                          }}
-                          remoteHistory={{
-                            hasOlder: snapshot.hasOlder,
-                            hasNewer: snapshot.hasNewer,
-                            isLoading: snapshot.isLoading,
-                            loadOlder: () => void owner.loadHistory('older'),
-                            loadNewer: () => void owner.loadHistory('newer'),
-                            jumpToLatest,
-                          }}
-                          searchQuery=""
-                          onCommand={messageCommand}
-                          onReact={react}
-                          onInteract={interact}
-                          onOpenMedia={() => undefined}
-                          onRedial={canStartCall ? startCall : undefined}
-                          onJumpToDate={jumpToDate}
-                          onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-                        />
-                      </MessageRetryContext.Provider>
-                    </MessageReadTimeScope>
-                  </ContactLinkContext.Provider>
-                </ConnectedMediaContext.Provider>
-              </div>
-              <footer className={styles.composer} hidden={isChoosingReportMessages}>
-                <DraftRecovery
-                  key={`recovery:${selectedKey}`}
-                  local={snapshot.draft}
-                  conflict={snapshot.draftConflict}
-                  alternatives={snapshot.draftAlternatives}
-                  onKeep={() => void owner.keepLocalDraft().catch(report)}
-                  onRestore={(draft) => void owner.restoreDraft(draft).catch(report)}
-                />
-                <PendingConversationActions
-                  commands={chatCommands}
-                  messages={snapshot.messages}
-                  onRetry={retryCommand}
-                  onDismiss={dismissCommand}
-                />
-                {canPost &&
-                  editing &&
-                  snapshot.editConflict?.id === editing.id &&
-                  snapshot.editConflict.version !== editVersion && (
-                    <details className={styles.recovery}>
-                      <summary className={styles.recoveryToggle}>Review conflicting edit</summary>
-                      <div className={styles.recoveryPanel}>
-                        <p>Current message: {snapshot.editConflict.content.text}</p>
-                        <p>
-                          Your edit is still in the editor. Choose whether to save it over this
-                          version.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setEditVersion(snapshot.editConflict!.version)}
-                        >
-                          Keep my edit for next save
-                        </button>
-                        <button type="button" onClick={() => setEditing(undefined)}>
-                          Discard my edit
-                        </button>
-                      </div>
-                    </details>
-                  )}
-                {shouldShowChannelMute && (
-                  <button type="button" className={styles.channelMute} onClick={toggleChannelMute}>
-                    {isChannelMuted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
-                    {isChannelMuted ? 'Unmute channel' : 'Mute channel for one day'}
-                  </button>
-                )}
-                {!canPost && !shouldShowChannelMute && (
-                  <p role="status">You cannot post in this conversation.</p>
-                )}
-                {canPost && (
-                  <MessageComposer
-                    key={`composer:${selectedKey}`}
-                    isTextOnly
-                    canSendSticker
-                    onShareContact={session ? () => setContactDestination(selectedKey) : undefined}
-                    isPollAnonymousOnly={conversation?.kind === 'channel'}
-                    onPollSubmit={queuePoll}
-                    onChecklistSubmit={queueChecklist}
-                    isMediaAvailable={isMediaAvailable}
-                    onMediaSubmit={submit}
-                    onLoadLinkPreview={session?.previewLink}
-                    editingMessage={editingMessage}
-                    replyMessage={replyMessage}
-                    isDisabled={isPersisting || !snapshot.isReady || !canPost}
-                    draft={snapshot.draft.value.text}
-                    draftIdentity={snapshot.draft.id}
-                    draftCustomEmoji={snapshot.draft.value.customEmoji}
-                    draftRichText={snapshot.draft.value.richText}
-                    onDraftChange={(value) => {
-                      activity?.recordComposerChange({ isTyping: value.text.trim().length > 0 });
-                      void owner.setDraft(value).catch(report);
-                    }}
-                    onSubmit={(message) => void submit(message)}
-                    onCancelContext={() => {
-                      setEditing(undefined);
-                      void owner.setReply(undefined).catch(report);
-                    }}
-                    onJumpToMessage={(id) => void owner.jumpToMessage(id).catch(report)}
-                    onNotify={setError}
-                  />
-                )}
-              </footer>
-            </>
-          ) : (
-            <div className={styles.empty}>Choose a conversation or find someone to message.</div>
-          )}
-        </section>
-        {session && isCommunity && profileCommunityId === conversation.id && (
-          <CommunityProfile
-            key={`${conversation.id}:${conversation.generation}`}
-            session={session}
-            chat={owner}
-            id={conversation.id}
-            isAvatarAvailable={isAvatarAvailable}
-            onClose={() => setProfileCommunityId(undefined)}
-          />
-        )}
-        {session && profilePeerId && profilePeerId === peerIdForProfile && (
-          <ConnectedPeerProfile
-            key={profilePeerId}
-            session={session}
-            peerId={profilePeerId}
-            title={conversationName}
-            onClose={() => setProfilePeerId(undefined)}
-          />
-        )}
-        {session && contactDestination === selectedKey && (
-          <ShareContactDialog
-            key={contactDestination}
-            session={session}
-            onClose={() => setContactDestination(undefined)}
-            onSubmit={queueContact}
-          />
-        )}
-        {reportedMessageIds && session && (
-          <ReportMessageDialog
-            key={reportedMessageIds.join(':')}
-            session={session}
-            messageIds={reportedMessageIds}
-            onComplete={cancelMessageSelection}
-            onClose={() => setReportedMessageIds(undefined)}
-          />
-        )}
-        {forwardIds && (
-          <ForwardMessageDialog
-            conversations={snapshot.conversations
-              .filter((entry) => entry.can_post)
-              .map(pickerConversation)}
-            onClose={() => setForwardIds(undefined)}
-            onChooseRecipient={(recipient) => {
-              void forwardTo({ recipients: [recipient], caption: '' }).catch(report);
-            }}
-            onSend={forwardTo}
-          />
-        )}
-        {pollEditor && canShowPollEditor && canPost && (
-          <ComposerListDialog
-            key={pollEditor.messageId}
-            kind="poll"
-            isConnected
-            isPollAnonymousOnly={conversation?.kind === 'channel'}
-            initialPoll={pollEditor.initialPoll}
-            onClose={() => setPollEditor(undefined)}
-            onSubmit={savePoll}
-          />
-        )}
-        {checklistEditor && canShowChecklistEditor && (
-          <ComposerListDialog
-            key={checklistEditor.messageId}
-            kind="checklist"
-            isConnected
-            initialChecklist={checklistEditor.initialChecklist}
-            onClose={() => setChecklistEditor(undefined)}
-            onSubmit={saveChecklist}
-          />
-        )}
-        {voterMessageId && canViewVoters && (
-          <PollVotersDialog
-            key={`${conversation?.generation}:${voterMessageId}`}
-            owner={owner}
-            session={session}
-            messageId={voterMessageId}
-            poll={voterPoll}
-            onClose={() => setVoterMessageId(undefined)}
-          />
-        )}
-        <ActionConfirmation
-          confirmation={confirmation}
-          isBusy={isPersisting}
-          onCancel={() => setConfirmation(undefined)}
-          onChoose={(action) => void confirm(action)}
+        </div>
+      )}
+      {selectedIds && (
+        <MessageSelectionToolbar
+          count={selectedIds.length}
+          isSelecting
+          isChoosingReport={isChoosingReportMessages}
+          canReport={canReportSelection}
+          onCancel={cancelMessageSelection}
+          onDelete={isChoosingReportMessages ? undefined : confirmSelectedRemoval}
+          onForward={
+            !isChoosingReportMessages && canForward ? () => setForwardIds(selectedIds) : undefined
+          }
+          onReport={
+            canReportSelection || isChoosingReportMessages ? reportSelectedMessages : undefined
+          }
         />
-      </main>
+      )}
+    </div>
+  );
+
+  return (
+    <CurrentUserProvider value={user.id}>
+      <div className={styles.workspace}>
+        <ChatLayout
+          messageTextSize={textSize}
+          isDetailsOpen={false}
+          isMobileChatOpen={!isDirectoryVisible && !accountPage}
+          background={<ChatWallpaper variant={variant} choice={choice} />}
+          sidebar={sidebar}
+          conversation={
+            <main
+              ref={overlays.containerRef}
+              className={`${surface.conversation} ${styles.chat}`}
+              aria-label="Chat"
+              onKeyDown={(event) => {
+                if (event.key !== 'Escape' || event.defaultPrevented) {
+                  return;
+                }
+                if (isPinsOpen) {
+                  event.preventDefault();
+                  setIsPinsOpen(false);
+                } else if (selectedIds) {
+                  event.preventDefault();
+                  cancelMessageSelection();
+                }
+              }}
+            >
+              {header}
+              {history}
+              {footer}
+            </main>
+          }
+          details={null}
+        >
+          {session && isCommunity && profileCommunityId === conversation.id && (
+            <CommunityProfile
+              key={`${conversation.id}:${conversation.generation}`}
+              session={session}
+              chat={owner}
+              id={conversation.id}
+              isAvatarAvailable={isAvatarAvailable}
+              onClose={() => setProfileCommunityId(undefined)}
+            />
+          )}
+          {session && profilePeerId && profilePeerId === peerIdForProfile && (
+            <ConnectedPeerProfile
+              key={profilePeerId}
+              session={session}
+              peerId={profilePeerId}
+              title={conversationName}
+              onClose={() => setProfilePeerId(undefined)}
+            />
+          )}
+          {session && contactDestination === selectedKey && (
+            <ShareContactDialog
+              key={contactDestination}
+              session={session}
+              onClose={() => setContactDestination(undefined)}
+              onSubmit={queueContact}
+            />
+          )}
+          {reportedMessageIds && session && (
+            <ReportMessageDialog
+              key={reportedMessageIds.join(':')}
+              session={session}
+              messageIds={reportedMessageIds}
+              onComplete={cancelMessageSelection}
+              onClose={() => setReportedMessageIds(undefined)}
+            />
+          )}
+          {forwardIds && (
+            <ForwardMessageDialog
+              conversations={snapshot.conversations
+                .filter((entry) => entry.can_post)
+                .map(pickerConversation)}
+              onClose={() => setForwardIds(undefined)}
+              onChooseRecipient={(recipient) => {
+                void forwardTo({ recipients: [recipient], caption: '' }).catch(report);
+              }}
+              onSend={forwardTo}
+            />
+          )}
+          {pollEditor && canShowPollEditor && canPost && (
+            <ComposerListDialog
+              key={pollEditor.messageId}
+              kind="poll"
+              isConnected
+              isPollAnonymousOnly={conversation?.kind === 'channel'}
+              initialPoll={pollEditor.initialPoll}
+              onClose={() => setPollEditor(undefined)}
+              onSubmit={savePoll}
+            />
+          )}
+          {checklistEditor && canShowChecklistEditor && (
+            <ComposerListDialog
+              key={checklistEditor.messageId}
+              kind="checklist"
+              isConnected
+              initialChecklist={checklistEditor.initialChecklist}
+              onClose={() => setChecklistEditor(undefined)}
+              onSubmit={saveChecklist}
+            />
+          )}
+          {voterMessageId && canViewVoters && (
+            <PollVotersDialog
+              key={`${conversation?.generation}:${voterMessageId}`}
+              owner={owner}
+              session={session}
+              messageId={voterMessageId}
+              poll={voterPoll}
+              onClose={() => setVoterMessageId(undefined)}
+            />
+          )}
+          <ActionConfirmation
+            confirmation={confirmation}
+            isBusy={isPersisting}
+            onCancel={() => setConfirmation(undefined)}
+            onChoose={(action) => void confirm(action)}
+          />
+        </ChatLayout>
+      </div>
     </CurrentUserProvider>
   );
 }

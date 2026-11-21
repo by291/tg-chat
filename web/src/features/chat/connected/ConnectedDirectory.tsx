@@ -29,7 +29,6 @@ interface ConnectedDirectoryProps {
   connectionLabel?: string;
   outbox: ChatSnapshot['pending'];
   isVisible: boolean;
-  isHidden: boolean;
   onOpen: (conversation: Conversation) => void;
   onOpenMessage: (input: { conversation: Conversation; messageId: string }) => Promise<void>;
   onOpenPending: () => void;
@@ -63,7 +62,6 @@ export function ConnectedDirectory({
   connectionLabel,
   outbox,
   isVisible,
-  isHidden,
   onOpen,
   onOpenMessage,
   onOpenPending,
@@ -151,8 +149,6 @@ export function ConnectedDirectory({
     <aside
       className={styles.directory}
       aria-label="Conversations"
-      hidden={isHidden}
-      data-visible={isVisible}
       data-directory-panel
       data-chat-controls
     >
