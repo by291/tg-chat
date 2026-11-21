@@ -270,7 +270,7 @@ services:
 
   mailpit:
     profiles: [mail]
-    image: axllent/mailpit:v1.33.1
+    image: axllent/mailpit:v1.34.0
     ports:
       - '127.0.0.1:${TG_CHAT_MAILPIT_PORT:-8025}:8025'
     healthcheck:
